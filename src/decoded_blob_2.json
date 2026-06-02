@@ -1,0 +1,119 @@
+{
+  "name": "betarabia",
+  "theme": "betarabia",
+  "dateFormat": "YYYY-MM-DD",
+  "gtmId": "GTM-MJ68M9WT",
+  "gtId": "G-PXPRTT9DDG",
+  "componentSettings": {
+    "modals": {
+      "loginModal": true
+    },
+    "login": {
+      "noLoginOnRegistrationId": true
+    },
+    "hooks": {
+      "fingerprint": false
+    },
+    "v2Auth": "wss://ws.betarabia.com",
+    "logger": {
+      "console": false,
+      "sentry": false,
+      "urlHygiene": false
+    },
+    "useAlertMessages": true,
+    "imageCdn": true,
+    "mobileAppLinks": {
+      "android": [
+        "download_link_mobile_app_android"
+      ],
+      "ios": [
+        "download_link_mobile_app_ios",
+        "download_link_mobile_app_ios_2"
+      ]
+    },
+    "externalTokenAuth": true,
+    "priorityProviders": [
+      "pragmatic-play",
+      "pragmatic-live",
+      "amusnet",
+      "amusnet_live",
+      "popok",
+      "popok_live"
+    ],
+    "testUserOnlyGameIds": [],
+    "predictionSettings": {
+      "inputNumberMax": 200,
+      "inputNumberMin": 0
+    },
+    "allowAllCookies": true,
+    "useBalancesEndpoint": true,
+    "useV2Balances": true,
+    "registrationConfigurationId": 11
+  },
+  "casino": {
+    "liveCategories": false,
+    "ratings": false,
+    "combinedProviders": true,
+    "favouriteGames": true,
+    "oneCategoriesEndpoint": true
+  },
+  "betGames": {
+    "clientUrl": "https://webiframe.betgames.tv",
+    "apiUrl": "https://game.betgames.tv"
+  },
+  "affiliateParams": [
+    "btag"
+  ],
+  "kickerTechSb": {
+    "id": 88,
+    "bundle": "https://pre-88o-sp.websbkt.com/js/sbwrp.js",
+    "format": "eu"
+  },
+  "ladesk": {
+    "id": "la_x2s6df8d",
+    "src": "https://betarabia.ladesk.com/scripts/track.js",
+    "type": {
+      "liveChat": {
+        "en": "e8pzf77a"
+      }
+    }
+  },
+  "apiUrl": "https://fe-api.betarabia.com",
+  "hideDefaultLocaleUrl": false,
+  "services": {
+    "seon": true
+  },
+  "logoImg": "main-logo-animated.webp",
+  "cacheKeyId": "1780410768",
+  "initHead": {
+    "title": "betArabia",
+    "description": "",
+    "keywords": "",
+    "image": "https://www.betarabia.com/assets/images/logo/main-logo.svg",
+    "canonical": "https://www.betarabia.com/en/sports/football",
+    "alternate": [
+      {
+        "href": "https://www.betarabia.com/en/sports/football",
+        "hrefLang": "en"
+      },
+      {
+        "href": "https://www.betarabia.com/en/sports/football",
+        "hrefLang": "x-default"
+      },
+      {
+        "href": "https://www.betarabia.com/ar/sports/football",
+        "hrefLang": "ar"
+      },
+      {
+        "href": "https://www.betarabia.com/fr/sports/football",
+        "hrefLang": "fr"
+      }
+    ],
+    "body": {},
+    "url": "https://www.betarabia.com/en/sports/football",
+    "pathname": "/en/sports/football",
+    "themeColor": "#000541"
+  },
+  "noHeaderFooter": false,
+  "ssr": true
+}

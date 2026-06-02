@@ -1,0 +1,8 @@
+aiohttp
+python-dotenv
+pandas
+requests
+schedule
+betfairlightweight
+websockets
+matplotlib
