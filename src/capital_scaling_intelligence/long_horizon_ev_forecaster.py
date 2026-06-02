@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -16,11 +17,19 @@ class LongHorizonEVForecaster:
         Projects EV over a long horizon.
         If we scale too fast (high velocity), liquidity constraints and bookmaker 
         defenses will aggressively decay the edge.
+        W5 FIX: Uses exponential decay with quadratic penalty instead of linear.
         """
-        # Penalty for scaling pressure: High velocity destroys EV
-        scaling_decay_penalty = max(0.0, scaling_velocity * 0.5) 
+        if current_ev <= 0:
+            return current_ev
+
+        # Penalty for scaling pressure: Exponential decay based on squared velocity
+        # Beta is a sensitivity parameter. Higher beta = steeper decay.
+        beta = 100.0
         
-        projected_ev = current_ev - scaling_decay_penalty
+        # We only penalize positive scaling velocity (growth). Shrinking doesn't decay edge.
+        velocity_penalty = max(0.0, scaling_velocity)
+        
+        projected_ev = current_ev * math.exp(-beta * (velocity_penalty ** 2))
         
         logger.debug(f"[EV FORECASTER] Current EV: {current_ev:.3f} | Projected EV (under scaling): {projected_ev:.3f}")
         return projected_ev
