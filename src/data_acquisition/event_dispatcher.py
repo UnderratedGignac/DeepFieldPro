@@ -28,13 +28,36 @@ class EventDispatcher:
     def __init__(self):
         pass
 
-    async def trigger_pricing_pipeline(self, fixture_id: str):
+    async def trigger_pricing_pipeline(self, fixture_id: str, lineup_payload: Dict[str, Any] = None):
         """
         Calls the main model_runner pipeline.
+        Runs it in a separate thread so we don't block the asyncio event loop.
         """
         logger.info(f"Triggering downstream pricing engine for {fixture_id}...")
-        # TODO: Import and call model_runner.py's run_for_match async or via subprocess
-        pass
+        try:
+            from src.model_runner import run_for_match
+            
+            # Extract opponent team from match metadata if available
+            opponent_team = "Unknown"
+            if lineup_payload and 'match_metadata' in lineup_payload:
+                opponent_team = lineup_payload['match_metadata'].get('opponent_team', "Unknown")
+            elif lineup_payload and 'opponent' in lineup_payload:
+                opponent_team = lineup_payload.get('opponent', "Unknown")
+                
+            # Current time for lineup_drop_at
+            from datetime import datetime, timezone
+            drop_time = datetime.now(timezone.utc).isoformat()
+            
+            # Run the heavy CPU-bound model logic in a thread
+            loop = asyncio.get_running_loop()
+            bets = await loop.run_in_executor(
+                None, 
+                run_for_match, 
+                fixture_id, opponent_team, drop_time, 0, [], 'lineup_adjustment_window'
+            )
+            logger.info(f"Pipeline completed for {fixture_id}. {len(bets)} bets placed.")
+        except Exception as e:
+            logger.error(f"Error executing pricing pipeline: {e}")
 
     async def handle_lineups_confirmed(self, lineup_payload: Dict[str, Any], source: str = "unknown"):
         """
@@ -99,6 +122,6 @@ class EventDispatcher:
                 logger.error(f"Failed during odds dispatch: {e}")
                 
             # Trigger Pricing Pipeline Recalculation
-            await self.trigger_pricing_pipeline(fixture_id)
+            await self.trigger_pricing_pipeline(fixture_id, lineup_payload)
 
 event_dispatcher = EventDispatcher()

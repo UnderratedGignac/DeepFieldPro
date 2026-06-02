@@ -45,9 +45,26 @@ class MarketEdgeEngine:
             return {"has_edge": False, "ev": raw_ev}
             
         # Confidence-Weighted Pricing (Phase 4)
-        # We penalize the edge if the lineup is unconfirmed or leaked from a bad source
-        market_integrity_score = 0.95 # Mock penalty for Betarabia liquidity
-        execution_confidence = 0.98 # Mock penalty for slippage
+        # We penalize the edge if the lineup is unconfirmed, execution latency is high, or liquidity is poor.
+        market_integrity_score = 1.0 # Base integrity
+        
+        # Get actual execution friction estimate (slippage proxy)
+        try:
+            from src.research.real_world_validation.execution_friction_analyzer import friction_analyzer
+            execution_confidence = 1.0 - friction_analyzer.get_expected_slippage(odds_event.market_type)
+        except Exception:
+            execution_confidence = 0.98 # Fallback if module unavailable
+
+        # Get actual liquidity impact penalty
+        try:
+            from src.portfolio_optimization.liquidity_impact_model import liquidity_model
+            # Default bet size 100 for evaluation
+            liquidity_penalty = liquidity_model.calculate_liquidity_penalty(100.0, odds_event.market_type)
+            market_integrity_score -= liquidity_penalty
+        except Exception:
+            pass
+        
+        market_integrity_score = max(0.5, market_integrity_score)
         
         adjusted_ev = raw_ev * lineup_confidence * market_integrity_score * execution_confidence
         

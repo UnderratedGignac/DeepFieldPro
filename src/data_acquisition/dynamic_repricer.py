@@ -44,18 +44,27 @@ class DynamicRepricingEngine:
             canonical_pos = player.get("canonical_position")
             
             # 1. Fetch raw base model outputs (Poisson Lambdas, Quantiles)
-            # raw_stats = get_base_predictions(norm_name)
-            raw_stats = {"shots": 1.5, "offsides": 0.5, "goals": 0.2, "tackles": 1.2} # Mock
+            # Fetch from historical DB instead of mock
+            from src.model_runner import get_player_historical_stats
+            stats = get_player_historical_stats(norm_name)
+            if stats is None:
+                continue
+                
+            raw_stats = {
+                "shots": stats.get("Shots", 1.5), 
+                "offsides": stats.get("Offsides", 0.5), 
+                "goals": stats.get("Goals", 0.2), 
+                "tackles": stats.get("Tackles Won", 1.2)
+            }
             
             # 2. Apply Tactical Adjustment Layer (Formation Impact)
             multipliers = formation_impact_engine.get_multipliers(formation, canonical_pos)
             
             adjusted_stats = {}
             for stat, base_val in raw_stats.items():
-                adjusted_stats[stat] = base_val * multipliers.get(stat, 1.0)
+                adjusted_stats[stat] = float(base_val) * multipliers.get(stat, 1.0)
                 
-            # 3. Convert expected stats into market probabilities (Poisson/NegBinom)
-            # This is where the heavy math from pricing_engine.py goes
+            # 3. Convert expected stats into market probabilities
             fair_probs = self._calculate_market_probs(adjusted_stats)
             
             # 4. Store in cache
@@ -72,10 +81,22 @@ class DynamicRepricingEngine:
         """
         Transforms expected raw stats into exact market probabilities.
         """
-        # Mock logic representing Poisson survival function / Negative Binomial CDF
+        import math
+        from src.model_runner import poisson_prob_ge
+        
+        # Real logic: Poisson survival function
+        lam_goals = adjusted_stats.get("goals", 0.0)
+        lam_shots = adjusted_stats.get("shots", 0.0)
+        
+        # Anytime goal is P(X >= 1)
+        anytime_goal_prob = 1.0 - math.exp(-lam_goals) if lam_goals > 0 else 0.0
+        
+        # Over 1.5 shots is P(X >= 2)
+        shots_over_1_5 = poisson_prob_ge(lam_shots, 2)
+        
         return {
-            "player_goal_anytime": min(0.99, adjusted_stats.get("goals", 0) * 0.8),
-            "player_shots_ou": min(0.99, adjusted_stats.get("shots", 0) * 0.5)
+            "player_goal_anytime": anytime_goal_prob,
+            "player_shots_ou": shots_over_1_5
         }
 
     def get_fair_probability(self, fixture_id: str, market: str, normalized_name: str) -> float:

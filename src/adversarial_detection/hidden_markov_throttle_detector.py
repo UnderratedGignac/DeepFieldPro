@@ -10,13 +10,19 @@ class HiddenMarkovThrottleDetector:
     Hidden states: [GREEN (Normal), YELLOW (Scrutinized), RED (Throttled)]
     """
     def __init__(self):
-        # State transition matrix (Mocked for architecture demo)
         # States: 0=GREEN, 1=YELLOW, 2=RED
-        self.transition_matrix = np.array([
-            [0.90, 0.09, 0.01], # From GREEN
-            [0.10, 0.70, 0.20], # From YELLOW
-            [0.01, 0.20, 0.79]  # From RED
-        ])
+        try:
+            # Try to fetch empirically mined transition matrix from warehouse
+            from src.telemetry_warehouse.adversarial_pattern_miner import pattern_miner
+            self.transition_matrix = pattern_miner.get_state_transition_matrix()
+            logger.info("[HMM ADVERSARIAL] Successfully loaded empirical state transition matrix.")
+        except Exception:
+            logger.warning("[HMM ADVERSARIAL] Pattern miner unavailable. Falling back to default transition matrix.")
+            self.transition_matrix = np.array([
+                [0.90, 0.09, 0.01], # From GREEN
+                [0.10, 0.70, 0.20], # From YELLOW
+                [0.01, 0.20, 0.79]  # From RED
+            ])
         
         # Current belief state (Probability distribution over states)
         self.belief = np.array([1.0, 0.0, 0.0]) # Start 100% in GREEN
