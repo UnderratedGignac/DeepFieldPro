@@ -1,192 +1,99 @@
-# -*- coding: utf-8 -*-
-"""
-calibration_trainer.py — DeepFieldPro Platt Scaling Trainer
-============================================================
-Fits a logistic regression calibrator to correct residual probability
-mis-calibration after LightGBM predictions.
-
-NAMING CONVENTIONS:
-- Parameters: ProperCase suffix _P
-- Variables:  ProperCase suffix _V
-- Comments: single line, max 1 line
-"""
-
 import os
-import pickle
-import numpy as np
+import sys
 import pandas as pd
+import numpy as np
 from sklearn.linear_model import LogisticRegression
-from datetime import datetime, timezone
+import pickle
+import math
+import logging
 
+sys.path.insert(0, os.path.dirname(__file__))
+from model_runner import load_models, build_feature_vector, get_player_historical_stats
 
-MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
-DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
-PLATT_SCALER_PATH = os.path.join(MODEL_DIR, 'platt_scaler_sot.pkl')
-BACKTEST_CSV = os.path.join(DATA_DIR, 'backtest_results.csv')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+logger = logging.getLogger(__name__)
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MATCH_LOGS_CSV = os.path.join(BASE_DIR, "data", "world_cup_players_match_logs.csv")
+MODEL_DIR = os.path.join(BASE_DIR, "models")
 
-def load_backtest_data():
-    """Load backtest results with predicted probs and actual outcomes."""
-    if not os.path.exists(BACKTEST_CSV):
-        print(f"ERROR: Backtest file not found: {BACKTEST_CSV}")
-        return None
-    df = pd.read_csv(BACKTEST_CSV)
-    return df
-
-
-def train_platt_scaler(df):
-    """
-    Fit LogisticRegression on raw LightGBM probabilities.
+def train_platt_scaler(num_slates=30):
+    logger.info("Rebuilding backtest results for Platt scaler training...")
+    df = pd.read_csv(MATCH_LOGS_CSV)
+    models = load_models()
     
-    X = raw predicted probability (shape: n, 1)
-    y = actual binary outcome (1=event occurred, 0=did not)
-    """
-    if 'pred_prob_sot' not in df.columns or 'actual_sot_over_0_5' not in df.columns:
-        print("ERROR: Required columns not in dataset")
-        return None
+    unique_games = df['game_id_'].dropna().unique()
+    games_to_test = unique_games[:num_slates]
     
-    valid_df = df.dropna(subset=['pred_prob_sot', 'actual_sot_over_0_5'])
+    results = []
     
-    if len(valid_df) < 50:
-        print(f"ERROR: Insufficient samples ({len(valid_df)}). Need at least 50.")
-        return None
+    for game_id in games_to_test:
+        game_logs = df[df['game_id_'] == game_id]
+        
+        for _, row in game_logs.iterrows():
+            player_name = row['player_']
+            actual_sot = float(row.get('Performance_SoT', 0) if pd.notna(row.get('Performance_SoT')) else 0)
+            
+            stats = get_player_historical_stats(player_name, FallbackPosition_P="FW", FallbackLeague_P="International")
+            if stats is None:
+                continue
+                
+            opp_profile = {'ppda': 12.0, 'opp_possession_allowed': 50.0}
+            features = build_feature_vector(stats, opp_profile)
+            
+            MINUTES_FEATURES = ['Age', 'Starts', 'Percentage of Minutes Played', 'Mn/Start', 'Mn/MP', 'PPM', 'ppda', 'opp_possession_allowed', 'sample_weight']
+            PASSES_FEATURES = ['Age', 'Position_encoded', 'Minutes Played', 'Mn/Start', 'Percentage of Minutes Played', 'Crs', 'Interceptions', 'Tackles Won', 'ppda', 'opp_possession_allowed', 'sample_weight']
+            
+            X_minutes = pd.DataFrame([features], columns=MINUTES_FEATURES)
+            X_passes = pd.DataFrame([features], columns=PASSES_FEATURES)
+            
+            try:
+                MinP50_V = float(models['min_p50'].predict(X_minutes)[0])
+                SotMean_V = float(models['sot_intl'].predict(X_passes)[0])
+                
+                IntlPpdaNorm_V = opp_profile['ppda'] / 9.5
+                IntlMinutesFactor_V = 0.88
+                ExpectedMinutes_V = MinP50_V * IntlMinutesFactor_V
+                
+                LamSot_V = max(0.001, (SotMean_V / 90.0) * ExpectedMinutes_V * IntlPpdaNorm_V)
+                RawProb_V = 1.0 - math.exp(-LamSot_V)
+                
+                hit = 1 if actual_sot >= 0.5 else 0
+                
+                results.append({
+                    'raw_prob': RawProb_V,
+                    'actual_hit': hit
+                })
+            except Exception as e:
+                continue
+                
+    res_df = pd.DataFrame(results)
     
-    RawProb_V = valid_df['pred_prob_sot'].values.reshape(-1, 1)
-    ActualOutcome_V = valid_df['actual_sot_over_0_5'].values
+    X = res_df[['raw_prob']].values
+    y = res_df['actual_hit'].values
     
-    print(f"Training Platt scaler on {len(valid_df)} samples...")
-    print(f"  Positive outcomes: {sum(ActualOutcome_V)} ({sum(ActualOutcome_V)/len(ActualOutcome_V)*100:.1f}%)")
-    print(f"  Negative outcomes: {len(ActualOutcome_V) - sum(ActualOutcome_V)}")
+    logger.info(f"Training Platt scaler on {len(X)} samples...")
+    scaler = LogisticRegression(C=1.0)
+    scaler.fit(X, y)
     
-    # Fit logistic regression with C=1.0 as specified
-    Calibrator_P = LogisticRegression(C=1.0, solver='lbfgs', max_iter=1000)
-    Calibrator_P.fit(RawProb_V, ActualOutcome_V)
+    out_path = os.path.join(MODEL_DIR, 'platt_scaler_sot.pkl')
+    with open(out_path, 'wb') as f:
+        pickle.dump(scaler, f)
+        
+    logger.info(f"Platt scaler saved to {out_path}")
     
-    # Evaluate calibration improvement
-    RawBrier_V = np.mean((valid_df['pred_prob_sot'] - ActualOutcome_V) ** 2)
-    CalibratedProb_V = Calibrator_P.predict_proba(RawProb_V)[:, 1]
-    CalibratedBrier_V = np.mean((CalibratedProb_V - ActualOutcome_V) ** 2)
+    # Calculate before/after Brier
+    brier_before = ((res_df['raw_prob'] - res_df['actual_hit']) ** 2).mean()
+    calibrated_probs = scaler.predict_proba(X)[:, 1]
+    brier_after = ((calibrated_probs - res_df['actual_hit']) ** 2).mean()
     
-    print(f"\nCalibration Results:")
-    print(f"  Raw Brier Score:      {RawBrier_V:.4f}")
-    print(f"  Calibrated Brier:     {CalibratedBrier_V:.4f}")
-    print(f"  Improvement:          {(RawBrier_V - CalibratedBrier_V)*100:.2f}%")
-    
-    return Calibrator_P
-
-
-def save_platt_scaler(calibrator):
-    """Save fitted calibrator to disk."""
-    if not os.path.exists(MODEL_DIR):
-        os.makedirs(MODEL_DIR)
-    
-    with open(PLATT_SCALER_PATH, 'wb') as f:
-        pickle.dump(calibrator, f)
-    
-    print(f"\n[OK] Saved Platt scaler to: {PLATT_SCALER_PATH}")
-
-
-def load_platt_scaler():
-    """Load existing Platt scaler from disk."""
-    if not os.path.exists(PLATT_SCALER_PATH):
-        print(f"WARN: Platt scaler not found at {PLATT_SCALER_PATH}")
-        return None
-    
-    with open(PLATT_SCALER_PATH, 'rb') as f:
-        calibrator = pickle.load(f)
-    
-    print(f"[OK] Loaded Platt scaler from: {PLATT_SCALER_PATH}")
-    return calibrator
-
-
-def apply_platt_scaling(raw_prob, calibrator):
-    """
-    Apply Platt scaling to a raw probability.
-    Returns calibrated probability and confidence flag.
-    """
-    if calibrator is None:
-        return raw_prob, False
-    
-    RawProb_V = np.array([[raw_prob]])
-    CalibratedProb_V = float(calibrator.predict_proba(RawProb_V)[0][1])
-    
-    # Confidence bounds check
-    LowConfidenceFlag_V = CalibratedProb_V < 0.10 or CalibratedProb_V > 0.90
-    
-    return CalibratedProb_V, LowConfidenceFlag_V
-
-
-def test_platt_scaler(calibrator):
-    """Test scaler with random values to verify bounds."""
-    print("\nTesting Platt scaler bounds...")
-    np.random.seed(42)
-    test_probs = np.random.uniform(0.0, 1.0, 100)
-    
-    out_of_bounds = 0
-    for prob in test_probs:
-        calibrated, low_conf = apply_platt_scaling(prob, calibrator)
-        if calibrated < 0.10 or calibrated > 0.90:
-            if not low_conf:
-                out_of_bounds += 1
-                print(f"  WARN: {prob:.3f} -> {calibrated:.3f} (out of bounds, no flag)")
-    
-    if out_of_bounds == 0:
-        print(f"  [OK] All 100 test values within [0.10, 0.90] or properly flagged")
-    else:
-        print(f"  [FAIL] {out_of_bounds} values out of bounds without flag")
-    
-    return out_of_bounds == 0
-
-
-def main():
-    """Main training pipeline."""
-    print("="*60)
-    print("DeepFieldPro Platt Scaling Trainer")
-    print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
-    print("="*60)
-    
-    # Load data
-    df = load_backtest_data()
-    if df is None:
-        print("\nNo backtest data available. Creating synthetic demo data...")
-        df = generate_synthetic_calibration_data()
-    
-    # Train calibrator
-    calibrator = train_platt_scaler(df)
-    if calibrator is None:
-        print("ERROR: Training failed")
-        return None
-    
-    # Save calibrator
-    save_platt_scaler(calibrator)
-    
-    # Test bounds
-    test_platt_scaler(calibrator)
-    
-    print("\n" + "="*60)
-    print("Platt scaler training complete!")
-    print("="*60)
-    
-    return calibrator
-
-
-def generate_synthetic_calibration_data():
-    """Generate synthetic calibration data for testing."""
-    np.random.seed(42)
-    n_samples = 829
-    
-    # Simulate overconfident predictions (like club model on international)
-    raw_probs = np.random.beta(2, 3, n_samples) * 0.8 + 0.1  # 0.1-0.7 range
-    # Actual outcomes are lower than predicted (overconfidence)
-    actual_outcomes = np.random.binomial(1, raw_probs * 0.6, n_samples)
-    
-    df = pd.DataFrame({
-        'pred_prob_sot': raw_probs,
-        'actual_sot_over_0_5': actual_outcomes
-    })
-    
-    return df
-
+    print("\n" + "="*50)
+    print("=== PLATT SCALING CALIBRATION SUMMARY ===")
+    print("="*50)
+    print(f"Samples Processed: {len(X)}")
+    print(f"Brier Score (Before): {brier_before:.4f}")
+    print(f"Brier Score (After):  {brier_after:.4f}")
+    print("="*50)
 
 if __name__ == "__main__":
-    main()
+    train_platt_scaler()

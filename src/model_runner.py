@@ -20,32 +20,38 @@ DB_LINEUPS  = os.path.join(DATA_DIR, 'parsed_lineups.db')
 PLAYER_CSV  = 'C:/Users/Elie/data/csv/FULL_PLAYER_DATABASE_2026.csv'
 
 def load_models():
-    models = {}
-    models['start_clf']   = lgb.Booster(model_file=f'{MODEL_DIR}/minutes_start_classifier.txt')
-    models['min_p10']     = lgb.Booster(model_file=f'{MODEL_DIR}/minutes_p10_regressor.txt')
-    models['min_p50']     = lgb.Booster(model_file=f'{MODEL_DIR}/minutes_p50_regressor.txt')
-    models['min_p90']     = lgb.Booster(model_file=f'{MODEL_DIR}/minutes_p90_regressor.txt')
-
-    models['pass_p10']    = lgb.Booster(model_file=f'{MODEL_DIR}/passes_p10.txt')
-    models['pass_p50']    = lgb.Booster(model_file=f'{MODEL_DIR}/passes_p50.txt')
-    models['pass_p90']    = lgb.Booster(model_file=f'{MODEL_DIR}/passes_p90.txt')
-
-    models['shots_p10']   = lgb.Booster(model_file=f'{MODEL_DIR}/shots_p10.txt')
-    models['shots_p50']   = lgb.Booster(model_file=f'{MODEL_DIR}/shots_p50.txt')
-    models['shots_p90']   = lgb.Booster(model_file=f'{MODEL_DIR}/shots_p90.txt')
-
-    models['sot_p10']     = lgb.Booster(model_file=f'{MODEL_DIR}/sot_p10.txt')
-    models['sot_p50']     = lgb.Booster(model_file=f'{MODEL_DIR}/sot_p50.txt')
-    models['sot_p90']     = lgb.Booster(model_file=f'{MODEL_DIR}/sot_p90.txt')
-
-    models['goals_mean']  = lgb.Booster(model_file=f'{MODEL_DIR}/goals_mean.txt')
-    models['cards_mean']  = lgb.Booster(model_file=f'{MODEL_DIR}/cards_mean.txt')
-    models['offsides_mean'] = lgb.Booster(model_file=f'{MODEL_DIR}/offsides_mean.txt')
-
+    """Load pre-trained LightGBM models into memory."""
+    try:
+        models = {
+            'start_clf': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'minutes_start_classifier.txt')),
+            'min_p10': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'minutes_p10_regressor.txt')),
+            'min_p50': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'minutes_p50_regressor.txt')),
+            'min_p90': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'minutes_p90_regressor.txt')),
+            'sot_club': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'lgbm_sot_club_v1.pkl')),
+            'sot_intl': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'lgbm_sot_international_v2.pkl')),
+            # Fallback mock for the quantiles we don't have separate models for yet
+            'sot_p10': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'sot_p10.txt')),
+            'sot_p50': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'sot_p50.txt')),
+            'sot_p90': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'sot_p90.txt')),
+            'pass_p10': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'passes_p10.txt')),
+            'pass_p50': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'passes_p50.txt')),
+            'pass_p90': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'passes_p90.txt')),
+            'shots_p10': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'shots_p10.txt')),
+            'shots_p50': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'shots_p50.txt')),
+            'shots_p90': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'shots_p90.txt')),
+            'goals_mean': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'goals_mean.txt')),
+            'cards_mean': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'cards_mean.txt')),
+            'offsides_mean': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'offsides_mean.txt'))
+        }
+    except Exception as e:
+        print(f"Error loading models: {e}")
+        print("Please run python src/train_models.py first.")
+        sys.exit(1)
+        
     print(f"[OK] All {len(models)} models loaded.")
     return models
 
-def get_player_historical_stats(player_name):
+def get_player_historical_stats(player_name, FallbackPosition_P=None, FallbackLeague_P=None):
     df = pd.read_csv(PLAYER_CSV)
     from unidecode import unidecode
     df['name_clean'] = df['Player Name'].apply(lambda x: unidecode(str(x)).lower().strip())
@@ -54,8 +60,24 @@ def get_player_historical_stats(player_name):
     if matches.empty:
         matches = df[df['name_clean'].str.contains(name_clean[:10], na=False)]
     if matches.empty:
+        # Log missing player
+        log_path = os.path.join(DATA_DIR, 'missing_players.log')
+        with open(log_path, 'a') as f:
+            f.write(f"{datetime.now(timezone.utc).isoformat()} - MISSING: {player_name}\n")
+            
+        if FallbackPosition_P and FallbackLeague_P:
+            league_pos = df[(df['league'] == FallbackLeague_P) & (df['Position'].str.contains(FallbackPosition_P, na=False))]
+            if not league_pos.empty:
+                mean_row = league_pos.mean(numeric_only=True).to_dict()
+                mean_row['Player Name'] = f"{FallbackPosition_P} Average ({FallbackLeague_P})"
+                mean_row['Position'] = FallbackPosition_P
+                mean_row['is_fallback'] = True
+                return pd.Series(mean_row)
         return None
-    return matches.sort_values('season', ascending=False).iloc[0]
+        
+    row = matches.sort_values('season', ascending=False).iloc[0].copy()
+    row['is_fallback'] = False
+    return row
 
 def get_opponent_profile(opponent_team_name):
     if not os.path.exists(DB_OPP):

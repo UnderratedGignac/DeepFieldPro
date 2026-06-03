@@ -1,0 +1,133 @@
+[
+  {
+    "fixture_id": "HTI_NZL_2026",
+    "matchup": "Haiti vs New Zealand",
+    "kickoff": "03:00 AM",
+    "win_probabilities": {"home_win": 0.35, "draw": 0.25, "away_win": 0.40},
+    "expected_goals": {"home_xg": 1.1, "away_xg": 1.2},
+    "top_ev_play": {
+      "market": "match_goals_under",
+      "line": 2.5,
+      "fair_prob": 0.62,
+      "expected_ev": 0.08,
+      "recommended_action": "BATCH"
+    }
+  },
+  {
+    "fixture_id": "PHI_GUM_2026",
+    "matchup": "Philippines vs Guam",
+    "kickoff": "02:30 PM",
+    "win_probabilities": {"home_win": 0.85, "draw": 0.10, "away_win": 0.05},
+    "expected_goals": {"home_xg": 2.8, "away_xg": 0.4},
+    "top_ev_play": {
+      "market": "team_goals_over",
+      "team": "Philippines",
+      "line": 2.5,
+      "fair_prob": 0.58,
+      "expected_ev": 0.12,
+      "recommended_action": "BATCH"
+    }
+  },
+  {
+    "fixture_id": "KGZ_KEN_2026",
+    "matchup": "Kyrgyzstan vs Kenya",
+    "kickoff": "TBD",
+    "win_probabilities": {"home_win": 0.45, "draw": 0.30, "away_win": 0.25},
+    "expected_goals": {"home_xg": 1.3, "away_xg": 0.9},
+    "top_ev_play": {
+      "market": "match_goals_under",
+      "line": 2.5,
+      "fair_prob": 0.68,
+      "expected_ev": 0.05,
+      "recommended_action": "SKIP"
+    }
+  },
+  {
+    "fixture_id": "GIB_BVI_2026",
+    "matchup": "Gibraltar vs British Virgin Islands",
+    "kickoff": "08:00 PM",
+    "win_probabilities": {"home_win": 0.60, "draw": 0.25, "away_win": 0.15},
+    "expected_goals": {"home_xg": 1.6, "away_xg": 0.6},
+    "top_ev_play": {
+      "market": "home_team_clean_sheet",
+      "line": 0.5,
+      "fair_prob": 0.55,
+      "expected_ev": 0.14,
+      "recommended_action": "BATCH"
+    }
+  },
+  {
+    "fixture_id": "DEN_DRC_2026",
+    "matchup": "Denmark vs DR Congo",
+    "kickoff": "09:00 PM",
+    "win_probabilities": {"home_win": 0.70, "draw": 0.20, "away_win": 0.10},
+    "expected_goals": {"home_xg": 2.1, "away_xg": 0.7},
+    "top_ev_play": {
+      "market": "player_shots_on_target_over",
+      "player": "Christian Eriksen",
+      "line": 0.5,
+      "fair_prob": 0.65,
+      "expected_ev": 0.11,
+      "recommended_action": "INSTANT"
+    }
+  },
+  {
+    "fixture_id": "ALB_ISR_2026",
+    "matchup": "Albania vs Israel",
+    "kickoff": "09:00 PM",
+    "win_probabilities": {"home_win": 0.40, "draw": 0.30, "away_win": 0.30},
+    "expected_goals": {"home_xg": 1.2, "away_xg": 1.1},
+    "top_ev_play": {
+      "market": "both_teams_to_score",
+      "line": "yes",
+      "fair_prob": 0.52,
+      "expected_ev": 0.03,
+      "recommended_action": "SKIP"
+    }
+  },
+  {
+    "fixture_id": "POL_NGA_2026",
+    "matchup": "Poland vs Nigeria",
+    "kickoff": "09:45 PM",
+    "win_probabilities": {"home_win": 0.48, "draw": 0.27, "away_win": 0.25},
+    "expected_goals": {"home_xg": 1.5, "away_xg": 1.0},
+    "top_ev_play": {
+      "market": "player_goal_anytime",
+      "player": "Robert Lewandowski",
+      "line": 0.5,
+      "fair_prob": 0.45,
+      "expected_ev": 0.15,
+      "recommended_action": "INSTANT"
+    }
+  },
+  {
+    "fixture_id": "NED_ALG_2026",
+    "matchup": "Netherlands vs Algeria",
+    "kickoff": "09:45 PM",
+    "win_probabilities": {"home_win": 0.65, "draw": 0.22, "away_win": 0.13},
+    "expected_goals": {"home_xg": 2.0, "away_xg": 0.8},
+    "top_ev_play": {
+      "market": "player_passes_over",
+      "player": "Virgil van Dijk",
+      "line": 75.5,
+      "fair_prob": 0.60,
+      "expected_ev": 0.09,
+      "recommended_action": "BATCH"
+    }
+  },
+  {
+    "fixture_id": "LUX_ITA_2026",
+    "matchup": "Luxembourg vs Italy",
+    "kickoff": "09:45 PM",
+    "win_probabilities": {"home_win": 0.05, "draw": 0.12, "away_win": 0.83},
+    "expected_goals": {"home_xg": 0.3, "away_xg": 2.6},
+    "top_ev_play": {
+      "market": "team_goals_over",
+      "team": "Italy",
+      "line": 2.5,
+      "fair_prob": 0.55,
+      "expected_ev": 0.18,
+      "recommended_action": "INSTANT"
+    }
+  }
+]
