@@ -3,7 +3,7 @@ from portfolio_optimization.bayesian_confidence_engine import bayesian_engine
 from portfolio_optimization.drawdown_governor import drawdown_governor
 from portfolio_optimization.dynamic_bankroll_allocator import bankroll_allocator
 from portfolio_optimization.liquidity_impact_model import liquidity_impact_model
-from config import config
+from app_config import config
 
 logger = logging.getLogger(__name__)
 

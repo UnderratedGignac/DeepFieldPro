@@ -1,4 +1,4 @@
-import os, sqlite3, time, math
+import os, sqlite3, time, math, sys, pickle
 import pandas as pd
 import numpy as np
 import lightgbm as lgb
@@ -22,27 +22,36 @@ PLAYER_CSV  = 'C:/Users/Elie/data/csv/FULL_PLAYER_DATABASE_2026.csv'
 def load_models():
     """Load pre-trained LightGBM models into memory."""
     try:
-        models = {
-            'start_clf': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'minutes_start_classifier.txt')),
-            'min_p10': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'minutes_p10_regressor.txt')),
-            'min_p50': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'minutes_p50_regressor.txt')),
-            'min_p90': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'minutes_p90_regressor.txt')),
-            'sot_club': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'lgbm_sot_club_v1.pkl')),
-            'sot_intl': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'lgbm_sot_international_v2.pkl')),
-            # Fallback mock for the quantiles we don't have separate models for yet
-            'sot_p10': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'sot_p10.txt')),
-            'sot_p50': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'sot_p50.txt')),
-            'sot_p90': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'sot_p90.txt')),
-            'pass_p10': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'passes_p10.txt')),
-            'pass_p50': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'passes_p50.txt')),
-            'pass_p90': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'passes_p90.txt')),
-            'shots_p10': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'shots_p10.txt')),
-            'shots_p50': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'shots_p50.txt')),
-            'shots_p90': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'shots_p90.txt')),
-            'goals_mean': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'goals_mean.txt')),
-            'cards_mean': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'cards_mean.txt')),
-            'offsides_mean': lgb.Booster(model_file=os.path.join(MODEL_DIR, 'offsides_mean.txt'))
-        }
+        models = {}
+        for name, file in [
+            ('start_clf', 'minutes_start_classifier.txt'),
+            ('min_p10', 'minutes_p10_regressor.txt'),
+            ('min_p50', 'minutes_p50_regressor.txt'),
+            ('min_p90', 'minutes_p90_regressor.txt'),
+            ('sot_club', 'lgbm_sot_club_v1.pkl'),
+            ('sot_intl', 'lgbm_sot_international_v2.pkl'),
+            ('sot_p10', 'sot_p10.txt'),
+            ('sot_p50', 'sot_p50.txt'),
+            ('sot_p90', 'sot_p90.txt'),
+            ('pass_p10', 'passes_p10.txt'),
+            ('pass_p50', 'passes_p50.txt'),
+            ('pass_p90', 'passes_p90.txt'),
+            ('shots_p10', 'shots_p10.txt'),
+            ('shots_p50', 'shots_p50.txt'),
+            ('shots_p90', 'shots_p90.txt'),
+            ('goals_mean', 'goals_mean.txt'),
+            ('cards_mean', 'cards_mean.txt'),
+            ('offsides_mean', 'offsides_mean.txt')
+        ]:
+            path = os.path.join(MODEL_DIR, file)
+            if not os.path.exists(path):
+                continue
+            if file.endswith('.pkl'):
+                with open(path, 'rb') as f:
+                    models[name] = pickle.load(f)
+            else:
+                models[name] = lgb.Booster(model_file=path)
+
     except Exception as e:
         print(f"Error loading models: {e}")
         print("Please run python src/train_models.py first.")
@@ -146,7 +155,15 @@ def build_feature_vector(stats, opp_profile):
         'Tackles Won':                 safe_float(stats.get('Tackles Won', 1.0), 1.0),
         'ppda':                        safe_float(opp_profile['ppda'], 12.0),
         'opp_possession_allowed':      safe_float(opp_profile['opp_possession_allowed'], 50.0),
-        'sample_weight':               1.0   
+        'sample_weight':               1.0,
+        'age_': safe_float(stats.get('age_', 25), 25),
+        'competition_type': 0, # model_runner uses 0 by default
+        'min_': safe_float(stats.get('min_', 90), 90),
+        'pos_encoded': 2, # Default fallback
+        'Performance_Sh': safe_float(stats.get('Shots per 90', 1.0), 1.0),
+        'Performance_Crs': safe_float(stats.get('Crs', 1.0), 1.0),
+        'Performance_Int': safe_float(stats.get('Interceptions', 1.0), 1.0),
+        'Performance_TklW': safe_float(stats.get('Tackles Won', 1.0), 1.0)
     }
 
 def poisson_prob_ge(lam, k):
@@ -203,9 +220,11 @@ def run_for_match(fixture_id, opponent_team, lineup_drop_at, latency_ms,
         features = build_feature_vector(stats, opp_profile)
         MINUTES_FEATURES = ['Age', 'Starts', 'Percentage of Minutes Played', 'Mn/Start', 'Mn/MP', 'PPM', 'ppda', 'opp_possession_allowed', 'sample_weight']
         PASSES_FEATURES = ['Age', 'Position_encoded', 'Minutes Played', 'Mn/Start', 'Percentage of Minutes Played', 'Crs', 'Interceptions', 'Tackles Won', 'ppda', 'opp_possession_allowed', 'sample_weight']
+        NEW_SOT_FEATURES = ['age_', 'competition_type', 'min_', 'pos_encoded', 'Performance_Sh', 'Performance_Crs', 'Performance_Int', 'Performance_TklW', 'sample_weight']
 
         X_minutes = pd.DataFrame([features], columns=MINUTES_FEATURES)
         X_passes = pd.DataFrame([features], columns=PASSES_FEATURES)
+        X_sot_new = pd.DataFrame([features], columns=NEW_SOT_FEATURES)
 
         start_prob  = float(models['start_clf'].predict(X_minutes)[0])
         if start_prob < 0.50:
@@ -219,9 +238,13 @@ def run_for_match(fixture_id, opponent_team, lineup_drop_at, latency_ms,
         shots_p50   = float(models['shots_p50'].predict(X_passes)[0])
         shots_p90   = float(models['shots_p90'].predict(X_passes)[0])
 
-        sot_p10     = float(models['sot_p10'].predict(X_passes)[0])
-        sot_p50     = float(models['sot_p50'].predict(X_passes)[0])
-        sot_p90     = float(models['sot_p90'].predict(X_passes)[0])
+        if 'sot_club' in models:
+            sot_prob = float(models['sot_club'].predict(X_sot_new)[0])
+        else:
+            sot_prob = 0.5
+        sot_p10 = sot_prob
+        sot_p50 = sot_prob
+        sot_p90 = sot_prob
 
         goals_rate  = float(models['goals_mean'].predict(X_passes)[0])
         cards_rate  = float(models['cards_mean'].predict(X_passes)[0])

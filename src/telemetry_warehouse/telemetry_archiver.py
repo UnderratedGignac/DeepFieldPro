@@ -3,7 +3,7 @@ import os
 import sqlite3
 import pandas as pd
 from datetime import datetime
-from src.config import config
+from src.app_config import config
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,5 @@
 import logging
-from config import config
+from app_config import config
 from portfolio_optimization.portfolio_correlation_engine import correlation_engine
 
 logger = logging.getLogger(__name__)

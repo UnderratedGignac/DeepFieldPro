@@ -135,7 +135,7 @@ def train_sot_club_model(df):
     print(f"Using target column: {TargetCol_V} (>= 1 shots on target = 1)")
 
     X_V = clean_features(ClubDf_V[FeatureCols_V])
-    Y_V = (ClubDf_V[TargetCol_V].fillna(0) >= 1).astype(int)
+    Y_V = ClubDf_V[TargetCol_V].fillna(0)
     X_V["sample_weight"] = 1.0
 
     print(f"Features shape: {X_V.shape}, Target distribution: {Y_V.value_counts().to_dict()}")
@@ -144,25 +144,22 @@ def train_sot_club_model(df):
         X_V, Y_V, test_size=0.2, random_state=42
     )
 
-    Model_V = lgb.LGBMClassifier(**LgbmParams_V)
+    Model_V = lgb.LGBMRegressor(**LgbmParams_V)
     Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
 
-    Y_PredProb_V = Model_V.predict_proba(X_Val_V)[:, 1]
-    AUC_V = roc_auc_score(Y_Val_V, Y_PredProb_V)
-    Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
-    BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
+    Y_PredProb_V = Model_V.predict(X_Val_V)
+    # Mean absolute error for regressor
+    from sklearn.metrics import mean_absolute_error
+    MAE_V = mean_absolute_error(Y_Val_V, Y_PredProb_V)
 
     print(f"\nValidation Results:")
-    print(f"  AUC: {AUC_V:.4f}")
-    print(f"  Accuracy: {Accuracy_V:.4f}")
-    print(f"  Brier Score: {BrierScore_V:.4f}")
-
-    print_calibration_buckets(Y_Val_V, Y_PredProb_V, "Club SoT")
+    print(f"\nValidation Results:")
+    print(f"  MAE: {MAE_V:.4f}")
 
     ModelPath_V = os.path.join(MODEL_DIR, "lgbm_sot_club_v1.pkl")
     with open(ModelPath_V, 'wb') as f:
         pickle.dump(Model_V, f)
-    print(f"\n✓ Saved: {ModelPath_V}")
+    print(f"\n[OK] Saved: {ModelPath_V}")
 
     return Model_V
 
@@ -192,7 +189,7 @@ def train_sot_international_model(df):
     print(f"Using target column: {TargetCol_V} (>= 1 shots on target = 1)")
 
     X_V = clean_features(IntlDf_V[FeatureCols_V])
-    Y_V = (IntlDf_V[TargetCol_V].fillna(0) >= 1).astype(int)
+    Y_V = IntlDf_V[TargetCol_V].fillna(0)
     X_V["sample_weight"] = 1.0
 
     print(f"Features shape: {X_V.shape}, Target distribution: {Y_V.value_counts().to_dict()}")
@@ -201,25 +198,21 @@ def train_sot_international_model(df):
         X_V, Y_V, test_size=0.2, random_state=42
     )
 
-    Model_V = lgb.LGBMClassifier(**LgbmParams_V)
+    Model_V = lgb.LGBMRegressor(**LgbmParams_V)
     Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
 
-    Y_PredProb_V = Model_V.predict_proba(X_Val_V)[:, 1]
-    AUC_V = roc_auc_score(Y_Val_V, Y_PredProb_V)
-    Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
-    BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
+    Y_PredProb_V = Model_V.predict(X_Val_V)
+    from sklearn.metrics import mean_absolute_error
+    MAE_V = mean_absolute_error(Y_Val_V, Y_PredProb_V)
 
     print(f"\nValidation Results:")
-    print(f"  AUC: {AUC_V:.4f}")
-    print(f"  Accuracy: {Accuracy_V:.4f}")
-    print(f"  Brier Score: {BrierScore_V:.4f}")
-
-    print_calibration_buckets(Y_Val_V, Y_PredProb_V, "International SoT")
+    print(f"\nValidation Results:")
+    print(f"  MAE: {MAE_V:.4f}")
 
     ModelPath_V = os.path.join(MODEL_DIR, "lgbm_sot_international_v2.pkl")
     with open(ModelPath_V, 'wb') as f:
         pickle.dump(Model_V, f)
-    print(f"\n✓ Saved: {ModelPath_V}")
+    print(f"  [OK] Saved: {ModelPath_V}")
 
     return Model_V
 
@@ -245,7 +238,7 @@ def train_passes_model(df):
     print(f"Using target column: {TargetCol_V} (>= 1 total shot = 1)")
 
     X_V = clean_features(AllDf_V[FeatureCols_V])
-    Y_V = (AllDf_V[TargetCol_V].fillna(0) >= 1).astype(int)
+    Y_V = AllDf_V[TargetCol_V].fillna(0)
     X_V["sample_weight"] = 1.0
 
     print(f"Features shape: {X_V.shape}, Target distribution: {Y_V.value_counts().to_dict()}")
@@ -254,18 +247,30 @@ def train_passes_model(df):
         X_V, Y_V, test_size=0.2, random_state=42
     )
 
-    Model_V = lgb.LGBMClassifier(**LgbmParams_V)
+    Model_V = lgb.LGBMRegressor(**LgbmParams_V)
     Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
 
-    Y_PredProb_V = Model_V.predict_proba(X_Val_V)[:, 1]
-    AUC_V = roc_auc_score(Y_Val_V, Y_PredProb_V)
-    Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
-    BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
+    print(f"Using target column: {TargetCol_V}")
+
+    X_V = clean_features(AllDf_V[FeatureCols_V])
+    Y_V = AllDf_V[TargetCol_V].fillna(0)
+    X_V["sample_weight"] = 1.0
+
+    print(f"Features shape: {X_V.shape}, Target distribution: {Y_V.value_counts().to_dict()}")
+
+    X_Train_V, X_Val_V, Y_Train_V, Y_Val_V = train_test_split(
+        X_V, Y_V, test_size=0.2, random_state=42
+    )
+
+    Model_V = lgb.LGBMRegressor(**LgbmParams_V)
+    Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
+
+    Y_Pred_V = Model_V.predict(X_Val_V)
+    from sklearn.metrics import mean_absolute_error
+    MAE_V = mean_absolute_error(Y_Val_V, Y_Pred_V)
 
     print(f"\nValidation Results:")
-    print(f"  AUC: {AUC_V:.4f}")
-    print(f"  Accuracy: {Accuracy_V:.4f}")
-    print(f"  Brier Score: {BrierScore_V:.4f}")
+    print(f"  MAE: {MAE_V:.4f}")
 
     ModelPath_V = os.path.join(MODEL_DIR, "lgbm_passes_v1.pkl")
     with open(ModelPath_V, 'wb') as f:
@@ -386,10 +391,10 @@ def run_sanity_check():
         max_pred = predictions.max()
         
         if unique_preds == n_samples and 0.0 <= min_pred and max_pred <= 1.0:
-            print(f"✓ {model_name}: PASS (unique probs: {unique_preds}, range: [{min_pred:.3f}, {max_pred:.3f}])")
+            print(f"[OK] {model_name}: PASS (unique probs: {unique_preds}, range: [{min_pred:.3f}, {max_pred:.3f}])")
         elif isinstance(Model_V, lgb.LGBMRegressor):
             if unique_preds == n_samples:
-                print(f"✓ {model_name}: PASS (unique predictions: {unique_preds})")
+                print(f"[OK] {model_name}: PASS (unique predictions: {unique_preds})")
             else:
                 print(f"✗ {model_name}: FAIL (duplicate predictions)")
                 AllPassed_V = False
@@ -435,7 +440,7 @@ def main():
         print(f"  - {model}")
     
     if SanityPassed_V:
-        print("\n✓ All sanity checks PASSED")
+        print("\n[OK] All sanity checks PASSED")
     else:
         print("\n✗ Some sanity checks FAILED - review models before deployment")
     

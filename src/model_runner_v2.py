@@ -23,7 +23,7 @@ import numpy as np
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-from src.pricing_engine import calculate_over_prob_pearson
+from pricing_engine import calculate_over_prob_pearson
 from execution_engine import place_bet
 from utils import remove_vig
 
@@ -209,7 +209,15 @@ def build_feature_vector(stats, opp_profile, competition_type=0):
         'ppda': IntlPpdaNorm_V,
         'opp_possession_allowed': safe_float(opp_profile.get('opp_possession_allowed', 50.0), 50.0),
         'competition_type': competition_type,
-        'sample_weight': 1.0
+        'sample_weight': 1.0,
+        # New features for retrained LightGBM models
+        'age_': safe_float(stats.get('age_', 25), 25),
+        'min_': safe_float(stats.get('min_', 90), 90),
+        'pos_encoded': pos_encoded,
+        'Performance_Sh': safe_float(stats.get('Shots per 90', 1.0), 1.0),
+        'Performance_Crs': safe_float(stats.get('Crs', 1.0), 1.0),
+        'Performance_Int': safe_float(stats.get('Interceptions', 1.0), 1.0),
+        'Performance_TklW': safe_float(stats.get('Tackles Won', 1.0), 1.0)
     }
 
 
@@ -312,18 +320,21 @@ def run_for_match(fixture_id, opponent_team, lineup_drop_at, latency_ms,
                           'Mn/Start', 'Percentage of Minutes Played', 
                           'Crs', 'Interceptions', 'Tackles Won', 'ppda', 
                           'opp_possession_allowed', 'sample_weight']
+        NEW_SOT_FEATURES = ['age_', 'competition_type', 'min_', 'pos_encoded', 'Performance_Sh', 'Performance_Crs', 'Performance_Int', 'Performance_TklW', 'sample_weight']
         
         X_minutes = pd.DataFrame([features], columns=MINUTES_FEATURES)
         X_passes = pd.DataFrame([features], columns=PASSES_FEATURES)
+        X_sot_new = pd.DataFrame([features], columns=NEW_SOT_FEATURES)
         
         sot_model = get_sot_model(competition_type)
         if sot_model is None:
             print(f"[SKIP] {player_name}: No SoT model available")
             continue
         
-        sot_p10 = float(sot_model.predict(X_passes)[0])
-        sot_p50 = float(sot_model.predict(X_passes)[0])
-        sot_p90 = float(sot_model.predict(X_passes)[0])
+            sot_prob = float(sot_model.predict(X_sot_new)[0])
+        sot_p10 = sot_prob
+        sot_p50 = sot_prob
+        sot_p90 = sot_prob
         
         IntlMinutesFactor_V = compute_intl_minutes_factor(competition_type)
         expected_minutes = 75 * IntlMinutesFactor_V

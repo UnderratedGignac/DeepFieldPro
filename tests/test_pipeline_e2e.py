@@ -13,7 +13,7 @@ from model_runner import load_models, build_feature_vector, get_player_historica
 from generate_predictions import generate_predictions
 from clv_tracker import record_bet, settle_bet, generate_report
 from portfolio_optimization.capital_allocation_engine import capital_engine
-import config
+import app_config
 
 def print_result(name, passed, actual=None, expected=None):
     status = "PASS" if passed else "FAIL"
@@ -33,8 +33,9 @@ def test_1_poisson_variance():
             features = build_feature_vector(stats, {'ppda': 12.0, 'opp_possession_allowed': 50.0})
             X_passes = pd.DataFrame([features], columns=['Age', 'Position_encoded', 'Minutes Played', 'Mn/Start', 'Percentage of Minutes Played', 'Crs', 'Interceptions', 'Tackles Won', 'ppda', 'opp_possession_allowed', 'sample_weight'])
             X_minutes = pd.DataFrame([features], columns=['Age', 'Starts', 'Percentage of Minutes Played', 'Mn/Start', 'Mn/MP', 'PPM', 'ppda', 'opp_possession_allowed', 'sample_weight'])
+            X_sot_new = pd.DataFrame([features], columns=['age_', 'competition_type', 'min_', 'pos_encoded', 'Performance_Sh', 'Performance_Crs', 'Performance_Int', 'Performance_TklW', 'sample_weight'])
             min_p50 = float(models['min_p50'].predict(X_minutes)[0])
-            sot_mean = float(models['sot_intl'].predict(X_passes)[0]) # Mocked
+            sot_mean = float(models['sot_intl'].predict(X_sot_new)[0]) # Mocked
             lam = ((sot_mean / 90.0) * min_p50 * (12.0 / 9.5)) + random.uniform(0.01, 0.05)
             probs.append(1.0 - math.exp(-lam))
             
@@ -117,7 +118,7 @@ def test_6_kelly_sizing():
     odds = 1.80
     stake = capital_engine.allocate_capital({"market": "test", "fixture_id": "test_fix"}, expected_ev, p_fill, odds, "normal")
     
-    from config import config
+    from app_config import config
     bankroll = config.STARTING_BANKROLL
     pct = stake / bankroll
     passed = 0.01 <= pct <= 0.15 # allowing max exposure cap

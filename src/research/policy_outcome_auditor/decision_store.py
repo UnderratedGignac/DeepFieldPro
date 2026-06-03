@@ -2,7 +2,7 @@ import sqlite3
 import logging
 from typing import List, Dict, Any
 import pandas as pd
-from src.config import config
+from src.app_config import config
 from src.research.policy_outcome_auditor.event_schema import PolicyDecisionEvent, ExecutionOutcomeEvent, MarketSnapshotEvent
 
 logger = logging.getLogger(__name__)

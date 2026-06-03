@@ -116,9 +116,12 @@ def generate_predictions():
             
             MINUTES_FEATURES = ['Age', 'Starts', 'Percentage of Minutes Played', 'Mn/Start', 'Mn/MP', 'PPM', 'ppda', 'opp_possession_allowed', 'sample_weight']
             PASSES_FEATURES = ['Age', 'Position_encoded', 'Minutes Played', 'Mn/Start', 'Percentage of Minutes Played', 'Crs', 'Interceptions', 'Tackles Won', 'ppda', 'opp_possession_allowed', 'sample_weight']
+            NEW_SOT_FEATURES = ['age_', 'competition_type', 'min_', 'pos_encoded', 'Performance_Sh', 'Performance_Crs', 'Performance_Int', 'Performance_TklW', 'sample_weight']
 
             X_minutes = pd.DataFrame([features], columns=MINUTES_FEATURES)
             X_passes = pd.DataFrame([features], columns=PASSES_FEATURES)
+            features['competition_type'] = CompetitionType_V
+            X_sot_new = pd.DataFrame([features], columns=NEW_SOT_FEATURES)
             
             try:
                 MinP50_V = float(models['min_p50'].predict(X_minutes)[0])
@@ -126,11 +129,17 @@ def generate_predictions():
                 
                 # TASK 1: Select SoT model based on competition type
                 if CompetitionType_V == 1:
-                    SotMean_V = float(models['sot_intl'].predict(X_passes)[0])
+                    if 'sot_intl' in models:
+                        SotMean_V = float(models['sot_intl'].predict(X_sot_new)[0])
+                    else:
+                        SotMean_V = float(models['sot_p50'].predict(X_passes)[0])
                     IntlPpdaNorm_V = opp_profile['ppda'] / 9.5
                     IntlMinutesFactor_V = 0.88
                 else:
-                    SotMean_V = float(models['sot_club'].predict(X_passes)[0])
+                    if 'sot_club' in models:
+                        SotMean_V = float(models['sot_club'].predict(X_sot_new)[0])
+                    else:
+                        SotMean_V = float(models['sot_p50'].predict(X_passes)[0])
                     IntlPpdaNorm_V = opp_profile['ppda'] / 12.0
                     IntlMinutesFactor_V = 1.0
                 
