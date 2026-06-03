@@ -686,4 +686,3 @@ class MarketIntelligenceEngine:
             "public_side": p.public_side,
             "reverse_line_move": p.reverse_line_move,
         }
-

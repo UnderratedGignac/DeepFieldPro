@@ -239,10 +239,16 @@ if __name__ == "__main__":
     init_history_db()
 
     parser = argparse.ArgumentParser(description="Monitor a fixture for lineup drop.")
-    parser.add_argument("fixture_id", type=int, help="The API-Football fixture ID to monitor")
-    parser.add_argument("kickoff_time", type=str, help="Kickoff time in ISO format (e.g. 2026-06-04T19:45:00Z)")
-    
+    parser.add_argument(
+        "fixture_id", type=int, help="The API-Football fixture ID to monitor"
+    )
+    parser.add_argument(
+        "kickoff_time",
+        type=str,
+        help="Kickoff time in ISO format (e.g. 2026-06-04T19:45:00Z)",
+    )
+
     args = parser.parse_args()
-    
+
     print(f"Monitoring fixture {args.fixture_id} kicking off at {args.kickoff_time}...")
     asyncio.run(monitor_match(args.fixture_id, args.kickoff_time))

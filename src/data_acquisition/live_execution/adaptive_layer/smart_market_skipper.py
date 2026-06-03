@@ -34,4 +34,3 @@ class SmartMarketSkipper:
 
 
 market_skipper = SmartMarketSkipper()
-

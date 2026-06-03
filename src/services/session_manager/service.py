@@ -25,6 +25,7 @@ try:
 except ImportError:
     import sys
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from browser_engine import BrowserEngine
 
@@ -303,7 +304,8 @@ class SessionManager:
     async def _extract_auth_tokens(self, session_id: str, page) -> None:
         """Extract authentication tokens from the page context."""
         try:
-            tokens = await page.evaluate("""
+            tokens = await page.evaluate(
+                """
                 () => {
                     const tokens = {};
                     
@@ -327,7 +329,8 @@ class SessionManager:
                     
                     return tokens;
                 }
-            """)
+            """
+            )
 
             if session_id in self._sessions:
                 self._sessions[session_id]["tokens"] = tokens

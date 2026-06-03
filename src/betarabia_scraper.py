@@ -25,7 +25,8 @@ API_RESPONSES_PATH = os.path.join(BASE_DIR, "data", "betarabia_api_responses.jso
 def init_db():
     Conn_V = sqlite3.connect(DB_PATH)
     Cursor_V = Conn_V.cursor()
-    Cursor_V.execute("""
+    Cursor_V.execute(
+        """
       CREATE TABLE IF NOT EXISTS fixture (
         fixture_id TEXT PRIMARY KEY,
         home_team TEXT,
@@ -34,8 +35,10 @@ def init_db():
         league_id TEXT,
         scraped_at TEXT
       )
-    """)
-    Cursor_V.execute("""
+    """
+    )
+    Cursor_V.execute(
+        """
       CREATE TABLE IF NOT EXISTS market (
         market_id TEXT PRIMARY KEY,
         fixture_id TEXT,
@@ -47,7 +50,8 @@ def init_db():
         prop_line REAL,
         scraped_at TEXT
       )
-    """)
+    """
+    )
     Conn_V.commit()
     Conn_V.close()
 
@@ -644,4 +648,3 @@ async def run_scraper():
 
 if __name__ == "__main__":
     asyncio.run(run_scraper())
-

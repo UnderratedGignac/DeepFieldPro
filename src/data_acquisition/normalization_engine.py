@@ -56,4 +56,3 @@ class NormalizationEngine:
 
 # Singleton instance
 normalize_engine = NormalizationEngine()
-

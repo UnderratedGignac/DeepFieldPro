@@ -62,4 +62,3 @@ class MetaResearchGovernor:
 
 
 meta_governor = MetaResearchGovernor()
-

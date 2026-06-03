@@ -72,4 +72,3 @@ class ConditionalVaRSimulator:
 
 
 cvar_simulator = ConditionalVaRSimulator()
-

@@ -550,4 +550,3 @@ class RiskEngine:
         risk_of_ruin = pow(edge_ratio, bankroll_units)
 
         return min(1.0, max(0.0, risk_of_ruin))
-

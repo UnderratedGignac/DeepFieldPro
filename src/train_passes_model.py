@@ -96,4 +96,3 @@ for name, m in passes_models.items():
     m.booster_.save_model(f"C:/Users/Elie/DeepFieldPro/models/passes_{name}.txt")
 
 print("All passes models saved.")
-

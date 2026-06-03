@@ -22,7 +22,8 @@ class ExecutionBehaviorMemory:
 
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
-            conn.executescript("""
+            conn.executescript(
+                """
                 CREATE TABLE IF NOT EXISTS execution_outcomes (
                     exec_id TEXT PRIMARY KEY,
                     fixture_id TEXT,
@@ -48,7 +49,8 @@ class ExecutionBehaviorMemory:
                     velocity_score REAL,
                     timestamp TEXT
                 );
-            """)
+            """
+            )
 
     def record_execution(self, exec_data: Dict[str, Any]):
         """

@@ -78,4 +78,3 @@ for r in results:
         f"{r['player']:<20} | {m_name:<25} | {r['market']:<20} | {r['expected_val']:<6.1f} | {r['edge']:<5.1f}% | ${r['stake']:<7.2f}"
     )
 print("=" * 95)
-

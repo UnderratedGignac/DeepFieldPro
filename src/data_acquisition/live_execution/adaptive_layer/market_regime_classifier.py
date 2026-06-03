@@ -57,4 +57,3 @@ class MarketRegimeClassifier:
 
 
 regime_classifier = MarketRegimeClassifier()
-

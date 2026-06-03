@@ -55,4 +55,3 @@ class MarketMapper:
 
 
 market_mapper = MarketMapper()
-

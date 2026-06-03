@@ -59,4 +59,3 @@ class EdgeDecayPredictor:
 
 
 decay_predictor = EdgeDecayPredictor()
-

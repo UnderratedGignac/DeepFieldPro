@@ -2,6 +2,7 @@
 Alerting System — multi-channel alert dispatcher for kill-switch events,
 edge collapse, account restrictions, and infrastructure failures.
 """
+
 import os
 import sys
 import logging
@@ -17,7 +18,9 @@ LOG_PATH = os.path.join(BASE, "data", "alerts.json")
 SEVERITY = {"INFO": 0, "WARN": 1, "CRITICAL": 2, "KILL_SWITCH": 3}
 
 
-def fire_alert(title: str, message: str, severity: str = "WARN", source: str = "system"):
+def fire_alert(
+    title: str, message: str, severity: str = "WARN", source: str = "system"
+):
     """
     Fire an alert. Logs to file and stdout.
     In production, this hooks into Slack/email/PagerDuty.
@@ -67,16 +70,36 @@ def get_recent_alerts(n=20):
 
 # Pre-built alert helpers
 def alert_kill_switch(reason):
-    return fire_alert("KILL SWITCH ACTIVATED", reason, severity="KILL_SWITCH", source="risk_engine")
+    return fire_alert(
+        "KILL SWITCH ACTIVATED", reason, severity="KILL_SWITCH", source="risk_engine"
+    )
+
 
 def alert_edge_collapse(clv_7d):
-    return fire_alert("Edge Collapse Detected", f"7-day CLV = {clv_7d:.2%} (below 0%)", severity="CRITICAL", source="clv_tracker")
+    return fire_alert(
+        "Edge Collapse Detected",
+        f"7-day CLV = {clv_7d:.2%} (below 0%)",
+        severity="CRITICAL",
+        source="clv_tracker",
+    )
+
 
 def alert_drawdown(daily_loss_pct):
-    return fire_alert("Drawdown Breach", f"Daily loss = {daily_loss_pct:.1%} (limit: 5%)", severity="CRITICAL", source="risk_engine")
+    return fire_alert(
+        "Drawdown Breach",
+        f"Daily loss = {daily_loss_pct:.1%} (limit: 5%)",
+        severity="CRITICAL",
+        source="risk_engine",
+    )
+
 
 def alert_account_danger(sportsbook, trust_score):
-    return fire_alert("Account Danger", f"{sportsbook} trust score = {trust_score:.0f}/100", severity="WARN", source="account_health")
+    return fire_alert(
+        "Account Danger",
+        f"{sportsbook} trust score = {trust_score:.0f}/100",
+        severity="WARN",
+        source="account_health",
+    )
 
 
 if __name__ == "__main__":

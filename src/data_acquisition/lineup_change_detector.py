@@ -109,4 +109,3 @@ class LineupChangeDetector:
 
 
 change_detector = LineupChangeDetector()
-

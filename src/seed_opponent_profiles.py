@@ -98,14 +98,16 @@ DB_OPP = "C:/Users/Elie/DeepFieldPro/data/opponent_profiles.db"
 conn = sqlite3.connect(DB_OPP)
 cursor = conn.cursor()
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS opponent_profiles (
+cursor.execute(
+    """CREATE TABLE IF NOT EXISTS opponent_profiles (
     team_name TEXT PRIMARY KEY,
     ppda REAL,
     opp_possession_allowed REAL,
     avg_crosses_per_game REAL,
     num_games INTEGER,
     match_week INTEGER
-)""")
+)"""
+)
 
 # Clear existing data
 cursor.execute("DELETE FROM opponent_profiles")

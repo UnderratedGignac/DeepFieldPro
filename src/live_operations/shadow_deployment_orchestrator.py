@@ -3,6 +3,7 @@ Shadow Deployment Orchestrator
 Continuously generates paper bets from live signals, simulates fills,
 and tracks CLV on every position for statistical validation.
 """
+
 import os
 import sys
 import json
@@ -20,7 +21,8 @@ DB_PATH = os.path.join(BASE, "data", "shadow_bets.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS shadow_bets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             generated_at TEXT,
@@ -36,7 +38,8 @@ def init_db():
             clv REAL,
             settled_at TEXT
         )
-    """)
+    """
+    )
     conn.commit()
     conn.close()
 
@@ -45,26 +48,40 @@ def record_signal(fixture, selection, market, signal_odds, fair_prob, ev, stake)
     """Record a new paper bet from a live signal."""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO shadow_bets (generated_at, fixture, selection, market, signal_odds, fair_prob, ev, stake)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        datetime.datetime.now(datetime.UTC).isoformat(),
-        fixture, selection, market, signal_odds, fair_prob, ev, stake
-    ))
+    """,
+        (
+            datetime.datetime.now(datetime.UTC).isoformat(),
+            fixture,
+            selection,
+            market,
+            signal_odds,
+            fair_prob,
+            ev,
+            stake,
+        ),
+    )
     conn.commit()
     conn.close()
-    logger.info(f"Shadow bet recorded: {fixture} | {selection} @ {signal_odds} | EV={ev:.1%}")
+    logger.info(
+        f"Shadow bet recorded: {fixture} | {selection} @ {signal_odds} | EV={ev:.1%}"
+    )
 
 
 def settle_bet(bet_id, closing_odds):
     """Settle a shadow bet with the closing line."""
     clv = (closing_odds - 1) / closing_odds if closing_odds > 1 else 0
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    conn.execute(
+        """
         UPDATE shadow_bets SET status='SETTLED', closing_odds=?, clv=?, settled_at=?
         WHERE id=?
-    """, (closing_odds, clv, datetime.datetime.now(datetime.UTC).isoformat(), bet_id))
+    """,
+        (closing_odds, clv, datetime.datetime.now(datetime.UTC).isoformat(), bet_id),
+    )
     conn.commit()
     conn.close()
     return clv
@@ -74,10 +91,12 @@ def get_summary():
     """Return aggregate CLV stats across all settled bets."""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    rows = conn.execute("""
+    rows = conn.execute(
+        """
         SELECT COUNT(*), AVG(clv), MIN(clv), MAX(clv), AVG(ev)
         FROM shadow_bets WHERE status='SETTLED'
-    """).fetchone()
+    """
+    ).fetchone()
     conn.close()
     return {
         "settled_count": rows[0] or 0,

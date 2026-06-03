@@ -1,6 +1,7 @@
 """
 system_check.py - Full system health audit for DeepFieldPro
 """
+
 import sqlite3
 import json
 import os
@@ -56,7 +57,11 @@ api_path = os.path.join(BASE, "data", "betarabia_api_responses.json")
 if os.path.exists(api_path):
     data = json.load(open(api_path, encoding="utf-8"))
     print(f"  {len(data)} captured API calls")
-    event_urls = [x.get("url", "") for x in data if "events" in x.get("url", "") or "prematch" in x.get("url", "")]
+    event_urls = [
+        x.get("url", "")
+        for x in data
+        if "events" in x.get("url", "") or "prematch" in x.get("url", "")
+    ]
     odds_urls = [x.get("url", "") for x in data if "odds" in x.get("url", "")]
     print(f"  Event/prematch URLs: {len(event_urls)}")
     print(f"  Odds URLs: {len(odds_urls)}")
@@ -86,12 +91,15 @@ for mod in modules_to_check:
 # ── 5. OUTPUT FILES ────────────────────────────────────────────
 print("\n[5] OUTPUT FILES")
 data_dir = os.path.join(BASE, "data")
-output_files = [f for f in os.listdir(data_dir) if "BETS" in f or "predictions" in f.lower()]
+output_files = [
+    f for f in os.listdir(data_dir) if "BETS" in f or "predictions" in f.lower()
+]
 for f in sorted(output_files):
     fpath = os.path.join(data_dir, f)
     size = os.path.getsize(fpath)
     mtime = os.path.getmtime(fpath)
     import datetime
+
     mt = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
     print(f"  {f}: {size//1024}KB  (last modified: {mt})")
 

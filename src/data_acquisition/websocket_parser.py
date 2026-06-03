@@ -215,4 +215,3 @@ class BetarabiaFrameParser:
 
 
 frame_parser = BetarabiaFrameParser()
-

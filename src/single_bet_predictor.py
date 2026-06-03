@@ -77,7 +77,7 @@ def implied_fair_probs(DbPath_P, FixtureId_P, HomeTeam_P, AwayTeam_P):
     conn = sqlite3.connect(DbPath_P)
     rows = conn.execute(
         "SELECT selection_name, raw_odds FROM market WHERE fixture_id = ? AND market_name = 'Match Result'",
-        (FixtureId_P,)
+        (FixtureId_P,),
     ).fetchall()
     conn.close()
 
@@ -119,13 +119,15 @@ def run_single_bet_predictor(BankrollSize_P: float):
 
     Conn_V = sqlite3.connect(DbPath_V)
     Cursor_V = Conn_V.cursor()
-    Cursor_V.execute("""
+    Cursor_V.execute(
+        """
         SELECT m.market_id, m.fixture_id, m.market_name, m.selection_name,
                m.raw_odds, m.prop_player, m.prop_type, m.prop_line,
                f.home_team, f.away_team, f.kickoff_time, f.league_id
         FROM market m
         JOIN fixture f ON m.fixture_id = f.fixture_id
-    """)
+    """
+    )
     Rows_V = Cursor_V.fetchall()
     Conn_V.close()
 
@@ -255,8 +257,9 @@ def run_single_bet_predictor(BankrollSize_P: float):
         else:
             # Match result / BTTS / Over-Under
             # Use MARKET-IMPLIED probabilities (vig-free) from scraped odds
-            FairHomeP_V, FairDrawP_V, FairAwayP_V, HomeGoalLam_V, AwayGoalLam_V = \
+            FairHomeP_V, FairDrawP_V, FairAwayP_V, HomeGoalLam_V, AwayGoalLam_V = (
                 implied_fair_probs(DbPath_V, FixtureId_V, HomeTeam_V, AwayTeam_V)
+            )
 
             SelectionLower_V = SelectionName_V.strip().lower()
 
@@ -267,9 +270,13 @@ def run_single_bet_predictor(BankrollSize_P: float):
             elif SelectionLower_V == AwayTeam_V.strip().lower():
                 FairProb_V = FairAwayP_V
             elif "both teams to score - yes" in SelectionLower_V:
-                FairProb_V = (1 - math.exp(-HomeGoalLam_V)) * (1 - math.exp(-AwayGoalLam_V))
+                FairProb_V = (1 - math.exp(-HomeGoalLam_V)) * (
+                    1 - math.exp(-AwayGoalLam_V)
+                )
             elif "both teams to score - no" in SelectionLower_V:
-                FairProb_V = 1.0 - (1 - math.exp(-HomeGoalLam_V)) * (1 - math.exp(-AwayGoalLam_V))
+                FairProb_V = 1.0 - (1 - math.exp(-HomeGoalLam_V)) * (
+                    1 - math.exp(-AwayGoalLam_V)
+                )
             elif "total over" in SelectionLower_V:
                 FairProb_V = poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, 3)
             elif "total under" in SelectionLower_V:

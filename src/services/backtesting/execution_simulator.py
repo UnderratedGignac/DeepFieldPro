@@ -456,4 +456,3 @@ class ExecutionMetrics:
         if self.total_requests == 0:
             return 0.0
         return (self.rejected / self.total_requests) * 100
-

@@ -151,4 +151,3 @@ class ReplayAnalyticsDashboard:
 
 
 replay_dashboard = ReplayAnalyticsDashboard()
-

@@ -680,4 +680,3 @@ if __name__ == "__main__":
     OutFile_V = write_output(Bets_V, Args_V.bankroll)
 
     print(f"\nSimulation complete. Open: {OutFile_V}")
-

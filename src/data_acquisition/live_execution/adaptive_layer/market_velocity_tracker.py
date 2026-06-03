@@ -68,4 +68,3 @@ class MarketVelocityTracker:
 
 
 velocity_tracker = MarketVelocityTracker()
-

@@ -96,4 +96,3 @@ class MarketEdgeEngine:
 
 
 edge_engine = MarketEdgeEngine()
-

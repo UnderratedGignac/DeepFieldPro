@@ -52,4 +52,3 @@ class GlobalSafetyConstraints:
 
 
 safety_constraints = GlobalSafetyConstraints()
-

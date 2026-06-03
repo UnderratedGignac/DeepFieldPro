@@ -40,4 +40,3 @@ class SportsbookBehaviorFingerprinter:
 fingerprinter = SportsbookBehaviorFingerprinter(
     "C:/Users/Elie/DeepFieldPro/telemetry_warehouse/parquet/"
 )
-

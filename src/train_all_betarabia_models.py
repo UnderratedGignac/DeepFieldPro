@@ -243,4 +243,3 @@ for market, y in [
     )
 
 print("\n[OK] All Betarabia models successfully trained and saved!")
-
