@@ -37,15 +37,18 @@ for i, b in enumerate(batch[:25], 1):
 
 # Load parlays
 try:
-    pdata = json.load(open('data/TODAYS_BETS_2026-06-03.json', encoding='utf-8'))
+    pdata = json.load(open('data/todays_single_bets.json', encoding='utf-8'))
     parlays = pdata.get('parlays', [])
     if parlays:
         print("\n── TOP PARLAYS ─────────────────────────────────────────────\n")
         for i, p in enumerate(parlays[:5], 1):
-            legs = " + ".join([f"{leg.get('fixture','?')} [{leg.get('selection','?')}]" for leg in p.get('legs', [])])
-            combined_odds = p.get('combined_odds', '?')
-            parlay_ev = round(p.get('ev', 0) * 100, 1)
-            stake = p.get('stake', 0)
+            legs_list = []
+            for leg_sel, fixture in zip(p.get('legs', []), p.get('fixtures', [])):
+                legs_list.append(f"{fixture} [{leg_sel}]")
+            legs = " + ".join(legs_list)
+            combined_odds = p.get('parlay_odds', '?')
+            parlay_ev = round(p.get('parlay_ev', 0) * 100, 1) if isinstance(p.get('parlay_ev'), (int, float)) else p.get('parlay_ev', 0)
+            stake = p.get('parlay_stake', 0)
             print(f"PARLAY #{i}: {legs}")
             print(f"   Combined Odds: {combined_odds}  |  EV: +{parlay_ev}%  |  Stake: ${stake}")
             print()
