@@ -1,15 +1,14 @@
 import asyncio
 import logging
-import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 from playwright.async_api import async_playwright
 
-from .market_mapper import market_mapper, MARKET_STATE
-from .normalization_engine import normalize_engine
+from .market_mapper import MARKET_STATE
 from .websocket_parser import frame_parser, CanonicalOddsEvent
 
 logger = logging.getLogger(__name__)
+
 
 class BetarabiaAPIClient:
     def __init__(self):
@@ -17,9 +16,9 @@ class BetarabiaAPIClient:
         self.browser = None
         self.context = None
         self.page = None
-        
+
         # In-memory odds cache for staleness detection and deduplication
-        self.odds_cache = {} 
+        self.odds_cache = {}
         self.STALE_THRESHOLD_SECONDS = 15
 
     async def initialize(self):
@@ -32,7 +31,7 @@ class BetarabiaAPIClient:
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         self.page = await self.context.new_page()
-        
+
         # Setup Network Interception
         self.page.on("response", self._intercept_xhr_response)
         self.page.on("websocket", self._intercept_websocket)
@@ -49,7 +48,7 @@ class BetarabiaAPIClient:
                 # Pass to parser layer
                 events = frame_parser.parse_frame(raw_payload)
                 self._cache_canonical_events(events)
-            except Exception as e:
+            except Exception:
                 pass
 
     async def _intercept_websocket(self, ws):
@@ -57,17 +56,20 @@ class BetarabiaAPIClient:
         Intercept websocket connections to capture real-time odds streams.
         """
         logger.info(f"WebSocket connection opened: {ws.url}")
-        
+
         ws.on("framesent", lambda payload: logger.debug(f"WS sent: {payload}"))
-        ws.on("framereceived", lambda payload: asyncio.create_task(self._handle_ws_frame(payload)))
+        ws.on(
+            "framereceived",
+            lambda payload: asyncio.create_task(self._handle_ws_frame(payload)),
+        )
 
     async def _handle_ws_frame(self, payload):
         """
         Passes websocket frames directly to the canonical event parser.
         """
         if isinstance(payload, bytes):
-            payload = payload.decode('utf-8', errors='ignore')
-            
+            payload = payload.decode("utf-8", errors="ignore")
+
         events = frame_parser.parse_frame(payload)
         self._cache_canonical_events(events)
 
@@ -77,8 +79,10 @@ class BetarabiaAPIClient:
         """
         for event in events:
             # We use the event's selection traits to build a unique cache key
-            cache_key = f"{event.market_type}_{event.normalized_name}_{event.line}_{event.side}"
-            
+            cache_key = (
+                f"{event.market_type}_{event.normalized_name}_{event.line}_{event.side}"
+            )
+
             # Update cache with dictionary representation for downstream
             self.odds_cache[cache_key] = {
                 "fixture_id": event.fixture_id,
@@ -90,7 +94,7 @@ class BetarabiaAPIClient:
                 "decimal_odds": event.decimal_odds,
                 "implied_probability": event.implied_probability,
                 "market_status": event.status,
-                "scraped_at": event.book_timestamp # Using book timestamp for true freshness
+                "scraped_at": event.book_timestamp,  # Using book timestamp for true freshness
             }
 
     def get_latest_odds(self) -> List[Dict[str, Any]]:
@@ -99,34 +103,38 @@ class BetarabiaAPIClient:
         """
         valid_odds = []
         now = datetime.now(timezone.utc)
-        
+
         for key, odd in list(self.odds_cache.items()):
             scraped_at = datetime.fromisoformat(odd["scraped_at"])
             age_seconds = (now - scraped_at).total_seconds()
-            
+
             if age_seconds > self.STALE_THRESHOLD_SECONDS:
-                logger.warning(f"Stale odds detected for {key} (Age: {age_seconds}s). Marking suspended.")
+                logger.warning(
+                    f"Stale odds detected for {key} (Age: {age_seconds}s). Marking suspended."
+                )
                 odd["market_status"] = MARKET_STATE["SUSPENDED"]
-                
+
             valid_odds.append(odd)
-            
+
         return valid_odds
 
-    async def scrape_player_props(self, fixture_id: str, confirmed_starters: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def scrape_player_props(
+        self, fixture_id: str, confirmed_starters: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Navigates to the fixture page and triggers the XHR/WS interception.
         """
         if not self.page:
             await self.initialize()
-            
+
         logger.info(f"Navigating to Betarabia event page for fixture {fixture_id}")
-        
+
         # Example Navigation (URL would be dynamically resolved via fixture mapping)
         # await self.page.goto(f"https://www.betarabia.com/sports/football/event/{fixture_id}")
-        
+
         # Wait a few seconds for XHR and Websocket payloads to populate the cache
         await asyncio.sleep(5)
-        
+
         # Retrieve the latest parsed odds from the cache
         return self.get_latest_odds()
 
@@ -135,5 +143,6 @@ class BetarabiaAPIClient:
             await self.browser.close()
         if self.playwright:
             await self.playwright.stop()
+
 
 betarabia_scraper = BetarabiaAPIClient()

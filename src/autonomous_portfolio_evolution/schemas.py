@@ -1,11 +1,13 @@
 from enum import Enum
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any
+
 
 class StrategyStatus(Enum):
     ACTIVE = "ACTIVE"
     PROBATION = "PROBATION"
     RETIRED = "RETIRED"
+
 
 class StrategyGenome(BaseModel):
     strategy_id: str
@@ -13,6 +15,7 @@ class StrategyGenome(BaseModel):
     market_type: str
     base_model_version: str
     hyperparameters: Dict[str, Any]
+
 
 class StrategyState(BaseModel):
     genome: StrategyGenome

@@ -1,21 +1,26 @@
 import logging
 import sqlite3
 import time
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
+
 
 class AccountBehaviorProfile:
     """
     Longitudinal telemetry to detect sportsbook adaptation signatures.
     Measures confirmation delays over time, rejection rates, and account throttling.
     """
-    def __init__(self, db_path: str = "C:/Users/Elie/DeepFieldPro/db/adversarial_telemetry.sqlite"):
+
+    def __init__(
+        self,
+        db_path: str = "C:/Users/Elie/DeepFieldPro/db/adversarial_telemetry.sqlite",
+    ):
         self.db_path = db_path
         self._init_db()
 
     def _init_db(self):
         import os
+
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
             conn.executescript("""
@@ -29,18 +34,30 @@ class AccountBehaviorProfile:
                 );
             """)
 
-    def log_session_telemetry(self, avg_delay: float, rejection_rate: float, suspension_score: float, uptime: float):
+    def log_session_telemetry(
+        self,
+        avg_delay: float,
+        rejection_rate: float,
+        suspension_score: float,
+        uptime: float,
+    ):
         """
         Periodically records the global state of the account's execution health.
         """
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO account_telemetry (
                     timestamp, avg_confirmation_delay_ms, rejection_rate_pct, 
                     suspension_aggressiveness_score, session_uptime_hours
                 ) VALUES (?, ?, ?, ?, ?)
-            """, (time.time(), avg_delay, rejection_rate, suspension_score, uptime))
-            
-        logger.debug(f"[ACCOUNT PROFILE] Logged telemetry. Rejection Rate: {rejection_rate*100:.1f}%")
+            """,
+                (time.time(), avg_delay, rejection_rate, suspension_score, uptime),
+            )
+
+        logger.debug(
+            f"[ACCOUNT PROFILE] Logged telemetry. Rejection Rate: {rejection_rate*100:.1f}%"
+        )
+
 
 account_profile = AccountBehaviorProfile()

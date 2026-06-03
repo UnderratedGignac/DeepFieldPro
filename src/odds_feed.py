@@ -24,15 +24,15 @@ import requests
 import betfairlightweight
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'odds_stream.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "odds_stream.db")
 
-ODDS_API_KEY    = os.getenv('ODDS_API_KEY')
-BETFAIR_APP_KEY = os.getenv('BETFAIR_APP_KEY')
-BETFAIR_USERNAME = os.getenv('BETFAIR_USERNAME')
-BETFAIR_PASSWORD = os.getenv('BETFAIR_PASSWORD')
-BETFAIR_CERTS   = os.getenv('BETFAIR_CERTS_DIR')
+ODDS_API_KEY = os.getenv("ODDS_API_KEY")
+BETFAIR_APP_KEY = os.getenv("BETFAIR_APP_KEY")
+BETFAIR_USERNAME = os.getenv("BETFAIR_USERNAME")
+BETFAIR_PASSWORD = os.getenv("BETFAIR_PASSWORD")
+BETFAIR_CERTS = os.getenv("BETFAIR_CERTS_DIR")
 
 # Thread-safe queue for batched DB writes
 _write_queue = queue.Queue()
@@ -42,10 +42,11 @@ _write_queue = queue.Queue()
 # Database Setup
 # ─────────────────────────────
 
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('''
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS odds_feed (
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
         match_id       TEXT,
@@ -57,7 +58,7 @@ def init_db():
         bookmaker      TEXT,
         timestamp      DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-    ''')
+    """)
     conn.commit()
     conn.close()
 
@@ -65,6 +66,7 @@ def init_db():
 # ─────────────────────────────
 # Batched DB Writer Thread
 # ─────────────────────────────
+
 
 def _db_writer_thread():
     """
@@ -87,10 +89,13 @@ def _db_writer_thread():
                 except queue.Empty:
                     break
 
-            cursor.executemany('''
+            cursor.executemany(
+                """
                 INSERT INTO odds_feed (match_id, market_type, player_id, selection_name, price, volume, bookmaker)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', batch)
+            """,
+                batch,
+            )
             conn.commit()
 
         except queue.Empty:
@@ -99,9 +104,13 @@ def _db_writer_thread():
             print(f"DB Write Error: {e}")
 
 
-def log_odds(match_id, market_type, player_id, selection_name, price, volume, bookmaker):
+def log_odds(
+    match_id, market_type, player_id, selection_name, price, volume, bookmaker
+):
     """Non-blocking — puts odds onto the write queue."""
-    _write_queue.put((match_id, market_type, player_id, selection_name, price, volume, bookmaker))
+    _write_queue.put(
+        (match_id, market_type, player_id, selection_name, price, volume, bookmaker)
+    )
 
 
 def start_db_writer():
@@ -115,7 +124,8 @@ def start_db_writer():
 # Dev: The Odds API (REST poll)
 # ─────────────────────────────
 
-def fetch_odds_dev(sport_key='soccer_epl', regions='uk', markets='h2h'):
+
+def fetch_odds_dev(sport_key="soccer_epl", regions="uk", markets="h2h"):
     """
     Poll The Odds API for current odds. Use for development only.
     Prod should use Betfair WebSocket stream.
@@ -124,12 +134,12 @@ def fetch_odds_dev(sport_key='soccer_epl', regions='uk', markets='h2h'):
         print("Dev Error: ODDS_API_KEY not set in .env")
         return
 
-    url = f'https://api.the-odds-api.com/v4/sports/{sport_key}/odds/'
+    url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/"
     params = {
-        'apiKey': ODDS_API_KEY,
-        'regions': regions,
-        'markets': markets,
-        'oddsFormat': 'decimal'
+        "apiKey": ODDS_API_KEY,
+        "regions": regions,
+        "markets": markets,
+        "oddsFormat": "decimal",
     }
 
     response = requests.get(url, params=params, timeout=10)
@@ -137,14 +147,21 @@ def fetch_odds_dev(sport_key='soccer_epl', regions='uk', markets='h2h'):
         data = response.json()
         count = 0
         for event in data:
-            match_id = event['id']
-            for bookmaker in event['bookmakers']:
-                book_title = bookmaker['title']
-                for market in bookmaker['markets']:
-                    market_type = market['key']
-                    for outcome in market['outcomes']:
-                        log_odds(match_id, market_type, None,
-                                 outcome['name'], outcome['price'], 0.0, book_title)
+            match_id = event["id"]
+            for bookmaker in event["bookmakers"]:
+                book_title = bookmaker["title"]
+                for market in bookmaker["markets"]:
+                    market_type = market["key"]
+                    for outcome in market["outcomes"]:
+                        log_odds(
+                            match_id,
+                            market_type,
+                            None,
+                            outcome["name"],
+                            outcome["price"],
+                            0.0,
+                            book_title,
+                        )
                         count += 1
         print(f"Dev: Queued {count} odds rows for DB write.")
     else:
@@ -154,6 +171,7 @@ def fetch_odds_dev(sport_key='soccer_epl', regions='uk', markets='h2h'):
 # ─────────────────────────────
 # Prod: Betfair Exchange WebSocket (betfairlightweight 2.23+)
 # ─────────────────────────────
+
 
 def start_betfair_stream(market_ids):
     """
@@ -170,7 +188,7 @@ def start_betfair_stream(market_ids):
         username=BETFAIR_USERNAME,
         password=BETFAIR_PASSWORD,
         app_key=BETFAIR_APP_KEY,
-        certs=BETFAIR_CERTS
+        certs=BETFAIR_CERTS,
     )
     trading.login()
 
@@ -182,14 +200,13 @@ def start_betfair_stream(market_ids):
         market_ids=market_ids
     )
     market_data_filter = betfairlightweight.filters.streaming_market_data_filter(
-        fields=["EX_BEST_OFFERS", "EX_TRADED_VOL", "EX_LTP"],
-        ladder_levels=3
+        fields=["EX_BEST_OFFERS", "EX_TRADED_VOL", "EX_LTP"], ladder_levels=3
     )
 
     stream.subscribe_to_markets(
         market_filter=market_filter,
         market_data_filter=market_data_filter,
-        conflate_ms=500   # Throttle to 1 update per 500ms per market
+        conflate_ms=500,  # Throttle to 1 update per 500ms per market
     )
 
     print(f"Starting Betfair WebSocket stream for markets: {market_ids}")
@@ -203,20 +220,25 @@ def start_betfair_stream(market_ids):
                 market_id = market_book.market_id
                 for runner in market_book.runners:
                     ltp = runner.last_price_traded
-                    tv  = runner.total_matched or 0.0
+                    tv = runner.total_matched or 0.0
                     if ltp:
                         log_odds(
-                            market_id, 'exchange',
+                            market_id,
+                            "exchange",
                             str(runner.selection_id),
-                            str(runner.selection_id),  # Resolve name via catalog separately
-                            ltp, tv, 'Betfair Exchange'
+                            str(
+                                runner.selection_id
+                            ),  # Resolve name via catalog separately
+                            ltp,
+                            tv,
+                            "Betfair Exchange",
                         )
             time.sleep(0.5)  # Match conflate_ms setting
     except KeyboardInterrupt:
         print("Betfair stream stopped.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     init_db()
     start_db_writer()
     print("Odds feed initialized. Tables created and writer thread started.")

@@ -24,7 +24,9 @@ import os
 import sqlite3
 from alerter import alert_role_shift_detected
 
-DB_PATH_HISTORY = os.path.join(os.path.dirname(__file__), '..', 'data', 'player_role_history.db')
+DB_PATH_HISTORY = os.path.join(
+    os.path.dirname(__file__), "..", "data", "player_role_history.db"
+)
 
 # ─────────────────────────────────────────────────────────
 # CALIBRATION STATUS:
@@ -33,17 +35,20 @@ DB_PATH_HISTORY = os.path.join(os.path.dirname(__file__), '..', 'data', 'player_
 # ─────────────────────────────────────────────────────────
 ROLE_SHIFT_MULTIPLIERS = {
     # shift_key                   : (multiplier, is_calibrated)
-    "fullback->wingback"          : (1.35, False),  # More passes expected — UNCALIBRATED
-    "wingback->winger"            : (0.85, False),  # Fewer passes — UNCALIBRATED
-    "fullback->center_back"       : (1.20, False),  # UNCALIBRATED
-    "center_back->fullback"       : (0.85, False),  # UNCALIBRATED
-    "winger->central_mid"         : (1.55, False),  # Big alpha source — UNCALIBRATED
-    "winger->midfield"            : (1.40, False),  # UNCALIBRATED
-    "midfield->defensive_mid"     : (1.20, False),  # Deeper = more recycling passes — UNCALIBRATED
-    "midfield->attacking_mid"     : (0.80, False),  # Higher = fewer passes — UNCALIBRATED
-    "striker->winger"             : (1.40, False),  # UNCALIBRATED
-    "central_mid->attacking_mid"  : (0.80, False),  # UNCALIBRATED
-    "defensive_mid->central_mid"  : (0.95, False),  # UNCALIBRATED
+    "fullback->wingback": (1.35, False),  # More passes expected — UNCALIBRATED
+    "wingback->winger": (0.85, False),  # Fewer passes — UNCALIBRATED
+    "fullback->center_back": (1.20, False),  # UNCALIBRATED
+    "center_back->fullback": (0.85, False),  # UNCALIBRATED
+    "winger->central_mid": (1.55, False),  # Big alpha source — UNCALIBRATED
+    "winger->midfield": (1.40, False),  # UNCALIBRATED
+    "midfield->defensive_mid": (
+        1.20,
+        False,
+    ),  # Deeper = more recycling passes — UNCALIBRATED
+    "midfield->attacking_mid": (0.80, False),  # Higher = fewer passes — UNCALIBRATED
+    "striker->winger": (1.40, False),  # UNCALIBRATED
+    "central_mid->attacking_mid": (0.80, False),  # UNCALIBRATED
+    "defensive_mid->central_mid": (0.95, False),  # UNCALIBRATED
 }
 
 
@@ -66,8 +71,10 @@ def detect_shifts(current_lineup):
       }
     """
     if not os.path.exists(DB_PATH_HISTORY):
-        print("WARNING: Role history DB missing. Cannot detect shifts. "
-              "Run role_baseline_builder.py first.")
+        print(
+            "WARNING: Role history DB missing. Cannot detect shifts. "
+            "Run role_baseline_builder.py first."
+        )
         return []
 
     conn = sqlite3.connect(DB_PATH_HISTORY)
@@ -75,11 +82,11 @@ def detect_shifts(current_lineup):
     shifts_detected = []
 
     for player in current_lineup:
-        pid = str(player['player_id'])
-        new_role = player.get('expected_role', 'unknown')
-        name = player.get('name', 'Unknown')
+        pid = str(player["player_id"])
+        new_role = player.get("expected_role", "unknown")
+        name = player.get("name", "Unknown")
 
-        if new_role == 'unknown':
+        if new_role == "unknown":
             continue  # Can't detect a shift if we don't know the new role
 
         cursor.execute(
@@ -92,7 +99,7 @@ def detect_shifts(current_lineup):
 
         usual_role = row[0]
 
-        if usual_role == 'unknown' or usual_role == new_role:
+        if usual_role == "unknown" or usual_role == new_role:
             continue  # No shift detected
 
         shift_key = f"{usual_role}->{new_role}"
@@ -106,13 +113,13 @@ def detect_shifts(current_lineup):
         apply_to_model = is_calibrated  # Only apply if we trust the data
 
         shift = {
-            'player_id': pid,
-            'player_name': name,
-            'old_role': usual_role,
-            'new_role': new_role,
-            'multiplier': multiplier,
-            'is_calibrated': is_calibrated,
-            'apply_to_model': apply_to_model
+            "player_id": pid,
+            "player_name": name,
+            "old_role": usual_role,
+            "new_role": new_role,
+            "multiplier": multiplier,
+            "is_calibrated": is_calibrated,
+            "apply_to_model": apply_to_model,
         }
         shifts_detected.append(shift)
 
@@ -120,10 +127,14 @@ def detect_shifts(current_lineup):
         alert_role_shift_detected(name, usual_role, new_role)
 
         if apply_to_model:
-            print(f"✅ CALIBRATED shift: {name} | {shift_key} | Multiplier: {multiplier:.2f}")
+            print(
+                f"✅ CALIBRATED shift: {name} | {shift_key} | Multiplier: {multiplier:.2f}"
+            )
         else:
-            print(f"⚠️  UNCALIBRATED shift: {name} | {shift_key} | "
-                  f"Flagged only — NOT applied to model until calibrated.")
+            print(
+                f"⚠️  UNCALIBRATED shift: {name} | {shift_key} | "
+                f"Flagged only — NOT applied to model until calibrated."
+            )
 
     conn.close()
     return shifts_detected
@@ -132,9 +143,13 @@ def detect_shifts(current_lineup):
 if __name__ == "__main__":
     # Test with mock data (requires role_baseline_builder to have been run first)
     mock_lineup = [
-        {'player_id': '883', 'name': 'Kyle Walker',     'expected_role': 'wingback'},
-        {'player_id': '284', 'name': 'Rodri',           'expected_role': 'defensive_mid'},
-        {'player_id': '622', 'name': 'Kevin De Bruyne', 'expected_role': 'attacking_mid'},
+        {"player_id": "883", "name": "Kyle Walker", "expected_role": "wingback"},
+        {"player_id": "284", "name": "Rodri", "expected_role": "defensive_mid"},
+        {
+            "player_id": "622",
+            "name": "Kevin De Bruyne",
+            "expected_role": "attacking_mid",
+        },
     ]
     shifts = detect_shifts(mock_lineup)
     print(f"\nTotal shifts detected: {len(shifts)}")

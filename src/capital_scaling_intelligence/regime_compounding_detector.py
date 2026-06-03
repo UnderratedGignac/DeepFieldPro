@@ -4,6 +4,7 @@ Replaces hard boolean thresholds with a soft-score model that outputs a
 continuous decay_probability in [0, 1]. COMPOUNDING/NEUTRAL/DECAY zones
 are determined by probability bands, not crisp if/else boundaries.
 """
+
 import math
 import logging
 from typing import Tuple
@@ -35,18 +36,24 @@ class RegimeCompoundingDetector:
       rvl_drift          0.20  — negative RVL drift → real-world edge is eroding
       clv_instability    0.15  — low CLV stability → edge is noise, not structure
     """
+
     # Weights must sum to 1.0
     _W_DRAWDOWN_AUTOCORR = 0.35
-    _W_FRICTION_TREND    = 0.30
-    _W_RVL_DRIFT         = 0.20
-    _W_CLV_INSTABILITY   = 0.15
+    _W_FRICTION_TREND = 0.30
+    _W_RVL_DRIFT = 0.20
+    _W_CLV_INSTABILITY = 0.15
 
     # Probability bands
-    _DECAY_THRESHOLD      = 0.60   # decay_prob > 0.60 → DECAY
+    _DECAY_THRESHOLD = 0.60  # decay_prob > 0.60 → DECAY
     _COMPOUNDING_THRESHOLD = 0.35  # decay_prob < 0.35 → COMPOUNDING
 
-    def detect_regime(self, clv_stability: float, friction_trend: float,
-                      rvl_drift: float, drawdown_autocorr: float) -> CompoundingRegime:
+    def detect_regime(
+        self,
+        clv_stability: float,
+        friction_trend: float,
+        rvl_drift: float,
+        drawdown_autocorr: float,
+    ) -> CompoundingRegime:
         """
         Returns the regime AND a decay confidence score.
         All inputs are raw floats:
@@ -78,8 +85,11 @@ class RegimeCompoundingDetector:
         return regime
 
     def _compute_decay_probability(
-        self, clv_stability: float, friction_trend: float,
-        rvl_drift: float, drawdown_autocorr: float
+        self,
+        clv_stability: float,
+        friction_trend: float,
+        rvl_drift: float,
+        drawdown_autocorr: float,
     ) -> Tuple[float, str]:
         """
         Computes weighted soft-score decay probability.
@@ -101,10 +111,10 @@ class RegimeCompoundingDetector:
         s_clv = _sigmoid((clv_instability - 0.3) * 8.0)
 
         decay_prob = (
-            self._W_DRAWDOWN_AUTOCORR * s_drawdown +
-            self._W_FRICTION_TREND    * s_friction +
-            self._W_RVL_DRIFT         * s_rvl +
-            self._W_CLV_INSTABILITY   * s_clv
+            self._W_DRAWDOWN_AUTOCORR * s_drawdown
+            + self._W_FRICTION_TREND * s_friction
+            + self._W_RVL_DRIFT * s_rvl
+            + self._W_CLV_INSTABILITY * s_clv
         )
 
         details = (
@@ -115,4 +125,3 @@ class RegimeCompoundingDetector:
 
 
 compounding_detector = RegimeCompoundingDetector()
-

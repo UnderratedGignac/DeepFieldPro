@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Any
+
 
 @dataclass
 class MarketVelocityChangedEvent:
@@ -9,6 +9,7 @@ class MarketVelocityChangedEvent:
     acceleration: float
     timestamp: str
 
+
 @dataclass
 class MarketRegimeChangedEvent:
     fixture_id: str
@@ -17,12 +18,14 @@ class MarketRegimeChangedEvent:
     new_regime: str
     timestamp: str
 
+
 @dataclass
 class EdgeDecayUpdatedEvent:
     fixture_id: str
     market_type: str
     half_life_ms: float
     timestamp: str
+
 
 @dataclass
 class ExecutionFailureEvent:
@@ -31,6 +34,7 @@ class ExecutionFailureEvent:
     latency_ms: float
     market_regime: str
     timestamp: str
+
 
 @dataclass
 class ExecutionSurvivabilityUpdatedEvent:

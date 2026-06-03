@@ -10,9 +10,9 @@ import pickle
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
-sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
+sys.path.insert(0, os.path.join(BASE_DIR, "src"))
 
-from src.model_runner_v2 import (
+from src.model_runner_v2 import (  # noqa: E402
     load_models_international,
     get_player_historical_stats,
     build_feature_vector,
@@ -20,7 +20,7 @@ from src.model_runner_v2 import (
     detect_competition_type,
     compute_intl_ppda_norm,
     compute_intl_minutes_factor,
-    poisson_prob_ge
+    poisson_prob_ge,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -28,22 +28,37 @@ logger = logging.getLogger(__name__)
 
 # Feature column lists matching trained model input shapes
 MINUTES_FEATURES = [
-    'Age', 'Starts', 'Percentage of Minutes Played',
-    'Mn/Start', 'Mn/MP', 'PPM',
-    'ppda', 'opp_possession_allowed', 'sample_weight'
+    "Age",
+    "Starts",
+    "Percentage of Minutes Played",
+    "Mn/Start",
+    "Mn/MP",
+    "PPM",
+    "ppda",
+    "opp_possession_allowed",
+    "sample_weight",
 ]
 PASSES_FEATURES = [
-    'Age', 'Position_encoded', 'Minutes Played',
-    'Mn/Start', 'Percentage of Minutes Played',
-    'Crs', 'Interceptions', 'Tackles Won',
-    'ppda', 'opp_possession_allowed', 'sample_weight'
+    "Age",
+    "Position_encoded",
+    "Minutes Played",
+    "Mn/Start",
+    "Percentage of Minutes Played",
+    "Crs",
+    "Interceptions",
+    "Tackles Won",
+    "ppda",
+    "opp_possession_allowed",
+    "sample_weight",
 ]
+
 
 def compute_ev(FairProb_P: float, RawOdds_P: float) -> float:
     return (FairProb_P * (RawOdds_P - 1)) - (1 - FairProb_P)
 
+
 def run_single_bet_predictor(BankrollSize_P: float):
-    DbPath_V = os.path.join(BASE_DIR, 'data', 'odds_stream.db')
+    DbPath_V = os.path.join(BASE_DIR, "data", "odds_stream.db")
     if not os.path.exists(DbPath_V):
         logger.error("odds_stream.db not found. Did the scraper run?")
         return
@@ -63,18 +78,29 @@ def run_single_bet_predictor(BankrollSize_P: float):
     Models_V = load_models_international()
 
     # Load Platt scaler if available
-    ScalerPath_V = os.path.join(BASE_DIR, 'models', 'platt_scaler_sot.pkl')
+    ScalerPath_V = os.path.join(BASE_DIR, "models", "platt_scaler_sot.pkl")
     PlattScaler_V = None
     if os.path.exists(ScalerPath_V):
-        with open(ScalerPath_V, 'rb') as F_V:
+        with open(ScalerPath_V, "rb") as F_V:
             PlattScaler_V = pickle.load(F_V)
 
     Bets_V = []
 
     for Row_V in Rows_V:
-        (MarketId_V, FixtureId_V, MarketName_V, SelectionName_V,
-         RawOdds_V, PlayerName_V, PropType_V, Line_V,
-         HomeTeam_V, AwayTeam_V, KickoffTime_V, LeagueId_V) = Row_V
+        (
+            MarketId_V,
+            FixtureId_V,
+            MarketName_V,
+            SelectionName_V,
+            RawOdds_V,
+            PlayerName_V,
+            PropType_V,
+            Line_V,
+            HomeTeam_V,
+            AwayTeam_V,
+            KickoffTime_V,
+            LeagueId_V,
+        ) = Row_V
 
         # Skip junk odds range
         if RawOdds_V < 1.20 or RawOdds_V > 15.0:
@@ -89,42 +115,69 @@ def run_single_bet_predictor(BankrollSize_P: float):
             CompetitionType_V = detect_competition_type(LeagueId_V)
 
             # Fetch real opponent profile from DB, not hardcoded
-            OppProfile_V = get_opponent_profile(AwayTeam_V if HomeTeam_V else "", CompetitionType_V)
+            OppProfile_V = get_opponent_profile(
+                AwayTeam_V if HomeTeam_V else "", CompetitionType_V
+            )
 
-            Stats_V = get_player_historical_stats(PlayerName_V, competition_type=CompetitionType_V)
+            Stats_V = get_player_historical_stats(
+                PlayerName_V, competition_type=CompetitionType_V
+            )
             if Stats_V is None:
                 continue
 
-            if isinstance(Stats_V, dict) and Stats_V.get('is_fallback'):
+            if isinstance(Stats_V, dict) and Stats_V.get("is_fallback"):
                 IsFallback_V = True
                 Confidence_V = "LOW"
-            elif hasattr(Stats_V, 'get') and Stats_V.get('is_fallback'):
+            elif hasattr(Stats_V, "get") and Stats_V.get("is_fallback"):
                 IsFallback_V = True
                 Confidence_V = "LOW"
 
             Features_V = build_feature_vector(Stats_V, OppProfile_V, CompetitionType_V)
 
             # Build model input DataFrames with correct column names
-            X_minutes = pd.DataFrame([{k: Features_V[k] for k in MINUTES_FEATURES if k in Features_V}])
-            X_passes = pd.DataFrame([{k: Features_V[k] for k in PASSES_FEATURES if k in Features_V}])
+            X_minutes = pd.DataFrame(  # noqa: F841
+                [{k: Features_V[k] for k in MINUTES_FEATURES if k in Features_V}]
+            )
+            X_passes = pd.DataFrame(
+                [{k: Features_V[k] for k in PASSES_FEATURES if k in Features_V}]
+            )
 
             # Route to correct SoT model based on competition type
-            ModelKey_V = 'sot_international' if CompetitionType_V == 1 else 'sot_club'
-            MinModel_V = Models_V.get('sot_club')  # use as proxy for minutes if no dedicated model
+            ModelKey_V = "sot_international" if CompetitionType_V == 1 else "sot_club"
+            MinModel_V = Models_V.get(  # noqa: F841
+                "sot_club"
+            )  # use as proxy for minutes if no dedicated model
 
             if ModelKey_V not in Models_V:
-                logger.warning(f"Model {ModelKey_V} not loaded, skipping {PlayerName_V}")
+                logger.warning(
+                    f"Model {ModelKey_V} not loaded, skipping {PlayerName_V}"
+                )
                 continue
 
             SotMean_V = float(Models_V[ModelKey_V].predict(X_passes)[0])
-            ExpectedMinutes_V = float(Models_V.get('sot_club', Models_V[ModelKey_V]).predict(X_passes)[0]) * 45.0
-            ExpectedMinutes_V = max(45.0, min(90.0, ExpectedMinutes_V))  # clamp to sensible range
+            ExpectedMinutes_V = (
+                float(
+                    Models_V.get("sot_club", Models_V[ModelKey_V]).predict(X_passes)[0]
+                )
+                * 45.0
+            )
+            ExpectedMinutes_V = max(
+                45.0, min(90.0, ExpectedMinutes_V)
+            )  # clamp to sensible range
 
             # Compute normalized lambda
-            IntlPpdaNorm_V = compute_intl_ppda_norm(OppProfile_V['ppda'], CompetitionType_V)
+            IntlPpdaNorm_V = compute_intl_ppda_norm(
+                OppProfile_V["ppda"], CompetitionType_V
+            )
             IntlMinutesFactor_V = compute_intl_minutes_factor(CompetitionType_V)
 
-            LamSot_V = max(0.001, (SotMean_V / 90.0) * ExpectedMinutes_V * IntlPpdaNorm_V * IntlMinutesFactor_V)
+            LamSot_V = max(
+                0.001,
+                (SotMean_V / 90.0)
+                * ExpectedMinutes_V
+                * IntlPpdaNorm_V
+                * IntlMinutesFactor_V,
+            )
 
             # Use prop line from scraped data, default to 0.5
             PropLine_V = float(Line_V) if Line_V is not None else 0.5
@@ -158,26 +211,44 @@ def run_single_bet_predictor(BankrollSize_P: float):
             if "home" in SelectionLower_V or "1" == SelectionLower_V.strip():
                 # Bivariate Poisson P(home > away)
                 FairProb_V = sum(
-                    math.exp(-HomeGoalLam_V) * (HomeGoalLam_V ** h) / math.factorial(h) *
-                    sum(math.exp(-AwayGoalLam_V) * (AwayGoalLam_V ** a) / math.factorial(a)
-                        for a in range(h))
+                    math.exp(-HomeGoalLam_V)
+                    * (HomeGoalLam_V**h)
+                    / math.factorial(h)
+                    * sum(
+                        math.exp(-AwayGoalLam_V)
+                        * (AwayGoalLam_V**a)
+                        / math.factorial(a)
+                        for a in range(h)
+                    )
                     for h in range(8)
                 )
             elif "draw" in SelectionLower_V or "x" == SelectionLower_V.strip():
                 FairProb_V = sum(
-                    math.exp(-HomeGoalLam_V) * (HomeGoalLam_V ** g) / math.factorial(g) *
-                    math.exp(-AwayGoalLam_V) * (AwayGoalLam_V ** g) / math.factorial(g)
+                    math.exp(-HomeGoalLam_V)
+                    * (HomeGoalLam_V**g)
+                    / math.factorial(g)
+                    * math.exp(-AwayGoalLam_V)
+                    * (AwayGoalLam_V**g)
+                    / math.factorial(g)
                     for g in range(8)
                 )
             elif "away" in SelectionLower_V or "2" == SelectionLower_V.strip():
                 FairProb_V = sum(
-                    math.exp(-AwayGoalLam_V) * (AwayGoalLam_V ** a) / math.factorial(a) *
-                    sum(math.exp(-HomeGoalLam_V) * (HomeGoalLam_V ** h) / math.factorial(h)
-                        for h in range(a))
+                    math.exp(-AwayGoalLam_V)
+                    * (AwayGoalLam_V**a)
+                    / math.factorial(a)
+                    * sum(
+                        math.exp(-HomeGoalLam_V)
+                        * (HomeGoalLam_V**h)
+                        / math.factorial(h)
+                        for h in range(a)
+                    )
                     for a in range(8)
                 )
             elif "btts" in MarketLower_V or "both teams" in MarketLower_V:
-                FairProb_V = (1 - math.exp(-HomeGoalLam_V)) * (1 - math.exp(-AwayGoalLam_V))
+                FairProb_V = (1 - math.exp(-HomeGoalLam_V)) * (
+                    1 - math.exp(-AwayGoalLam_V)
+                )
             elif "over 2.5" in MarketLower_V or "over 2.5" in SelectionLower_V:
                 FairProb_V = poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, 3)
             elif "over 1.5" in MarketLower_V or "over 1.5" in SelectionLower_V:
@@ -199,7 +270,9 @@ def run_single_bet_predictor(BankrollSize_P: float):
             Status_V = "SKIP"
 
         # Quarter Kelly sizing with hard caps
-        FullKelly_V = (FairProb_V * RawOdds_V - 1) / (RawOdds_V - 1) if RawOdds_V > 1 else 0
+        FullKelly_V = (
+            (FairProb_V * RawOdds_V - 1) / (RawOdds_V - 1) if RawOdds_V > 1 else 0
+        )
         KellyStake_V = (FullKelly_V / 4.0) * BankrollSize_P
 
         MaxStake_V = BankrollSize_P * 0.02 if IsFallback_V else BankrollSize_P * 0.05
@@ -211,36 +284,39 @@ def run_single_bet_predictor(BankrollSize_P: float):
 
         StakePct_V = (KellyStake_V / BankrollSize_P) * 100 if BankrollSize_P > 0 else 0
 
-        Bets_V.append({
-            "fixture": f"{HomeTeam_V} vs {AwayTeam_V}",
-            "kickoff": KickoffTime_V,
-            "market": MarketName_V,
-            "selection": SelectionName_V,
-            "fair_prob": round(FairProb_V, 3),
-            "raw_odds": RawOdds_V,
-            "ev": round(Ev_V, 3),
-            "kelly_stake": round(KellyStake_V, 2),
-            "stake_pct": round(StakePct_V, 2),
-            "confidence": Confidence_V,
-            "is_fallback": IsFallback_V,
-            "status": Status_V
-        })
+        Bets_V.append(
+            {
+                "fixture": f"{HomeTeam_V} vs {AwayTeam_V}",
+                "kickoff": KickoffTime_V,
+                "market": MarketName_V,
+                "selection": SelectionName_V,
+                "fair_prob": round(FairProb_V, 3),
+                "raw_odds": RawOdds_V,
+                "ev": round(Ev_V, 3),
+                "kelly_stake": round(KellyStake_V, 2),
+                "stake_pct": round(StakePct_V, 2),
+                "confidence": Confidence_V,
+                "is_fallback": IsFallback_V,
+                "status": Status_V,
+            }
+        )
 
-    Bets_V.sort(key=lambda x: x['ev'], reverse=True)
+    Bets_V.sort(key=lambda x: x["ev"], reverse=True)
     for Idx_V, B_V in enumerate(Bets_V):
-        B_V['rank'] = Idx_V + 1
+        B_V["rank"] = Idx_V + 1
 
     OutputData_V = {
         "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "bankroll": BankrollSize_P,
-        "bets": Bets_V
+        "bets": Bets_V,
     }
 
-    OutPath_V = os.path.join(BASE_DIR, 'data', 'todays_single_bets.json')
-    with open(OutPath_V, 'w') as F_V:
+    OutPath_V = os.path.join(BASE_DIR, "data", "todays_single_bets.json")
+    with open(OutPath_V, "w") as F_V:
         json.dump(OutputData_V, F_V, indent=4)
 
     logger.info(f"Generated single predictions for {len(Bets_V)} markets.")
+
 
 if __name__ == "__main__":
     BankrollArg_V = float(sys.argv[1]) if len(sys.argv) > 1 else 100.0

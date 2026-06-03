@@ -1,8 +1,8 @@
 # selector_registry.py
 import logging
-from typing import Dict
 
 logger = logging.getLogger(__name__)
+
 
 class SelectorRegistry:
     """
@@ -10,6 +10,7 @@ class SelectorRegistry:
     Sportsbooks mutate frontend structures frequently.
     We prefer data-attributes, ARIA labels, and semantic hierarchy over raw CSS classes.
     """
+
     def __init__(self):
         self.SELECTORS = {
             # Betarabia specific locators (mocked for production mapping)
@@ -21,7 +22,7 @@ class SelectorRegistry:
             "confirm_button": "button >> text='Place Bet'",
             "success_toast": "data-test-id='bet-receipt-success'",
             "suspension_overlay": "data-test-id='market-suspended-overlay'",
-            "loading_spinner": ".loader-spinner" # Fallback to class if needed
+            "loading_spinner": ".loader-spinner",  # Fallback to class if needed
         }
 
     def get(self, key: str, **kwargs) -> str:
@@ -32,11 +33,14 @@ class SelectorRegistry:
         if not selector:
             logger.error(f"[SELECTOR REGISTRY] Missing selector for key: {key}")
             raise KeyError(f"Selector {key} not found.")
-        
+
         try:
             return selector.format(**kwargs)
         except KeyError as e:
-            logger.error(f"[SELECTOR REGISTRY] Missing format kwarg {e} for selector {key}")
+            logger.error(
+                f"[SELECTOR REGISTRY] Missing format kwarg {e} for selector {key}"
+            )
             raise
+
 
 registry = SelectorRegistry()

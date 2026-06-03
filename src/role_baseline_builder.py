@@ -12,8 +12,12 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timezone
 
-DB_PATH_LINEUPS = os.path.join(os.path.dirname(__file__), '..', 'data', 'parsed_lineups.db')
-DB_PATH_HISTORY = os.path.join(os.path.dirname(__file__), '..', 'data', 'player_role_history.db')
+DB_PATH_LINEUPS = os.path.join(
+    os.path.dirname(__file__), "..", "data", "parsed_lineups.db"
+)
+DB_PATH_HISTORY = os.path.join(
+    os.path.dirname(__file__), "..", "data", "player_role_history.db"
+)
 
 MIN_STARTS_FOR_BASELINE = 3  # Do not build a baseline with fewer starts than this
 
@@ -21,7 +25,7 @@ MIN_STARTS_FOR_BASELINE = 3  # Do not build a baseline with fewer starts than th
 def init_history_db():
     conn = sqlite3.connect(DB_PATH_HISTORY)
     cursor = conn.cursor()
-    cursor.execute('''
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS role_baseline (
         player_id        TEXT PRIMARY KEY,
         player_name      TEXT,
@@ -30,7 +34,7 @@ def init_history_db():
         total_appearances INTEGER,
         last_updated     TIMESTAMP
     )
-    ''')
+    """)
     conn.commit()
     conn.close()
 
@@ -50,7 +54,7 @@ def build_baseline():
         "SELECT player_id, player_name, expected_role, timestamp "
         "FROM parsed_lineups WHERE is_starter = 1 "
         "ORDER BY timestamp DESC",
-        conn_lineups
+        conn_lineups,
     )
     conn_lineups.close()
 
@@ -65,7 +69,7 @@ def build_baseline():
     updated = 0
     skipped = 0
 
-    for player_id, group in df.groupby('player_id'):
+    for player_id, group in df.groupby("player_id"):
         # Use only the last 10 starts
         group = group.head(10)
         total_apps = len(group)
@@ -75,22 +79,27 @@ def build_baseline():
             skipped += 1
             continue
 
-        player_name = group['player_name'].iloc[0]
-        role_counts = group['expected_role'].value_counts()
+        player_name = group["player_name"].iloc[0]
+        role_counts = group["expected_role"].value_counts()
         usual_role = role_counts.index[0]
         frequency = float(role_counts.iloc[0]) / total_apps
 
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO role_baseline
             (player_id, player_name, usual_role, role_frequency, total_appearances, last_updated)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (str(player_id), player_name, usual_role, frequency, total_apps, now))
+        """,
+            (str(player_id), player_name, usual_role, frequency, total_apps, now),
+        )
         updated += 1
 
     conn_hist.commit()
     conn_hist.close()
-    print(f"Role baseline updated: {updated} players | "
-          f"{skipped} skipped (fewer than {MIN_STARTS_FOR_BASELINE} starts).")
+    print(
+        f"Role baseline updated: {updated} players | "
+        f"{skipped} skipped (fewer than {MIN_STARTS_FOR_BASELINE} starts)."
+    )
 
 
 if __name__ == "__main__":

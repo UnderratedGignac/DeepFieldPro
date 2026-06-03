@@ -4,6 +4,7 @@ from typing import Dict
 
 logger = logging.getLogger(__name__)
 
+
 class ExpectedLineupPredictor:
     """
     Massive future edge.
@@ -11,6 +12,7 @@ class ExpectedLineupPredictor:
     Uses previous matches, injury reports, suspensions, rotation patterns,
     minutes load, and competition type.
     """
+
     def __init__(self):
         # Stub for ML model or heuristic engine that computes starter probabilities
         pass
@@ -25,10 +27,13 @@ class ExpectedLineupPredictor:
         }
         This allows pre-positioning and early edge capture before official release.
         """
-        logger.info(f"Generating expected lineup probabilities for {team_id} in {fixture_id}")
-        
-        # Stub: Normally this would query a feature store of recent minutes played, 
+        logger.info(
+            f"Generating expected lineup probabilities for {team_id} in {fixture_id}"
+        )
+
+        # Stub: Normally this would query a feature store of recent minutes played,
         # scrape injury reports, and output a sigmoid probability per squad player.
         return {}
+
 
 expected_predictor = ExpectedLineupPredictor()

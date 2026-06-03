@@ -9,21 +9,18 @@ BETARABIA_MARKET_MAP = {
     "Player to score in first 10 minutes": "player_goal_first_10_mins",
     "Player To Score in 1st Half": "player_goal_first_half",
     "Player To Score in 2nd Half": "player_goal_second_half",
-    
     # Card Markets
     "Player to Receive A Yellow Card": "player_card_yellow",
     "Player to be Carded": "player_card_any",
     "First Player to be Carded": "player_card_first",
-    
     # Shot Markets
     "Player Total Shots": "player_shots_ou",
     "Total Shots": "player_shots_ou",
     "Player Shots On Target": "player_sot_ou",
     "Shots on Target": "player_sot_ou",
-    
     # Offside Markets
     "Player Offsides Totals": "player_offsides_ou",
-    "Offsides": "player_offsides_ou"
+    "Offsides": "player_offsides_ou",
 }
 
 MARKET_STATE = {
@@ -31,8 +28,9 @@ MARKET_STATE = {
     "SUSPENDED": "suspended",
     "HIDDEN": "hidden",
     "SETTLED": "settled",
-    "REMOVED": "removed"
+    "REMOVED": "removed",
 }
+
 
 class MarketMapper:
     @staticmethod
@@ -44,14 +42,15 @@ class MarketMapper:
         # Direct match
         if raw_market_name in BETARABIA_MARKET_MAP:
             return BETARABIA_MARKET_MAP[raw_market_name]
-            
+
         # Case-insensitive direct match
         for key, val in BETARABIA_MARKET_MAP.items():
             if raw_market_name.lower() == key.lower():
                 return val
-                
+
         # If no match is found, we might want to flag it for dynamic discovery
         # but for now, return None to indicate an unsupported market.
         return None
+
 
 market_mapper = MarketMapper()

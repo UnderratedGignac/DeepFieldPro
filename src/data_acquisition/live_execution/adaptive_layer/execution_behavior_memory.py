@@ -1,21 +1,25 @@
 import sqlite3
-import json
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
+
 
 class ExecutionBehaviorMemory:
     """
     Persists execution outcomes, suspension patterns, failed clicks, and bookmaker processing latency.
     Serves as the foundational dataset for all adaptive models and machine learning pipelines.
     """
-    def __init__(self, db_path: str = "C:/Users/Elie/DeepFieldPro/db/adaptive_memory.sqlite"):
+
+    def __init__(
+        self, db_path: str = "C:/Users/Elie/DeepFieldPro/db/adaptive_memory.sqlite"
+    ):
         self.db_path = db_path
         self._init_db()
 
     def _init_db(self):
         import os
+
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
             conn.executescript("""
@@ -51,46 +55,55 @@ class ExecutionBehaviorMemory:
         Logs every attempted execution.
         """
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO execution_outcomes (
                     exec_id, fixture_id, market_type, player_name, lineup_confidence,
                     theoretical_ev, realized_ev, execution_status, failure_classification,
                     bot_latency_ms, bookmaker_latency_ms, slippage_ticks, 
                     market_volatility_at_execution, timestamp
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                exec_data.get("exec_id"),
-                exec_data.get("fixture_id"),
-                exec_data.get("market_type"),
-                exec_data.get("player_name"),
-                exec_data.get("lineup_confidence", 1.0),
-                exec_data.get("theoretical_ev", 0.0),
-                exec_data.get("realized_ev", 0.0),
-                exec_data.get("status"),
-                exec_data.get("failure_classification", "none"),
-                exec_data.get("bot_latency_ms", 0.0),
-                exec_data.get("bookmaker_latency_ms", 0.0),
-                exec_data.get("slippage_ticks", 0.0),
-                exec_data.get("market_volatility", 0.0),
-                exec_data.get("timestamp")
-            ))
+            """,
+                (
+                    exec_data.get("exec_id"),
+                    exec_data.get("fixture_id"),
+                    exec_data.get("market_type"),
+                    exec_data.get("player_name"),
+                    exec_data.get("lineup_confidence", 1.0),
+                    exec_data.get("theoretical_ev", 0.0),
+                    exec_data.get("realized_ev", 0.0),
+                    exec_data.get("status"),
+                    exec_data.get("failure_classification", "none"),
+                    exec_data.get("bot_latency_ms", 0.0),
+                    exec_data.get("bookmaker_latency_ms", 0.0),
+                    exec_data.get("slippage_ticks", 0.0),
+                    exec_data.get("market_volatility", 0.0),
+                    exec_data.get("timestamp"),
+                ),
+            )
 
-    def get_historical_fill_rate(self, market_type: str, min_volatility: float = 0.0) -> float:
+    def get_historical_fill_rate(
+        self, market_type: str, min_volatility: float = 0.0
+    ) -> float:
         """
         Retrieves historical survivability for a specific market under current volatility regimes.
         """
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT execution_status FROM execution_outcomes
                 WHERE market_type = ? AND market_volatility_at_execution >= ?
                 ORDER BY timestamp DESC LIMIT 1000
-            """, (market_type, min_volatility))
-            
+            """,
+                (market_type, min_volatility),
+            )
+
             rows = cursor.fetchall()
             if not rows:
-                return 0.5 # Default prior
-                
+                return 0.5  # Default prior
+
             fills = sum(1 for r in rows if r[0] == "filled")
             return fills / len(rows)
+
 
 behavior_memory = ExecutionBehaviorMemory()

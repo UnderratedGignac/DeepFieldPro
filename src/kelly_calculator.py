@@ -9,6 +9,7 @@ Correct Kelly Criterion implementation.
 
 MIN_EDGE_THRESHOLD = 0.03  # Only bet edges > 3% after vig removal
 
+
 def fractional_kelly(fair_prob, market_odds, fraction=0.25):
     """
     fair_prob:    YOUR model's win probability (e.g., 0.52).
@@ -58,13 +59,15 @@ def get_recommended_stake(fair_prob, market_odds, current_bankroll, fraction=0.2
 
 if __name__ == "__main__":
     # Example: model says fair price is 2.00 (50% win prob), book offers 2.15
-    fair_prob = 1 / 2.00   # 0.50
+    fair_prob = 1 / 2.00  # 0.50
     market_odds = 2.15
     bankroll = 10000
 
     stake = get_recommended_stake(fair_prob, market_odds, bankroll)
     edge = fair_prob - (1 / market_odds)
-    print(f"Fair Prob: {fair_prob:.3f} | Market Odds: {market_odds} | Edge: {edge*100:.2f}%")
+    print(
+        f"Fair Prob: {fair_prob:.3f} | Market Odds: {market_odds} | Edge: {edge*100:.2f}%"
+    )
     print(f"Recommended Stake: ${stake:.2f} ({stake/bankroll*100:.2f}% of bankroll)")
 
     # Test: below-threshold edge should return $0

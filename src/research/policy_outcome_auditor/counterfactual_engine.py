@@ -4,11 +4,13 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class CounterfactualOutcome:
     execute_ev: float
     skip_ev: float
     delayed_ev: float
+
 
 class CounterfactualEngine:
     """
@@ -16,6 +18,7 @@ class CounterfactualEngine:
     Implements a 3-world simulation model to evaluate what would have happened
     if we made a different execution policy decision.
     """
+
     def __init__(self):
         pass
 
@@ -44,13 +47,13 @@ class CounterfactualEngine:
         closing_odds = row.get("closing_odds")
         odds_at_decision = row.get("odds_at_decision")
         p_fill = row.get("predicted_p_fill", 0.5)
-        
+
         if not closing_odds or not odds_at_decision:
             return 0.0
-            
+
         # CLV = (closing_odds - entry_odds) / entry_odds
         realized_clv = (closing_odds - odds_at_decision) / odds_at_decision
-        
+
         # EV = Fill Probability * Realized CLV Movement
         # Does not assume perfect execution.
         return realized_clv * p_fill
@@ -64,14 +67,14 @@ class CounterfactualEngine:
         odds_at_decision = row.get("odds_at_decision")
         if not closing_odds or not odds_at_decision:
             return 0.0
-            
+
         # Assuming delay caused 20% of the CLV edge to evaporate
         realized_clv = (closing_odds - odds_at_decision) / odds_at_decision
         delayed_clv = realized_clv * 0.8
-        
+
         # P_fill drops significantly because of the delay
         p_fill = row.get("predicted_p_fill", 0.5) * 0.4
-        
+
         return delayed_clv * p_fill
 
     def compute_counterfactuals(self, row: Dict[str, Any]) -> CounterfactualOutcome:
@@ -81,7 +84,8 @@ class CounterfactualEngine:
         return CounterfactualOutcome(
             execute_ev=self.simulate_execute(row),
             skip_ev=self.simulate_skip(row),
-            delayed_ev=self.simulate_delayed(row)
+            delayed_ev=self.simulate_delayed(row),
         )
+
 
 counterfactual_engine = CounterfactualEngine()

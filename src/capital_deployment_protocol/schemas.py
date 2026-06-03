@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
+
 
 class RolloutPhase(str, Enum):
     PHASE_0_SHADOW = "SHADOW"
@@ -9,16 +9,19 @@ class RolloutPhase(str, Enum):
     PHASE_2_LIMITED = "LIMITED"
     PHASE_3_PRODUCTION = "PRODUCTION"
 
+
 class HealthStatus(str, Enum):
     HEALTHY = "HEALTHY"
     DEGRADED = "DEGRADED"
     CRITICAL = "CRITICAL"
     SHUTDOWN_REQUIRED = "SHUTDOWN_REQUIRED"
 
+
 class DeploymentState(BaseModel):
     """
     Tracks the current state of the Capital Deployment Protocol.
     """
+
     model_config = ConfigDict(frozen=True)
 
     current_phase: RolloutPhase = RolloutPhase.PHASE_0_SHADOW
@@ -28,10 +31,12 @@ class DeploymentState(BaseModel):
     phase_drawdown_pct: float = 0.0
     last_updated: datetime = Field(default_factory=datetime.utcnow)
 
+
 class CapitalAllocationRequest(BaseModel):
     """
     Request from the execution engine to allocate capital for a specific bet.
     """
+
     trace_id: str
     predicted_ev: float
     regime: str

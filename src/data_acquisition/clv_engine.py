@@ -3,12 +3,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class CLVEngine:
     """
-    Formalizes Closing Line Value tracking. 
+    Formalizes Closing Line Value tracking.
     CLV = (execution_odds / closing_odds) - 1
     This is the ultimate validation metric for the pricing engine.
     """
+
     def __init__(self):
         # We would normally use a DB table for this, e.g., 'clv_history'
         self.bet_ledger = {}
@@ -20,7 +22,7 @@ class CLVEngine:
         self.bet_ledger[bet_id] = {
             "execution_odds": execution_odds,
             "closing_odds": None,
-            "clv_percentage": None
+            "clv_percentage": None,
         }
 
     def record_closing_line(self, bet_id: str, closing_odds: float):
@@ -30,12 +32,15 @@ class CLVEngine:
         if bet_id in self.bet_ledger:
             execution_odds = self.bet_ledger[bet_id]["execution_odds"]
             self.bet_ledger[bet_id]["closing_odds"] = closing_odds
-            
+
             # CLV calculation
             clv = (execution_odds / closing_odds) - 1.0
             self.bet_ledger[bet_id]["clv_percentage"] = clv
-            
+
             direction = "Positive" if clv > 0 else "Negative"
-            logger.info(f"[CLV TRACKER] Bet {bet_id}: Execution @ {execution_odds}, Closing @ {closing_odds}. {direction} CLV: {clv*100:.2f}%")
+            logger.info(
+                f"[CLV TRACKER] Bet {bet_id}: Execution @ {execution_odds}, Closing @ {closing_odds}. {direction} CLV: {clv*100:.2f}%"
+            )
+
 
 clv_engine = CLVEngine()

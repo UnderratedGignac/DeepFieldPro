@@ -3,14 +3,18 @@ W1 FIX: State Persistence Layer
 Persists DeploymentState to SQLite so process restarts don't reset to Day 0.
 Also persists the daily drift budget for GlobalSafetyConstraints.
 """
+
 import sqlite3
 import logging
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from src.capital_deployment_protocol.schemas import DeploymentState, RolloutPhase, HealthStatus
+from src.capital_deployment_protocol.schemas import (
+    DeploymentState,
+    RolloutPhase,
+    HealthStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +54,8 @@ def save_deployment_state(state: DeploymentState):
     """Upserts the single DeploymentState row (id=1) into SQLite."""
     conn = _get_conn()
     _ensure_tables(conn)
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO deployment_state (id, current_phase, max_capital_allocation,
             current_health, days_in_phase, phase_drawdown_pct, last_updated)
         VALUES (1, ?, ?, ?, ?, ?, ?)
@@ -61,14 +66,16 @@ def save_deployment_state(state: DeploymentState):
             days_in_phase=excluded.days_in_phase,
             phase_drawdown_pct=excluded.phase_drawdown_pct,
             last_updated=excluded.last_updated
-    """, (
-        state.current_phase.value,
-        state.max_capital_allocation,
-        state.current_health.value,
-        state.days_in_phase,
-        state.phase_drawdown_pct,
-        state.last_updated.isoformat()
-    ))
+    """,
+        (
+            state.current_phase.value,
+            state.max_capital_allocation,
+            state.current_health.value,
+            state.days_in_phase,
+            state.phase_drawdown_pct,
+            state.last_updated.isoformat(),
+        ),
+    )
     conn.commit()
     conn.close()
     logger.debug("[PERSISTENCE] DeploymentState saved to SQLite.")
@@ -81,16 +88,20 @@ def load_deployment_state() -> Optional[DeploymentState]:
     row = conn.execute("SELECT * FROM deployment_state WHERE id = 1").fetchone()
     conn.close()
     if row is None:
-        logger.info("[PERSISTENCE] No persisted state found. Starting fresh from PHASE_0_SHADOW.")
+        logger.info(
+            "[PERSISTENCE] No persisted state found. Starting fresh from PHASE_0_SHADOW."
+        )
         return None
-    logger.info(f"[PERSISTENCE] Restored DeploymentState: phase={row['current_phase']}, day={row['days_in_phase']}")
+    logger.info(
+        f"[PERSISTENCE] Restored DeploymentState: phase={row['current_phase']}, day={row['days_in_phase']}"
+    )
     return DeploymentState(
         current_phase=RolloutPhase(row["current_phase"]),
         max_capital_allocation=row["max_capital_allocation"],
         current_health=HealthStatus(row["current_health"]),
         days_in_phase=row["days_in_phase"],
         phase_drawdown_pct=row["phase_drawdown_pct"],
-        last_updated=datetime.fromisoformat(row["last_updated"])
+        last_updated=datetime.fromisoformat(row["last_updated"]),
     )
 
 
@@ -98,13 +109,16 @@ def save_drift_budget(date_str: str, min_ev_drift: float, p_fill_drift: float):
     """Persists today's drift budget so restarts don't reset it."""
     conn = _get_conn()
     _ensure_tables(conn)
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO drift_budget (drift_date, min_ev_drift, p_fill_drift)
         VALUES (?, ?, ?)
         ON CONFLICT(drift_date) DO UPDATE SET
             min_ev_drift=excluded.min_ev_drift,
             p_fill_drift=excluded.p_fill_drift
-    """, (date_str, min_ev_drift, p_fill_drift))
+    """,
+        (date_str, min_ev_drift, p_fill_drift),
+    )
     conn.commit()
     conn.close()
 

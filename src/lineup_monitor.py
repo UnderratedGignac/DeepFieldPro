@@ -24,51 +24,60 @@ from lineup_parser import parse_and_store_lineup, init_db as init_lineup_db
 from role_baseline_builder import build_baseline, init_history_db
 from role_shift_detector import detect_shifts
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-API_KEY  = os.getenv('API_FOOTBALL_KEY')
-API_HOST = 'api-football-v1.p.rapidapi.com'
-LOG_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'lineup_latency_log.csv')
+API_KEY = os.getenv("API_FOOTBALL_KEY")
+API_HOST = "api-football-v1.p.rapidapi.com"
+LOG_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "data", "lineup_latency_log.csv"
+)
 POLL_INTERVAL_SECONDS = 5  # 5s poll (requires paid API plan; use 10s on free tier)
 
 
 def init_log_file():
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, mode='w', newline='') as f:
+        with open(LOG_FILE, mode="w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                'match_id', 'kickoff_time', 'expected_lineup_time',
-                'lineup_received_at', 'latency_seconds', 'status'
-            ])
+            writer.writerow(
+                [
+                    "match_id",
+                    "kickoff_time",
+                    "expected_lineup_time",
+                    "lineup_received_at",
+                    "latency_seconds",
+                    "status",
+                ]
+            )
 
 
 def log_latency(match_id, kickoff_time, expected_time, received_at, latency, status):
-    with open(LOG_FILE, mode='a', newline='') as f:
+    with open(LOG_FILE, mode="a", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            match_id,
-            kickoff_time.isoformat(),
-            expected_time.isoformat(),
-            received_at.isoformat() if received_at else '',
-            f"{latency:.2f}" if latency is not None else '',
-            status
-        ])
+        writer.writerow(
+            [
+                match_id,
+                kickoff_time.isoformat(),
+                expected_time.isoformat(),
+                received_at.isoformat() if received_at else "",
+                f"{latency:.2f}" if latency is not None else "",
+                status,
+            ]
+        )
 
 
 async def fetch_lineup(session, fixture_id):
     """Returns the raw API-Football lineup payload, or None if not yet available."""
     url = f"https://{API_HOST}/v3/fixtures/lineups"
-    headers = {
-        "X-RapidAPI-Key": API_KEY,
-        "X-RapidAPI-Host": API_HOST
-    }
+    headers = {"X-RapidAPI-Key": API_KEY, "X-RapidAPI-Host": API_HOST}
     try:
-        async with session.get(url, headers=headers, params={"fixture": str(fixture_id)}) as resp:
+        async with session.get(
+            url, headers=headers, params={"fixture": str(fixture_id)}
+        ) as resp:
             if resp.status == 200:
                 data = await resp.json()
-                if data.get('response') and len(data['response']) > 0:
-                    return data['response']
+                if data.get("response") and len(data["response"]) > 0:
+                    return data["response"]
     except Exception as e:
         print(f"Fetch error for fixture {fixture_id}: {e}")
     return None
@@ -83,8 +92,8 @@ def process_lineup_pipeline(fixture_id, lineup_response):
     all_shifts = []
 
     for team_data in lineup_response:
-        team_id = str(team_data.get('team', {}).get('id', 'unknown'))
-        team_name = team_data.get('team', {}).get('name', team_id)
+        team_id = str(team_data.get("team", {}).get("id", "unknown"))
+        team_name = team_data.get("team", {}).get("name", team_id)
 
         # Step 1: Parse and store lineup
         parse_and_store_lineup(str(fixture_id), team_id, team_data)
@@ -94,22 +103,27 @@ def process_lineup_pipeline(fixture_id, lineup_response):
 
         # Step 3: Detect role shifts for starters only
         starters = []
-        for entry in team_data.get('startXI', []):
-            p = entry.get('player', {})
+        for entry in team_data.get("startXI", []):
+            p = entry.get("player", {})
             from lineup_parser import POSITION_TO_ROLE
-            pos_raw = str(p.get('pos', '')).upper().strip()
-            role = POSITION_TO_ROLE.get(pos_raw, 'unknown')
-            starters.append({
-                'player_id': str(p.get('id', '')),
-                'name': p.get('name', 'Unknown'),
-                'expected_role': role
-            })
+
+            pos_raw = str(p.get("pos", "")).upper().strip()
+            role = POSITION_TO_ROLE.get(pos_raw, "unknown")
+            starters.append(
+                {
+                    "player_id": str(p.get("id", "")),
+                    "name": p.get("name", "Unknown"),
+                    "expected_role": role,
+                }
+            )
 
         shifts = detect_shifts(starters)
         all_shifts.extend(shifts)
 
-        print(f"  Team {team_name}: {len(starters)} starters parsed | "
-              f"{len(shifts)} role shifts detected")
+        print(
+            f"  Team {team_name}: {len(starters)} starters parsed | "
+            f"{len(shifts)} role shifts detected"
+        )
 
     return all_shifts
 
@@ -126,7 +140,7 @@ async def monitor_match(fixture_id, kickoff_time_str):
     """
     kickoff_time = datetime.fromisoformat(kickoff_time_str.replace("Z", "+00:00"))
     expected_lineup_time = kickoff_time - timedelta(minutes=60)
-    start_polling_time   = kickoff_time - timedelta(minutes=90)
+    start_polling_time = kickoff_time - timedelta(minutes=90)
 
     print(f"\n{'='*60}")
     print(f"Fixture:          {fixture_id}")
@@ -148,46 +162,65 @@ async def monitor_match(fixture_id, kickoff_time_str):
 
             if current_time > kickoff_time:
                 print(f"Kickoff passed without lineup for fixture {fixture_id}.")
-                log_latency(fixture_id, kickoff_time, expected_lineup_time, current_time, None, 'failed')
+                log_latency(
+                    fixture_id,
+                    kickoff_time,
+                    expected_lineup_time,
+                    current_time,
+                    None,
+                    "failed",
+                )
                 return []
 
             lineup = await fetch_lineup(session, fixture_id)
             if lineup:
                 received_at = datetime.now(timezone.utc)
-                latency_s   = (received_at - expected_lineup_time).total_seconds()
+                latency_s = (received_at - expected_lineup_time).total_seconds()
 
-                print(f"\n✅ LINEUP CONFIRMED at {received_at.strftime('%H:%M:%S UTC')} "
-                      f"(+{latency_s:.0f}s from expected)")
+                print(
+                    f"\n✅ LINEUP CONFIRMED at {received_at.strftime('%H:%M:%S UTC')} "
+                    f"(+{latency_s:.0f}s from expected)"
+                )
 
-                log_latency(fixture_id, kickoff_time, expected_lineup_time,
-                            received_at, latency_s, 'success')
+                log_latency(
+                    fixture_id,
+                    kickoff_time,
+                    expected_lineup_time,
+                    received_at,
+                    latency_s,
+                    "success",
+                )
 
                 # Trigger the full pipeline immediately
                 shifts = process_lineup_pipeline(fixture_id, lineup)
 
                 window_remaining = (kickoff_time - received_at).total_seconds()
-                print(f"\n⏱  Survival window remaining: {window_remaining:.0f}s until kickoff")
-                print(f"Role shifts to act on: {len([s for s in shifts if s.get('apply_to_model')])}")
+                print(
+                    f"\n⏱  Survival window remaining: {window_remaining:.0f}s until kickoff"
+                )
+                print(
+                    f"Role shifts to act on: {len([s for s in shifts if s.get('apply_to_model')])}"
+                )
 
                 from model_runner import run_for_match
 
                 # Extract the two team names from the lineup response
-                team_names = [t.get('team', {}).get('name', 'Unknown') for t in lineup]
-                home_team = team_names[0] if len(team_names) > 0 else 'Unknown'
-                away_team = team_names[1] if len(team_names) > 1 else 'Unknown'
+                team_names = [t.get("team", {}).get("name", "Unknown") for t in lineup]
+                home_team = team_names[0] if len(team_names) > 0 else "Unknown"
+                away_team = team_names[1] if len(team_names) > 1 else "Unknown"
 
                 # Run once for each team, using the other as the opponent
                 all_bets = []
                 for team_data in lineup:
-                    my_team = team_data.get('team', {}).get('name', 'Unknown')
+                    my_team = team_data.get("team", {}).get("name", "Unknown")
                     opp_team = away_team if my_team == home_team else home_team
                     bets = run_for_match(
-                        fixture_id      = fixture_id,
-                        opponent_team   = opp_team,
-                        lineup_drop_at  = received_at.isoformat(),
-                        latency_ms      = int(latency_s * 1000),
-                        role_shifts     = shifts,
-                        regime          = 'lineup_adjustment_window'
+                        fixture_id=fixture_id,
+                        opponent_team=opp_team,
+                        lineup_drop_at=received_at.isoformat(),
+                        latency_ms=int(latency_s * 1000),
+                        role_shifts=shifts,
+                        regime="lineup_adjustment_window",
                     )
                     all_bets.extend(bets)
 

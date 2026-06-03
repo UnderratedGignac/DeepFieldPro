@@ -22,13 +22,13 @@ import requests
 import pandas as pd
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
-ODDS_API_KEY = os.getenv('ODDS_API_KEY')
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+ODDS_API_KEY = os.getenv("ODDS_API_KEY")
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'bet_log.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "bet_log.db")
 
 
-def fetch_closing_odds_from_api(match_id, sport_key='soccer_epl'):
+def fetch_closing_odds_from_api(match_id, sport_key="soccer_epl"):
     """
     Fetch closing odds from The Odds API for a given match.
     Requires a paid plan for historical data.
@@ -37,13 +37,13 @@ def fetch_closing_odds_from_api(match_id, sport_key='soccer_epl'):
     if not ODDS_API_KEY:
         return None
 
-    url = f'https://api.the-odds-api.com/v4/sports/{sport_key}/events/{match_id}/odds'
+    url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/events/{match_id}/odds"
     params = {
-        'apiKey': ODDS_API_KEY,
-        'regions': 'uk,eu',
-        'markets': 'h2h',
-        'dateFormat': 'iso',
-        'oddsFormat': 'decimal'
+        "apiKey": ODDS_API_KEY,
+        "regions": "uk,eu",
+        "markets": "h2h",
+        "dateFormat": "iso",
+        "oddsFormat": "decimal",
     }
 
     try:
@@ -51,14 +51,14 @@ def fetch_closing_odds_from_api(match_id, sport_key='soccer_epl'):
         if response.status_code == 200:
             data = response.json()
             # Return the first available price from a sharp book (Pinnacle preferred)
-            preferred_books = ['Pinnacle', 'Betfair Exchange', 'Matchbook']
+            preferred_books = ["Pinnacle", "Betfair Exchange", "Matchbook"]
             for book_name in preferred_books:
-                for bookmaker in data.get('bookmakers', []):
-                    if bookmaker['title'] in preferred_books:
-                        for market in bookmaker['markets']:
-                            if market['key'] == 'h2h':
+                for bookmaker in data.get("bookmakers", []):
+                    if bookmaker["title"] in preferred_books:
+                        for market in bookmaker["markets"]:
+                            if market["key"] == "h2h":
                                 # Return first outcome price as proxy
-                                return market['outcomes'][0]['price']
+                                return market["outcomes"][0]["price"]
     except Exception as e:
         print(f"Error fetching closing odds for {match_id}: {e}")
 
@@ -86,30 +86,37 @@ def update_clv():
     print(f"Updating CLV for {len(df)} unsettled bets...")
 
     for _, row in df.iterrows():
-        match_id = row['match_id']
-        entry_odds = float(row['entry_odds'])
-        bet_id = row['bet_id']
+        match_id = row["match_id"]
+        entry_odds = float(row["entry_odds"])
+        bet_id = row["bet_id"]
 
         # Try to get real closing odds from API
         closing_odds = fetch_closing_odds_from_api(match_id)
 
         if closing_odds is None:
             # No real data available yet — skip (do not mock in production)
-            print(f"Bet {bet_id}: Closing odds not available yet for match {match_id}. Skipping.")
+            print(
+                f"Bet {bet_id}: Closing odds not available yet for match {match_id}. Skipping."
+            )
             continue
 
         # CORRECT CLV formula: positive = beat the closing line
         clv = (1.0 / closing_odds) - (1.0 / entry_odds)
 
-        cursor.execute('''
+        cursor.execute(
+            """
             UPDATE bet_log
             SET closing_odds = ?, clv = ?
             WHERE bet_id = ?
-        ''', (closing_odds, clv, bet_id))
+        """,
+            (closing_odds, clv, bet_id),
+        )
 
         direction = "✅ BEAT" if clv > 0 else "❌ MISSED"
-        print(f"Bet {bet_id}: Entry {entry_odds:.3f} → Close {closing_odds:.3f} | "
-              f"CLV: {clv:+.4f} ({direction} closing line)")
+        print(
+            f"Bet {bet_id}: Entry {entry_odds:.3f} → Close {closing_odds:.3f} | "
+            f"CLV: {clv:+.4f} ({direction} closing line)"
+        )
 
     conn.commit()
     conn.close()
