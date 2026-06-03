@@ -123,8 +123,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@${{ env.POSTGRES_HOST }}:5432/${{ env.POSTGRES_DB }}
           REDIS_URL: redis://${{ env.REDIS_HOST }}:6379/0
+          PYTHONPATH: src  # <--- Add this to tell Python where to look for modules
         run: |
-          python -m database.migrate
+          python -m database.migrate  # <--- Run it as a module instead of a direct file path
 
       - name: Verify Infrastructure Connectivity
         run: |
