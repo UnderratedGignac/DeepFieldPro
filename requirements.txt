@@ -6,3 +6,4 @@ schedule
 betfairlightweight
 websockets
 matplotlib
+sqlalchemy
