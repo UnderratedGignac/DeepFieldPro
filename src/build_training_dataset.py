@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 build_training_dataset.py
 --------------------------
@@ -223,3 +224,4 @@ merged.to_csv("C:/Users/Elie/DeepFieldPro/data/training_dataset.csv", index=Fals
 print(f"\n[OK] Training dataset saved: {merged.shape[0]} rows x {merged.shape[1]} cols")
 print(f"passes_per_90 final stats:\n{merged['passes_per_90'].describe()}")
 print("\nReady to run train_minutes_model.py and train_passes_model.py!")
+

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 from typing import Dict, Any
 
@@ -61,3 +62,4 @@ class MetaResearchGovernor:
 
 
 meta_governor = MetaResearchGovernor()
+

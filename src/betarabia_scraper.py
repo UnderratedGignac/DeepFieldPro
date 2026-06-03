@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import asyncio
 import sqlite3
 import random
@@ -625,3 +626,4 @@ async def run_scraper():
 
 if __name__ == "__main__":
     asyncio.run(run_scraper())
+

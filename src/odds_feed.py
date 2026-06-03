@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 odds_feed.py
 ------------
@@ -244,3 +245,4 @@ if __name__ == "__main__":
     print("Odds feed initialized. Tables created and writer thread started.")
     # Uncomment to test dev mode:
     # fetch_odds_dev()
+

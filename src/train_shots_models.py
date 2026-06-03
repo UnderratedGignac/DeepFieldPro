@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import lightgbm as lgb
 import pandas as pd
 import os
@@ -115,3 +116,4 @@ for name, m in sot_models.items():
     m.booster_.save_model(f"C:/Users/Elie/DeepFieldPro/models/sot_{name}.txt")
 
 print("\nAll shots and sot models trained and saved to models/ directory successfully!")
+

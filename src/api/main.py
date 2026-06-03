@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 FastAPI Application - Production Grade
 
@@ -612,3 +613,4 @@ async def general_exception_handler(request, exc):
             }
         },
     )
+

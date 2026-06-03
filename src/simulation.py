@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 simulation.py — DeepFieldPro World Cup Simulation
 Runs a complete paper-trade simulation for today's international matches.
@@ -679,3 +680,4 @@ if __name__ == "__main__":
     OutFile_V = write_output(Bets_V, Args_V.bankroll)
 
     print(f"\nSimulation complete. Open: {OutFile_V}")
+

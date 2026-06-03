@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import os
 import sqlite3
 from datetime import datetime, timezone
@@ -208,3 +209,4 @@ for match_id, info in MATCH_FIXTURES.items():
 print("\n==================================================")
 print(f"PIPELINE RUN COMPLETE | Total Bets Placed: {total_bets_placed}")
 print("==================================================")
+

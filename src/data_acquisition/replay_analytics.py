@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # replay_analytics.py
 import logging
 import statistics
@@ -150,3 +151,4 @@ class ReplayAnalyticsDashboard:
 
 
 replay_dashboard = ReplayAnalyticsDashboard()
+

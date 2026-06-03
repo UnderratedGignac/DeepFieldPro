@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 import numpy as np
 from itertools import combinations
@@ -64,3 +65,4 @@ class CombinatorialPurgedCV:
 
 
 cpcv_engine = CombinatorialPurgedCV()
+

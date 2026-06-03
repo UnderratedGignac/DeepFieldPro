@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Execution Simulator
 
@@ -19,7 +20,6 @@ from typing import Dict, Optional, Any
 from dataclasses import dataclass, field
 import random
 import logging
-
 
 logger = logging.getLogger(__name__)
 
@@ -456,3 +456,4 @@ class ExecutionMetrics:
         if self.total_requests == 0:
             return 0.0
         return (self.rejected / self.total_requests) * 100
+

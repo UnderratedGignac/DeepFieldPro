@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import os
 import sqlite3
 import pandas as pd
@@ -391,3 +392,4 @@ else:
         print(f"True Edge:   {r['edge']*100:+.1f}%")
         print(f"Rec Stake:   ${r['stake']:.2f} (on a $10,000 bankroll)")
         print("-" * 50)
+

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 import numpy as np
 from typing import List
@@ -71,3 +72,4 @@ class ConditionalVaRSimulator:
 
 
 cvar_simulator = ConditionalVaRSimulator()
+

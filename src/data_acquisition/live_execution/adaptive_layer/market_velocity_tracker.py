@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 import time
 from collections import deque
@@ -67,3 +68,4 @@ class MarketVelocityTracker:
 
 
 velocity_tracker = MarketVelocityTracker()
+

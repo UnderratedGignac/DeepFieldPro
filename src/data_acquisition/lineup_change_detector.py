@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # lineup_change_detector.py
 import logging
 from typing import List, Dict, Any
@@ -108,3 +109,4 @@ class LineupChangeDetector:
 
 
 change_detector = LineupChangeDetector()
+

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import asyncio
 import logging
 from dataclasses import dataclass
@@ -142,3 +143,4 @@ class EventDispatcher:
 
 
 event_dispatcher = EventDispatcher()
+

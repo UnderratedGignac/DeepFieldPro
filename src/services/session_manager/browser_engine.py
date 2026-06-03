@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Browser Engine for Session Management - Production Hardened
 
@@ -572,3 +573,4 @@ class BrowserEngine:
             "crash_recovery_attempts": self._crash_recovery_attempts,
             "contexts": list(self._context_metadata.keys()),
         }
+

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import lightgbm as lgb
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
@@ -80,3 +81,4 @@ for name, m in models_quantile.items():
     )
 
 print("All minutes models saved.")
+

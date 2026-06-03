@@ -245,7 +245,9 @@ class CLVEngine:
             CLVSummary with aggregated statistics
         """
         # Build query filters
-        filters = [PaperBet.settled == True]  # Only settled bets have closing lines  # noqa: E712
+        filters = [
+            PaperBet.settled == True
+        ]  # Only settled bets have closing lines  # noqa: E712
 
         if start_date:
             filters.append(PaperBet.placed_at >= start_date)

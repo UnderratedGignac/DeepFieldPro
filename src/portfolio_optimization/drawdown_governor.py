@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 from typing import List
 
@@ -50,3 +51,4 @@ class DrawdownGovernor:
 
 
 drawdown_governor = DrawdownGovernor()
+

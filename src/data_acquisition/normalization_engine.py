@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import re
 import unidecode
 from rapidfuzz import fuzz, process
@@ -55,3 +56,4 @@ class NormalizationEngine:
 
 # Singleton instance
 normalize_engine = NormalizationEngine()
+

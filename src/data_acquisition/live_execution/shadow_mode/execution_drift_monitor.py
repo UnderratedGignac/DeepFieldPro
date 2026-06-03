@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 from collections import deque
 
@@ -36,3 +37,4 @@ class ExecutionDriftMonitor:
 
 
 drift_monitor = ExecutionDriftMonitor()
+

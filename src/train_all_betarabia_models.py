@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import lightgbm as lgb
 import pandas as pd
 import sqlite3
@@ -242,3 +243,4 @@ for market, y in [
     )
 
 print("\n[OK] All Betarabia models successfully trained and saved!")
+

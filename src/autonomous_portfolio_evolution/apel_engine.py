@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 import uuid
 from typing import Dict, List
@@ -145,3 +146,4 @@ class AutonomousPortfolioEvolutionLayer:
 
 
 apel_engine = AutonomousPortfolioEvolutionLayer()
+

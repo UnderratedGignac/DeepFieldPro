@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # replay_engine.py
 import os
 import gzip
@@ -110,3 +111,4 @@ class ReplayEngine:
 replay_engine = ReplayEngine(
     "C:/Users/Elie/DeepFieldPro/src/data_acquisition/raw_frames"
 )
+

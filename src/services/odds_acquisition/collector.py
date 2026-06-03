@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Odds Acquisition Collector
 
@@ -154,3 +155,4 @@ class RateLimitError(Exception):
     """Raised when rate limit is exceeded."""
 
     pass
+

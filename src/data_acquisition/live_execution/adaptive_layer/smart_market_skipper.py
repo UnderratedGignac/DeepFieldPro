@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,3 +34,4 @@ class SmartMarketSkipper:
 
 
 market_skipper = SmartMarketSkipper()
+

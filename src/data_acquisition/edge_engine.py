@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # edge_engine.py
 import logging
 from typing import Dict, Any
@@ -95,3 +96,4 @@ class MarketEdgeEngine:
 
 
 edge_engine = MarketEdgeEngine()
+

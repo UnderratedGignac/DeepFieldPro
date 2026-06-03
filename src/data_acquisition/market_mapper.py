@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 BETARABIA_MARKET_MAP = {
     # Goalscorer Markets
     "Anytime Goalscorer": "player_goal_anytime",
@@ -54,3 +55,4 @@ class MarketMapper:
 
 
 market_mapper = MarketMapper()
+

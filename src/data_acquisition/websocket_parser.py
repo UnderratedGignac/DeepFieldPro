@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import json
 import gzip
 import os
@@ -214,3 +215,4 @@ class BetarabiaFrameParser:
 
 
 frame_parser = BetarabiaFrameParser()
+

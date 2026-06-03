@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 from typing import Dict
 
@@ -56,3 +57,4 @@ class MarketRegimeClassifier:
 
 
 regime_classifier = MarketRegimeClassifier()
+

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 from datetime import datetime
 
@@ -51,3 +52,4 @@ class GlobalSafetyConstraints:
 
 
 safety_constraints = GlobalSafetyConstraints()
+

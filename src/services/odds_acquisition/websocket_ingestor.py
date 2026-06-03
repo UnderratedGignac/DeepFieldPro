@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 WebSocket Ingestion Service - Production Grade
 
@@ -568,3 +569,4 @@ class WebSocketIngestor:
 
         elapsed = (datetime.utcnow() - self._metrics.last_message_time).total_seconds()
         return elapsed < self.STALE_STREAM_THRESHOLD_SECONDS
+

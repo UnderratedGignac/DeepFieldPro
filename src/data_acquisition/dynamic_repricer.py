@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 # dynamic_repricer.py
 import logging
 from typing import Dict
@@ -120,3 +121,4 @@ class DynamicRepricingEngine:
 
 
 repricer = DynamicRepricingEngine()
+

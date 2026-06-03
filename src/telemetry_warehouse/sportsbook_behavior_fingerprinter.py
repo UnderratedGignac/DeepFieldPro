@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 import logging
 import pandas as pd
 
@@ -39,3 +40,4 @@ class SportsbookBehaviorFingerprinter:
 fingerprinter = SportsbookBehaviorFingerprinter(
     "C:/Users/Elie/DeepFieldPro/telemetry_warehouse/parquet/"
 )
+

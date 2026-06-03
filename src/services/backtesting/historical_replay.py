@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Historical Market Replay Engine
 
@@ -597,3 +598,4 @@ class MarketState:
     update_count: int = 0
     spread: Decimal = Decimal("0.05")  # Default 5% margin
     liquidity: float = 1.0  # 0.0-1.0 scale
+

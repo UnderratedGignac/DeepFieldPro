@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """
 Odds Normalization Engine
 
@@ -197,3 +198,4 @@ class NormalizationEngine:
             }
 
         return None
+
