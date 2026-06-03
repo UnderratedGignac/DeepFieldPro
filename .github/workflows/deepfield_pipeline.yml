@@ -303,6 +303,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase Repository Name
+        run: |
+          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
       - name: Build and Push Core Image
         uses: docker/build-push-action@v5
         with:
@@ -310,8 +314,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/core:latest
-            ghcr.io/${{ github.repository }}/core:${{ github.sha }}
+            ghcr.io/${{ env.REPO_LOWER }}/core:latest
+            ghcr.io/${{ env.REPO_LOWER }}/core:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -322,8 +326,8 @@ jobs:
           file: ./Dockerfile.browser
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/browser-worker:latest
-            ghcr.io/${{ github.repository }}/browser-worker:${{ github.sha }}
+            ghcr.io/${{ env.REPO_LOWER }}/browser:latest
+            ghcr.io/${{ env.REPO_LOWER }}/browser:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
