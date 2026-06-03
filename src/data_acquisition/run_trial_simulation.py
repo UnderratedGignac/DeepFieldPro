@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from app_config import config
 import asyncio
@@ -7,6 +8,7 @@ import logging
 import json
 import gzip
 from datetime import datetime, timezone, timedelta
+
 # Add src root to pythonpath
 # Setup logging to see the full event stream in the console
 logging.basicConfig(
@@ -25,8 +27,13 @@ from src.data_acquisition.execution_queue import execution_queue  # noqa: E402
 from src.data_acquisition.execution_simulator import execution_sim  # noqa: E402
 from src.data_acquisition.replay_analytics import replay_dashboard  # noqa: E402
 from src.data_acquisition.websocket_parser import CanonicalOddsEvent  # noqa: E402
+
 MOCK_FIXTURE = "MOCK_FIX_1"
-RAW_DIR = os.path.join(config.BASE_DIR, f"src/data_acquisition/raw_frames/{MOCK_FIXTURE}")
+RAW_DIR = os.path.join(
+    config.BASE_DIR, f"src/data_acquisition/raw_frames/{MOCK_FIXTURE}"
+)
+
+
 def generate_mock_data():
     """Generates mock historical websocket frames to test the replay infrastructure."""
     os.makedirs(RAW_DIR, exist_ok=True)
@@ -84,6 +91,8 @@ def generate_mock_data():
         ) as f:
             f.write(json.dumps(payload))
     return start_time
+
+
 async def run_single_match_validation():
     logger.info("=== PHASE 1: SINGLE MATCH REPLAY VALIDATION ===")
     start_time = generate_mock_data()
@@ -146,5 +155,7 @@ async def run_single_match_validation():
     execution_queue.queue.clear()
     # Generate Analytics Report
     replay_dashboard.generate_report()
+
+
 if __name__ == "__main__":
     asyncio.run(run_single_match_validation())

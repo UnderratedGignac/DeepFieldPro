@@ -1,5 +1,6 @@
 import os
 from app_config import config
+
 # mypy: ignore-errors
 import logging
 import pandas as pd

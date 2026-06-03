@@ -1,20 +1,28 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+)
 import asyncio
 import logging
 import pandas as pd
 from datetime import datetime
+
 # Add src root to pythonpath
 from src.research.policy_outcome_auditor.policy_scoring_system import policy_scorer
 from src.research.policy_outcome_auditor.autonomous_policy_optimizer import apo_engine
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+
 class POASimulationLab:
     """
     Simulates a batch of historical decisions and runs them through the
     Counterfactual Regret Auditor and the Autonomous Policy Optimizer.
     """
+
     async def run_audit_loop(self):
         logger.info("==========================================================")
         logger.info("=== POLICY OUTCOME AUDITOR (POA) & APO SIMULATION LAB ====")
@@ -68,6 +76,8 @@ class POASimulationLab:
         scores = policy_scorer.score_batch(df)
         logger.info("\n--- Phase 2: Autonomous Policy Optimizer (APO) ---")
         apo_engine.optimize_from_audit(scores["breakdown"], len(df))
+
+
 if __name__ == "__main__":
     lab = POASimulationLab()
     asyncio.run(lab.run_audit_loop())

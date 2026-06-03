@@ -1,6 +1,9 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+)
 import asyncio
 import logging
 import random
@@ -27,8 +30,11 @@ from src.data_acquisition.live_execution.adaptive_layer.execution_failure_classi
 from src.data_acquisition.live_execution.adaptive_layer.execution_heatmap_engine import (
     heatmap_engine,
 )
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+
 def mock_live_trader(bet):
     """
     Simulates a live execution that fails if latency > decay limit.
@@ -60,6 +66,8 @@ def mock_live_trader(bet):
     else:
         result["realized_ev"] = 0.0
     return result
+
+
 async def run_adaptive_simulation():
     logger.info("===========================================================")
     logger.info("=== ADAPTIVE MARKET INTELLIGENCE LAYER SIMULATION =======")
@@ -94,12 +102,14 @@ async def run_adaptive_simulation():
             "raw_ev": 0.10,
         },
     ]
+
     class MockEvent:
         def __init__(self, m, n, o):
             self.fixture_id = fixture_id
             self.market_type = m
             self.normalized_name = n
             self.decimal_odds = o
+
     for edge in mock_edges:
         event = MockEvent(
             edge["market_type"], edge["normalized_name"], edge["decimal_odds"]
@@ -118,5 +128,7 @@ async def run_adaptive_simulation():
     # 5. Generate Heatmap
     logger.info("\n[STAGE 5] Market Microstructure Heatmap Engine")
     heatmap_engine.generate_fill_rate_heatmap()
+
+
 if __name__ == "__main__":
     asyncio.run(run_adaptive_simulation())

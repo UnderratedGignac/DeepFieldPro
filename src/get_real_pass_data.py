@@ -143,7 +143,5 @@ print(
 
 os.makedirs(config.DATA_DIR, exist_ok=True)
 df.to_csv(os.path.join(config.DATA_DIR, "statsbomb_real_passes.csv"), index=False)
-print(
-    "\n[OK] Real pass data saved: config.DATA_DIR/statsbomb_real_passes.csv"
-)
+print("\n[OK] Real pass data saved: config.DATA_DIR/statsbomb_real_passes.csv")
 print("Now run: python build_training_dataset_v2.py")

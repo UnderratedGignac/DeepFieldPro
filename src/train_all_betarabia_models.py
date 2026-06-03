@@ -1,4 +1,5 @@
 from app_config import config
+
 # mypy: ignore-errors
 import lightgbm as lgb
 import pandas as pd
@@ -15,7 +16,9 @@ except FileNotFoundError:
 
 # Load player database for PPM alignment
 try:
-    player_db = pd.read_csv(os.path.join(config.DATA_DIR, "csv/FULL_PLAYER_DATABASE_2026.csv"))
+    player_db = pd.read_csv(
+        os.path.join(config.DATA_DIR, "csv/FULL_PLAYER_DATABASE_2026.csv")
+    )
     player_db["name_clean"] = player_db["Player Name"].apply(
         lambda x: unidecode(str(x)).lower().strip()
     )

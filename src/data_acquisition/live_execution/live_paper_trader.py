@@ -1,25 +1,33 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+)
 # live_paper_trader.py
 import asyncio
 import logging
 from typing import Dict, Any
+
 # Add src root to pythonpath
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from playwright.async_api import async_playwright  # noqa: E402
 from src.data_acquisition.live_execution.selector_registry import registry  # noqa: E402
 from src.data_acquisition.latency_telemetry import latency_tracker  # noqa: E402
+
+
 class LivePaperTrader:
     """
     Executes the entire DOM interaction sequence on the live sportsbook,
     but intentionally skips the final "Place Bet" click.
     Records actual Bot DOM Nav Latency to measure production readiness.
     """
+
     def __init__(self):
         self.browser = None
         self.page = None
+
     async def initialize_warm_session(self, url: str):
         logger.info("[PAPER TRADER] Initializing warm browser session...")
         self.playwright = await async_playwright().start()
@@ -38,6 +46,7 @@ class LivePaperTrader:
         logger.info(f"[PAPER TRADER] Navigating to {url}")
         # await self.page.goto(url)
         logger.info("[PAPER TRADER] Session is warm and standing by.")
+
     async def execute_paper_trade(self, bet_payload: Dict[str, Any]):
         """
         Runs the full execution pipeline but aborts right before financial commitment.
@@ -77,11 +86,14 @@ class LivePaperTrader:
             logger.info("--- PAPER TRADE COMPLETED (NO FINANCIAL EXPOSURE) ---")
         except Exception as e:
             logger.error(f"[PAPER TRADER] Execution failed: {str(e)}")
+
     async def shutdown(self):
         if self.browser:
             await self.browser.close()
         if hasattr(self, "playwright"):
             await self.playwright.stop()
+
+
 async def run_paper_trader_test():
     trader = LivePaperTrader()
     await trader.initialize_warm_session("https://betarabia.com/mock-fixture")
@@ -94,5 +106,7 @@ async def run_paper_trader_test():
     }
     await trader.execute_paper_trade(mock_bet)
     await trader.shutdown()
+
+
 if __name__ == "__main__":
     asyncio.run(run_paper_trader_test())

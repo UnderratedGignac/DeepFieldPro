@@ -1,14 +1,17 @@
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import asyncio
 import logging
 import random
+
 # Add src root to pythonpath
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 from src.data_acquisition.execution_simulator import execution_sim  # noqa: E402
 from src.data_acquisition.replay_analytics import ReplayAnalyticsDashboard  # noqa: E402
+
 MARKETS = [
     "player_goal_anytime",
     "player_first_goalscorer",
@@ -23,6 +26,8 @@ SCENARIOS = {
     "Severe": (3000, 6000),
     "Extreme": (6000, 12000),
 }
+
+
 def generate_stress_test_edges(num_edges=500):
     """
     Generates a large queue of simultaneous and sequential edges to stress test
@@ -51,6 +56,8 @@ def generate_stress_test_edges(num_edges=500):
         }
         edges.append((bet, volatility))
     return edges
+
+
 async def run_latency_stress_test():
     print("\n=== PHASE 5: LATENCY STRESS TESTING ===")
     edges_to_simulate = generate_stress_test_edges(1000)
@@ -96,13 +103,17 @@ async def run_latency_stress_test():
     moderate_fills = scenario_reports["Moderate"].fills_by_market
     extreme_fills = scenario_reports["Extreme"].fills_by_market
     for market in MARKETS:
+
         def get_rate(f_dict):
             if market not in f_dict or f_dict[market]["attempts"] == 0:
                 return 0.0
             return (f_dict[market]["fills"] / f_dict[market]["attempts"]) * 100
+
         b_rate = get_rate(baseline_fills)
         m_rate = get_rate(moderate_fills)
         e_rate = get_rate(extreme_fills)
         print(f"{market:<25} | {b_rate:>7.1f}% | {m_rate:>7.1f}% | {e_rate:>7.1f}%")
+
+
 if __name__ == "__main__":
     asyncio.run(run_latency_stress_test())

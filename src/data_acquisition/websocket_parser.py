@@ -1,4 +1,5 @@
 from app_config import config
+
 # mypy: ignore-errors
 import json
 import gzip

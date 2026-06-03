@@ -120,7 +120,10 @@ def load_player_db() -> pd.DataFrame:
     # Try both known CSV paths
     CsvPaths_V = [
         os.path.join(DATA_DIR, "world_cup_players_match_logs.csv"),
-        os.path.join(config.DATA_DIR, "csv/FULL_PLAYER_DATABASE_2026.csv",)
+        os.path.join(
+            config.DATA_DIR,
+            "csv/FULL_PLAYER_DATABASE_2026.csv",
+        ),
     ]
     for Path_V in CsvPaths_V:
         if os.path.exists(Path_V):

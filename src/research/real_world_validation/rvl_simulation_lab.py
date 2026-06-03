@@ -1,17 +1,25 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+)
 import asyncio
 import logging
 import random
+
 # Add src root to pythonpath
 from src.research.real_world_validation.system_readiness_gate import rvl_gate
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+
 class RVLSimulationLab:
     """
     Simulates the RVL master check on a batch of shadow executions.
     """
+
     async def run_rvl_check(self):
         # Mocking 50 shadow execution outcomes.
         # DeepFieldPro Realized vs Baseline (Static)
@@ -47,6 +55,8 @@ class RVLSimulationLab:
             dfp_returns, base_returns, shadow_logs
         )
         logger.info(f"\n[FINAL DEPLOYMENT DECISION]: {final_status}")
+
+
 if __name__ == "__main__":
     lab = RVLSimulationLab()
     asyncio.run(lab.run_rvl_check())

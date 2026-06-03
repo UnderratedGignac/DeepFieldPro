@@ -15,7 +15,10 @@ class AccountBehaviorProfile:
 
     def __init__(
         self,
-        db_path: str = os.path.join(config.DB_DIR, "adversarial_telemetry.sqlite",)
+        db_path: str = os.path.join(
+            config.DB_DIR,
+            "adversarial_telemetry.sqlite",
+        ),
     ):
         self.db_path = db_path
         self._init_db()

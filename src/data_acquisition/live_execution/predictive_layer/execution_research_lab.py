@@ -1,8 +1,12 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+)
 import asyncio
 import logging
+
 # Add src root to pythonpath
 from src.data_acquisition.live_execution.predictive_layer.execution_policy_agent import (
     policy_agent,
@@ -16,15 +20,20 @@ from src.data_acquisition.live_execution.predictive_layer.suspension_probability
 from src.data_acquisition.live_execution.predictive_layer.market_movement_forecaster import (
     movement_forecaster,
 )
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+
 class ExecutionResearchLab:
     """
     The central A/B testing and experimentation framework.
     Evaluates RL policies, decay models, and predictive suspension algorithms.
     """
+
     def __init__(self):
         self.experiments_run = 0
+
     async def run_policy_ab_test(self):
         logger.info("======================================================")
         logger.info("=== QUANTITATIVE EXECUTION RESEARCH LAB A/B TEST ===")
@@ -59,6 +68,8 @@ class ExecutionResearchLab:
                 market, regime, 0.4, velocity, future_ev
             )
             logger.info(f"OPTIMAL RL ACTION --> {action}")
+
+
 if __name__ == "__main__":
     lab = ExecutionResearchLab()
     asyncio.run(lab.run_policy_ab_test())

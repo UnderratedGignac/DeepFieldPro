@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from app_config import config
 import asyncio
@@ -8,6 +9,7 @@ import json
 import gzip
 import random
 from datetime import datetime, timezone, timedelta
+
 # Add src root to pythonpath
 logging.basicConfig(
     level=logging.WARNING
@@ -22,6 +24,7 @@ from src.data_acquisition.execution_queue import execution_queue  # noqa: E402
 from src.data_acquisition.execution_simulator import execution_sim  # noqa: E402
 from src.data_acquisition.replay_analytics import replay_dashboard  # noqa: E402
 from src.data_acquisition.websocket_parser import CanonicalOddsEvent  # noqa: E402
+
 RAW_DIR = os.path.join(config.BASE_DIR + "/src", "data_acquisition/raw_frames")
 MARKETS = [
     "player_goal_anytime",
@@ -35,6 +38,8 @@ SOURCES = [
     ("journalist_leak", 0.7),
     ("expected_predictor", 0.5),
 ]
+
+
 def generate_batch_data(num_matches=50):
     fixtures = []
     logger.warning(f"Generating {num_matches} simulated historical fixtures...")
@@ -78,6 +83,8 @@ def generate_batch_data(num_matches=50):
         ) as f:
             f.write(json.dumps(payload_1))
     return fixtures
+
+
 async def run_batch_simulation(fixtures: list):
     logger.warning("=== PHASE 2: HISTORICAL BATCH VALIDATION ===")
     # Temporarily set analytics logger to INFO so we see the report
@@ -151,6 +158,8 @@ async def run_batch_simulation(fixtures: list):
         execution_queue.queue.clear()
     logger.warning("All matches simulated. Generating final report.")
     replay_dashboard.generate_report()
+
+
 if __name__ == "__main__":
     fixtures = generate_batch_data(50)
     asyncio.run(run_batch_simulation(fixtures))

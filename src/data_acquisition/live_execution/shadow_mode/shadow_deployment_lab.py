@@ -1,9 +1,13 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
+
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+)
 import asyncio
 import logging
 import random
+
 # Add src root to pythonpath
 from src.data_acquisition.live_execution.shadow_mode.execution_drift_monitor import (
     drift_monitor,
@@ -14,13 +18,17 @@ from src.data_acquisition.live_execution.shadow_mode.sportsbook_adversarial_mode
 from src.data_acquisition.live_execution.shadow_mode.account_behavior_profile import (
     account_profile,
 )
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+
 class ShadowDeploymentLab:
     """
     Simulates a longitudinal run of the system executing in shadow mode over several hours.
     Injects progressive latency degradation and selective suspensions to trigger the adversarial models.
     """
+
     async def run_longitudinal_test(self):
         logger.info("==========================================================")
         logger.info("=== SHADOW DEPLOYMENT & ADVERSARIAL TELEMETRY LAB ======")
@@ -47,6 +55,8 @@ class ShadowDeploymentLab:
         )
         account_profile.log_session_telemetry(2200.0, 0.24, 0.6, 3.0)
         logger.info(f"Adversarial Risk Level: {risk}")
+
+
 if __name__ == "__main__":
     lab = ShadowDeploymentLab()
     asyncio.run(lab.run_longitudinal_test())

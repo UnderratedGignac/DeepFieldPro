@@ -1,4 +1,5 @@
 from app_config import config
+
 # mypy: ignore-errors
 import os
 import sqlite3
