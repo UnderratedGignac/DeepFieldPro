@@ -20,7 +20,12 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from enum import Enum
 
-from .browser_engine import BrowserEngine
+try:
+    from .browser_engine import BrowserEngine
+except ImportError:
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from browser_engine import BrowserEngine
 
 logger = logging.getLogger(__name__)
 
