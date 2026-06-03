@@ -140,7 +140,7 @@ class BrowserEngine:
 
             if self.user_data_dir:
                 self.user_data_dir.mkdir(parents=True, exist_ok=True)
-                browser_args.append(f"--user-data-dir={self.user_data_dir}")
+                # browser_args.append(f"--user-data-dir={self.user_data_dir}")
 
             self._browser = await self._playwright.chromium.launch(
                 headless=self.headless,
@@ -226,7 +226,7 @@ class BrowserEngine:
 
     def _get_state_directory(self, context_id: str) -> Path:
         """Get the state directory for a context."""
-        base = self.user_data_dir or Path("/tmp/deepfield_browser_states")
+        base = self.user_data_dir or Path("data/deepfield_browser_states")
         context_hash = hashlib.sha256(context_id.encode()).hexdigest()[:16]
         return base / "states" / context_hash
 
@@ -403,7 +403,6 @@ class BrowserEngine:
     ) -> None:
         """Setup request/response interception for API discovery."""
 
-        @context.route("**/*")
         async def handle_route(route: Route):
             # Call registered interceptors
             request_info = {
@@ -427,6 +426,7 @@ class BrowserEngine:
             except Exception:
                 await route.abort()
 
+        await context.route("**/*", handle_route)
         logger.debug(f"Network interception enabled for context {context_id}")
 
     def register_request_interceptor(self, callback: Callable) -> None:

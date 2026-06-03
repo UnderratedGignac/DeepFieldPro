@@ -177,7 +177,7 @@ class SessionManager:
         if persist:
             try:
                 await self.engine.save_cookies(
-                    session_id, f"/tmp/session_{session_id}_cookies.json"
+                    session_id, f"data/session_{session_id}_cookies.json"
                 )
             except Exception as e:
                 logger.error(f"Failed to persist cookies for {session_id}: {e}")

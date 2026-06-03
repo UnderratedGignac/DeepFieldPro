@@ -139,7 +139,7 @@ async def lifespan(app: FastAPI):
 
         # Initialize session manager
         session_manager = SessionManager(
-            headless=True, user_data_dir="/tmp/deepfield_browser_data"
+            headless=True, user_data_dir="data/deepfield_browser_data"
         )
         await session_manager.start()
         app_state.set_session_manager(session_manager)

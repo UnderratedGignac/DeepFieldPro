@@ -12,6 +12,12 @@ Features:
 - Automatic recovery
 """
 
+import sys
+import os
+
+# Add root directory to pythonpath
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 import logging
 import signal
@@ -24,7 +30,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("/tmp/deepfield_orchestrator.log"),
+        logging.FileHandler("data/deepfield_orchestrator.log"),
     ],
 )
 logger = logging.getLogger(__name__)
@@ -45,7 +51,7 @@ class DeepFieldOrchestrator:
     def __init__(
         self,
         headless: bool = True,
-        user_data_dir: str = "/tmp/deepfield_browser_data",
+        user_data_dir: str = "data/deepfield_browser_data",
         database_url: Optional[str] = None,
         sportsbooks: Optional[List[str]] = None,
     ):
@@ -324,8 +330,10 @@ async def main():
         logger.info(f"Received signal {sig}")
         orchestrator.request_shutdown()
 
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
+    import sys
+    if sys.platform != "win32":
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, lambda s=sig: signal_handler(s))
 
     try:
         await orchestrator.start()
