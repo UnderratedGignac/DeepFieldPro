@@ -2,1048 +2,493 @@
 DEEPFIELDPRO — TODAY'S PREDICTIONS
 Date       : 2026-06-03
 Bankroll   : $100.00
-Generated  : 2026-06-03T11:22:16.284201+00:00
+Generated  : 2026-06-03T12:07:13.483953+00:00
 ================================================================
 
 ── SINGLE BETS (BATCH — place these) ───────────────────────────
 
-#1 | Qatar vs Switzerland — TBD
-   Market    : Match Result
-   Selection : Qatar
-   Odds      : 14.50
-   Fair Prob : 50.0% (model estimate)
-   EV        : +625.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#2 | Iraq vs Norway — TBD
-   Market    : Match Result
-   Selection : Iraq
-   Odds      : 14.50
-   Fair Prob : 50.0% (model estimate)
-   EV        : +625.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#3 | Portugal vs Uzbekistan — TBD
-   Market    : Match Result
-   Selection : Uzbekistan
-   Odds      : 14.00
-   Fair Prob : 50.0% (model estimate)
-   EV        : +600.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#4 | Portugal vs DR Congo — TBD
-   Market    : Match Result
-   Selection : DR Congo
-   Odds      : 12.00
-   Fair Prob : 50.0% (model estimate)
-   EV        : +500.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#5 | Canada vs Qatar — TBD
-   Market    : Match Result
-   Selection : Qatar
-   Odds      : 11.50
-   Fair Prob : 50.0% (model estimate)
-   EV        : +475.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#6 | England vs Ghana — TBD
-   Market    : Match Result
-   Selection : Ghana
-   Odds      : 11.00
-   Fair Prob : 50.0% (model estimate)
-   EV        : +450.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#7 | Austria vs Jordan — TBD
-   Market    : Match Result
-   Selection : Jordan
-   Odds      : 9.85
-   Fair Prob : 50.0% (model estimate)
-   EV        : +392.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#8 | Netherlands vs Algeria — TBD
-   Market    : Match Result
-   Selection : Algeria
-   Odds      : 9.70
-   Fair Prob : 50.0% (model estimate)
-   EV        : +385.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#9 | France vs Cote d'Ivoire — TBD
-   Market    : Match Result
-   Selection : Cote d'Ivoire
-   Odds      : 9.40
-   Fair Prob : 50.0% (model estimate)
-   EV        : +370.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#10 | Argentina vs Algeria — TBD
-   Market    : Match Result
-   Selection : Algeria
-   Odds      : 8.90
-   Fair Prob : 50.0% (model estimate)
-   EV        : +345.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#11 | Uzbekistan vs Colombia — TBD
-   Market    : Match Result
-   Selection : Uzbekistan
-   Odds      : 8.70
-   Fair Prob : 50.0% (model estimate)
-   EV        : +335.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#12 | Scotland vs Brazil — TBD
-   Market    : Match Result
-   Selection : Scotland
-   Odds      : 8.65
-   Fair Prob : 50.0% (model estimate)
-   EV        : +332.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#13 | Panama vs Croatia — TBD
-   Market    : Match Result
-   Selection : Panama
-   Odds      : 8.55
-   Fair Prob : 50.0% (model estimate)
-   EV        : +327.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#14 | Mexico vs South Africa — TBD
-   Market    : Match Result
-   Selection : South Africa
-   Odds      : 8.40
-   Fair Prob : 50.0% (model estimate)
-   EV        : +320.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#15 | Belgium vs Iran — TBD
-   Market    : Match Result
-   Selection : Iran
-   Odds      : 8.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +307.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#16 | France vs Senegal — TBD
-   Market    : Match Result
-   Selection : Senegal
-   Odds      : 7.75
-   Fair Prob : 50.0% (model estimate)
-   EV        : +287.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#17 | Uruguay vs Cape Verde — TBD
-   Market    : Match Result
-   Selection : Cape Verde
-   Odds      : 7.60
-   Fair Prob : 50.0% (model estimate)
-   EV        : +280.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#18 | Luxembourg vs Italy — TBD
-   Market    : Match Result
-   Selection : Luxembourg
-   Odds      : 7.40
-   Fair Prob : 50.0% (model estimate)
-   EV        : +270.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#19 | Saudi Arabia vs Uruguay — TBD
-   Market    : Match Result
-   Selection : Saudi Arabia
-   Odds      : 7.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +265.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#21 | Haiti vs Scotland — TBD
-   Market    : Match Result
-   Selection : Haiti
-   Odds      : 7.00
-   Fair Prob : 50.0% (model estimate)
-   EV        : +250.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#22 | Denmark vs DR Congo — TBD
-   Market    : Match Result
-   Selection : DR Congo
-   Odds      : 6.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +215.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#23 | Brazil vs Morocco — TBD
-   Market    : Match Result
-   Selection : Morocco
-   Odds      : 6.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +212.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#24 | Switzerland vs Bosnia and Herzegovina — TBD
-   Market    : Match Result
-   Selection : Bosnia and Herzegovina
-   Odds      : 5.90
-   Fair Prob : 50.0% (model estimate)
-   EV        : +195.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#25 | Germany vs Cote d'Ivoire — TBD
-   Market    : Match Result
-   Selection : Cote d'Ivoire
-   Odds      : 5.90
-   Fair Prob : 50.0% (model estimate)
-   EV        : +195.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#26 | Argentina vs Austria — TBD
-   Market    : Match Result
-   Selection : Austria
-   Odds      : 5.55
-   Fair Prob : 50.0% (model estimate)
-   EV        : +177.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#27 | Netherlands vs Sweden — TBD
-   Market    : Match Result
-   Selection : Sweden
-   Odds      : 5.40
-   Fair Prob : 50.0% (model estimate)
-   EV        : +170.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#29 | Belgium vs Egypt — TBD
-   Market    : Match Result
-   Selection : Egypt
-   Odds      : 5.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +160.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#32 | Tunisia vs Japan — TBD
-   Market    : Match Result
-   Selection : Tunisia
-   Odds      : 4.90
-   Fair Prob : 50.0% (model estimate)
-   EV        : +145.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#33 | England vs Croatia — TBD
-   Market    : Match Result
-   Selection : Croatia
-   Odds      : 4.80
-   Fair Prob : 50.0% (model estimate)
-   EV        : +140.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#34 | Australia vs Turkey — TBD
-   Market    : Match Result
-   Selection : Australia
-   Odds      : 4.75
-   Fair Prob : 50.0% (model estimate)
-   EV        : +137.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#35 | USA vs Australia — TBD
-   Market    : Match Result
-   Selection : Australia
-   Odds      : 4.70
-   Fair Prob : 50.0% (model estimate)
-   EV        : +135.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#36 | Mexico vs South Korea — TBD
-   Market    : Match Result
-   Selection : South Korea
-   Odds      : 4.40
-   Fair Prob : 50.0% (model estimate)
-   EV        : +120.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#37 | Canada vs Bosnia and Herzegovina — TBD
-   Market    : Match Result
-   Selection : Bosnia and Herzegovina
-   Odds      : 4.35
-   Fair Prob : 50.0% (model estimate)
-   EV        : +117.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#38 | Germany vs Curacao — TBD
+#22 | Germany vs Curacao — TBD
    Market    : Match Result
    Selection : Total UNDER
    Odds      : 4.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +115.0%
+   Fair Prob : 53.1% (model estimate)
+   EV        : +128.4%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#39 | Iran vs New Zealand — TBD
-   Market    : Match Result
-   Selection : New Zealand
-   Odds      : 4.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +115.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#40 | Sweden vs Tunisia — TBD
-   Market    : Match Result
-   Selection : Tunisia
-   Odds      : 4.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +105.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#41 | Scotland vs Morocco — TBD
-   Market    : Match Result
-   Selection : Scotland
-   Odds      : 4.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +105.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#42 | Netherlands vs Japan — TBD
-   Market    : Match Result
-   Selection : Japan
-   Odds      : 3.90
-   Fair Prob : 50.0% (model estimate)
-   EV        : +95.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#43 | USA vs Paraguay — TBD
-   Market    : Match Result
-   Selection : Paraguay
-   Odds      : 3.85
-   Fair Prob : 50.0% (model estimate)
-   EV        : +92.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#44 | Brazil vs Haiti — TBD
+#27 | Brazil vs Haiti — TBD
    Market    : Match Result
    Selection : Total UNDER
    Odds      : 3.80
-   Fair Prob : 50.0% (model estimate)
-   EV        : +90.0%
+   Fair Prob : 53.1% (model estimate)
+   EV        : +101.8%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#45 | Cote d'Ivoire vs Ecuador — TBD
+#34 | Iran vs New Zealand — TBD
    Market    : Match Result
-   Selection : Cote d'Ivoire
-   Odds      : 3.75
-   Fair Prob : 50.0% (model estimate)
-   EV        : +87.5%
+   Selection : New Zealand
+   Odds      : 4.30
+   Fair Prob : 42.2% (model estimate)
+   EV        : +81.6%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#46 | Ghana vs Panama — TBD
+#35 | Mexico vs South Korea — TBD
    Market    : Match Result
-   Selection : Panama
-   Odds      : 3.70
-   Fair Prob : 50.0% (model estimate)
-   EV        : +85.0%
+   Selection : South Korea
+   Odds      : 4.40
+   Fair Prob : 41.1% (model estimate)
+   EV        : +81.0%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#47 | Poland vs Nigeria — TBD
+#36 | Canada vs Bosnia and Herzegovina — TBD
    Market    : Match Result
-   Selection : Nigeria
-   Odds      : 3.50
-   Fair Prob : 50.0% (model estimate)
-   EV        : +75.0%
+   Selection : Bosnia and Herzegovina
+   Odds      : 4.35
+   Fair Prob : 41.2% (model estimate)
+   EV        : +79.4%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#49 | Norway vs Senegal — TBD
-   Market    : Match Result
-   Selection : Senegal
-   Odds      : 3.45
-   Fair Prob : 50.0% (model estimate)
-   EV        : +72.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#50 | Turkey vs Paraguay — TBD
-   Market    : Match Result
-   Selection : Paraguay
-   Odds      : 3.45
-   Fair Prob : 50.0% (model estimate)
-   EV        : +72.5%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#53 | Spain vs Cape Verde — TBD
+#37 | Spain vs Cape Verde — TBD
    Market    : Match Result
    Selection : Total UNDER
    Odds      : 3.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +60.0%
+   Fair Prob : 53.1% (model estimate)
+   EV        : +69.9%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#55 | France vs Iraq — TBD
+#38 | Netherlands vs Japan — TBD
+   Market    : Match Result
+   Selection : Japan
+   Odds      : 3.90
+   Fair Prob : 42.5% (model estimate)
+   EV        : +65.8%
+   Stake     : $5.00 (5.00% of bankroll)
+   Confidence: HIGH
+
+#39 | France vs Iraq — TBD
    Market    : Match Result
    Selection : Both teams to score - YES
    Odds      : 3.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +55.0%
+   Fair Prob : 51.2% (model estimate)
+   EV        : +58.8%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#57 | Spain vs Saudi Arabia — TBD
+#40 | Spain vs Saudi Arabia — TBD
    Market    : Match Result
    Selection : Both teams to score - YES
    Odds      : 2.95
-   Fair Prob : 50.0% (model estimate)
-   EV        : +47.5%
+   Fair Prob : 50.7% (model estimate)
+   EV        : +49.7%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#58 | Cote d'Ivoire vs Ecuador — TBD
-   Market    : Match Result
-   Selection : Total OVER
-   Odds      : 2.90
-   Fair Prob : 50.0% (model estimate)
-   EV        : +45.0%
-   Stake     : $5.00 (5.00% of bankroll)
-   Confidence: HIGH
-
-#60 | Brazil vs Haiti — TBD
+#41 | Brazil vs Haiti — TBD
    Market    : Match Result
    Selection : Both teams to score - YES
    Odds      : 2.85
-   Fair Prob : 50.0% (model estimate)
-   EV        : +42.5%
+   Fair Prob : 50.9% (model estimate)
+   EV        : +44.9%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#61 | South Korea vs Czechia — TBD
+#42 | Spain vs Saudi Arabia — TBD
    Market    : Match Result
-   Selection : Czechia
-   Odds      : 2.80
-   Fair Prob : 50.0% (model estimate)
-   EV        : +40.0%
+   Selection : Total UNDER
+   Odds      : 2.65
+   Fair Prob : 53.1% (model estimate)
+   EV        : +40.7%
    Stake     : $5.00 (5.00% of bankroll)
    Confidence: HIGH
 
-#66 | Spain vs Cape Verde — TBD
+#43 | France vs Iraq — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.65
+   Fair Prob : 53.1% (model estimate)
+   EV        : +40.7%
+   Stake     : $5.00 (5.00% of bankroll)
+   Confidence: HIGH
+
+#47 | Cote d'Ivoire vs Ecuador — TBD
+   Market    : Match Result
+   Selection : Total OVER
+   Odds      : 2.90
+   Fair Prob : 46.9% (model estimate)
+   EV        : +36.0%
+   Stake     : $4.74 (4.74% of bankroll)
+   Confidence: HIGH
+
+#49 | Ecuador vs Curacao — TBD
    Market    : Match Result
    Selection : Both teams to score - YES
    Odds      : 2.65
-   Fair Prob : 50.0% (model estimate)
-   EV        : +32.5%
-   Stake     : $4.92 (4.92% of bankroll)
+   Fair Prob : 50.3% (model estimate)
+   EV        : +33.3%
+   Stake     : $5.00 (5.00% of bankroll)
+   Confidence: HIGH
+
+#51 | Portugal vs Uzbekistan — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.50
+   Fair Prob : 53.1% (model estimate)
+   EV        : +32.8%
+   Stake     : $5.00 (5.00% of bankroll)
+   Confidence: HIGH
+
+#52 | Spain vs Cape Verde — TBD
+   Market    : Match Result
+   Selection : Both teams to score - YES
+   Odds      : 2.65
+   Fair Prob : 49.6% (model estimate)
+   EV        : +31.4%
+   Stake     : $4.76 (4.76% of bankroll)
+   Confidence: HIGH
+
+#55 | Iraq vs Norway — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.45
+   Fair Prob : 53.1% (model estimate)
+   EV        : +30.1%
+   Stake     : $5.00 (5.00% of bankroll)
+   Confidence: HIGH
+
+#56 | Portugal vs DR Congo — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.45
+   Fair Prob : 53.1% (model estimate)
+   EV        : +30.1%
+   Stake     : $5.00 (5.00% of bankroll)
+   Confidence: HIGH
+
+#57 | Canada vs Qatar — TBD
+   Market    : Match Result
+   Selection : Both teams to score - YES
+   Odds      : 2.55
+   Fair Prob : 50.5% (model estimate)
+   EV        : +28.7%
+   Stake     : $4.64 (4.64% of bankroll)
+   Confidence: HIGH
+
+#59 | Germany vs Curacao — TBD
+   Market    : Match Result
+   Selection : Germany
+   Odds      : 2.05
+   Fair Prob : 60.6% (model estimate)
+   EV        : +24.1%
+   Stake     : $5.00 (5.00% of bankroll)
+   Confidence: HIGH
+
+#60 | Austria vs Jordan — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.30
+   Fair Prob : 53.1% (model estimate)
+   EV        : +22.1%
+   Stake     : $4.26 (4.26% of bankroll)
+   Confidence: HIGH
+
+#61 | France vs Cote d'Ivoire — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.30
+   Fair Prob : 53.1% (model estimate)
+   EV        : +22.1%
+   Stake     : $4.26 (4.26% of bankroll)
+   Confidence: HIGH
+
+#62 | Qatar vs Switzerland — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.25
+   Fair Prob : 53.1% (model estimate)
+   EV        : +19.5%
+   Stake     : $3.90 (3.90% of bankroll)
+   Confidence: HIGH
+
+#63 | England vs Ghana — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.20
+   Fair Prob : 53.1% (model estimate)
+   EV        : +16.8%
+   Stake     : $3.51 (3.51% of bankroll)
+   Confidence: HIGH
+
+#64 | Netherlands vs Algeria — TBD
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.20
+   Fair Prob : 53.1% (model estimate)
+   EV        : +16.8%
+   Stake     : $3.51 (3.51% of bankroll)
+   Confidence: HIGH
+
+#65 | Spain vs Cape Verde — TBD
+   Market    : Match Result
+   Selection : Spain
+   Odds      : 1.99
+   Fair Prob : 58.0% (model estimate)
+   EV        : +15.4%
+   Stake     : $3.89 (3.89% of bankroll)
+   Confidence: HIGH
+
+#66 | Cote d'Ivoire vs Ecuador — TBD
+   Market    : Match Result
+   Selection : Both teams to score - YES
+   Odds      : 2.40
+   Fair Prob : 47.9% (model estimate)
+   EV        : +14.9%
+   Stake     : $2.67 (2.67% of bankroll)
    Confidence: HIGH
 
 #67 | Ecuador vs Curacao — TBD
    Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.65
-   Fair Prob : 50.0% (model estimate)
-   EV        : +32.5%
-   Stake     : $4.92 (4.92% of bankroll)
-   Confidence: HIGH
-
-#68 | Spain vs Saudi Arabia — TBD
-   Market    : Match Result
    Selection : Total UNDER
-   Odds      : 2.65
-   Fair Prob : 50.0% (model estimate)
-   EV        : +32.5%
-   Stake     : $4.92 (4.92% of bankroll)
+   Odds      : 2.15
+   Fair Prob : 53.1% (model estimate)
+   EV        : +14.2%
+   Stake     : $3.08 (3.08% of bankroll)
    Confidence: HIGH
 
-#69 | France vs Iraq — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.65
-   Fair Prob : 50.0% (model estimate)
-   EV        : +32.5%
-   Stake     : $4.92 (4.92% of bankroll)
-   Confidence: HIGH
-
-#70 | South Korea vs Czechia — TBD
-   Market    : Match Result
-   Selection : South Korea
-   Odds      : 2.60
-   Fair Prob : 50.0% (model estimate)
-   EV        : +30.0%
-   Stake     : $4.69 (4.69% of bankroll)
-   Confidence: HIGH
-
-#71 | Canada vs Qatar — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.55
-   Fair Prob : 50.0% (model estimate)
-   EV        : +27.5%
-   Stake     : $4.44 (4.44% of bankroll)
-   Confidence: HIGH
-
-#72 | Qatar vs Switzerland — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.50
-   Fair Prob : 50.0% (model estimate)
-   EV        : +25.0%
-   Stake     : $4.17 (4.17% of bankroll)
-   Confidence: HIGH
-
-#73 | Portugal vs Uzbekistan — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.50
-   Fair Prob : 50.0% (model estimate)
-   EV        : +25.0%
-   Stake     : $4.17 (4.17% of bankroll)
-   Confidence: HIGH
-
-#76 | Iraq vs Norway — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.45
-   Fair Prob : 50.0% (model estimate)
-   EV        : +22.5%
-   Stake     : $3.88 (3.88% of bankroll)
-   Confidence: HIGH
-
-#77 | Portugal vs DR Congo — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.45
-   Fair Prob : 50.0% (model estimate)
-   EV        : +22.5%
-   Stake     : $3.88 (3.88% of bankroll)
-   Confidence: HIGH
-
-#78 | Cote d'Ivoire vs Ecuador — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.40
-   Fair Prob : 50.0% (model estimate)
-   EV        : +20.0%
-   Stake     : $3.57 (3.57% of bankroll)
-   Confidence: HIGH
-
-#83 | Mexico vs South Africa — TBD
+#68 | Mexico vs South Africa — TBD
    Market    : Match Result
    Selection : Both teams to score - YES
    Odds      : 2.35
-   Fair Prob : 50.0% (model estimate)
-   EV        : +17.5%
-   Stake     : $3.24 (3.24% of bankroll)
+   Fair Prob : 48.4% (model estimate)
+   EV        : +13.8%
+   Stake     : $2.56 (2.56% of bankroll)
    Confidence: HIGH
 
-#84 | Turkey vs Paraguay — TBD
+#69 | Argentina vs Algeria — TBD
+   Market    : Match Result
+   Selection : Both teams to score - YES
+   Odds      : 2.25
+   Fair Prob : 49.3% (model estimate)
+   EV        : +11.0%
+   Stake     : $2.20 (2.20% of bankroll)
+   Confidence: HIGH
+
+#70 | Brazil vs Haiti — TBD
+   Market    : Match Result
+   Selection : Brazil
+   Odds      : 1.77
+   Fair Prob : 62.6% (model estimate)
+   EV        : +10.8%
+   Stake     : $3.52 (3.52% of bankroll)
+   Confidence: HIGH
+
+#71 | Turkey vs Paraguay — TBD
    Market    : Match Result
    Selection : Total OVER
    Odds      : 2.35
-   Fair Prob : 50.0% (model estimate)
-   EV        : +17.5%
-   Stake     : $3.24 (3.24% of bankroll)
+   Fair Prob : 46.9% (model estimate)
+   EV        : +10.2%
+   Stake     : $1.89 (1.89% of bankroll)
    Confidence: HIGH
 
-#90 | USA vs Paraguay — TBD
+#72 | Iraq vs Norway — TBD
+   Market    : Match Result
+   Selection : Norway
+   Odds      : 2.05
+   Fair Prob : 53.5% (model estimate)
+   EV        : +9.8%
+   Stake     : $2.33 (2.33% of bankroll)
+   Confidence: HIGH
+
+#73 | USA vs Paraguay — TBD
    Market    : Match Result
    Selection : Total OVER
    Odds      : 2.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +15.0%
-   Stake     : $2.88 (2.88% of bankroll)
+   Fair Prob : 46.9% (model estimate)
+   EV        : +7.9%
+   Stake     : $1.51 (1.51% of bankroll)
    Confidence: HIGH
 
-#91 | Cote d'Ivoire vs Ecuador — TBD
-   Market    : Match Result
-   Selection : Ecuador
-   Odds      : 2.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +15.0%
-   Stake     : $2.88 (2.88% of bankroll)
-   Confidence: HIGH
-
-#92 | Austria vs Jordan — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +15.0%
-   Stake     : $2.88 (2.88% of bankroll)
-   Confidence: HIGH
-
-#93 | Sweden vs Tunisia — TBD
+#74 | Sweden vs Tunisia — TBD
    Market    : Match Result
    Selection : Total OVER
    Odds      : 2.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +15.0%
-   Stake     : $2.88 (2.88% of bankroll)
+   Fair Prob : 46.9% (model estimate)
+   EV        : +7.9%
+   Stake     : $1.51 (1.51% of bankroll)
    Confidence: HIGH
 
-#94 | France vs Cote d'Ivoire — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.30
-   Fair Prob : 50.0% (model estimate)
-   EV        : +15.0%
-   Stake     : $2.88 (2.88% of bankroll)
-   Confidence: HIGH
-
-#95 | Qatar vs Switzerland — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $2.50 (2.50% of bankroll)
-   Confidence: HIGH
-
-#96 | Iran vs New Zealand — TBD
-   Market    : Match Result
-   Selection : Total OVER
-   Odds      : 2.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $2.50 (2.50% of bankroll)
-   Confidence: HIGH
-
-#97 | Argentina vs Algeria — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $2.50 (2.50% of bankroll)
-   Confidence: HIGH
-
-#98 | South Korea vs Czechia — TBD
-   Market    : Match Result
-   Selection : Total OVER
-   Odds      : 2.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $2.50 (2.50% of bankroll)
-   Confidence: HIGH
-
-#99 | Iraq vs Norway — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $2.50 (2.50% of bankroll)
-   Confidence: HIGH
-
-#100 | Mexico vs South Korea — TBD
-   Market    : Match Result
-   Selection : Total OVER
-   Odds      : 2.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $2.50 (2.50% of bankroll)
-   Confidence: HIGH
-
-#101 | Scotland vs Morocco — TBD
-   Market    : Match Result
-   Selection : Total OVER
-   Odds      : 2.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $2.50 (2.50% of bankroll)
-   Confidence: HIGH
-
-#102 | Tunisia vs Japan — TBD
-   Market    : Match Result
-   Selection : Total OVER
-   Odds      : 2.25
-   Fair Prob : 50.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $2.50 (2.50% of bankroll)
-   Confidence: HIGH
-
-#103 | Iran vs New Zealand — TBD
-   Market    : Match Result
-   Selection : Iran
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#104 | Ghana vs Panama — TBD
-   Market    : Match Result
-   Selection : Total OVER
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#105 | Uzbekistan vs Colombia — TBD
+#75 | Denmark vs DR Congo — TBD
    Market    : Match Result
    Selection : Both teams to score - YES
    Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
+   Fair Prob : 49.0% (model estimate)
+   EV        : +7.7%
+   Stake     : $1.61 (1.61% of bankroll)
    Confidence: HIGH
 
-#106 | Sweden vs Tunisia — TBD
+#76 | Spain vs Saudi Arabia — TBD
    Market    : Match Result
-   Selection : Tunisia
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
+   Selection : Spain
+   Odds      : 1.77
+   Fair Prob : 60.6% (model estimate)
+   EV        : +7.3%
+   Stake     : $2.37 (2.37% of bankroll)
    Confidence: HIGH
 
-#107 | Canada vs Bosnia and Herzegovina — TBD
-   Market    : Match Result
-   Selection : Total OVER
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#108 | Scotland vs Morocco — TBD
-   Market    : Match Result
-   Selection : Scotland
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#109 | England vs Ghana — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#110 | Panama vs Croatia — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#111 | Turkey vs Paraguay — TBD
-   Market    : Match Result
-   Selection : Turkey
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#112 | Denmark vs DR Congo — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#113 | Netherlands vs Algeria — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.20
-   Fair Prob : 50.0% (model estimate)
-   EV        : +10.0%
-   Stake     : $2.08 (2.08% of bankroll)
-   Confidence: HIGH
-
-#114 | USA vs Paraguay — TBD
-   Market    : Match Result
-   Selection : Paraguay
-   Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
-   Confidence: HIGH
-
-#115 | Netherlands vs Japan — TBD
-   Market    : Match Result
-   Selection : Netherlands
-   Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
-   Confidence: HIGH
-
-#116 | Austria vs Jordan — TBD
+#77 | Austria vs Jordan — TBD
    Market    : Match Result
    Selection : Austria
    Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
+   Fair Prob : 49.8% (model estimate)
+   EV        : +7.1%
+   Stake     : $1.54 (1.54% of bankroll)
    Confidence: HIGH
 
-#117 | Scotland vs Brazil — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
-   Confidence: HIGH
-
-#118 | Ecuador vs Curacao — TBD
-   Market    : Match Result
-   Selection : Total UNDER
-   Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
-   Confidence: HIGH
-
-#119 | England vs Ghana — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
-   Confidence: HIGH
-
-#120 | England vs Ghana — TBD
+#78 | England vs Ghana — TBD
    Market    : Match Result
    Selection : England
    Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
+   Fair Prob : 49.8% (model estimate)
+   EV        : +7.1%
+   Stake     : $1.55 (1.55% of bankroll)
    Confidence: HIGH
 
-#121 | France vs Iraq — TBD
+#79 | Netherlands vs Algeria — TBD
    Market    : Match Result
-   Selection : Iraq
+   Selection : Netherlands
    Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
+   Fair Prob : 49.8% (model estimate)
+   EV        : +7.1%
+   Stake     : $1.54 (1.54% of bankroll)
    Confidence: HIGH
 
-#122 | Belgium vs Iran — TBD
+#80 | Belgium vs Iran — TBD
    Market    : Match Result
    Selection : Both teams to score - YES
    Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
+   Fair Prob : 49.5% (model estimate)
+   EV        : +6.5%
+   Stake     : $1.40 (1.40% of bankroll)
    Confidence: HIGH
 
-#123 | Netherlands vs Algeria — TBD
+#81 | Germany vs Cote d'Ivoire — TBD
    Market    : Match Result
-   Selection : Algeria
-   Odds      : 2.15
-   Fair Prob : 50.0% (model estimate)
-   EV        : +7.5%
-   Stake     : $1.63 (1.63% of bankroll)
+   Selection : Total UNDER
+   Odds      : 2.00
+   Fair Prob : 53.1% (model estimate)
+   EV        : +6.2%
+   Stake     : $1.55 (1.55% of bankroll)
    Confidence: HIGH
 
-#124 | Uruguay vs Cape Verde — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.12
-   Fair Prob : 50.0% (model estimate)
-   EV        : +6.0%
-   Stake     : $1.34 (1.34% of bankroll)
-   Confidence: HIGH
-
-#125 | Saudi Arabia vs Uruguay — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
-   Confidence: HIGH
-
-#126 | France vs Senegal — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
-   Confidence: HIGH
-
-#127 | Tunisia vs Japan — TBD
-   Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
-   Confidence: HIGH
-
-#128 | Norway vs Senegal — TBD
-   Market    : Match Result
-   Selection : Norway
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
-   Confidence: HIGH
-
-#129 | Poland vs Nigeria — TBD
+#82 | Iran vs New Zealand — TBD
    Market    : Match Result
    Selection : Total OVER
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
+   Odds      : 2.25
+   Fair Prob : 46.9% (model estimate)
+   EV        : +5.5%
+   Stake     : $1.10 (1.10% of bankroll)
    Confidence: HIGH
 
-#130 | Poland vs Nigeria — TBD
-   Market    : Match Result
-   Selection : Poland
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
-   Confidence: HIGH
-
-#131 | Denmark vs DR Congo — TBD
+#83 | South Korea vs Czechia — TBD
    Market    : Match Result
    Selection : Total OVER
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
+   Odds      : 2.25
+   Fair Prob : 46.9% (model estimate)
+   EV        : +5.5%
+   Stake     : $1.10 (1.10% of bankroll)
    Confidence: HIGH
 
-#132 | Luxembourg vs Italy — TBD
+#84 | Mexico vs South Korea — TBD
    Market    : Match Result
-   Selection : Both teams to score - YES
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
+   Selection : Total OVER
+   Odds      : 2.25
+   Fair Prob : 46.9% (model estimate)
+   EV        : +5.5%
+   Stake     : $1.10 (1.10% of bankroll)
    Confidence: HIGH
 
-#133 | France vs Cote d'Ivoire — TBD
+#85 | Scotland vs Morocco — TBD
    Market    : Match Result
-   Selection : Cote d'Ivoire
-   Odds      : 2.10
-   Fair Prob : 50.0% (model estimate)
-   EV        : +5.0%
-   Stake     : $1.14 (1.14% of bankroll)
+   Selection : Total OVER
+   Odds      : 2.25
+   Fair Prob : 46.9% (model estimate)
+   EV        : +5.5%
+   Stake     : $1.10 (1.10% of bankroll)
+   Confidence: HIGH
+
+#86 | Tunisia vs Japan — TBD
+   Market    : Match Result
+   Selection : Total OVER
+   Odds      : 2.25
+   Fair Prob : 46.9% (model estimate)
+   EV        : +5.5%
+   Stake     : $1.10 (1.10% of bankroll)
    Confidence: HIGH
 
 ── MONITOR LIST (close to threshold — watch only) ───────────────
 
-   Switzerland vs Bosnia and Herzegovina | Match Result | X | Odds: 4.00 | EV: +4.8%
-   Netherlands vs Sweden | Match Result | X | Odds: 4.00 | EV: +4.8%
-   Denmark vs DR Congo | Match Result | X | Odds: 4.00 | EV: +4.8%
-   Mexico vs South Africa | Match Result | Total OVER | Odds: 2.05 | EV: +2.5%
-   USA vs Paraguay | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Brazil vs Morocco | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Haiti vs Scotland | Match Result | Scotland | Odds: 2.05 | EV: +2.5%
-   Haiti vs Scotland | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Germany vs Curacao | Match Result | Germany | Odds: 2.05 | EV: +2.5%
-   Saudi Arabia vs Uruguay | Match Result | Saudi Arabia | Odds: 2.05 | EV: +2.5%
-   Iran vs New Zealand | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   England vs Croatia | Match Result | Total OVER | Odds: 2.05 | EV: +2.5%
-   Ghana vs Panama | Match Result | Panama | Odds: 2.05 | EV: +2.5%
-   Sweden vs Tunisia | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Canada vs Bosnia and Herzegovina | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Canada vs Bosnia and Herzegovina | Match Result | Canada | Odds: 2.05 | EV: +2.5%
-   Iraq vs Norway | Match Result | Norway | Odds: 2.05 | EV: +2.5%
-   Canada vs Qatar | Match Result | Qatar | Odds: 2.05 | EV: +2.5%
-   Mexico vs South Korea | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Mexico vs South Korea | Match Result | Mexico | Odds: 2.05 | EV: +2.5%
-   Scotland vs Morocco | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Switzerland vs Bosnia and Herzegovina | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Netherlands vs Algeria | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +2.5%
-   Belgium vs Egypt | Match Result | X | Odds: 3.90 | EV: +2.2%
-   Panama vs Croatia | Match Result | X | Odds: 3.90 | EV: +2.2%
+   South Korea vs Czechia | Match Result | Czechia | Odds: 2.80 | EV: +4.9%
+   Scotland vs Brazil | Match Result | Total UNDER | Odds: 1.97 | EV: +4.6%
+   France vs Iraq | Match Result | France | Odds: 1.69 | EV: +4.6%
+   England vs Ghana | Match Result | Both teams to score - YES | Odds: 2.15 | EV: +3.8%
+   Luxembourg vs Italy | Match Result | Total UNDER | Odds: 1.95 | EV: +3.6%
+   Sweden vs Tunisia | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +3.5%
+   Qatar vs Switzerland | Match Result | Both teams to score - YES | Odds: 2.50 | EV: +3.4%
+   Albania vs Israel | Match Result | Israel | Odds: 2.85 | EV: +3.3%
+   Ghana vs Panama | Match Result | Total OVER | Odds: 2.20 | EV: +3.2%
+   Canada vs Bosnia and Herzegovina | Match Result | Total OVER | Odds: 2.20 | EV: +3.2%
+   USA vs Paraguay | Match Result | Both teams to score - YES | Odds: 2.05 | EV: +3.1%
+   Uruguay vs Cape Verde | Match Result | Both teams to score - YES | Odds: 2.12 | EV: +3.1%
+   Belgium vs Egypt | Match Result | Total UNDER | Odds: 1.94 | EV: +3.0%
+   Netherlands vs Japan | Match Result | Both teams to score - NO | Odds: 1.95 | EV: +2.7%
+   South Korea vs Czechia | Match Result | South Korea | Odds: 2.60 | EV: +2.7%
+   Portugal vs DR Congo | Match Result | Portugal | Odds: 1.97 | EV: +2.5%
+   Portugal vs Uzbekistan | Match Result | Portugal | Odds: 1.91 | EV: +2.5%
+   France vs Senegal | Match Result | Both teams to score - YES | Odds: 2.10 | EV: +2.3%
+   Qatar vs Switzerland | Match Result | Switzerland | Odds: 1.84 | EV: +2.0%
 
 ── PARLAYS (BATCH — place these) ────────────────────────────────
 
-#1 PARLAY | Odds: 2943.50 | EV: +36693.8%
-   Leg 1 : Qatar (Qatar vs Switzerland)
-   Leg 2 : Iraq (Iraq vs Norway)
-   Leg 3 : Uzbekistan (Portugal vs Uzbekistan)
+#1 PARLAY | Odds: 70.26 | EV: +736.0%
+   Leg 1 : Total UNDER (Germany vs Curacao)
+   Leg 2 : Total UNDER (Brazil vs Haiti)
+   Leg 3 : New Zealand (Iran vs New Zealand)
    Stake : $2.00 (2.00% of bankroll)
 
-#2 PARLAY | Odds: 2523.00 | EV: +31437.5%
-   Leg 1 : Qatar (Qatar vs Switzerland)
-   Leg 2 : Iraq (Iraq vs Norway)
-   Leg 3 : DR Congo (Portugal vs DR Congo)
+#2 PARLAY | Odds: 71.90 | EV: +733.2%
+   Leg 1 : Total UNDER (Germany vs Curacao)
+   Leg 2 : Total UNDER (Brazil vs Haiti)
+   Leg 3 : South Korea (Mexico vs South Korea)
    Stake : $2.00 (2.00% of bankroll)
 
-#3 PARLAY | Odds: 2436.00 | EV: +30350.0%
-   Leg 1 : Qatar (Qatar vs Switzerland)
-   Leg 2 : Uzbekistan (Portugal vs Uzbekistan)
-   Leg 3 : DR Congo (Portugal vs DR Congo)
+#3 PARLAY | Odds: 71.08 | EV: +725.7%
+   Leg 1 : Total UNDER (Germany vs Curacao)
+   Leg 2 : Total UNDER (Brazil vs Haiti)
+   Leg 3 : Bosnia and Herzegovina (Canada vs Bosnia and Herzegovina)
    Stake : $2.00 (2.00% of bankroll)
 
-#4 PARLAY | Odds: 2436.00 | EV: +30350.0%
-   Leg 1 : Iraq (Iraq vs Norway)
-   Leg 2 : Uzbekistan (Portugal vs Uzbekistan)
-   Leg 3 : DR Congo (Portugal vs DR Congo)
+#4 PARLAY | Odds: 52.29 | EV: +682.9%
+   Leg 1 : Total UNDER (Germany vs Curacao)
+   Leg 2 : Total UNDER (Brazil vs Haiti)
+   Leg 3 : Total UNDER (Spain vs Cape Verde)
    Stake : $2.00 (2.00% of bankroll)
 
-#5 PARLAY | Odds: 2417.88 | EV: +30123.4%
-   Leg 1 : Qatar (Qatar vs Switzerland)
-   Leg 2 : Iraq (Iraq vs Norway)
-   Leg 3 : Qatar (Canada vs Qatar)
+#5 PARLAY | Odds: 63.73 | EV: +663.7%
+   Leg 1 : Total UNDER (Germany vs Curacao)
+   Leg 2 : Total UNDER (Brazil vs Haiti)
+   Leg 3 : Japan (Netherlands vs Japan)
    Stake : $2.00 (2.00% of bankroll)
 
 ── PORTFOLIO SUMMARY ────────────────────────────────────────────
-   Total BATCH bets    : 108
+   Total BATCH bets    : 47
    Total BATCH parlays : 5
-   Total stake today   : $405.14 (405.14% of bankroll)
-   Expected return     : $3765.69
+   Total stake today   : $170.80 (170.80% of bankroll)
+   Expected return     : $133.03
    Stop-loss remaining : $115.00 before DRAWDOWN_PAUSE triggers
 
 ================================================================

@@ -64,9 +64,51 @@ NEW_SOT_FEATURES = [
 ]
 
 
-
 def compute_ev(FairProb_P: float, RawOdds_P: float) -> float:
     return (FairProb_P * (RawOdds_P - 1)) - (1 - FairProb_P)
+
+
+def implied_fair_probs(DbPath_P, FixtureId_P, HomeTeam_P, AwayTeam_P):
+    """
+    Derive vig-free fair probabilities from scraped 1X2 odds for a given fixture.
+    Returns (fair_home, fair_draw, fair_away, home_lam, away_lam).
+    Falls back to league-average priors when no 1X2 odds are present.
+    """
+    conn = sqlite3.connect(DbPath_P)
+    rows = conn.execute(
+        "SELECT selection_name, raw_odds FROM market WHERE fixture_id = ? AND market_name = 'Match Result'",
+        (FixtureId_P,)
+    ).fetchall()
+    conn.close()
+
+    home_odds, draw_odds, away_odds = [], [], []
+    for sel, odd in rows:
+        s = sel.strip().lower()
+        if s in ("x", "draw"):
+            draw_odds.append(odd)
+        elif s == HomeTeam_P.strip().lower():
+            home_odds.append(odd)
+        elif s == AwayTeam_P.strip().lower():
+            away_odds.append(odd)
+
+    if home_odds and draw_odds and away_odds:
+        h_o = min(home_odds)
+        d_o = min(draw_odds)
+        a_o = min(away_odds)
+        rh = 1.0 / h_o
+        rd = 1.0 / d_o
+        ra = 1.0 / a_o
+        overround = rh + rd + ra
+        fh = rh / overround
+        fd = rd / overround
+        fa = ra / overround
+        total_lam = 2.55
+        hl = total_lam * (fh + 0.5 * fd) / max(overround, 1.0)
+        al = max(0.1, total_lam - hl)
+        return fh, fd, fa, hl, al
+
+    # League-average fallback
+    return 0.44, 0.26, 0.30, 1.45, 1.10
 
 
 def run_single_bet_predictor(BankrollSize_P: float):
@@ -211,63 +253,28 @@ def run_single_bet_predictor(BankrollSize_P: float):
                 FairProb_V = RawProb_V
 
         else:
-            # Match result / BTTS / Over-Under — use Poisson goal model per fixture
-            # Real lambda pulled from opponent profile (goals scored / conceded)
-            CompetitionType_V = detect_competition_type(LeagueId_V)
-            OppProfile_V = get_opponent_profile(AwayTeam_V, CompetitionType_V)
+            # Match result / BTTS / Over-Under
+            # Use MARKET-IMPLIED probabilities (vig-free) from scraped odds
+            FairHomeP_V, FairDrawP_V, FairAwayP_V, HomeGoalLam_V, AwayGoalLam_V = \
+                implied_fair_probs(DbPath_V, FixtureId_V, HomeTeam_V, AwayTeam_V)
 
-            # League average goals per game
-            HomeGoalLam_V = 1.45
-            AwayGoalLam_V = 1.10
+            SelectionLower_V = SelectionName_V.strip().lower()
+            MarketLower_V = MarketName_V.strip().lower()
 
-            SelectionLower_V = SelectionName_V.lower()
-            MarketLower_V = MarketName_V.lower()
-
-            if "home" in SelectionLower_V or "1" == SelectionLower_V.strip():
-                # Bivariate Poisson P(home > away)
-                FairProb_V = sum(
-                    math.exp(-HomeGoalLam_V)
-                    * (HomeGoalLam_V**h)
-                    / math.factorial(h)
-                    * sum(
-                        math.exp(-AwayGoalLam_V)
-                        * (AwayGoalLam_V**a)
-                        / math.factorial(a)
-                        for a in range(h)
-                    )
-                    for h in range(8)
-                )
-            elif "draw" in SelectionLower_V or "x" == SelectionLower_V.strip():
-                FairProb_V = sum(
-                    math.exp(-HomeGoalLam_V)
-                    * (HomeGoalLam_V**g)
-                    / math.factorial(g)
-                    * math.exp(-AwayGoalLam_V)
-                    * (AwayGoalLam_V**g)
-                    / math.factorial(g)
-                    for g in range(8)
-                )
-            elif "away" in SelectionLower_V or "2" == SelectionLower_V.strip():
-                FairProb_V = sum(
-                    math.exp(-AwayGoalLam_V)
-                    * (AwayGoalLam_V**a)
-                    / math.factorial(a)
-                    * sum(
-                        math.exp(-HomeGoalLam_V)
-                        * (HomeGoalLam_V**h)
-                        / math.factorial(h)
-                        for h in range(a)
-                    )
-                    for a in range(8)
-                )
-            elif "btts" in MarketLower_V or "both teams" in MarketLower_V:
-                FairProb_V = (1 - math.exp(-HomeGoalLam_V)) * (
-                    1 - math.exp(-AwayGoalLam_V)
-                )
-            elif "over 2.5" in MarketLower_V or "over 2.5" in SelectionLower_V:
+            if SelectionLower_V == HomeTeam_V.strip().lower():
+                FairProb_V = FairHomeP_V
+            elif SelectionLower_V in ("x", "draw"):
+                FairProb_V = FairDrawP_V
+            elif SelectionLower_V == AwayTeam_V.strip().lower():
+                FairProb_V = FairAwayP_V
+            elif "both teams to score - yes" in SelectionLower_V:
+                FairProb_V = (1 - math.exp(-HomeGoalLam_V)) * (1 - math.exp(-AwayGoalLam_V))
+            elif "both teams to score - no" in SelectionLower_V:
+                FairProb_V = 1.0 - (1 - math.exp(-HomeGoalLam_V)) * (1 - math.exp(-AwayGoalLam_V))
+            elif "total over" in SelectionLower_V:
                 FairProb_V = poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, 3)
-            elif "over 1.5" in MarketLower_V or "over 1.5" in SelectionLower_V:
-                FairProb_V = poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, 2)
+            elif "total under" in SelectionLower_V:
+                FairProb_V = 1.0 - poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, 3)
             else:
                 FairProb_V = 0.50  # Unknown market, neutral prior
 

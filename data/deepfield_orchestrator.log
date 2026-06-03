@@ -72,3 +72,6 @@
 2026-06-03 14:59:41,456 - src.services.odds_acquisition.websocket_ingestor - INFO - Starting WebSocket ingestor for betfair
 2026-06-03 14:59:41,456 - __main__ - INFO - Starting health monitor...
 2026-06-03 14:59:41,456 - __main__ - INFO - Starting metrics collector...
+2026-06-03 15:00:10,271 - __main__ - INFO - Metrics: {'timestamp': '2026-06-03T12:00:10.271720', 'sessions': {'total': 0, 'healthy': 0}, 'websocket': {}}
+2026-06-03 15:01:10,275 - __main__ - INFO - Metrics: {'timestamp': '2026-06-03T12:01:10.275542', 'sessions': {'total': 0, 'healthy': 0}, 'websocket': {}}
+2026-06-03 15:02:10,283 - __main__ - INFO - Metrics: {'timestamp': '2026-06-03T12:02:10.283196', 'sessions': {'total': 0, 'healthy': 0}, 'websocket': {}}
