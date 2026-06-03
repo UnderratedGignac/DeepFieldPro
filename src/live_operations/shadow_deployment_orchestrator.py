@@ -8,7 +8,6 @@ import sys
 import json
 import sqlite3
 import logging
-import asyncio
 import datetime
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

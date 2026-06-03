@@ -35,7 +35,7 @@ else:
     mkt_per_fix = db.execute(
         "SELECT fixture_id, COUNT(*) FROM market GROUP BY fixture_id LIMIT 10"
     ).fetchall()
-    print(f"  Markets per fixture (sample):")
+    print("  Markets per fixture (sample):")
     for m in mkt_per_fix:
         print(f"    {m[0]}: {m[1]} markets")
 

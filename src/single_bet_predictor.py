@@ -259,7 +259,6 @@ def run_single_bet_predictor(BankrollSize_P: float):
                 implied_fair_probs(DbPath_V, FixtureId_V, HomeTeam_V, AwayTeam_V)
 
             SelectionLower_V = SelectionName_V.strip().lower()
-            MarketLower_V = MarketName_V.strip().lower()
 
             if SelectionLower_V == HomeTeam_V.strip().lower():
                 FairProb_V = FairHomeP_V

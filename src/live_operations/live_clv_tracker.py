@@ -3,7 +3,6 @@ import os
 import sys 
 import sqlite3
 import datetime
-import logging
 
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, BASE)
@@ -32,7 +31,8 @@ def record_clv(sportsbook, market, fixture, bet_odds, closing_odds, latency_ms=0
     conn.execute("INSERT INTO clv_records (sportsbook,market,fixture,bet_odds,closing_odds,clv_pct,latency_ms,recorded_at) VALUES (?,?,?,?,?,?,?,?)",
         (sportsbook, market, fixture, bet_odds, closing_odds, clv_pct, latency_ms,
          datetime.datetime.now(datetime.UTC).isoformat()))
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
     return clv_pct
 
 
