@@ -1,0 +1,4 @@
+bet_id,timestamp,player_name,market,entry_odds,stake,fair_prob,target_threshold,closing_odds,clv,outcome,profit_loss,status
+BET-20260603051358-35d051c2,2026-06-03T05:13:58.919567+00:00,Mohamed Salah,sot_over_0.5,2.1,100.0,0.55,0.5,1.95,0.0769,WIN,110.00,SETTLED
+BET-20260603051519-2ae94223,2026-06-03T05:15:19.541643+00:00,Test Player,sot_over_0.5,2.0,50.0,0.55,0.5,1.9,0.0526,WIN,50.00,SETTLED
+BET-20260603051531-e5e2b019,2026-06-03T05:15:31.820500+00:00,Test Player,sot_over_0.5,2.0,50.0,0.55,0.5,1.9,0.0526,WIN,50.00,SETTLED
