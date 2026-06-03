@@ -18,6 +18,7 @@ import sqlite3
 import pandas as pd
 import pickle
 import numpy as np
+from scipy import stats
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 
@@ -51,7 +52,7 @@ def calculate_fair_prob_passes(player_name: str, threshold: float = 40.5) -> flo
     std_passes = Stats_P.get('std_passes', 10.0)
     
     z_score = (threshold - avg_passes) / max(std_passes, 1.0)
-    fair_prob = 1.0 - 0.5 * (1 + np.erf(z_score / np.sqrt(2)))
+    fair_prob = 1.0 - stats.norm.cdf(z_score)
     
     return float(np.clip(fair_prob, 0.05, 0.95))
 

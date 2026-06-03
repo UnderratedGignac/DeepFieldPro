@@ -23,7 +23,7 @@ import numpy as np
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-from pricing_engine import calculate_over_prob_pearson
+from src.pricing_engine import calculate_over_prob_pearson
 from execution_engine import place_bet
 from utils import remove_vig
 

@@ -1,1 +1,8 @@
-Nothing should be ignored based on the provided file changes. The added file `src/run_todays_predictions.py` is a source code file and should not be ignored. There are no build artifacts, dependencies, or temporary files in the changes that require ignoring.
+```
+# Compiled Python files
+*.pyc
+__pycache__/
+
+# Logs
+*.log
+```
