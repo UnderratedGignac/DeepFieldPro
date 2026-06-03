@@ -449,7 +449,7 @@ class Bet(Base):
     fixture = relationship("Fixture", back_populates="bets")
 
     __table_args__ = (
-        Index("idx_status", "status"),
+        Index("idx_fixture_status", "status"),
         Index("idx_placed_at", "placed_at"),
     )
 
