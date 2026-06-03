@@ -124,7 +124,7 @@ jobs:
           DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@${{ env.POSTGRES_HOST }}:5432/${{ env.POSTGRES_DB }}
           REDIS_URL: redis://${{ env.REDIS_HOST }}:6379/0
         run: |
-          python src/database/migrate.py
+          python -m database.migrate
 
       - name: Verify Infrastructure Connectivity
         run: |
