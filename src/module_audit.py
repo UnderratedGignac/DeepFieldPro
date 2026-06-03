@@ -1,7 +1,10 @@
 """
 Deep audit: checks every module claimed in the README actually exists and imports cleanly.
 """
-import os, sys, importlib, importlib.util
+import os
+import sys
+import importlib
+import importlib.util
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
