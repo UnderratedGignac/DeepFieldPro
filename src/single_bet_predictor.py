@@ -51,6 +51,18 @@ PASSES_FEATURES = [
     "opp_possession_allowed",
     "sample_weight",
 ]
+NEW_SOT_FEATURES = [
+    "Age",
+    "pos_encoded",
+    "min_",
+    "competition_type",
+    "Performance_Sh",
+    "Performance_Crs",
+    "Performance_Int",
+    "Performance_TklW",
+    "sample_weight",
+]
+
 
 
 def compute_ev(FairProb_P: float, RawOdds_P: float) -> float:
@@ -138,8 +150,11 @@ def run_single_bet_predictor(BankrollSize_P: float):
             X_minutes = pd.DataFrame(  # noqa: F841
                 [{k: Features_V[k] for k in MINUTES_FEATURES if k in Features_V}]
             )
-            X_passes = pd.DataFrame(
+            X_passes = pd.DataFrame(  # noqa: F841
                 [{k: Features_V[k] for k in PASSES_FEATURES if k in Features_V}]
+            )
+            X_sot_new = pd.DataFrame(
+                [{k: Features_V[k] for k in NEW_SOT_FEATURES if k in Features_V}]
             )
 
             # Route to correct SoT model based on competition type
@@ -154,10 +169,10 @@ def run_single_bet_predictor(BankrollSize_P: float):
                 )
                 continue
 
-            SotMean_V = float(Models_V[ModelKey_V].predict(X_passes)[0])
+            SotMean_V = float(Models_V[ModelKey_V].predict(X_sot_new)[0])
             ExpectedMinutes_V = (
                 float(
-                    Models_V.get("sot_club", Models_V[ModelKey_V]).predict(X_passes)[0]
+                    Models_V.get("sot_club", Models_V[ModelKey_V]).predict(X_sot_new)[0]
                 )
                 * 45.0
             )

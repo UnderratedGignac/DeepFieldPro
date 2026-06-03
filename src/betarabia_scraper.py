@@ -149,6 +149,10 @@ def parse_fixtures_from_api(ApiResponses_P: list) -> list:
                     Data_V = Data_V[RootKey_V]
                     break
 
+        if isinstance(Data_V, dict):
+            # Sometimes events are returned as a dictionary keyed by event ID
+            Data_V = list(Data_V.values())
+
         if not isinstance(Data_V, list):
             continue
 
@@ -163,6 +167,7 @@ def parse_fixtures_from_api(ApiResponses_P: list) -> list:
                 or Item_V.get("home")
                 or Item_V.get("localTeam", {}).get("name")
                 or Item_V.get("team1")
+                or Item_V.get("teams", {}).get("home")
             )
             AwayTeam_V = (
                 Item_V.get("awayTeam")
@@ -170,6 +175,7 @@ def parse_fixtures_from_api(ApiResponses_P: list) -> list:
                 or Item_V.get("away")
                 or Item_V.get("visitorTeam", {}).get("name")
                 or Item_V.get("team2")
+                or Item_V.get("teams", {}).get("away")
             )
             KickoffTime_V = (
                 Item_V.get("startTime")
@@ -503,6 +509,18 @@ async def run_scraper():
             await asyncio.sleep(2)
             await page.evaluate("window.scrollTo(0, 0)")
             await asyncio.sleep(1)
+
+            # Try to select Kickertech first (it uses the SBTech/HTTP API), fallback to BetConstruct
+            try:
+                ProviderBtn_V = await page.query_selector("text='Kickertech'")
+                if not ProviderBtn_V:
+                    ProviderBtn_V = await page.query_selector("text='BetConstruct'")
+                if ProviderBtn_V:
+                    logger.info("Selecting sportsbook provider...")
+                    await ProviderBtn_V.click()
+                    await asyncio.sleep(15)
+            except Exception as e:
+                logger.info(f"No provider selection needed or failed: {e}")
 
             # Accept cookies if banner appears
             try:

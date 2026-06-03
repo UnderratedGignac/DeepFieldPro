@@ -17,10 +17,7 @@ logger = logging.getLogger(__name__)
 
 from src.data_acquisition.simulation_clock import sim_clock  # noqa: E402
 from src.data_acquisition.replay_engine import replay_engine  # noqa: E402
-from src.data_acquisition.event_dispatcher import (
-    LineupConfirmedEvent,
-    event_dispatcher,
-)  # noqa: E402
+from src.data_acquisition.event_dispatcher import LineupConfirmedEvent, event_dispatcher  # noqa: E402
 from src.data_acquisition.dynamic_repricer import repricer  # noqa: E402
 from src.data_acquisition.edge_engine import edge_engine  # noqa: E402
 from src.data_acquisition.execution_queue import execution_queue  # noqa: E402

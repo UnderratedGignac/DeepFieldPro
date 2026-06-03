@@ -246,8 +246,8 @@ class CLVEngine:
         """
         # Build query filters
         filters = [
-            PaperBet.settled == True
-        ]  # Only settled bets have closing lines  # noqa: E712
+            PaperBet.settled
+        ]  # Only settled bets have closing lines
 
         if start_date:
             filters.append(PaperBet.placed_at >= start_date)
