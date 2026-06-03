@@ -1,6 +1,5 @@
 # selector_registry.py
 import logging
-from typing import Dict
 
 logger = logging.getLogger(__name__)
 

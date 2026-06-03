@@ -1,15 +1,24 @@
 import os
 import sys
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 import asyncio
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-sys.path.insert(0, os.path.dirname(__file__))
-from generate_predictions import generate_predictions
+# Add parent directory to path for imports
+_parent_dir = os.path.dirname(__file__)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+
+try:
+    from generate_predictions import generate_predictions
+except ImportError:
+    logger.warning("generate_predictions not available, will skip candidate scans")
+    generate_predictions = None
 
 class PipelineDaemon:
     def __init__(self):
@@ -103,7 +112,7 @@ class PipelineDaemon:
         logger.warning(f"[DAEMON ALERT] Lineup change detected for Match {event['match_id']}")
         for player in event['benched_players']:
             logger.info(f"  -> VOIDING PENDING BATCH ORDERS FOR: {player}")
-            logger.info(f"  -> CAPITAL RELEASED.")
+            logger.info("  -> CAPITAL RELEASED.")
 
     def recalibrate_platt_scaler(self):
         """Monthly job to recalibrate Platt scaler with latest results"""

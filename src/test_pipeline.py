@@ -194,6 +194,6 @@ for match_id, info in MATCH_FIXTURES.items():
     )
     total_bets_placed += len(bets)
 
-print(f"\n==================================================")
+print("\n==================================================")
 print(f"PIPELINE RUN COMPLETE | Total Bets Placed: {total_bets_placed}")
-print(f"==================================================")
+print("==================================================")

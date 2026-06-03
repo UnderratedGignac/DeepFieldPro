@@ -1,6 +1,5 @@
 from pydantic import BaseModel, ConfigDict
 from enum import Enum
-from typing import Dict, Any
 
 class CompoundingRegime(str, Enum):
     COMPOUNDING = "COMPOUNDING"

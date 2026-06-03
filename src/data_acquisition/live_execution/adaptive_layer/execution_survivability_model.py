@@ -1,8 +1,6 @@
 import logging
-from typing import Dict, Any
 
 from .execution_behavior_memory import behavior_memory
-from .adaptive_events import ExecutionSurvivabilityUpdatedEvent
 
 logger = logging.getLogger(__name__)
 

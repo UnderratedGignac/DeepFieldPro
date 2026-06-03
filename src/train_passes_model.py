@@ -1,7 +1,5 @@
 import lightgbm as lgb
 import pandas as pd
-import numpy as np
-from scipy.stats import nbinom
 import os
 
 df = pd.read_csv('C:/Users/Elie/DeepFieldPro/data/training_dataset.csv')

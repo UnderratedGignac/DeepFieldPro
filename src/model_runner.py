@@ -1,13 +1,15 @@
-import os, sqlite3, time, math
+import os
+import sys
+import sqlite3
+import time
+import math
 import pandas as pd
-import numpy as np
 import lightgbm as lgb
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from pricing_engine  import calculate_over_prob
 from execution_engine import place_bet
-from utils           import remove_vig
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
@@ -180,7 +182,7 @@ def run_for_match(fixture_id, opponent_team, lineup_drop_at, latency_ms,
         print("ERROR: No starters found in DB. Did lineup_parser run?")
         return []
 
-    shift_lookup = {s['player_id']: s for s in role_shifts}
+    {s['player_id']: s for s in role_shifts}
     bets_placed = []
 
     # 1. First Pass: Predict features and calculate sum of goals/cards for relative pricing

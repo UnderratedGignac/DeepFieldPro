@@ -2,7 +2,7 @@
 import logging
 import statistics
 from collections import defaultdict
-from typing import Dict, Any, List
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 

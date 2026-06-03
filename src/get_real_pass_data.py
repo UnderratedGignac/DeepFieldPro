@@ -8,7 +8,6 @@ actual completed passes per player per match.
 This replaces the formula proxy with ground truth training data.
 """
 import pandas as pd
-import numpy as np
 import os
 from statsbombpy import sb
 
@@ -124,5 +123,5 @@ print(f"\nTop positions by avg passes:\n{df.groupby('position')['passes_per_90']
 
 os.makedirs('C:/Users/Elie/DeepFieldPro/data', exist_ok=True)
 df.to_csv('C:/Users/Elie/DeepFieldPro/data/statsbomb_real_passes.csv', index=False)
-print(f"\n[OK] Real pass data saved: C:/Users/Elie/DeepFieldPro/data/statsbomb_real_passes.csv")
+print("\n[OK] Real pass data saved: C:/Users/Elie/DeepFieldPro/data/statsbomb_real_passes.csv")
 print("Now run: python build_training_dataset_v2.py")

@@ -119,7 +119,7 @@ def generate_output_file(bankroll: float):
         f.write("Paper trade first. Verify odds before placing any bet.\n")
         f.write("================================================================\n")
         
-    print(f"Scrape complete    : Fixtures and markets processed.")
+    print("Scrape complete    : Fixtures and markets processed.")
     print(f"BATCH bets found   : {len(batch_bets)}")
     print(f"BATCH parlays found: {len(parlays)}")
     print(f"Total stake        : ${total_stake:.2f}")

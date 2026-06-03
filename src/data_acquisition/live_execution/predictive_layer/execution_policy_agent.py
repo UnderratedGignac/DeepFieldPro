@@ -1,9 +1,6 @@
 import logging
-import random
-from typing import Dict, Any
 
 from .suspension_probability_model import suspension_model
-from .market_movement_forecaster import movement_forecaster
 
 logger = logging.getLogger(__name__)
 

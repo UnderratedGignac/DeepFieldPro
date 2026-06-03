@@ -1,7 +1,6 @@
 import os
 import sys
 import pandas as pd
-import numpy as np
 import logging
 import math
 
@@ -95,7 +94,7 @@ def run_market_backtest(Market_P, df, models, num_slates=30):
                     'fair_prob': FairProb_V,
                     'actual_hit': hit
                 })
-            except Exception as e:
+            except Exception:
                 continue
 
     if not results:

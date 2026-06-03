@@ -16,7 +16,7 @@ from typing import Optional, Dict, Any
 
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 

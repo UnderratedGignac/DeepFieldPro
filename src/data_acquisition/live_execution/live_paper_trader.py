@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 from playwright.async_api import async_playwright
 from src.data_acquisition.live_execution.selector_registry import registry
-from src.data_acquisition.live_execution.dom_interaction_engine import dom_engine
 from src.data_acquisition.latency_telemetry import latency_tracker
 
 class LivePaperTrader:
@@ -55,9 +54,9 @@ class LivePaperTrader:
         
         # Try to resolve DOM selectors
         try:
-            player_btn_sel = registry.get("player_row", player_name=bet_payload["player"])
-            stake_sel = registry.get("stake_input", selection_id=bet_payload["selection_id"])
-            confirm_sel = registry.get("confirm_button")
+            registry.get("player_row", player_name=bet_payload["player"])
+            registry.get("stake_input", selection_id=bet_payload["selection_id"])
+            registry.get("confirm_button")
             
             # Step 1: Click the player prop
             # success = await dom_engine.safe_click(self.page, player_btn_sel)

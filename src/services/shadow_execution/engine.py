@@ -5,7 +5,6 @@ Paper betting system for simulating bet placement without real money.
 Tracks bet lifecycle, line movement after prediction, and expected vs realized edge.
 """
 
-import asyncio
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
@@ -15,11 +14,10 @@ import uuid
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select
 import json
 
-from database.models import Bet as PaperBet, OddsTick
-from config.settings import settings
+from database.models import Bet as PaperBet
 
 logger = logging.getLogger(__name__)
 

@@ -1,10 +1,9 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from .autonomous_queue_optimizer import queue_optimizer
 from .autonomous_stake_allocator import stake_allocator
 from .live_execution_feedback_loop import feedback_loop
-from .market_regime_classifier import regime_classifier
 
 logger = logging.getLogger(__name__)
 

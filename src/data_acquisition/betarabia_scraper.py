@@ -1,12 +1,10 @@
 import asyncio
 import logging
-import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 from playwright.async_api import async_playwright
 
-from .market_mapper import market_mapper, MARKET_STATE
-from .normalization_engine import normalize_engine
+from .market_mapper import MARKET_STATE
 from .websocket_parser import frame_parser, CanonicalOddsEvent
 
 logger = logging.getLogger(__name__)
@@ -49,7 +47,7 @@ class BetarabiaAPIClient:
                 # Pass to parser layer
                 events = frame_parser.parse_frame(raw_payload)
                 self._cache_canonical_events(events)
-            except Exception as e:
+            except Exception:
                 pass
 
     async def _intercept_websocket(self, ws):

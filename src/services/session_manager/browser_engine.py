@@ -13,7 +13,6 @@ Production Features:
 - WebSocket monitoring
 """
 
-import asyncio
 import json
 import logging
 from pathlib import Path
@@ -21,8 +20,7 @@ from typing import Optional, Dict, Any, List, Callable
 from datetime import datetime
 import hashlib
 
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Route, Request
-from playwright.async_api import Error as PlaywrightError
+from playwright.async_api import async_playwright, Browser, BrowserContext, Page, Route
 
 logger = logging.getLogger(__name__)
 

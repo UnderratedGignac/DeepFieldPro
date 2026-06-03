@@ -7,7 +7,6 @@ sys.path.insert(0, "C:/Users/Elie/DeepFieldPro")
 
 from src.portfolio_optimization.capital_allocation_engine import capital_engine
 from src.portfolio_optimization.drawdown_governor import drawdown_governor
-from src.portfolio_optimization.bayesian_confidence_engine import bayesian_engine
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -37,7 +36,7 @@ class PortfolioResearchLab:
         }
         
         logger.info("\n--- SCENARIO 1: Heavily Correlated Player Prop ---")
-        stake1 = capital_engine.allocate_capital(bet_metadata, expected_ev=0.20, p_fill=0.5, odds=3.0, regime="stable")
+        capital_engine.allocate_capital(bet_metadata, expected_ev=0.20, p_fill=0.5, odds=3.0, regime="stable")
         
         logger.info("\n--- SCENARIO 2: Panic Regime + Bayesian Uncertainty ---")
         bet_metadata_2 = {
@@ -45,7 +44,7 @@ class PortfolioResearchLab:
             "market": "player_first_goalscorer", # We have no priors for this -> high bayesian penalty
             "player": "Haaland"
         }
-        stake2 = capital_engine.allocate_capital(bet_metadata_2, expected_ev=0.30, p_fill=0.2, odds=4.0, regime="panic")
+        capital_engine.allocate_capital(bet_metadata_2, expected_ev=0.30, p_fill=0.2, odds=4.0, regime="panic")
         
         logger.info("\n--- SCENARIO 3: Deep Drawdown Protection ---")
         drawdown_governor.record_equity(10000.0) # Peak
@@ -56,7 +55,7 @@ class PortfolioResearchLab:
             "market": "player_card_yellow",
             "player": "Saliba"
         }
-        stake3 = capital_engine.allocate_capital(bet_metadata_3, expected_ev=0.10, p_fill=0.8, odds=2.5, regime="stable")
+        capital_engine.allocate_capital(bet_metadata_3, expected_ev=0.10, p_fill=0.8, odds=2.5, regime="stable")
 
 if __name__ == "__main__":
     lab = PortfolioResearchLab()

@@ -3,8 +3,6 @@ import numpy as np
 # Note: Ensure lightgbm and shap are installed: pip install lightgbm shap scikit-learn
 # import lightgbm as lgb
 # import shap
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import log_loss, brier_score_loss
 
 def prepare_training_data(training_csv, opponent_db_path):
     """

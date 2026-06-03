@@ -24,7 +24,8 @@ class CapitalAllocationEngine:
         fixture_id = bet_metadata.get("fixture_id", "UNKNOWN")
         
         # TASK 4: STOP_LOSS GUARD
-        import os, pandas as pd
+        import os
+        import pandas as pd
         BET_LOG_CSV = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'bet_log.csv')
         StartingBankroll_P = config.STARTING_BANKROLL
         

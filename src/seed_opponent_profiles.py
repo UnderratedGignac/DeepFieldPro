@@ -12,9 +12,7 @@ Possession-allowed proxy: We estimate it from passes completed per game
 relative to the overall average.
 """
 import pandas as pd
-import numpy as np
 import sqlite3
-import os
 
 print("Seeding opponent profiles from World Cup match logs...")
 

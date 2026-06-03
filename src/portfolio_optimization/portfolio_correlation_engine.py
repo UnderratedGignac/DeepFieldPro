@@ -1,6 +1,5 @@
 import logging
 import networkx as nx
-from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ class PortfolioCorrelationEngine:
             return 1.0 # No exposure yet
             
         # Sum stakes connected to this fixture
-        fixture_exposure = sum(
+        sum(
             self.exposure_graph.nodes[n].get("stake", 0) 
             for n in self.exposure_graph.neighbors(fixture_id) 
             if self.exposure_graph.nodes[n].get("type") == "bet"

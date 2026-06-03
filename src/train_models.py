@@ -152,7 +152,7 @@ def train_sot_club_model(df):
     Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
     BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
 
-    print(f"\nValidation Results:")
+    print("\nValidation Results:")
     print(f"  AUC: {AUC_V:.4f}")
     print(f"  Accuracy: {Accuracy_V:.4f}")
     print(f"  Brier Score: {BrierScore_V:.4f}")
@@ -209,7 +209,7 @@ def train_sot_international_model(df):
     Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
     BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
 
-    print(f"\nValidation Results:")
+    print("\nValidation Results:")
     print(f"  AUC: {AUC_V:.4f}")
     print(f"  Accuracy: {Accuracy_V:.4f}")
     print(f"  Brier Score: {BrierScore_V:.4f}")
@@ -262,7 +262,7 @@ def train_passes_model(df):
     Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
     BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
 
-    print(f"\nValidation Results:")
+    print("\nValidation Results:")
     print(f"  AUC: {AUC_V:.4f}")
     print(f"  Accuracy: {Accuracy_V:.4f}")
     print(f"  Brier Score: {BrierScore_V:.4f}")
@@ -281,7 +281,6 @@ def train_minutes_model(df):
     print("MODEL 4: Training lgbm_minutes_v1.pkl")
     print("=" * 60)
 
-    from sklearn.ensemble import GradientBoostingRegressor
     from sklearn.metrics import mean_absolute_error
 
     AllDf_V = df.copy()

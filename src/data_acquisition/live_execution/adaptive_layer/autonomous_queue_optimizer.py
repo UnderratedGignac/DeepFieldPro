@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from .edge_decay_predictor import decay_predictor
 from .execution_survivability_model import survivability_model

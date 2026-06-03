@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ class GlobalSafetyConstraints:
             return False
             
         if self.daily_drift_tracker["min_ev"] + drift > self.MAX_THRESHOLD_DRIFT_PER_DAY:
-            logger.warning(f"[SAFETY] Blocked APO Update! Exceeds max daily drift allowance.")
+            logger.warning("[SAFETY] Blocked APO Update! Exceeds max daily drift allowance.")
             return False
             
         # Accept update and track

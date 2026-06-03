@@ -1,16 +1,12 @@
 # replay_engine.py
 import os
-import json
 import gzip
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict, Any
 
 from .simulation_clock import sim_clock
 from .websocket_parser import frame_parser
-from .execution_simulator import execution_sim
 from .replay_analytics import replay_dashboard
-from .event_dispatcher import event_dispatcher
 
 logger = logging.getLogger(__name__)
 

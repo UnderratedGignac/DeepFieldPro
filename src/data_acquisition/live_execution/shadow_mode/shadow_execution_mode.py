@@ -35,7 +35,7 @@ class ShadowExecutionMode:
             # 2. Real DOM Click (actually triggers the UI change)
             success = await dom_engine.safe_click(self.page, player_btn_sel)
             if not success:
-                logger.warning(f"[SHADOW MODE] Market suspended before click.")
+                logger.warning("[SHADOW MODE] Market suspended before click.")
                 latency_tracker.finalize(exec_id)
                 return {"status": "rejected", "reason": "pre_click_suspension"}
                 
@@ -56,7 +56,7 @@ class ShadowExecutionMode:
             # Simulate click in telemetry
             latency_tracker.mark(exec_id, "confirm_clicked")
             
-            logger.info(f"[SHADOW MODE] Successfully shadowed execution. Intercepted final commit.")
+            logger.info("[SHADOW MODE] Successfully shadowed execution. Intercepted final commit.")
             
             # We mock the confirmation receipt since we didn't actually send the payload
             await asyncio.sleep(1.2)

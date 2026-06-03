@@ -10,16 +10,14 @@ import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import AsyncIterator, Callable, Dict, List, Optional, Any
+from typing import Callable, Dict, List, Optional, Any
 from dataclasses import dataclass, field
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from sqlalchemy.orm import selectinload
 
-from database.models import OddsTick, OddsSnapshot, LineMovement
-from config.settings import settings
+from database.models import OddsTick, LineMovement
 
 logger = logging.getLogger(__name__)
 

@@ -11,20 +11,17 @@ Implements professional risk management:
 - Risk-of-ruin estimation
 """
 
-import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-import math
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 
 from database.models import Bet as PaperBet, BankrollSnapshot as BankrollHistory
-from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -439,7 +436,7 @@ class RiskEngine:
             correlated = self._get_correlated_exposure(correlation_group)
             max_corr = state.current_bankroll * Decimal(str(self.config.max_correlated_exposure_pct))
             if correlated + stake > max_corr:
-                return False, f"Would exceed correlated exposure limit"
+                return False, "Would exceed correlated exposure limit"
         
         return True, "Bet allowed"
     

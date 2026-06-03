@@ -1,7 +1,7 @@
 # dom_interaction_engine.py
 import asyncio
 import logging
-from playwright.async_api import Page, Locator, Error as PlaywrightError
+from playwright.async_api import Page, Error as PlaywrightError
 
 logger = logging.getLogger(__name__)
 

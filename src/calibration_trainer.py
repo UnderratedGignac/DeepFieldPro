@@ -1,7 +1,6 @@
 import os
 import sys
 import pandas as pd
-import numpy as np
 from sklearn.linear_model import LogisticRegression
 import pickle
 import math
@@ -64,7 +63,7 @@ def train_platt_scaler(num_slates=30):
                     'raw_prob': RawProb_V,
                     'actual_hit': hit
                 })
-            except Exception as e:
+            except Exception:
                 continue
                 
     res_df = pd.DataFrame(results)

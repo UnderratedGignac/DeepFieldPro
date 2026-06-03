@@ -1,7 +1,6 @@
 import soccerdata as sd
 import pandas as pd
 import os
-import time
 
 print("Initializing World Cup 2026 Scraper...")
 

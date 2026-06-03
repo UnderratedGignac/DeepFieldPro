@@ -39,7 +39,7 @@ class MarketRegimeClassifier:
             self.regimes[fixture_id][market_type] = new_regime
             logger.info(f"[REGIME] {fixture_id} | {market_type} shifted from {old_regime} -> {new_regime}")
             
-            regime_event = MarketRegimeChangedEvent(
+            MarketRegimeChangedEvent(
                 fixture_id=fixture_id,
                 market_type=market_type,
                 old_regime=old_regime,

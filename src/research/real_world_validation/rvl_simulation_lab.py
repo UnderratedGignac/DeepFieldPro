@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import sys
-import numpy as np
 import random
 
 # Add src root to pythonpath

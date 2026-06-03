@@ -30,8 +30,8 @@ from bankroll_tracker  import get_status, register_bet, register_settlement, ini
 from account_manager   import get_best_book_for_stake, update_account_post_bet, init_account_db
 from kelly_calculator  import get_recommended_stake
 from bet_logger        import log_bet, init_bet_log_db
-from alerter           import alert_bet_placed, alert_pipeline_failure
-from utils             import remove_vig, calculate_edge
+from alerter           import alert_bet_placed
+from utils             import remove_vig
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
@@ -70,7 +70,7 @@ def place_bet(
     """
     execution_start = time.time()
 
-    print(f"\n" + "-"*50)
+    print("\n" + "-"*50)
     print(f"Evaluating opportunity: {market_type} | {side} {line} @ {market_odds}")
     print(f"Model fair prob: {fair_prob:.4f} | Market odds: {market_odds}")
 
@@ -111,7 +111,7 @@ def place_bet(
     # Guard 3: System HALT check
     status = get_status()
     if status['status'] == 'HALT':
-        print(f"SKIP: System is HALTED. Reason in bankroll DB.")
+        print("SKIP: System is HALTED. Reason in bankroll DB.")
         return None
 
     # Guard 3.5: Max 2 bets per match to avoid correlated exposure
@@ -131,7 +131,7 @@ def place_bet(
     stake = get_recommended_stake(fair_prob, market_odds, current_bankroll, KELLY_FRACTION)
 
     if stake <= 0:
-        print(f"SKIP: Kelly sizing returned $0 stake.")
+        print("SKIP: Kelly sizing returned $0 stake.")
         return None
 
     print(f"Bankroll: ${current_bankroll:.2f} | Recommended stake: ${stake:.2f}")
@@ -155,11 +155,11 @@ def place_bet(
 
     # Step 6: Register with bankroll tracker (enforces all limits)
     if not register_bet(stake):
-        print(f"SKIP: Bankroll tracker rejected the bet (limit hit or HALT).")
+        print("SKIP: Bankroll tracker rejected the bet (limit hit or HALT).")
         return None
 
     # Step 7: Log the bet
-    placed_at = datetime.now(timezone.utc).isoformat()
+    datetime.now(timezone.utc).isoformat()
     fair_price = 1.0 / fair_prob  # Convert prob back to decimal odds
 
     bet_id = log_bet(

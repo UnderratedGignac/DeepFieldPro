@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 from src.data_acquisition.simulation_clock import sim_clock
 from src.data_acquisition.replay_engine import replay_engine
-from src.data_acquisition.event_dispatcher import LineupConfirmedEvent, event_dispatcher
+from src.data_acquisition.event_dispatcher import LineupConfirmedEvent
 from src.data_acquisition.dynamic_repricer import repricer
 from src.data_acquisition.edge_engine import edge_engine
 from src.data_acquisition.execution_queue import execution_queue
@@ -50,7 +50,7 @@ def generate_batch_data(num_matches=50):
         
         # We simulate the odds "decaying" rapidly. Initial frame has mispriced odds.
         # Volatility dictates how likely the book is to suspend/reject.
-        volatility = random.uniform(0.1, 0.9)
+        random.uniform(0.1, 0.9)
         
         # Frame 1: Initial Mispriced Odds
         market_name = random.choice(MARKETS)

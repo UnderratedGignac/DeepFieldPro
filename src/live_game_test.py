@@ -127,7 +127,7 @@ class TodaysGamesSimulation:
         roi = (total_pnl / total_staked * 100) if total_staked > 0 else 0.0
         
         logger.info("\n==========================================================")
-        logger.info(f"=== END OF DAY SUMMARY ===")
+        logger.info("=== END OF DAY SUMMARY ===")
         logger.info(f"Total Staked : ${total_staked:.2f}")
         logger.info(f"Total P&L    : ${total_pnl:+.2f}")
         logger.info(f"ROI          : {roi:+.2f}%")

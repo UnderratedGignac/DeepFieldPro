@@ -1,7 +1,6 @@
 import logging
 import sqlite3
 import time
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 

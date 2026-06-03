@@ -13,7 +13,6 @@ import numpy as np
 import sqlite3
 import os
 import soccerdata as sd
-from datetime import datetime
 
 print("Building per-match training dataset...")
 

@@ -1,5 +1,4 @@
 import logging
-from typing import List
 from collections import deque
 
 logger = logging.getLogger(__name__)

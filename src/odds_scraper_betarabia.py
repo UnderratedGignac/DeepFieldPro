@@ -14,7 +14,6 @@ Usage: Run in background alongside lineup_monitor.py
 import requests
 import sqlite3
 import time
-import os
 import json
 import re
 from datetime import datetime, timezone

@@ -19,7 +19,6 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from enum import Enum
-import random
 
 from .browser_engine import BrowserEngine
 

@@ -19,13 +19,10 @@ import time
 import math
 import pickle
 import pandas as pd
-import numpy as np
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-from src.pricing_engine import calculate_over_prob_pearson
 from execution_engine import place_bet
-from utils import remove_vig
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
@@ -265,7 +262,7 @@ def run_for_match(fixture_id, opponent_team, lineup_drop_at, latency_ms,
     
     start_time = time.time()
     
-    models_V = load_models_international()
+    load_models_international()
     opp_profile = get_opponent_profile(opponent_team, competition_type)
     
     IntlPpdaNorm_V = compute_intl_ppda_norm(opp_profile['ppda'], competition_type)
@@ -287,7 +284,7 @@ def run_for_match(fixture_id, opponent_team, lineup_drop_at, latency_ms,
         print("ERROR: No starters found in DB.")
         return []
     
-    shift_lookup = {s['player_id']: s for s in role_shifts}
+    {s['player_id']: s for s in role_shifts}
     bets_placed = []
     
     for _, player_row in starters_df.iterrows():
@@ -313,7 +310,7 @@ def run_for_match(fixture_id, opponent_team, lineup_drop_at, latency_ms,
                           'Crs', 'Interceptions', 'Tackles Won', 'ppda', 
                           'opp_possession_allowed', 'sample_weight']
         
-        X_minutes = pd.DataFrame([features], columns=MINUTES_FEATURES)
+        pd.DataFrame([features], columns=MINUTES_FEATURES)
         X_passes = pd.DataFrame([features], columns=PASSES_FEATURES)
         
         sot_model = get_sot_model(competition_type)
@@ -349,7 +346,7 @@ def run_for_match(fixture_id, opponent_team, lineup_drop_at, latency_ms,
         )
         
         if over_odds is None:
-            print(f"    [WAITING] No odds available for SoT market")
+            print("    [WAITING] No odds available for SoT market")
             continue
         
         all_outcome_odds = [over_odds, under_odds] if under_odds else [over_odds]

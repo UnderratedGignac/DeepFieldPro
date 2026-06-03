@@ -36,7 +36,7 @@ class LiveExecutionFeedbackLoop:
             
         # 3. Emit Failure Events for Anomaly Detection
         if status == "rejected":
-            failure_event = ExecutionFailureEvent(
+            ExecutionFailureEvent(
                 exec_id=exec_data.get("exec_id", "unknown"),
                 failure_classification=exec_data.get("failure_classification", "unknown"),
                 latency_ms=exec_data.get("total_latency_ms", 0.0),

@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, Any
 
 from src.capital_deployment_protocol.schemas import DeploymentState, RolloutPhase, HealthStatus, CapitalAllocationRequest
 from src.capital_deployment_protocol.rollout_state_machine import state_machine

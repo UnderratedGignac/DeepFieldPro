@@ -2,7 +2,6 @@ import os
 import csv
 import uuid
 import datetime
-from decimal import Decimal
 import sqlite3
 import pandas as pd
 
@@ -120,7 +119,7 @@ def scan_and_settle():
         return
         
     conn = sqlite3.connect(DB_ODDS)
-    cursor = conn.cursor()
+    conn.cursor()
     
     # In a real system, we'd look up the match outcome
     # For now, we mock looking up a settled outcome

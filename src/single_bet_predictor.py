@@ -105,12 +105,12 @@ def run_single_bet_predictor(BankrollSize_P: float):
             Features_V = build_feature_vector(Stats_V, OppProfile_V, CompetitionType_V)
 
             # Build model input DataFrames with correct column names
-            X_minutes = pd.DataFrame([{k: Features_V[k] for k in MINUTES_FEATURES if k in Features_V}])
+            pd.DataFrame([{k: Features_V[k] for k in MINUTES_FEATURES if k in Features_V}])
             X_passes = pd.DataFrame([{k: Features_V[k] for k in PASSES_FEATURES if k in Features_V}])
 
             # Route to correct SoT model based on competition type
             ModelKey_V = 'sot_international' if CompetitionType_V == 1 else 'sot_club'
-            MinModel_V = Models_V.get('sot_club')  # use as proxy for minutes if no dedicated model
+            Models_V.get('sot_club')  # use as proxy for minutes if no dedicated model
 
             if ModelKey_V not in Models_V:
                 logger.warning(f"Model {ModelKey_V} not loaded, skipping {PlayerName_V}")

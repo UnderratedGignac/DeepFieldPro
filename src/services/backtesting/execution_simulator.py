@@ -12,15 +12,14 @@ Realistic sportsbook execution simulation modeling:
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, Optional, Any
 from dataclasses import dataclass, field
 import random
 import logging
 
-from config.settings import settings
 
 logger = logging.getLogger(__name__)
 

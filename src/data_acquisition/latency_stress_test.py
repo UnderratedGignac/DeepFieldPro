@@ -2,8 +2,6 @@ import asyncio
 import logging
 import random
 import sys
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any
 
 # Add src root to pythonpath
 sys.path.insert(0, "C:/Users/Elie/DeepFieldPro")
@@ -11,7 +9,6 @@ sys.path.insert(0, "C:/Users/Elie/DeepFieldPro")
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
-from src.data_acquisition.simulation_clock import sim_clock
 from src.data_acquisition.execution_simulator import execution_sim
 from src.data_acquisition.replay_analytics import ReplayAnalyticsDashboard
 

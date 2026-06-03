@@ -23,7 +23,6 @@ class BrowserRotationController:
         
         # 2. Generate new behavioral fingerprint (Execution Camouflage)
         self.active_profile += 1
-        new_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
         
         logger.info(f"[ROTATION CONTROLLER] Spinning up Profile_{self.active_profile} with new navigator signature.")
         # new_context = await browser.new_context(user_agent=new_user_agent)

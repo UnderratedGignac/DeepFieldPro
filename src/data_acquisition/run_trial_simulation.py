@@ -92,7 +92,6 @@ async def run_single_match_validation():
     await event_dispatcher.handle_lineups_confirmed(lineup_payload, source="official_club_socials")
     
     # 3. Trigger Repricer to set fair probabilities
-    from src.data_acquisition.event_dispatcher import LineupConfirmedEvent
     mock_event = LineupConfirmedEvent(MOCK_FIXTURE, 1.0, "official_club_socials", False, {}, sim_clock.now().isoformat())
     await repricer.handle_lineup_event(mock_event, lineup_payload["players"])
     

@@ -1,6 +1,6 @@
 from enum import Enum
 from pydantic import BaseModel
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 class StrategyStatus(Enum):
     ACTIVE = "ACTIVE"

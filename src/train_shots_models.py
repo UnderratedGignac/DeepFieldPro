@@ -1,6 +1,5 @@
 import lightgbm as lgb
 import pandas as pd
-import numpy as np
 import os
 
 print("Loading shots training dataset...")

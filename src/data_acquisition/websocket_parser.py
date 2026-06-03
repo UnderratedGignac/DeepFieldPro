@@ -4,7 +4,7 @@ import os
 import logging
 from datetime import datetime, timezone
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 import hashlib
 
 from .market_mapper import market_mapper, MARKET_STATE

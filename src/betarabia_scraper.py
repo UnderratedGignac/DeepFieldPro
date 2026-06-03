@@ -350,10 +350,10 @@ async def scrape_fixture_markets(Page_P, FixtureUrl_P: str, FixtureId_P: str) ->
                             "RawOdds_V":       RawOdds_V
                         })
 
-                    except Exception as E_V:
+                    except Exception:
                         continue
 
-            except Exception as E_V:
+            except Exception:
                 continue
 
     except Exception as E_V:

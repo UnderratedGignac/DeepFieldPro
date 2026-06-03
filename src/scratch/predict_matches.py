@@ -5,7 +5,6 @@ import numpy as np
 import lightgbm as lgb
 from unidecode import unidecode
 from pricing_engine import calculate_over_prob
-from utils import remove_vig
 
 # Paths
 BASE_DIR = 'C:/Users/Elie/DeepFieldPro'

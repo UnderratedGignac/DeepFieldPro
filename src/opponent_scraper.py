@@ -2,8 +2,6 @@ import os
 import sqlite3
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
-import time
 
 DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'opponent_profiles.db')
 

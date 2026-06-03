@@ -1,9 +1,7 @@
 import lightgbm as lgb
 import pandas as pd
-import numpy as np
 import sqlite3
 import os
-from datetime import datetime
 from unidecode import unidecode
 
 print("Building training dataset for all Betarabia props...")

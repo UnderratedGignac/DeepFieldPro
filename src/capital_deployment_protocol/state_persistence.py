@@ -5,7 +5,6 @@ Also persists the daily drift budget for GlobalSafetyConstraints.
 """
 import sqlite3
 import logging
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional

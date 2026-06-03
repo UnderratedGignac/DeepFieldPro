@@ -60,7 +60,7 @@ class LiveExecutionManager:
         Executes fragile markets (Goalscorers) using cached DOM references instantly.
         """
         for bet in bets:
-            fixture_id = bet["fixture_id"]
+            bet["fixture_id"]
             player = bet["player"]
             
             # Start nanoscopic latency tracking

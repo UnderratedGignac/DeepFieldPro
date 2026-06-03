@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any
 
-from src.capital_scaling_intelligence.schemas import ACSIScalingState, ScalingDecision, CompoundingRegime
+from src.capital_scaling_intelligence.schemas import ACSIScalingState, ScalingDecision
 from src.capital_scaling_intelligence.regime_compounding_detector import compounding_detector
 from src.capital_scaling_intelligence.long_horizon_ev_forecaster import ev_forecaster
 from src.capital_scaling_intelligence.growth_vs_risk_optimizer import growth_optimizer

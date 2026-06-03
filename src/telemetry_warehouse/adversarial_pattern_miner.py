@@ -34,7 +34,6 @@ class AdversarialPatternMiner:
         """
         import os
         import numpy as np
-        import pandas as pd
         
         # Default empirical matrix
         matrix = np.array([

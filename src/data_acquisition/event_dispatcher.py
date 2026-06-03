@@ -6,7 +6,6 @@ from typing import Dict, Any
 from .validation_engine import validation_engine
 from .db_writer import db_writer
 from .normalization_engine import normalize_engine
-from .betarabia_scraper import betarabia_scraper
 
 # New Lineup Architecture Modules
 from .lineup_confidence_engine import confidence_engine
@@ -113,7 +112,7 @@ class EventDispatcher:
         # 7. Trigger Downstream (Only if confidence is high enough or it's a significant expected update)
         if confidence > 0.6:
             # Trigger odds scraper
-            confirmed_starters = [p for p in players if p.get('starter')]
+            [p for p in players if p.get('starter')]
             try:
                 # In the new architecture, the odds scraper is continuous via websockets, 
                 # but we can optionally trigger a fresh navigation here if needed.

@@ -3,7 +3,6 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime, timezone
 
 st.set_page_config(page_title="Deep Field Pro Dashboard", layout="wide")

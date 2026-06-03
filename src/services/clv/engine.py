@@ -9,10 +9,9 @@ Calculates and tracks CLV metrics:
 - Prediction timing analysis
 """
 
-import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from collections import defaultdict
 import logging
@@ -20,10 +19,8 @@ import statistics
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
-from sqlalchemy.orm import aliased
 
-from database.models import OddsTick, Bet as PaperBet, BankrollSnapshot as BankrollHistory
-from config.settings import settings
+from database.models import OddsTick, Bet as PaperBet
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +245,7 @@ class CLVEngine:
             CLVSummary with aggregated statistics
         """
         # Build query filters
-        filters = [PaperBet.settled == True]  # Only settled bets have closing lines
+        filters = [PaperBet.settled]  # Only settled bets have closing lines
         
         if start_date:
             filters.append(PaperBet.placed_at >= start_date)

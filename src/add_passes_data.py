@@ -1,5 +1,4 @@
 import soccerdata as sd
-import pandas as pd
 
 # Initialize FBref scraper
 fbref = sd.FBref(leagues=['ENG-Premier League', 'ESP-La Liga', 

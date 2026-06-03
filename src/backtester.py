@@ -141,7 +141,7 @@ for idx, row in test_df.iterrows():
         pass_p10 = float(models['pass_p10'].predict(X_pass)[0])
         pass_p50 = float(models['pass_p50'].predict(X_pass)[0])
         pass_p90 = float(models['pass_p90'].predict(X_pass)[0])
-    except Exception as e:
+    except Exception:
         continue
 
     # Get actual result
@@ -239,7 +239,7 @@ else:
     hit_rate     = wins / total_bets * 100
 
     print(f"\n{'='*60}")
-    print(f"BACKTEST RESULTS")
+    print("BACKTEST RESULTS")
     print(f"{'='*60}")
     print(f"Total Bets:       {total_bets}")
     print(f"Win Rate:         {hit_rate:.1f}%")

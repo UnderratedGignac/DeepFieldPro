@@ -12,20 +12,18 @@ Generates advanced market microstructure features:
 - Volatility regimes
 """
 
-import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 from collections import defaultdict
 import statistics
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, and_
 
-from database.models import OddsTick, LineMovement
-from config.settings import settings
+from database.models import OddsTick
 
 logger = logging.getLogger(__name__)
 

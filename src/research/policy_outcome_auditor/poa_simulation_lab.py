@@ -2,7 +2,7 @@ import asyncio
 import logging
 import sys
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Add src root to pythonpath
 sys.path.insert(0, "C:/Users/Elie/DeepFieldPro")
@@ -24,7 +24,7 @@ class POASimulationLab:
         logger.info("==========================================================")
         
         # Mocking a batch of 4 decisions resolved at T+24h
-        now = datetime.utcnow()
+        datetime.utcnow()
         mock_data = [
             # 1. We Executed. Realized CLV was negative. Over-Aggressive.
             {

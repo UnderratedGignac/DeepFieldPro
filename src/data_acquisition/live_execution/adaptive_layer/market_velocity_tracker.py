@@ -41,7 +41,7 @@ class MarketVelocityTracker:
         # Note: In a real system we track previous velocity to calculate acceleration
         acceleration = 0.0 
         
-        event = MarketVelocityChangedEvent(
+        MarketVelocityChangedEvent(
             fixture_id=fixture_id,
             market_type=market_type,
             velocity_score=velocity_score,

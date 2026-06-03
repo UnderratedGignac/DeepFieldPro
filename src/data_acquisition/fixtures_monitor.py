@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any
 
 from .lineup_scraper import lineup_scraper
 from .event_dispatcher import event_dispatcher

@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List
 from src.autonomous_portfolio_evolution.schemas import StrategyState, StrategyStatus, StrategyGenome
 
 logger = logging.getLogger(__name__)

@@ -1,7 +1,7 @@
 import logging
 import numpy as np
 from itertools import combinations
-from typing import List, Tuple, Generator
+from typing import Tuple, Generator
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class CombinatorialPurgedCV:
         """
         Generates purged and embargoed train/test splits.
         """
-        indices = np.arange(data_length)
+        np.arange(data_length)
         split_size = data_length // self.n_splits
         
         # Define the partition bounds

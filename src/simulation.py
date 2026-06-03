@@ -8,14 +8,12 @@ Run: python src/simulation.py --bankroll 500
 """
 
 import os
-import sys
 import json
 import math
 import argparse
 import datetime
 import logging
 import pandas as pd
-import numpy as np
 import pickle
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
