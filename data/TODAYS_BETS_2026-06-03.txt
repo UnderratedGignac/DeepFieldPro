@@ -1,38 +1,124 @@
 ================================================================
-DEEPFIELDPRO — TODAY'S PREDICTIONS
+DEEPFIELDPRO — TODAY'S PREDICTIONS (SIMULATION)
 Date       : 2026-06-03
 Bankroll   : $500.00
-Generated  : 2026-06-03T05:11:46.715783
+Generated  : 2026-06-03T09:45:36.319574
+NOTE: Odds below are TARGET THRESHOLDS. Only bet if bookmaker
+      offers EQUAL OR BETTER odds than shown.
 ================================================================
 
-── SINGLE BETS (BATCH — place these) ───────────────────────────
+── SINGLE BETS (BATCH — place if odds ≥ target) ────────────────
 
-#1 | Team A vs Team B — 20:00
-   Market    : Match Result
-   Selection : Home Win
-   Odds      : 2.50
-   Fair Prob : 45.0% (model estimate)
-   EV        : +12.5%
-   Stake     : $10.42 (2.08% of bankroll)
+#1 | Philippines vs Guam — 14:30
+   Player    : Gerrit Holtmann
+   Market    : Shots on Target Over 0.5
+   Selection : Gerrit Holtmann Over 0.5 Shots on Target
+   Target Odds : ≥ 5.23 (only bet at this or better)
+   Fair Prob : 20.1% (model estimate)
+   Lambda    : 0.498 (Poisson rate)
+   EV        : +5.1%
+   Stake     : $1.50 (0.30% of bankroll)
+   Confidence: LOW
+   ⚠ FALLBACK: Based on position average, lower confidence
+   ⚠ SoT market has 42pp calibration gap in intl — use smaller stake
+
+#2 | Denmark vs DR Congo — 21:00
+   Player    : Christian Eriksen
+   Market    : Shots on Target Over 0.5
+   Selection : Christian Eriksen Over 0.5 Shots on Target
+   Target Odds : ≥ 5.24 (only bet at this or better)
+   Fair Prob : 20.1% (model estimate)
+   Lambda    : 0.001 (Poisson rate)
+   EV        : +5.1%
+   Stake     : $1.49 (0.30% of bankroll)
+   Confidence: MEDIUM
+   ⚠ SoT market has 42pp calibration gap in intl — use smaller stake
+
+#3 | Denmark vs DR Congo — 21:00
+   Player    : Rasmus Hojlund
+   Market    : Anytime Goalscorer
+   Selection : Rasmus Hojlund Anytime Goalscorer
+   Target Odds : ≥ 2.08 (only bet at this or better)
+   Fair Prob : 50.5% (model estimate)
+   Lambda    : 0.704 (Poisson rate)
+   EV        : +5.1%
+   Stake     : $5.93 (1.19% of bankroll)
    Confidence: HIGH
 
-── MONITOR LIST (close to threshold — watch only) ───────────────
+#4 | Denmark vs DR Congo — 21:00
+   Player    : Rasmus Hojlund
+   Market    : Shots on Target Over 0.5
+   Selection : Rasmus Hojlund Over 0.5 Shots on Target
+   Target Odds : ≥ 5.22 (only bet at this or better)
+   Fair Prob : 20.1% (model estimate)
+   Lambda    : 1.556 (Poisson rate)
+   EV        : +5.1%
+   Stake     : $1.50 (0.30% of bankroll)
+   Confidence: MEDIUM
+   ⚠ SoT market has 42pp calibration gap in intl — use smaller stake
 
-   No bets in monitor list.
+#5 | Poland vs Nigeria — 21:45
+   Player    : Robert Lewandowski
+   Market    : Shots on Target Over 0.5
+   Selection : Robert Lewandowski Over 0.5 Shots on Target
+   Target Odds : ≥ 5.24 (only bet at this or better)
+   Fair Prob : 20.1% (model estimate)
+   Lambda    : 0.001 (Poisson rate)
+   EV        : +5.1%
+   Stake     : $1.49 (0.30% of bankroll)
+   Confidence: MEDIUM
+   ⚠ SoT market has 42pp calibration gap in intl — use smaller stake
 
-── PARLAYS (BATCH — place these) ────────────────────────────────
+#6 | Poland vs Nigeria — 21:45
+   Player    : Piotr Zielinski
+   Market    : Shots on Target Over 0.5
+   Selection : Piotr Zielinski Over 0.5 Shots on Target
+   Target Odds : ≥ 5.24 (only bet at this or better)
+   Fair Prob : 20.1% (model estimate)
+   Lambda    : 0.001 (Poisson rate)
+   EV        : +5.1%
+   Stake     : $1.49 (0.30% of bankroll)
+   Confidence: MEDIUM
+   ⚠ SoT market has 42pp calibration gap in intl — use smaller stake
 
-   No valid BATCH parlays today.
+#7 | Poland vs Nigeria — 21:45
+   Player    : Ademola Lookman
+   Market    : Shots on Target Over 0.5
+   Selection : Ademola Lookman Over 0.5 Shots on Target
+   Target Odds : ≥ 5.24 (only bet at this or better)
+   Fair Prob : 20.1% (model estimate)
+   Lambda    : 0.001 (Poisson rate)
+   EV        : +5.1%
+   Stake     : $1.49 (0.30% of bankroll)
+   Confidence: MEDIUM
+   ⚠ SoT market has 42pp calibration gap in intl — use smaller stake
+
+#8 | Luxembourg vs Italy — 21:45
+   Player    : Nicolo Barella
+   Market    : Shots on Target Over 0.5
+   Selection : Nicolo Barella Over 0.5 Shots on Target
+   Target Odds : ≥ 5.24 (only bet at this or better)
+   Fair Prob : 20.1% (model estimate)
+   Lambda    : 0.001 (Poisson rate)
+   EV        : +5.1%
+   Stake     : $1.49 (0.30% of bankroll)
+   Confidence: MEDIUM
+   ⚠ SoT market has 42pp calibration gap in intl — use smaller stake
 
 ── PORTFOLIO SUMMARY ────────────────────────────────────────────
-   Total BATCH bets    : 1
-   Total BATCH parlays : 0
-   Total stake today   : $10.42 (2.08% of bankroll)
-   Expected return     : $1.30
-   Stop-loss remaining : $175.00 before DRAWDOWN_PAUSE triggers
+   Total BATCH bets    : 8
+   Total stake today   : $16.38 (3.28% of bankroll)
+   Expected return     : $0.84
+   Stop-loss remaining : $75.00 before DRAWDOWN_PAUSE triggers
+
+── VALIDATED MARKETS ONLY ───────────────────────────────────────
+   passes_over_30.5 : Brier 0.1102, Cal gap 6.4pp → BEST MARKET ⭐
+   passes_over_40.5 : Brier 0.1495, Cal gap 8.9pp → GOOD
+   sot_over_0.5     : Brier 0.1832, Cal gap 42.2pp → CAUTION (intl only)
+   anytime_scorer   : Brier ~0.22, validated → USE WITH CARE
 
 ================================================================
 RISK DISCLAIMER: This is a model output. All predictions carry
 uncertainty. Never bet more than you can afford to lose.
-Paper trade first. Verify odds before placing any bet.
+These are TARGET odds — verify on your bookmaker before placing.
 ================================================================
