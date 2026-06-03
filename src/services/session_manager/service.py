@@ -23,7 +23,8 @@ from enum import Enum
 try:
     from .browser_engine import BrowserEngine
 except ImportError:
-    import sys, os
+    import sys
+    import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from browser_engine import BrowserEngine
 
