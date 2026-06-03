@@ -78,217 +78,248 @@ def load_and_prepare_data():
 
 
 def clean_features(Df_P):
-    """Convert object columns to numeric for LightGBM compatibility."""
+    """Convert all columns to float for LightGBM. Handle special formats."""
     Df_V = Df_P.copy()
     for col in Df_V.columns:
-        if Df_V[col].dtype == 'object':
-            Df_V[col] = pd.to_numeric(Df_V[col], errors='coerce').fillna(0)
+        if col == 'age_':
+            # age_ is stored as '25-108' (years-days) — take integer part before dash
+            Df_V[col] = Df_V[col].astype(str).str.split('-').str[0]
+            Df_V[col] = pd.to_numeric(Df_V[col], errors='coerce').fillna(25.0)
+        elif col == 'pos_encoded':
+            Df_V[col] = pd.to_numeric(Df_V[col], errors='coerce').fillna(2.0)
+        elif Df_V[col].dtype == 'object':
+            Df_V[col] = pd.to_numeric(Df_V[col], errors='coerce').fillna(0.0)
+        else:
+            Df_V[col] = Df_V[col].fillna(0.0)
     return Df_V
 
 
+def encode_position(PosStr_P) -> int:
+    """Encode position string to integer."""
+    PosUpper_V = str(PosStr_P).upper()
+    if 'GK' in PosUpper_V:
+        return 0
+    elif 'FW' in PosUpper_V:
+        return 1
+    elif 'DF' in PosUpper_V:
+        return 2
+    else:  # MF default
+        return 3
+
+
 def train_sot_club_model(df):
-    """Train SoT model for club competitions only."""
+    """Train SoT model for club competitions."""
     print("\n" + "=" * 60)
     print("MODEL 1: Training lgbm_sot_club_v1.pkl")
     print("=" * 60)
-    
+
     ClubDf_V = df[df['competition_type'] == 0].copy()
     print(f"Club samples: {len(ClubDf_V)}")
-    
+
     if len(ClubDf_V) < 100:
         print("ERROR: Not enough club samples. Skipping.")
         return None
-    
-    ActualCols_V = [
-        "age_", "competition_type", "min_", "game_id_",
-        "Performance_Crs", "Performance_Int", "Performance_TklW"
+
+    # Encode position — pos_ is a string like 'FW', 'MF,FW'
+    ClubDf_V['pos_encoded'] = ClubDf_V['pos_'].apply(encode_position)
+
+    # Feature set — only numeric columns confirmed in CSV
+    # game_id_ is UUID string → EXCLUDED (not a useful feature)
+    FeatureCols_V = [
+        "age_", "competition_type", "min_", "pos_encoded",
+        "Performance_Sh", "Performance_Crs", "Performance_Int", "Performance_TklW"
     ]
-    
+
     TargetCol_V = "Performance_SoT"
-    print(f"Using features: {ActualCols_V}")
-    print(f"Using target column: {TargetCol_V}")
-    
-    X_V = clean_features(ClubDf_V[ActualCols_V])
+    print(f"Using features: {FeatureCols_V}")
+    print(f"Using target column: {TargetCol_V} (>= 1 shots on target = 1)")
+
+    X_V = clean_features(ClubDf_V[FeatureCols_V])
     Y_V = (ClubDf_V[TargetCol_V].fillna(0) >= 1).astype(int)
     X_V["sample_weight"] = 1.0
-    
+
     print(f"Features shape: {X_V.shape}, Target distribution: {Y_V.value_counts().to_dict()}")
-    
+
     X_Train_V, X_Val_V, Y_Train_V, Y_Val_V = train_test_split(
         X_V, Y_V, test_size=0.2, random_state=42
     )
-    
+
     Model_V = lgb.LGBMClassifier(**LgbmParams_V)
     Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
-    
+
     Y_PredProb_V = Model_V.predict_proba(X_Val_V)[:, 1]
     AUC_V = roc_auc_score(Y_Val_V, Y_PredProb_V)
     Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
     BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
-    
+
     print(f"\nValidation Results:")
     print(f"  AUC: {AUC_V:.4f}")
     print(f"  Accuracy: {Accuracy_V:.4f}")
     print(f"  Brier Score: {BrierScore_V:.4f}")
-    
+
     print_calibration_buckets(Y_Val_V, Y_PredProb_V, "Club SoT")
-    
+
     ModelPath_V = os.path.join(MODEL_DIR, "lgbm_sot_club_v1.pkl")
     with open(ModelPath_V, 'wb') as f:
         pickle.dump(Model_V, f)
     print(f"\n✓ Saved: {ModelPath_V}")
-    
+
     return Model_V
 
 
 def train_sot_international_model(df):
-    """Train SoT model for international competitions only."""
+    """Train SoT model for international competitions."""
     print("\n" + "=" * 60)
     print("MODEL 2: Training lgbm_sot_international_v2.pkl")
     print("=" * 60)
-    
+
     IntlDf_V = df[df['competition_type'] == 1].copy()
     print(f"International samples: {len(IntlDf_V)}")
-    
+
     if len(IntlDf_V) < 100:
         print("ERROR: Not enough international samples. Skipping.")
         return None
-    
-    ActualCols_V = [
-        "age_", "competition_type", "min_", "game_id_",
-        "Performance_Crs", "Performance_Int", "Performance_TklW"
+
+    IntlDf_V['pos_encoded'] = IntlDf_V['pos_'].apply(encode_position)
+
+    FeatureCols_V = [
+        "age_", "competition_type", "min_", "pos_encoded",
+        "Performance_Sh", "Performance_Crs", "Performance_Int", "Performance_TklW"
     ]
-    
+
     TargetCol_V = "Performance_SoT"
-    print(f"Using features: {ActualCols_V}")
-    print(f"Using target column: {TargetCol_V}")
-    
-    X_V = clean_features(IntlDf_V[ActualCols_V])
+    print(f"Using features: {FeatureCols_V}")
+    print(f"Using target column: {TargetCol_V} (>= 1 shots on target = 1)")
+
+    X_V = clean_features(IntlDf_V[FeatureCols_V])
     Y_V = (IntlDf_V[TargetCol_V].fillna(0) >= 1).astype(int)
     X_V["sample_weight"] = 1.0
-    
+
     print(f"Features shape: {X_V.shape}, Target distribution: {Y_V.value_counts().to_dict()}")
-    
+
     X_Train_V, X_Val_V, Y_Train_V, Y_Val_V = train_test_split(
         X_V, Y_V, test_size=0.2, random_state=42
     )
-    
+
     Model_V = lgb.LGBMClassifier(**LgbmParams_V)
     Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
-    
+
     Y_PredProb_V = Model_V.predict_proba(X_Val_V)[:, 1]
     AUC_V = roc_auc_score(Y_Val_V, Y_PredProb_V)
     Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
     BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
-    
+
     print(f"\nValidation Results:")
     print(f"  AUC: {AUC_V:.4f}")
     print(f"  Accuracy: {Accuracy_V:.4f}")
     print(f"  Brier Score: {BrierScore_V:.4f}")
-    
+
     print_calibration_buckets(Y_Val_V, Y_PredProb_V, "International SoT")
-    
+
     ModelPath_V = os.path.join(MODEL_DIR, "lgbm_sot_international_v2.pkl")
     with open(ModelPath_V, 'wb') as f:
         pickle.dump(Model_V, f)
     print(f"\n✓ Saved: {ModelPath_V}")
-    
+
     return Model_V
 
 
 def train_passes_model(df):
-    """Train Passes Over model (all competitions)."""
+    """Train Passes/Shots model (all competitions)."""
     print("\n" + "=" * 60)
     print("MODEL 3: Training lgbm_passes_v1.pkl")
     print("=" * 60)
-    
+
     AllDf_V = df.copy()
+    AllDf_V['pos_encoded'] = AllDf_V['pos_'].apply(encode_position)
     print(f"Total samples: {len(AllDf_V)}")
-    
-    ActualCols_V = ["age_", "competition_type", "min_", "game_id_"]
-    
-    PassCol_V = "Performance_Ast" if "Performance_Ast" in AllDf_V.columns else "Performance_Crs"
-    print(f"Using features: {ActualCols_V}")
-    print(f"Using passes proxy column: {PassCol_V}")
-    
-    X_V = clean_features(AllDf_V[ActualCols_V])
-    Y_V = (AllDf_V[PassCol_V].fillna(0) >= 30.5).astype(int)
+
+    # Feature set — no UUID string columns
+    FeatureCols_V = ["age_", "competition_type", "min_", "pos_encoded",
+                     "Performance_Crs", "Performance_Int"]
+
+    # Target: player had at least 1 shot (proxy for high-activity players)
+    # Performance_Sh = total shots per match (confirmed column)
+    TargetCol_V = "Performance_Sh"
+    print(f"Using features: {FeatureCols_V}")
+    print(f"Using target column: {TargetCol_V} (>= 1 total shot = 1)")
+
+    X_V = clean_features(AllDf_V[FeatureCols_V])
+    Y_V = (AllDf_V[TargetCol_V].fillna(0) >= 1).astype(int)
     X_V["sample_weight"] = 1.0
-    
+
     print(f"Features shape: {X_V.shape}, Target distribution: {Y_V.value_counts().to_dict()}")
-    
+
     X_Train_V, X_Val_V, Y_Train_V, Y_Val_V = train_test_split(
         X_V, Y_V, test_size=0.2, random_state=42
     )
-    
+
     Model_V = lgb.LGBMClassifier(**LgbmParams_V)
     Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
-    
+
     Y_PredProb_V = Model_V.predict_proba(X_Val_V)[:, 1]
     AUC_V = roc_auc_score(Y_Val_V, Y_PredProb_V)
     Accuracy_V = accuracy_score(Y_Val_V, (Y_PredProb_V >= 0.5).astype(int))
     BrierScore_V = brier_score_loss(Y_Val_V, Y_PredProb_V)
-    
+
     print(f"\nValidation Results:")
     print(f"  AUC: {AUC_V:.4f}")
     print(f"  Accuracy: {Accuracy_V:.4f}")
     print(f"  Brier Score: {BrierScore_V:.4f}")
-    
+
     ModelPath_V = os.path.join(MODEL_DIR, "lgbm_passes_v1.pkl")
     with open(ModelPath_V, 'wb') as f:
         pickle.dump(Model_V, f)
-    print(f"\n✓ Saved: {ModelPath_V}")
-    
+    print(f"Saved: {ModelPath_V}")
+
     return Model_V
 
 
 def train_minutes_model(df):
-    """Train Minutes Played regression model (all competitions)."""
+    """Train Minutes Played model (all competitions)."""
     print("\n" + "=" * 60)
     print("MODEL 4: Training lgbm_minutes_v1.pkl")
     print("=" * 60)
-    
+
+    from sklearn.ensemble import GradientBoostingRegressor
+    from sklearn.metrics import mean_absolute_error
+
     AllDf_V = df.copy()
+    AllDf_V['pos_encoded'] = AllDf_V['pos_'].apply(encode_position)
     print(f"Total samples: {len(AllDf_V)}")
-    
-    ActualCols_V = ["age_", "game_id_", "min_"]
-    
+
+    # Only numeric columns — no game_id_ UUID
+    FeatureCols_V = ["age_", "competition_type", "pos_encoded",
+                     "Performance_Crs", "Performance_Int", "Performance_TklW"]
+
     TargetCol_V = "min_"
-    print(f"Using features: {ActualCols_V}")
-    print(f"Using target column: {TargetCol_V}")
-    
-    X_V = clean_features(AllDf_V[ActualCols_V])
+    print(f"Using features: {FeatureCols_V}")
+    print(f"Target: {TargetCol_V} (minutes played per game)")
+
+    X_V = clean_features(AllDf_V[FeatureCols_V])
     Y_V = AllDf_V[TargetCol_V].fillna(0)
     X_V["sample_weight"] = 1.0
-    
-    print(f"Features shape: {X_V.shape}, Target range: [{Y_V.min():.1f}, {Y_V.max():.1f}]")
-    
+
+    print(f"Features shape: {X_V.shape}")
+
     X_Train_V, X_Val_V, Y_Train_V, Y_Val_V = train_test_split(
         X_V, Y_V, test_size=0.2, random_state=42
     )
-    
-    RegressorParams_V = LgbmParams_V.copy()
-    del RegressorParams_V["class_weight"]
-    
-    Model_V = lgb.LGBMRegressor(**RegressorParams_V)
+
+    MinutesParams_V = {"n_estimators": 200, "learning_rate": 0.05,
+                       "max_depth": 4, "random_state": 42}
+    Model_V = lgb.LGBMRegressor(**MinutesParams_V)
     Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
-    
-    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
     Y_Pred_V = Model_V.predict(X_Val_V)
-    MAE_V = mean_absolute_error(Y_Val_V, Y_Pred_V)
-    RMSE_V = np.sqrt(mean_squared_error(Y_Val_V, Y_Pred_V))
-    R2_V = r2_score(Y_Val_V, Y_Pred_V)
-    
-    print(f"\nValidation Results:")
-    print(f"  MAE: {MAE_V:.2f} minutes")
-    print(f"  RMSE: {RMSE_V:.2f} minutes")
-    print(f"  R²: {R2_V:.4f}")
-    
+    Mae_V = mean_absolute_error(Y_Val_V, Y_Pred_V)
+    print(f"\nValidation MAE: {Mae_V:.2f} minutes")
+
     ModelPath_V = os.path.join(MODEL_DIR, "lgbm_minutes_v1.pkl")
     with open(ModelPath_V, 'wb') as f:
         pickle.dump(Model_V, f)
-    print(f"\n✓ Saved: {ModelPath_V}")
-    
+    print(f"Saved: {ModelPath_V}")
+
     return Model_V
 
 
