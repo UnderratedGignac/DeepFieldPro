@@ -2,8 +2,9 @@
 import lightgbm as lgb
 import pandas as pd
 import os
+from src.app_config import config
 
-df = pd.read_csv("C:/Users/Elie/DeepFieldPro/data/training_dataset.csv")
+df = pd.read_csv(os.path.join(config.DATA_DIR, "training_dataset.csv"))
 df["Percentage of Minutes Played"] = pd.to_numeric(df["Min%"], errors="coerce").fillna(
     0.8
 )
@@ -91,8 +92,8 @@ for q in [0.10, 0.50, 0.90]:
         f"Passes quantile model q={q} trained. Sample prediction: {m.predict(X.head(1))[0]:.1f} passes/90"
     )
 
-os.makedirs("C:/Users/Elie/DeepFieldPro/models", exist_ok=True)
+os.makedirs(config.MODEL_DIR, exist_ok=True)
 for name, m in passes_models.items():
-    m.booster_.save_model(f"C:/Users/Elie/DeepFieldPro/models/passes_{name}.txt")
+    m.booster_.save_model(os.path.join(config.MODEL_DIR, f"passes_{name}.txt"))
 
 print("All passes models saved.")

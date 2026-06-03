@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import sys
+import os
 
-sys.path.insert(0, "C:/Users/Elie/DeepFieldPro")
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.data_acquisition.live_execution.shadow_mode.self_healing_browser_manager import (
     self_healer,

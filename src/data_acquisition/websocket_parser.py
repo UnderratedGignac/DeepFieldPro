@@ -1,3 +1,4 @@
+from app_config import config
 # mypy: ignore-errors
 import json
 import gzip
@@ -13,7 +14,7 @@ from .normalization_engine import normalize_engine
 
 logger = logging.getLogger(__name__)
 
-RAW_FRAMES_DIR = "C:/Users/Elie/DeepFieldPro/src/data_acquisition/raw_frames"
+RAW_FRAMES_DIR = os.path.join(config.BASE_DIR + "/src", "data_acquisition/raw_frames")
 os.makedirs(RAW_FRAMES_DIR, exist_ok=True)
 
 

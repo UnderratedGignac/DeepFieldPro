@@ -1,3 +1,5 @@
+import os
+from app_config import config
 import sqlite3
 import pandas as pd
 import logging
@@ -12,7 +14,7 @@ class ExecutionHeatmapEngine:
     """
 
     def __init__(
-        self, db_path: str = "C:/Users/Elie/DeepFieldPro/db/adaptive_memory.sqlite"
+        self, db_path: str = os.path.join(config.DB_DIR, "adaptive_memory.sqlite")
     ):
         self.db_path = db_path
 

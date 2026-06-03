@@ -1,10 +1,11 @@
 import asyncio
 import logging
+import os
 import sys
 import random
 
 # Add src root to pythonpath
-sys.path.insert(0, "C:/Users/Elie/DeepFieldPro")
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.portfolio_optimization.capital_allocation_engine import capital_engine
 from src.data_acquisition.live_execution.predictive_layer.execution_policy_agent import (

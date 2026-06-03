@@ -1,3 +1,5 @@
+import os
+from app_config import config
 """
 seed_opponent_profiles.py
 --------------------------
@@ -17,7 +19,7 @@ import sqlite3
 
 print("Seeding opponent profiles from World Cup match logs...")
 
-df = pd.read_csv("C:/Users/Elie/DeepFieldPro/data/world_cup_players_match_logs.csv")
+df = pd.read_csv(os.path.join(config.DATA_DIR, "world_cup_players_match_logs.csv"))
 
 df["min_"] = pd.to_numeric(df["min_"], errors="coerce").fillna(0)
 df["Performance_Crs"] = pd.to_numeric(
@@ -94,7 +96,7 @@ print(
 )
 
 # Write to opponent_profiles.db
-DB_OPP = "C:/Users/Elie/DeepFieldPro/data/opponent_profiles.db"
+DB_OPP = os.path.join(config.DATA_DIR, "opponent_profiles.db")
 conn = sqlite3.connect(DB_OPP)
 cursor = conn.cursor()
 

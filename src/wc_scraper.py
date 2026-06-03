@@ -1,3 +1,4 @@
+from app_config import config
 import soccerdata as sd
 import pandas as pd
 import os
@@ -156,7 +157,7 @@ if min_col:
     wc_players_logs = wc_players_logs[wc_players_logs[min_col] > 0]
 
 # Ensure output directory exists
-out_dir = "C:/Users/Elie/DeepFieldPro/data"
+out_dir = config.DATA_DIR
 os.makedirs(out_dir, exist_ok=True)
 
 out_file = os.path.join(out_dir, "world_cup_players_match_logs.csv")

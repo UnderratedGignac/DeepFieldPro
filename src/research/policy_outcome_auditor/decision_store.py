@@ -1,3 +1,5 @@
+import os
+from app_config import config
 import sqlite3
 import logging
 import pandas as pd
@@ -16,7 +18,7 @@ class DecisionStore:
     Links decision -> execution -> market evolution using trace_id.
     """
 
-    def __init__(self, db_path: str = "C:/Users/Elie/DeepFieldPro/db/poa_audit.sqlite"):
+    def __init__(self, db_path: str = os.path.join(config.DB_DIR, "poa_audit.sqlite")):
         self.db_path = db_path
         self._init_db()
 

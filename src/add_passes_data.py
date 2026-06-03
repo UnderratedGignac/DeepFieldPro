@@ -1,3 +1,5 @@
+import os
+from app_config import config
 import soccerdata as sd
 
 # Initialize FBref scraper
@@ -16,5 +18,5 @@ fbref = sd.FBref(
 passing_df = fbref.read_player_season_stats(stat_type="passing")
 
 # Save
-passing_df.to_csv("C:/Users/Elie/data/csv/player_passing_stats.csv", index=True)
+passing_df.to_csv(os.path.join(config.DATA_DIR, "csv/player_passing_stats.csv"), index=True)
 print(f"Passing stats scraped: {passing_df.shape}")

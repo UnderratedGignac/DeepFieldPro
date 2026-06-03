@@ -1,3 +1,5 @@
+import os
+from app_config import config
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,5 +62,5 @@ class AdversarialPatternMiner:
 
 
 pattern_miner = AdversarialPatternMiner(
-    "C:/Users/Elie/DeepFieldPro/telemetry_warehouse/parquet/"
+    os.path.join(config.BASE_DIR, "telemetry_warehouse/parquet/")
 )

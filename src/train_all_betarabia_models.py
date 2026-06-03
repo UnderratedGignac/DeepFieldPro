@@ -1,3 +1,4 @@
+from app_config import config
 # mypy: ignore-errors
 import lightgbm as lgb
 import pandas as pd
@@ -7,14 +8,14 @@ from unidecode import unidecode
 
 print("Building training dataset for all Betarabia props...")
 try:
-    df = pd.read_csv("C:/Users/Elie/DeepFieldPro/data/world_cup_players_match_logs.csv")
+    df = pd.read_csv(os.path.join(config.DATA_DIR, "world_cup_players_match_logs.csv"))
 except FileNotFoundError:
     print("Error: world_cup_players_match_logs.csv not found.")
     exit(1)
 
 # Load player database for PPM alignment
 try:
-    player_db = pd.read_csv("C:/Users/Elie/data/csv/FULL_PLAYER_DATABASE_2026.csv")
+    player_db = pd.read_csv(os.path.join(config.DATA_DIR, "csv/FULL_PLAYER_DATABASE_2026.csv"))
     player_db["name_clean"] = player_db["Player Name"].apply(
         lambda x: unidecode(str(x)).lower().strip()
     )
@@ -149,7 +150,7 @@ df["Interceptions"] = df["Performance_Int"]
 df["Tackles Won"] = df["Performance_TklW"]
 
 # Merge opponent profiles
-DB_OPP = "C:/Users/Elie/DeepFieldPro/data/opponent_profiles.db"
+DB_OPP = os.path.join(config.DATA_DIR, "opponent_profiles.db")
 df["ppda"] = 12.0
 df["opp_possession_allowed"] = 50.0
 
@@ -197,7 +198,7 @@ df = df.dropna(
 X = df[FEATURES].apply(pd.to_numeric, errors="coerce")
 weights = df["sample_weight"]
 
-os.makedirs("C:/Users/Elie/DeepFieldPro/models", exist_ok=True)
+os.makedirs(config.MODEL_DIR, exist_ok=True)
 
 # 1. Train Shots and SOT Models (Quantile)
 print("\nTraining SHOTS & SOT models...")
@@ -216,7 +217,7 @@ for market, y in [("shots", df["shots_per_90"]), ("sot", df["sot_per_90"])]:
         m = lgb.LGBMRegressor(**params)
         m.fit(X, y, sample_weight=weights)
         m.booster_.save_model(
-            f"C:/Users/Elie/DeepFieldPro/models/{market}_p{int(q*100)}.txt"
+            os.path.join(config.MODEL_DIR, "{market}_p{int(q*100)}.txt")
         )
         print(f"  Trained {market} q={q}")
 
@@ -237,7 +238,7 @@ for market, y in [
     }
     m = lgb.LGBMRegressor(**params)
     m.fit(X, y, sample_weight=weights)
-    m.booster_.save_model(f"C:/Users/Elie/DeepFieldPro/models/{market}_mean.txt")
+    m.booster_.save_model(os.path.join(config.MODEL_DIR, "{market}_mean.txt"))
     print(
         f"  Trained {market} Mean Model. Avg prediction rate: {m.predict(X.head(1))[0]:.3f} per 90"
     )

@@ -1,10 +1,11 @@
 import asyncio
 import logging
+import os
 import sys
 import numpy as np
 
 # Add src root to pythonpath
-sys.path.insert(0, "C:/Users/Elie/DeepFieldPro")
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.ml.online_learning.concept_drift_monitor import drift_monitor
 from src.adversarial_detection.hidden_markov_throttle_detector import hmm_detector

@@ -3,8 +3,9 @@ import lightgbm as lgb
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
 import os
+from src.app_config import config
 
-df = pd.read_csv("C:/Users/Elie/DeepFieldPro/data/training_dataset.csv")
+df = pd.read_csv(os.path.join(config.DATA_DIR, "training_dataset.csv"))
 
 # Use Min% instead of Percentage of Minutes Played
 # And rename if needed, but we can just use Min% directly
@@ -71,13 +72,13 @@ for q in [0.10, 0.50, 0.90]:
     print(f"Quantile model q={q} trained.")
 
 # Save all models
-os.makedirs("C:/Users/Elie/DeepFieldPro/models", exist_ok=True)
+os.makedirs(config.MODEL_DIR, exist_ok=True)
 model_start.booster_.save_model(
-    "C:/Users/Elie/DeepFieldPro/models/minutes_start_classifier.txt"
+    os.path.join(config.MODEL_DIR, "minutes_start_classifier.txt")
 )
 for name, m in models_quantile.items():
     m.booster_.save_model(
-        f"C:/Users/Elie/DeepFieldPro/models/minutes_{name}_regressor.txt"
+        os.path.join(config.MODEL_DIR, f"minutes_{name}_regressor.txt")
     )
 
 print("All minutes models saved.")

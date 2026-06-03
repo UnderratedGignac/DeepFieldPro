@@ -2,9 +2,10 @@
 import lightgbm as lgb
 import pandas as pd
 import os
+from src.app_config import config
 
 print("Loading shots training dataset...")
-df = pd.read_csv("C:/Users/Elie/DeepFieldPro/data/shots_training_dataset.csv")
+df = pd.read_csv(os.path.join(config.DATA_DIR, "shots_training_dataset.csv"))
 
 df["Percentage of Minutes Played"] = df["Min%"]
 
@@ -65,7 +66,7 @@ y_sh = df["shots_per_90"]
 y_sot = df["sot_per_90"]
 weights = df["sample_weight"]
 
-os.makedirs("C:/Users/Elie/DeepFieldPro/models", exist_ok=True)
+os.makedirs(config.MODEL_DIR, exist_ok=True)
 
 # 1. Train Shots Models
 print("\nTraining SHOTS quantile models...")
@@ -89,7 +90,7 @@ for q in [0.10, 0.50, 0.90]:
     )
 
 for name, m in shots_models.items():
-    m.booster_.save_model(f"C:/Users/Elie/DeepFieldPro/models/shots_{name}.txt")
+    m.booster_.save_model(os.path.join(config.MODEL_DIR, f"shots_{name}.txt"))
 
 # 2. Train Shots on Target Models
 print("\nTraining SHOTS ON TARGET (SoT) quantile models...")
@@ -113,6 +114,6 @@ for q in [0.10, 0.50, 0.90]:
     )
 
 for name, m in sot_models.items():
-    m.booster_.save_model(f"C:/Users/Elie/DeepFieldPro/models/sot_{name}.txt")
+    m.booster_.save_model(os.path.join(config.MODEL_DIR, f"sot_{name}.txt"))
 
 print("\nAll shots and sot models trained and saved to models/ directory successfully!")

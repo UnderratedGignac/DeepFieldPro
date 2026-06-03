@@ -1,3 +1,4 @@
+from app_config import config
 """
 build_shots_training_dataset.py
 ---------------------------------
@@ -14,14 +15,14 @@ from unidecode import unidecode
 print("Building training dataset for shots and shots on target...")
 
 try:
-    df = pd.read_csv("C:/Users/Elie/DeepFieldPro/data/world_cup_players_match_logs.csv")
+    df = pd.read_csv(os.path.join(config.DATA_DIR, "world_cup_players_match_logs.csv"))
 except FileNotFoundError:
     print("Error: world_cup_players_match_logs.csv not found.")
     exit(1)
 
 # Load player database for PPM alignment
 try:
-    player_db = pd.read_csv("C:/Users/Elie/data/csv/FULL_PLAYER_DATABASE_2026.csv")
+    player_db = pd.read_csv(os.path.join(config.DATA_DIR, "csv/FULL_PLAYER_DATABASE_2026.csv"))
     player_db["name_clean"] = player_db["Player Name"].apply(
         lambda x: unidecode(str(x)).lower().strip()
     )
@@ -170,7 +171,7 @@ df["Interceptions"] = df["Performance_Int"]
 df["Tackles Won"] = df["Performance_TklW"]
 
 # Merge opponent profiles
-DB_OPP = "C:/Users/Elie/DeepFieldPro/data/opponent_profiles.db"
+DB_OPP = os.path.join(config.DATA_DIR, "opponent_profiles.db")
 df["ppda"] = 12.0
 df["opp_possession_allowed"] = 50.0
 
@@ -197,8 +198,8 @@ if os.path.exists(DB_OPP):
 df["sample_weight"] = 1.0
 
 # Save
-os.makedirs("C:/Users/Elie/DeepFieldPro/data", exist_ok=True)
-df.to_csv("C:/Users/Elie/DeepFieldPro/data/shots_training_dataset.csv", index=False)
+os.makedirs(config.DATA_DIR, exist_ok=True)
+df.to_csv(os.path.join(config.DATA_DIR, "shots_training_dataset.csv", index=False))
 
 print(f"\n[OK] Shots training dataset saved: {df.shape[0]} rows")
 print(f"shots_per_90 stats:\n{df['shots_per_90'].describe()}")

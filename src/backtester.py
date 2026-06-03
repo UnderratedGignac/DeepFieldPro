@@ -20,11 +20,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+from app_config import config
 from pricing_engine import calculate_over_prob
 from utils import remove_vig
 
-MODEL_DIR = "C:/Users/Elie/DeepFieldPro/models"
-DATA_DIR = "C:/Users/Elie/DeepFieldPro/data"
+MODEL_DIR = config.MODEL_DIR
+DATA_DIR = config.DATA_DIR
 PASSES_LINES = [30.5, 35.5, 40.5, 45.5, 50.5, 55.5, 60.5]
 MIN_EDGE = 0.03
 KELLY_FRACTION = 0.25

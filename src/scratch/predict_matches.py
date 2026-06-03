@@ -1,3 +1,4 @@
+from app_config import config
 # mypy: ignore-errors
 import os
 import sqlite3
@@ -8,9 +9,9 @@ from unidecode import unidecode
 from pricing_engine import calculate_over_prob
 
 # Paths
-BASE_DIR = "C:/Users/Elie/DeepFieldPro"
+BASE_DIR = config.BASE_DIR
 MODEL_DIR = os.path.join(BASE_DIR, "models")
-PLAYER_CSV = "C:/Users/Elie/data/csv/FULL_PLAYER_DATABASE_2026.csv"
+PLAYER_CSV = os.path.join(config.DATA_DIR, "training_dataset.csv")
 DB_OPP = os.path.join(BASE_DIR, "data", "opponent_profiles.db")
 
 PASSES_LINES = [30.5, 35.5, 40.5, 45.5, 50.5, 55.5, 60.5]

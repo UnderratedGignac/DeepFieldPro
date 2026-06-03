@@ -11,16 +11,17 @@ from dotenv import load_dotenv
 
 from pricing_engine import calculate_over_prob
 from execution_engine import place_bet
+from app_config import config
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-BASE_DIR = os.path.join(os.path.dirname(__file__), "..")
-MODEL_DIR = os.path.join(BASE_DIR, "models")
-DATA_DIR = os.path.join(BASE_DIR, "data")
+BASE_DIR = config.BASE_DIR
+MODEL_DIR = config.MODEL_DIR
+DATA_DIR = config.DATA_DIR
 DB_ODDS = os.path.join(DATA_DIR, "odds_stream.db")
 DB_OPP = os.path.join(DATA_DIR, "opponent_profiles.db")
 DB_LINEUPS = os.path.join(DATA_DIR, "parsed_lineups.db")
-PLAYER_CSV = "C:/Users/Elie/data/csv/FULL_PLAYER_DATABASE_2026.csv"
+PLAYER_CSV = os.path.join(DATA_DIR, "training_dataset.csv")
 
 
 def load_models():
@@ -71,7 +72,7 @@ def get_player_historical_stats(
     df = pd.read_csv(PLAYER_CSV)
     from unidecode import unidecode
 
-    df["name_clean"] = df["Player Name"].apply(
+    df["name_clean"] = df["player_name"].apply(
         lambda x: unidecode(str(x)).lower().strip()
     )
     name_clean = unidecode(str(player_name)).lower().strip()
@@ -88,12 +89,12 @@ def get_player_historical_stats(
 
         if FallbackPosition_P and FallbackLeague_P:
             league_pos = df[
-                (df["league"] == FallbackLeague_P)
+                (df["competition"] == FallbackLeague_P)
                 & (df["Position"].str.contains(FallbackPosition_P, na=False))
             ]
             if not league_pos.empty:
                 mean_row = league_pos.mean(numeric_only=True).to_dict()
-                mean_row["Player Name"] = (
+                mean_row["player_name"] = (
                     f"{FallbackPosition_P} Average ({FallbackLeague_P})"
                 )
                 mean_row["Position"] = FallbackPosition_P

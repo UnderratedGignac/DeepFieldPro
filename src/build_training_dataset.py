@@ -15,6 +15,7 @@ import numpy as np
 import sqlite3
 import os
 import soccerdata as sd
+from src.app_config import config
 
 print("Building per-match training dataset...")
 
@@ -23,7 +24,7 @@ print("Building per-match training dataset...")
 # ===========================================================
 try:
     match_df = pd.read_csv(
-        "C:/Users/Elie/DeepFieldPro/data/world_cup_players_match_logs.csv"
+        os.path.join(config.DATA_DIR, "world_cup_players_match_logs.csv")
     )
 except FileNotFoundError:
     print("Error: world_cup_players_match_logs.csv not found.")
@@ -194,7 +195,7 @@ merged["PPM"] = merged["avg_passes"] / 90.0
 merged["ppda"] = 12.0
 merged["opp_possession_allowed"] = 50.0
 
-DB_OPP = "C:/Users/Elie/DeepFieldPro/data/opponent_profiles.db"
+DB_OPP = os.path.join(config.DATA_DIR, "opponent_profiles.db")
 if os.path.exists(DB_OPP):
     conn = sqlite3.connect(DB_OPP)
     try:
@@ -218,8 +219,8 @@ merged["sample_weight"] = np.exp(-0.07 * merged["weeks_ago"])
 # ===========================================================
 merged = merged.dropna(subset=["passes_per_90", "Age", "Minutes Played"]).copy()
 
-os.makedirs("C:/Users/Elie/DeepFieldPro/data", exist_ok=True)
-merged.to_csv("C:/Users/Elie/DeepFieldPro/data/training_dataset.csv", index=False)
+os.makedirs(config.DATA_DIR, exist_ok=True)
+merged.to_csv(os.path.join(config.DATA_DIR, "training_dataset.csv"), index=False)
 
 print(f"\n[OK] Training dataset saved: {merged.shape[0]} rows x {merged.shape[1]} cols")
 print(f"passes_per_90 final stats:\n{merged['passes_per_90'].describe()}")

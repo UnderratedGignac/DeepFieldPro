@@ -1,7 +1,9 @@
+import os
+from app_config import config
 import pandas as pd
 
 # Your main database
-df = pd.read_csv("C:/Users/Elie/data/csv/FULL_PLAYER_DATABASE_2026.csv")
+df = pd.read_csv(os.path.join(config.DATA_DIR, "csv/FULL_PLAYER_DATABASE_2026.csv"))
 print(f"Total rows: {len(df)}")
 print(f"Seasons: {df['season'].unique()}")
 print(f"Leagues: {df['league'].unique()}")

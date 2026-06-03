@@ -1,3 +1,4 @@
+from app_config import config
 """
 build_training_dataset_v2.py
 ------------------------------
@@ -15,7 +16,7 @@ print("Building v2 training dataset from real StatsBomb pass data...")
 
 # 1. Load real pass data
 try:
-    passes_df = pd.read_csv("C:/Users/Elie/DeepFieldPro/data/statsbomb_real_passes.csv")
+    passes_df = pd.read_csv(os.path.join(config.DATA_DIR, "statsbomb_real_passes.csv"))
     print(f"Real pass data: {passes_df.shape}")
     print(f"passes_per_90 stats:\n{passes_df['passes_per_90'].describe()}\n")
 except FileNotFoundError:
@@ -27,7 +28,7 @@ except FileNotFoundError:
 # 2. Load FBref match logs for additional features (crosses, tackles, interceptions)
 try:
     fbref_df = pd.read_csv(
-        "C:/Users/Elie/DeepFieldPro/data/world_cup_players_match_logs.csv"
+        os.path.join(config.DATA_DIR, "world_cup_players_match_logs.csv")
     )
     for col in [
         "Performance_Crs",
@@ -116,7 +117,7 @@ df["Mn/MP"] = df["career_min"]
 df["PPM"] = df["career_avg_passes"] / 90.0
 
 # 6. Opponent context
-DB_OPP = "C:/Users/Elie/DeepFieldPro/data/opponent_profiles.db"
+DB_OPP = os.path.join(config.DATA_DIR, "opponent_profiles.db")
 df["ppda"] = 12.0
 df["opp_possession_allowed"] = 50.0
 
@@ -159,8 +160,8 @@ df = df.dropna(subset=["passes_per_90", "Minutes Played"]).copy()
 df = df[df["Minutes Played"] > 10].copy()
 
 # Save
-os.makedirs("C:/Users/Elie/DeepFieldPro/data", exist_ok=True)
-df.to_csv("C:/Users/Elie/DeepFieldPro/data/training_dataset.csv", index=False)
+os.makedirs(config.DATA_DIR, exist_ok=True)
+df.to_csv(os.path.join(config.DATA_DIR, "training_dataset.csv", index=False))
 
 print(f"\n[OK] Training dataset v2 saved: {df.shape[0]} rows x {df.shape[1]} cols")
 print(f"\nFinal passes_per_90 distribution:\n{df['passes_per_90'].describe()}")

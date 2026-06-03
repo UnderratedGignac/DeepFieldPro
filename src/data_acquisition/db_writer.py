@@ -1,3 +1,5 @@
+import os
+from app_config import config
 import sqlite3
 import asyncio
 import logging
@@ -5,7 +7,7 @@ from typing import Dict, List, Any
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = "C:/Users/Elie/DeepFieldPro/src/live_data.db"
+DB_PATH = os.path.join(config.BASE_DIR + "/src", "live_data.db")
 
 
 def init_db():

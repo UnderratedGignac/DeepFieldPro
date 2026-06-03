@@ -1,3 +1,4 @@
+from app_config import config
 """
 get_real_pass_data.py
 -----------------------
@@ -140,9 +141,9 @@ print(
     f"\nTop positions by avg passes:\n{df.groupby('position')['passes_per_90'].mean().sort_values(ascending=False).head(10)}"
 )
 
-os.makedirs("C:/Users/Elie/DeepFieldPro/data", exist_ok=True)
-df.to_csv("C:/Users/Elie/DeepFieldPro/data/statsbomb_real_passes.csv", index=False)
+os.makedirs(config.DATA_DIR, exist_ok=True)
+df.to_csv(os.path.join(config.DATA_DIR, "statsbomb_real_passes.csv"), index=False)
 print(
-    "\n[OK] Real pass data saved: C:/Users/Elie/DeepFieldPro/data/statsbomb_real_passes.csv"
+    "\n[OK] Real pass data saved: config.DATA_DIR/statsbomb_real_passes.csv"
 )
 print("Now run: python build_training_dataset_v2.py")

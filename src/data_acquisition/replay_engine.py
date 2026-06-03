@@ -1,3 +1,4 @@
+from app_config import config
 # mypy: ignore-errors
 # replay_engine.py
 import os
@@ -109,5 +110,5 @@ class ReplayEngine:
 
 
 replay_engine = ReplayEngine(
-    "C:/Users/Elie/DeepFieldPro/src/data_acquisition/raw_frames"
+    os.path.join(config.BASE_DIR + "/src", "data_acquisition/raw_frames")
 )

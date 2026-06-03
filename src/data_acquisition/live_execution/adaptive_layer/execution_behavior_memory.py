@@ -1,3 +1,5 @@
+import os
+from app_config import config
 import sqlite3
 import logging
 from typing import Dict, Any
@@ -12,7 +14,7 @@ class ExecutionBehaviorMemory:
     """
 
     def __init__(
-        self, db_path: str = "C:/Users/Elie/DeepFieldPro/db/adaptive_memory.sqlite"
+        self, db_path: str = os.path.join(config.DB_DIR, "adaptive_memory.sqlite")
     ):
         self.db_path = db_path
         self._init_db()

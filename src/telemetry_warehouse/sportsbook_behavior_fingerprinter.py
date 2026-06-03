@@ -1,3 +1,5 @@
+import os
+from app_config import config
 # mypy: ignore-errors
 import logging
 import pandas as pd
@@ -38,5 +40,5 @@ class SportsbookBehaviorFingerprinter:
 
 
 fingerprinter = SportsbookBehaviorFingerprinter(
-    "C:/Users/Elie/DeepFieldPro/telemetry_warehouse/parquet/"
+    os.path.join(config.BASE_DIR, "telemetry_warehouse/parquet/")
 )
