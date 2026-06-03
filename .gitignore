@@ -1,8 +1,237 @@
 ```
-# Compiled Python files
-*.pyc
-__pycache__/
+# Environment variables
+.env
 
-# Logs
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
 *.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+.MF
+tags
+TAGS
+id
+.dir-locals.el
+*.elc
+*~
+\#*\#
+.\#*
+.\\*
+\\*\\*
+*\\.$$$
+\\$*
+*.log
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+*.py.class
+*.py.o
+*.pyc.class
+*.pyc.o
+*.pyo.class
+*.pyo.o
+*.pyd.class
+*.pyd.o
+*.so.class
+*.so.o
+*.dylib.class
+*.dylib.o
+*.dll.class
+*.dll.o
+*.exe.class
+*.exe.o
+*.class.class
+*.class.o
+*.jar.class
+*.jar.o
+*.war.class
+*.war.o
+*.ear.class
+*.ear.o
+*.zip.class
+*.zip.o
+*.tar.class
+*.tar.o
+*.gz.class
+*.gz.o
+*.bz2.class
+*.bz2.o
+*.xz.class
+*.xz.o
+*.7z.class
+*.7z.o
+*.rar.class
+*.rar.o
+*.zst.class
+*.zst.o
+*.lz4.class
+*.lz4.o
+*.lzh.class
+*.lzh.o
+*.cab.class
+*.cab.o
+*.arj.class
+*.arj.o
+*.rpm.class
+*.rpm.o
+*.deb.class
+*.deb.o
+*.Z.class
+*.Z.o
+*.lz.class
+*.lz.o
+*.lzo.class
+*.lzo.o
+*.tar.gz.class
+*.tar.gz.o
+*.tar.bz2.class
+*.tar.bz2.o
+*.tar.xz.class
+*.tar.xz.o
+*.tar.zst.class
+*.tar.zst.o
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask
+instance/
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# IDE
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Thumbs.db:encryptable
 ```
