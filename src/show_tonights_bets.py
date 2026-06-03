@@ -1,4 +1,5 @@
-import json, sys
+import json
+import sys
 
 bets_data = json.load(open('data/todays_single_bets.json', encoding='utf-8'))
 bets = bets_data['bets']
