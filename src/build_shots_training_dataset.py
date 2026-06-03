@@ -1,4 +1,3 @@
-from app_config import config
 """
 build_shots_training_dataset.py
 ---------------------------------
@@ -7,10 +6,11 @@ using the 25/26 season match logs (49,004 rows).
 Integrates real PPM (Passes Per Minute) from the player database to prevent feature mismatch.
 """
 
-import pandas as pd
-import sqlite3
 import os
+import sqlite3
+import pandas as pd
 from unidecode import unidecode
+from app_config import config
 
 print("Building training dataset for shots and shots on target...")
 

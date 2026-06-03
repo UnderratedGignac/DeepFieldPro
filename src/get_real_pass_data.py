@@ -1,4 +1,3 @@
-from app_config import config
 """
 get_real_pass_data.py
 -----------------------
@@ -9,9 +8,10 @@ actual completed passes per player per match.
 This replaces the formula proxy with ground truth training data.
 """
 
-import pandas as pd
 import os
+import pandas as pd
 from statsbombpy import sb
+from app_config import config
 
 print("=" * 60)
 print("STEP 1: Fetching real pass data from StatsBomb Open Data")

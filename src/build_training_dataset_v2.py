@@ -1,4 +1,3 @@
-from app_config import config
 """
 build_training_dataset_v2.py
 ------------------------------
@@ -6,11 +5,12 @@ Builds a clean training dataset using REAL pass data from StatsBomb.
 Merges with the FBref match logs to add opponent context features.
 """
 
+import os
+import sqlite3
 import pandas as pd
 import numpy as np
-import sqlite3
-import os
 from datetime import datetime
+from app_config import config
 
 print("Building v2 training dataset from real StatsBomb pass data...")
 

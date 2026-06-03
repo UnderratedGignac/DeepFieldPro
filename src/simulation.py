@@ -1,4 +1,3 @@
-from app_config import config
 # mypy: ignore-errors
 """
 simulation.py — DeepFieldPro World Cup Simulation
@@ -15,8 +14,9 @@ import math
 import argparse
 import datetime
 import logging
-import pandas as pd
 import pickle
+import pandas as pd
+from app_config import config
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")

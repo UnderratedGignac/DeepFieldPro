@@ -1,5 +1,3 @@
-import os
-from app_config import config
 """
 seed_opponent_profiles.py
 --------------------------
@@ -14,8 +12,10 @@ Possession-allowed proxy: We estimate it from passes completed per game
 relative to the overall average.
 """
 
-import pandas as pd
+import os
 import sqlite3
+import pandas as pd
+from app_config import config
 
 print("Seeding opponent profiles from World Cup match logs...")
 
