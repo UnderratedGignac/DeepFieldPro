@@ -1,0 +1,1442 @@
+[
+  {
+    "url": "https://fe-api.betarabia.com/restapi/v1/user/status?cfid=1780434000",
+    "data": {
+      "Success": true,
+      "Code": 0,
+      "Message": null,
+      "Data": {
+        "currency": "$",
+        "currency_id": 3,
+        "country_code": "lb",
+        "company_id": 173,
+        "country_id": 120,
+        "is_test": 0,
+        "age_categories": [
+          "A",
+          "B"
+        ]
+      }
+    }
+  },
+  {
+    "url": "https://fe-api.betarabia.com/restapi/cached/en/v2/casino/lb/173/120/3/web/categories?age_restrictions%5B%5D=A&age_restrictions%5B%5D=B&page=1&per_page=100&cfid=1780434000",
+    "data": {
+      "Success": true,
+      "Code": 0,
+      "Message": null,
+      "Data": {
+        "items": [
+          {
+            "id": 32,
+            "name": "All games",
+            "slug": "all",
+            "meta_description": "Browse all available casino games in one place. Slots, table games, jackpots, scratch games, and more.",
+            "image": null,
+            "icon": "Star",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "All Games",
+            "front_page_quantity": 12,
+            "order_id": 17,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "all",
+            "localized_slugs": {
+              "en": "all",
+              "fr": "tous-les-jeux",
+              "ar": "\u0643\u0644-\u0627\u0644\u0623\u0644\u0639\u0627\u0628"
+            },
+            "games_size": 3478,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 33,
+            "name": "Slots",
+            "slug": "slots",
+            "meta_description": "Spin hundreds of online slots with exciting themes, big jackpots, and smooth gameplay. Play classic and modern slot games.",
+            "image": null,
+            "icon": "Table",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Slots",
+            "front_page_quantity": 12,
+            "order_id": 13,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "slots",
+            "localized_slugs": {
+              "en": "slots",
+              "fr": "slots",
+              "ar": "slots"
+            },
+            "games_size": 3137,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 34,
+            "name": "New Games",
+            "slug": "new-Games",
+            "meta_description": "Discover new casino games just added. Be the first to play the latest slots, table games, and live casino releases.",
+            "image": null,
+            "icon": "Lightning-alt",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "New games",
+            "front_page_quantity": 12,
+            "order_id": 10,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "new-games",
+            "localized_slugs": {
+              "en": "new-games",
+              "fr": "nouveaux-jeux ",
+              "ar": "\u0623\u0644\u0639\u0627\u0628-\u062c\u062f\u064a\u062f\u0629"
+            },
+            "games_size": 1354,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 35,
+            "name": "Popular Games",
+            "slug": "popular-games",
+            "meta_description": "Explore the most popular casino games players\u2019 love. Play top slots, table games, jackpots, and more pick your favorite and start playing.",
+            "image": null,
+            "icon": "Lightning",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Popular Games",
+            "front_page_quantity": 12,
+            "order_id": 6,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "popular-games",
+            "localized_slugs": {
+              "en": "popular-games",
+              "fr": "jeux-populaires",
+              "ar": "\u0627\u0644\u0639\u0627\u0628-\u0634\u0639\u0628\u064a\u0629"
+            },
+            "games_size": 181,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 36,
+            "name": "Blackjack",
+            "slug": "Blackjack",
+            "meta_description": "",
+            "image": null,
+            "icon": "Blackjack",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Blackjack",
+            "front_page_quantity": 12,
+            "order_id": 6,
+            "live_casino_category": true,
+            "show_in_menu": false,
+            "slug_en": "blackjack",
+            "localized_slugs": {
+              "en": "blackjack",
+              "fr": "blackjack",
+              "ar": "\u0628\u0644\u0627\u0643 \u062c\u0627\u0643"
+            },
+            "games_size": 291,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 38,
+            "name": "Jackpot",
+            "slug": "jackpot",
+            "meta_description": "Play jackpot casino games for your chance to win big. Discover slots and games with massive progressive jackpots.",
+            "image": null,
+            "icon": "Jackpots",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Jackpot",
+            "front_page_quantity": 12,
+            "order_id": 14,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "jackpot",
+            "localized_slugs": {
+              "en": "jackpot",
+              "fr": "jackpot",
+              "ar": "jackpot"
+            },
+            "games_size": 781,
+            "display_sections": [
+              "header",
+              "casino_lobby",
+              "home_lobby"
+            ]
+          },
+          {
+            "id": 39,
+            "name": "Roulette",
+            "slug": "roulette",
+            "meta_description": "",
+            "image": null,
+            "icon": "Roulette",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Roulette",
+            "front_page_quantity": 12,
+            "order_id": 5,
+            "live_casino_category": true,
+            "show_in_menu": false,
+            "slug_en": "roulette",
+            "localized_slugs": {
+              "en": "roulette",
+              "fr": "roulette",
+              "ar": "\u0631\u0648\u0644\u064a\u062a"
+            },
+            "games_size": 75,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 40,
+            "name": "Baccarat",
+            "slug": "baccarat",
+            "meta_description": "",
+            "image": null,
+            "icon": "Baccarat",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Baccarat",
+            "front_page_quantity": 12,
+            "order_id": 8,
+            "live_casino_category": true,
+            "show_in_menu": false,
+            "slug_en": "baccarat",
+            "localized_slugs": {
+              "en": "baccarat",
+              "fr": "baccarat",
+              "ar": "\u0628\u0627\u0643\u0627\u0631\u0627\u062a"
+            },
+            "games_size": 65,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 42,
+            "name": "Table Games",
+            "slug": "table-games",
+            "meta_description": "Enjoy classic casino table games including blackjack, roulette, and baccarat with realistic gameplay and great odds.",
+            "image": null,
+            "icon": "Card",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Table Games",
+            "front_page_quantity": 12,
+            "order_id": 15,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "table-games",
+            "localized_slugs": {
+              "en": "table-games",
+              "fr": "table-games",
+              "ar": "table-games"
+            },
+            "games_size": 70,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 43,
+            "name": "Other Games",
+            "slug": "other-games",
+            "meta_description": "",
+            "image": null,
+            "icon": "Other-games1",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Other Games",
+            "front_page_quantity": 12,
+            "order_id": 10,
+            "live_casino_category": true,
+            "show_in_menu": false,
+            "slug_en": "other-games",
+            "localized_slugs": {
+              "en": "other-games",
+              "fr": "autres-jeux",
+              "ar": "other-games"
+            },
+            "games_size": 144,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 44,
+            "name": "Game Shows",
+            "slug": "game-shows",
+            "meta_description": null,
+            "image": null,
+            "icon": "Video",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Game Shows",
+            "front_page_quantity": 12,
+            "order_id": 9,
+            "live_casino_category": true,
+            "show_in_menu": false,
+            "slug_en": "game-shows",
+            "localized_slugs": {
+              "en": "game-shows",
+              "fr": "game-shows",
+              "ar": "game-shows"
+            },
+            "games_size": 20,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 49,
+            "name": "High Stake Tables",
+            "slug": "high-stake-tables",
+            "meta_description": "",
+            "image": null,
+            "icon": "Drops",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "High Stake Tables",
+            "front_page_quantity": 12,
+            "order_id": 7,
+            "live_casino_category": true,
+            "show_in_menu": false,
+            "slug_en": "high-stake-tables",
+            "localized_slugs": {
+              "en": "high-stake-tables",
+              "fr": "tables-\u00e0-hautes-mises",
+              "ar": "\u0637\u0627\u0648\u0644\u0627\u062a-\u0627\u0644\u0631\u0647\u0627\u0646\u0627\u062a-\u0627\u0644\u0639\u0627\u0644\u064a\u0629"
+            },
+            "games_size": 33,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 50,
+            "name": "Crash Games",
+            "slug": "crash-games",
+            "meta_description": "-",
+            "image": null,
+            "icon": "Star",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Crash Games",
+            "front_page_quantity": 12,
+            "order_id": 22,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "crash-games",
+            "localized_slugs": {
+              "en": "crash-games",
+              "fr": "jeux-crash",
+              "ar": "\u0623\u0644\u0639\u0627\u0628- \u0643\u0631\u0627\u0634"
+            },
+            "games_size": 151,
+            "display_sections": [
+              "crash-games",
+              "crash-games-header"
+            ]
+          },
+          {
+            "id": 53,
+            "name": "Live Picks",
+            "slug": "live-picks",
+            "meta_description": "",
+            "image": null,
+            "icon": "Live-Picks",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Live Picks",
+            "front_page_quantity": 12,
+            "order_id": 2,
+            "live_casino_category": true,
+            "show_in_menu": false,
+            "slug_en": "live-picks",
+            "localized_slugs": {
+              "en": "live-picks",
+              "fr": "nos-s\u00e9lections ",
+              "ar": "\u0623\u0641\u0636\u0644-\u0627\u0644\u0623\u0644\u0639\u0627\u0628-\u0627\u0644\u0645\u0628\u0627\u0634\u0631\u0629"
+            },
+            "games_size": 21,
+            "display_sections": [
+              "home_lobby",
+              "home_header",
+              "casino_lobby",
+              "header"
+            ]
+          },
+          {
+            "id": 55,
+            "name": "Promoted Games crash",
+            "slug": "banner-games-crash",
+            "meta_description": null,
+            "image": null,
+            "icon": "Promo",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Promoted games crash",
+            "front_page_quantity": 9,
+            "order_id": 12,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "banner-games-crash",
+            "localized_slugs": {
+              "en": "banner-games-crash",
+              "fr": "banner-games-crash",
+              "ar": "banner-games-crash"
+            },
+            "games_size": 11,
+            "display_sections": [
+              "crash-games-header"
+            ]
+          },
+          {
+            "id": 56,
+            "name": "Exclusives",
+            "slug": "exclusives",
+            "meta_description": "Play exclusive casino games available only on BetArabia. Enjoy unique slots and special games you won\u2019t find elsewhere.",
+            "image": null,
+            "icon": "Popular",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Exclusives",
+            "front_page_quantity": 12,
+            "order_id": 11,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "exclusives",
+            "localized_slugs": {
+              "en": "exclusives",
+              "fr": "exclusives",
+              "ar": "exclusives"
+            },
+            "games_size": 17,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 59,
+            "name": "Weekly Slots",
+            "slug": "weekly-slots",
+            "meta_description": "",
+            "image": null,
+            "icon": "Top-Games",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Weekly Slots",
+            "front_page_quantity": 9,
+            "order_id": 7,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "weekly-slots",
+            "localized_slugs": {
+              "en": "weekly-slots",
+              "fr": "jeux-hebdomadaires",
+              "ar": "\u0627\u0644\u0623\u0644\u0639\u0627\u0628-\u0627\u0644\u0627\u0633\u0628\u0648\u0639\u064a\u0629"
+            },
+            "games_size": 21,
+            "display_sections": [
+              "home_lobby",
+              "casino_lobby",
+              "header"
+            ]
+          },
+          {
+            "id": 60,
+            "name": "Live Exclusives",
+            "slug": "live-exclusives",
+            "meta_description": "",
+            "image": null,
+            "icon": "Live-Exclusive",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Live Exclusives",
+            "front_page_quantity": 9,
+            "order_id": 4,
+            "live_casino_category": true,
+            "show_in_menu": false,
+            "slug_en": "live-exclusives",
+            "localized_slugs": {
+              "en": "live-exclusives",
+              "fr": "live-exclusives",
+              "ar": "live-exclusives"
+            },
+            "games_size": 8,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 64,
+            "name": "Scratch Games",
+            "slug": "scratch-games",
+            "meta_description": "Play scratch card games with instant results and fast paced fun. Scratch and win exciting prizes online.",
+            "image": null,
+            "icon": "Gravity-ui_crown-diamond",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Scratch Games",
+            "front_page_quantity": 9,
+            "order_id": 16,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "scratch-games",
+            "localized_slugs": {
+              "en": "scratch-games",
+              "fr": "scratch-games",
+              "ar": "scratch-games"
+            },
+            "games_size": 35,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          },
+          {
+            "id": 68,
+            "name": "Featured Games",
+            "slug": "featured-games",
+            "meta_description": "Discover featured casino games handpicked for top gameplay, exciting bonuses, and the best player experience.",
+            "image": null,
+            "icon": "Shield1",
+            "desktop_banner": null,
+            "mobile_banner": null,
+            "mobile_image": null,
+            "icon_image": null,
+            "translated_name": "Featured games",
+            "front_page_quantity": 9,
+            "order_id": 4,
+            "live_casino_category": false,
+            "show_in_menu": false,
+            "slug_en": "featured-games",
+            "localized_slugs": {
+              "en": "featured-games",
+              "fr": "featured-games",
+              "ar": "featured-games"
+            },
+            "games_size": 14,
+            "display_sections": [
+              "header",
+              "casino_lobby"
+            ]
+          }
+        ],
+        "total_items": 20,
+        "total_pages": 1,
+        "page": 1,
+        "per_page": 100
+      }
+    }
+  },
+  {
+    "url": "https://fe-api.betarabia.com/restapi/v1/content/posts/sports?cfid=1780434000",
+    "data": {
+      "Success": true,
+      "Code": 0,
+      "Message": null,
+      "Data": [
+        {
+          "id": 221,
+          "user_id": 152,
+          "language_id": 1,
+          "campaign_id": null,
+          "rules_engine_action": "",
+          "rules_engine_action_cancel": "",
+          "category": "sports",
+          "slug": "ssp",
+          "title": "Horse & Greyhound Racing",
+          "body": "https://i.betarabia.com/88/image_folder_item/image/151/Betting_Rules_SSP_revised.pdf",
+          "image": {
+            "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp",
+            "thumb_700_320": {
+              "url": "https://img.betarabia.com/88/post/image/221/thumb_700_320_New_Project__3_.webp"
+            },
+            "medium": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_140_100": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_150_150": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_240_180": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_300_300": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_420_280": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_500_250": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_530_300": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_540_300": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            },
+            "thumb_570_320": {
+              "url": "https://img.betarabia.com/88/post/image/221/New_Project__3_.webp"
+            }
+          },
+          "image_alt_text": "",
+          "created_at": "2026-02-26T13:49:10.000+02:00",
+          "updated_at": "2026-02-27T12:47:50.000+02:00",
+          "excerpt": "",
+          "expiration_date": null,
+          "sticky": 0,
+          "page_title": "",
+          "alternative_url": "",
+          "use_alternative_url": null,
+          "publish_date": null,
+          "bgcolor": "",
+          "bg_image": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "front_image": null,
+          "display_mode": 0,
+          "visible": true,
+          "open_in_new_window": false,
+          "franchise_id": 88,
+          "show_for": 1,
+          "jackpot_id": null,
+          "priority": 6,
+          "image_large": {
+            "url": null,
+            "medium": {
+              "url": null
+            },
+            "thumb_860_280": {
+              "url": null
+            }
+          },
+          "bg_image_tablet": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "bg_image_mobile": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "short_description": "",
+          "link_text": null,
+          "button_text": "",
+          "img_alt": null,
+          "bg_image_alt": null,
+          "bg_image_link": "",
+          "subcategory": 0,
+          "news_meta_description": null,
+          "inner_page_button_link": "",
+          "void": false,
+          "inner_button_text": "",
+          "leaderboard_calculation": "",
+          "video_url": "",
+          "registration_fields": false,
+          "echo_page_id": null,
+          "subcategories": [],
+          "echo_page_slug": null
+        },
+        {
+          "id": 76,
+          "user_id": 57,
+          "language_id": 1,
+          "campaign_id": null,
+          "rules_engine_action": "",
+          "rules_engine_action_cancel": "",
+          "category": "sports",
+          "slug": "betconstruct",
+          "title": "BetConstruct",
+          "body": "https://i.betarabia.com/88/image_folder_item/image/94/Betconstruct_Sport_rules_EN.pdf",
+          "image": {
+            "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png",
+            "thumb_700_320": {
+              "url": "https://img.betarabia.com/88/post/image/76/thumb_700_320_New_Project__21_.png"
+            },
+            "medium": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_140_100": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_150_150": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_240_180": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_300_300": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_420_280": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_500_250": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_530_300": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_540_300": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            },
+            "thumb_570_320": {
+              "url": "https://img.betarabia.com/88/post/image/76/New_Project__21_.png"
+            }
+          },
+          "image_alt_text": "",
+          "created_at": "2023-12-07T16:22:35.000+02:00",
+          "updated_at": "2025-04-14T13:33:21.000+03:00",
+          "excerpt": "https://i.betarabia.com/88/image_folder_item/image/94/Betconstruct_Sport_rules_EN.pdf\r\n",
+          "expiration_date": null,
+          "sticky": 0,
+          "page_title": "",
+          "alternative_url": "",
+          "use_alternative_url": false,
+          "publish_date": "2023-12-07T14:22:00.000+02:00",
+          "bgcolor": "",
+          "bg_image": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "front_image": null,
+          "display_mode": 0,
+          "visible": true,
+          "open_in_new_window": false,
+          "franchise_id": 88,
+          "show_for": 0,
+          "jackpot_id": null,
+          "priority": 4,
+          "image_large": {
+            "url": null,
+            "medium": {
+              "url": null
+            },
+            "thumb_860_280": {
+              "url": null
+            }
+          },
+          "bg_image_tablet": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "bg_image_mobile": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "short_description": "",
+          "link_text": null,
+          "button_text": "",
+          "img_alt": null,
+          "bg_image_alt": null,
+          "bg_image_link": "",
+          "subcategory": 0,
+          "news_meta_description": null,
+          "inner_page_button_link": "",
+          "void": false,
+          "inner_button_text": "",
+          "leaderboard_calculation": "",
+          "video_url": "",
+          "registration_fields": false,
+          "echo_page_id": null,
+          "subcategories": [],
+          "echo_page_slug": null
+        },
+        {
+          "id": 73,
+          "user_id": 57,
+          "language_id": 1,
+          "campaign_id": null,
+          "rules_engine_action": "",
+          "rules_engine_action_cancel": "",
+          "category": "sports",
+          "slug": "kickertech",
+          "title": "Kickertech",
+          "body": "https://img.betarabia.com/88/image_folder_item/image/153/Kickertech_Betting_Rules__v._4.3.16_.pdf",
+          "image": {
+            "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png",
+            "thumb_700_320": {
+              "url": "https://img.betarabia.com/88/post/image/73/thumb_700_320_kickertech_logo.png"
+            },
+            "medium": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_140_100": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_150_150": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_240_180": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_300_300": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_420_280": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_500_250": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_530_300": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_540_300": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            },
+            "thumb_570_320": {
+              "url": "https://img.betarabia.com/88/post/image/73/kickertech_logo.png"
+            }
+          },
+          "image_alt_text": "",
+          "created_at": "2023-12-07T15:13:20.000+02:00",
+          "updated_at": "2026-04-29T08:29:32.000+03:00",
+          "excerpt": "https://i.betarabia.com/88/image_folder_item/image/98/Kickertech_Sport_Betting_Rules.pdf",
+          "expiration_date": null,
+          "sticky": 0,
+          "page_title": "",
+          "alternative_url": "",
+          "use_alternative_url": false,
+          "publish_date": "2023-12-07T13:13:00.000+02:00",
+          "bgcolor": "",
+          "bg_image": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "front_image": null,
+          "display_mode": 0,
+          "visible": true,
+          "open_in_new_window": false,
+          "franchise_id": 88,
+          "show_for": 0,
+          "jackpot_id": null,
+          "priority": 3,
+          "image_large": {
+            "url": null,
+            "medium": {
+              "url": null
+            },
+            "thumb_860_280": {
+              "url": null
+            }
+          },
+          "bg_image_tablet": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "bg_image_mobile": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "short_description": "",
+          "link_text": null,
+          "button_text": "",
+          "img_alt": null,
+          "bg_image_alt": null,
+          "bg_image_link": "",
+          "subcategory": 0,
+          "news_meta_description": null,
+          "inner_page_button_link": "",
+          "void": false,
+          "inner_button_text": "",
+          "leaderboard_calculation": "",
+          "video_url": "",
+          "registration_fields": false,
+          "echo_page_id": null,
+          "subcategories": [],
+          "echo_page_slug": null
+        }
+      ]
+    }
+  },
+  {
+    "url": "https://fe-api.betarabia.com/restapi/v1/content/posts/live_games?cfid=1780434000",
+    "data": {
+      "Success": true,
+      "Code": 0,
+      "Message": null,
+      "Data": [
+        {
+          "id": 63,
+          "user_id": 57,
+          "language_id": 1,
+          "campaign_id": null,
+          "rules_engine_action": "",
+          "rules_engine_action_cancel": "",
+          "category": "live_games",
+          "slug": "betgamestv",
+          "title": "BETGAMES TV",
+          "body": "",
+          "image": {
+            "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png",
+            "thumb_700_320": {
+              "url": "https://img.betarabia.com/88/post/image/63/thumb_700_320_image_2023_11_16T14_38_21_526Z.png"
+            },
+            "medium": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_140_100": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_150_150": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_240_180": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_300_300": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_420_280": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_500_250": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_530_300": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_540_300": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            },
+            "thumb_570_320": {
+              "url": "https://img.betarabia.com/88/post/image/63/image_2023_11_16T14_38_21_526Z.png"
+            }
+          },
+          "image_alt_text": "",
+          "created_at": "2023-11-07T07:59:09.000+02:00",
+          "updated_at": "2023-11-24T14:38:06.000+02:00",
+          "excerpt": "",
+          "expiration_date": null,
+          "sticky": 0,
+          "page_title": "BetGames TV",
+          "alternative_url": null,
+          "use_alternative_url": false,
+          "publish_date": "2023-11-07T05:57:00.000+02:00",
+          "bgcolor": "",
+          "bg_image": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "front_image": null,
+          "display_mode": 0,
+          "visible": true,
+          "open_in_new_window": false,
+          "franchise_id": 88,
+          "show_for": 0,
+          "jackpot_id": null,
+          "priority": 1,
+          "image_large": {
+            "url": null,
+            "medium": {
+              "url": null
+            },
+            "thumb_860_280": {
+              "url": null
+            }
+          },
+          "bg_image_tablet": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "bg_image_mobile": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "short_description": "",
+          "link_text": null,
+          "button_text": "",
+          "img_alt": null,
+          "bg_image_alt": null,
+          "bg_image_link": "",
+          "subcategory": 0,
+          "news_meta_description": null,
+          "inner_page_button_link": "",
+          "void": false,
+          "inner_button_text": "",
+          "leaderboard_calculation": null,
+          "video_url": null,
+          "registration_fields": false,
+          "echo_page_id": null,
+          "subcategories": [],
+          "echo_page_slug": null
+        },
+        {
+          "id": 62,
+          "user_id": 57,
+          "language_id": 1,
+          "campaign_id": null,
+          "rules_engine_action": "",
+          "rules_engine_action_cancel": "",
+          "category": "live_games",
+          "slug": "twain",
+          "title": "TWAIN",
+          "body": "",
+          "image": {
+            "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png",
+            "thumb_700_320": {
+              "url": "https://img.betarabia.com/88/post/image/62/thumb_700_320_logo___1_.png"
+            },
+            "medium": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_140_100": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_150_150": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_240_180": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_300_300": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_420_280": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_500_250": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_530_300": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_540_300": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            },
+            "thumb_570_320": {
+              "url": "https://img.betarabia.com/88/post/image/62/logo___1_.png"
+            }
+          },
+          "image_alt_text": "",
+          "created_at": "2023-11-07T07:55:42.000+02:00",
+          "updated_at": "2023-11-24T14:49:12.000+02:00",
+          "excerpt": "",
+          "expiration_date": null,
+          "sticky": 0,
+          "page_title": "Twain",
+          "alternative_url": null,
+          "use_alternative_url": false,
+          "publish_date": "2023-11-07T05:47:00.000+02:00",
+          "bgcolor": "",
+          "bg_image": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "front_image": null,
+          "display_mode": 0,
+          "visible": true,
+          "open_in_new_window": false,
+          "franchise_id": 88,
+          "show_for": 0,
+          "jackpot_id": null,
+          "priority": 0,
+          "image_large": {
+            "url": null,
+            "medium": {
+              "url": null
+            },
+            "thumb_860_280": {
+              "url": null
+            }
+          },
+          "bg_image_tablet": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "bg_image_mobile": {
+            "url": null,
+            "medium": {
+              "url": null
+            }
+          },
+          "short_description": "",
+          "link_text": null,
+          "button_text": "",
+          "img_alt": null,
+          "bg_image_alt": null,
+          "bg_image_link": "",
+          "subcategory": 0,
+          "news_meta_description": null,
+          "inner_page_button_link": "",
+          "void": false,
+          "inner_button_text": "",
+          "leaderboard_calculation": null,
+          "video_url": null,
+          "registration_fields": false,
+          "echo_page_id": null,
+          "subcategories": [],
+          "echo_page_slug": null
+        }
+      ]
+    }
+  },
+  {
+    "url": "https://www.betarabia.com/cache/api/head/en/sports?cfid=1780434000",
+    "data": {
+      "title": "Sports Betting Odds & Live Matches | BetArabia",
+      "description": "Bet on sports with real-time odds, live matches, and fast updates across football, basketball, tennis, and more. Experience secure and smooth sports betting on BetArabia.",
+      "keywords": "sports betting, live sports odds, football betting online, betarabia sports, live match betting",
+      "image": "https://www.betarabia.com/assets/images/logo/main-logo.svg",
+      "canonical": "https://www.betarabia.com/en/sports",
+      "alternate": [
+        {
+          "href": "https://www.betarabia.com/en/sports",
+          "hrefLang": "en"
+        },
+        {
+          "href": "https://www.betarabia.com/en/sports",
+          "hrefLang": "x-default"
+        },
+        {
+          "href": "https://www.betarabia.com/ar/sports",
+          "hrefLang": "ar"
+        },
+        {
+          "href": "https://www.betarabia.com/fr/sports",
+          "hrefLang": "fr"
+        }
+      ],
+      "body": {},
+      "url": "https://www.betarabia.com/en/sports",
+      "hidden_h1": "Sports Betting",
+      "pathname": "/en/sports",
+      "themeColor": "#000541"
+    }
+  },
+  {
+    "url": "https://fe-api.betarabia.com/restapi/v1/content/banners/welcome_popup/en?cfid=1780434000",
+    "data": {
+      "Success": true,
+      "Code": 0,
+      "Message": null,
+      "Data": []
+    }
+  },
+  {
+    "url": "https://fe-api.betarabia.com/restapi/v1/content/footer_partners?cfid=1780434000",
+    "data": {
+      "Success": true,
+      "Code": 0,
+      "Message": null,
+      "Data": [
+        {
+          "title": "OMT",
+          "link": "https://www.omt.com.lb/en",
+          "url": "https://img.betarabia.com/88/footer_partner/image/8/omt_2_90x40.webp",
+          "slot": "security",
+          "image_alt": "OMT logo"
+        },
+        {
+          "title": "Credit cards",
+          "link": "/payments",
+          "url": "https://img.betarabia.com/88/footer_partner/image/7/visa-card.webp",
+          "slot": "security",
+          "image_alt": "Visa - mastercard logo"
+        },
+        {
+          "title": "Net Commerce",
+          "link": "https://www.netcommercepay.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/9/NC_logo.webp",
+          "slot": "security",
+          "image_alt": "Net Commerce logo"
+        },
+        {
+          "title": "TG Lab",
+          "link": "https://tglab.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/4/TG-LAB-LOGO.webp",
+          "slot": "security",
+          "image_alt": "TG Lab logo"
+        },
+        {
+          "title": "Pragmatic play",
+          "link": "https://www.pragmaticplay.com/en/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/5/PRAGMATIC-LOGO.webp",
+          "slot": "security",
+          "image_alt": "Pragmatic play logo"
+        },
+        {
+          "title": "Bet Games TV",
+          "link": "https://www.betgames.tv/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/6/BG_Logo_White_Horizontal_Lock-Up__1_.webp",
+          "slot": "security",
+          "image_alt": "Bet Games TV logo"
+        },
+        {
+          "title": "Amusnet",
+          "link": "https://www.amusnet.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/12/Amusnet_Logo_Green.webp",
+          "slot": "security",
+          "image_alt": "Amusnet logo"
+        },
+        {
+          "title": "Tom Horn",
+          "link": "https://www.tomhorngaming.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/13/tomhorn_new_web_logo.webp",
+          "slot": "security",
+          "image_alt": "Tom Horn logo"
+        },
+        {
+          "title": "Booming Games ",
+          "link": "https://booming-games.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/14/90x40_logos_copy.webp",
+          "slot": "security",
+          "image_alt": "Booming Games logo"
+        },
+        {
+          "title": "Endorphina",
+          "link": "https://endorphina.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/15/endorphina_1.webp",
+          "slot": "security",
+          "image_alt": "Endorphina logo"
+        },
+        {
+          "title": "Live Vegas",
+          "link": "https://livevegas.live/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/16/vegas_1.webp",
+          "slot": "security",
+          "image_alt": "Live Vegas logo"
+        },
+        {
+          "title": "FAZI",
+          "link": "https://www.fazi-interactive.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/17/90x40_logos_copy_1.webp",
+          "slot": "security",
+          "image_alt": "Fazi logo"
+        },
+        {
+          "title": "PopOK Gaming ",
+          "link": "https://www.popokgaming.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/18/popok_90x40.webp",
+          "slot": "security",
+          "image_alt": "Popok gaming logo"
+        },
+        {
+          "title": "creedroomz ",
+          "link": "https://www.creedroomz.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/19/creedroomz.webp",
+          "slot": "security",
+          "image_alt": "creedroomz logo"
+        },
+        {
+          "title": "Pascal Gaming",
+          "link": "https://www.pascalgaming.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/20/pascal.webp",
+          "slot": "security",
+          "image_alt": "pascal logo"
+        },
+        {
+          "title": "Mascot gaming",
+          "link": "https://mascot.games/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/21/mascot.webp",
+          "slot": "security",
+          "image_alt": "mascot gaming logo"
+        },
+        {
+          "title": "Platipus",
+          "link": "https://platipusgaming.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/22/platipus.webp",
+          "slot": "security",
+          "image_alt": "platipus gaming logo"
+        },
+        {
+          "title": "Onlyplay",
+          "link": "https://onlyplay.net/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/23/only_play.webp",
+          "slot": "security",
+          "image_alt": "onlyplay logo"
+        },
+        {
+          "title": "Gamzix",
+          "link": "https://gamzix.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/24/gamzix.webp",
+          "slot": "security",
+          "image_alt": "gamzix logo"
+        },
+        {
+          "title": "Habanero",
+          "link": "https://habanerosystems.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/25/habanero.webp",
+          "slot": "security",
+          "image_alt": "habanero logo"
+        },
+        {
+          "title": "DreamPlay",
+          "link": "https://www.dreamplay.games/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/26/dreamplay.webp",
+          "slot": "security",
+          "image_alt": "dreamplay logo"
+        },
+        {
+          "title": "Winfinity",
+          "link": "https://winfinity.live/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/27/winfinity.webp",
+          "slot": "security",
+          "image_alt": "winfinity logo"
+        },
+        {
+          "title": "Amarix",
+          "link": "https://amarix.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/28/amarix.webp",
+          "slot": "security",
+          "image_alt": "Amarix logo "
+        },
+        {
+          "title": "Barbara Bang",
+          "link": "https://barbarabang.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/29/barbarabang.webp",
+          "slot": "security",
+          "image_alt": "Barbara Bang logo "
+        },
+        {
+          "title": "Yggdrasil Gaming",
+          "link": "https://yggdrasilgaming.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/30/ygg_drasil.webp",
+          "slot": "security",
+          "image_alt": "Yggdrasil Gaming logo"
+        },
+        {
+          "title": "VoltEnt",
+          "link": "https://voltent.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/31/voltent.png",
+          "slot": "security",
+          "image_alt": "banner image voltent"
+        },
+        {
+          "title": "AtlasV",
+          "link": "-",
+          "url": "https://img.betarabia.com/88/footer_partner/image/32/atlas_v_90x40.webp",
+          "slot": "security",
+          "image_alt": "banner image atlasV"
+        },
+        {
+          "title": "Hacksaw ",
+          "link": "https://www.hacksawgaming.com/",
+          "url": "https://img.betarabia.com/88/footer_partner/image/33/hacksaw_logo_footer.webp",
+          "slot": "security",
+          "image_alt": "banner image hacksaw logo"
+        }
+      ]
+    }
+  },
+  {
+    "url": "https://fe-api.betarabia.com/restapi/v1/click?cfid=1780434000",
+    "data": {
+      "Success": true,
+      "Code": 0,
+      "Message": "translation missing: en.platform_informed",
+      "Data": {}
+    }
+  },
+  {
+    "url": "https://fe-api.betarabia.com/restapi/v1/click?cfid=1780434000",
+    "data": {
+      "Success": true,
+      "Code": 0,
+      "Message": "translation missing: en.platform_informed",
+      "Data": {}
+    }
+  }
+]
