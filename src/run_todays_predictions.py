@@ -1,291 +1,146 @@
-# -*- coding: utf-8 -*-
-"""
-run_todays_predictions.py — DeepFieldPro Master Pipeline Runner
-================================================================
-Executes end-to-end predictions for today's fixtures with international-aware models.
-
-NAMING CONVENTIONS:
-- Parameters: ProperCase suffix _P  (e.g. Bankroll_P)
-- Variables:  ProperCase suffix _V  (e.g. FairProb_V)
-- SQL table/column names: lowercase
-- SQL keywords: UPPERCASE
-- Comments: single line, human-readable, max 1 line
-"""
-
 import os
 import sys
-import sqlite3
+import argparse
+import subprocess
+import json
+import datetime
+import logging
 import pandas as pd
-import pickle
-import numpy as np
-from scipy import stats
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from src.model_runner_v2 import get_player_historical_stats, load_models_international, build_feature_vector
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
-MODELS_DIR = os.path.join(BASE_DIR, 'models')
-ODDS_DB = os.path.join(DATA_DIR, 'odds_stream.db')
+TODAYS_JSON = os.path.join(DATA_DIR, 'todays_single_bets.json')
+BET_LOG_CSV = os.path.join(DATA_DIR, 'bet_log.csv')
 
+def run_script(script_name, *args):
+    script_path = os.path.join(BASE_DIR, 'src', script_name)
+    cmd = [sys.executable, script_path] + list(args)
+    logger.info(f"Running {script_name}...")
+    subprocess.run(cmd, check=True)
 
-def load_platt_scaler():
-    """Load Platt scaling calibration model if available."""
-    scaler_path = os.path.join(MODELS_DIR, 'platt_scaler_sot.pkl')
-    if os.path.exists(scaler_path):
-        with open(scaler_path, 'rb') as f:
-            return pickle.load(f)
-    return None
+def generate_output_file(bankroll: float):
+    if not os.path.exists(TODAYS_JSON):
+        logger.error("JSON output not found. Pipeline failed.")
+        return
+        
+    with open(TODAYS_JSON, 'r') as f:
+        data = json.load(f)
+        
+    bets = data.get('bets', [])
+    parlays = data.get('parlays', [])
+    
+    batch_bets = [b for b in bets if b['status'] == 'BATCH']
+    monitor_bets = [b for b in bets if b['status'] == 'MONITOR']
+    
+    total_stake = sum(b['kelly_stake'] for b in batch_bets) + sum(p['parlay_stake'] for p in parlays)
+    expected_return = sum(b['kelly_stake'] * b['ev'] for b in batch_bets) + sum(p['parlay_stake'] * p['parlay_ev'] for p in parlays)
+    
+    # Calculate stop-loss remaining
+    stop_loss_remaining = bankroll * 0.15 # Default
+    if os.path.exists(BET_LOG_CSV):
+        try:
+            df = pd.read_csv(BET_LOG_CSV)
+            settled = df[df['status'] == 'SETTLED'].sort_values('timestamp', ascending=False)
+            if len(settled) > 0:
+                RollingPnl_V = settled.head(20)['profit_loss'].sum()
+                stop_loss_limit = -0.15 * bankroll
+                if RollingPnl_V < 0:
+                    stop_loss_remaining = max(0.0, RollingPnl_V - stop_loss_limit)
+                else:
+                    stop_loss_remaining = abs(stop_loss_limit) + RollingPnl_V
+        except Exception:
+            pass
+            
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    out_txt_path = os.path.join(DATA_DIR, f'TODAYS_BETS_{today_str}.txt')
+    out_json_path = os.path.join(DATA_DIR, f'TODAYS_BETS_{today_str}.json')
+    
+    # Save a copy of the JSON
+    import shutil
+    shutil.copyfile(TODAYS_JSON, out_json_path)
+    
+    with open(out_txt_path, 'w', encoding='utf-8') as f:
+        f.write("================================================================\n")
+        f.write("DEEPFIELDPRO — TODAY'S PREDICTIONS\n")
+        f.write(f"Date       : {today_str}\n")
+        f.write(f"Bankroll   : ${bankroll:.2f}\n")
+        f.write(f"Generated  : {data.get('generated_at')}\n")
+        f.write("================================================================\n\n")
+        
+        f.write("── SINGLE BETS (BATCH — place these) ───────────────────────────\n\n")
+        for b in batch_bets:
+            fallback_note = " [FALLBACK WARNING: Lower confidence]" if b['is_fallback'] else ""
+            f.write(f"#{b['rank']} | {b['fixture']} — {b['kickoff']}\n")
+            f.write(f"   Market    : {b['market']}\n")
+            f.write(f"   Selection : {b['selection']}\n")
+            f.write(f"   Odds      : {b['raw_odds']:.2f}\n")
+            f.write(f"   Fair Prob : {b['fair_prob']*100:.1f}% (model estimate)\n")
+            f.write(f"   EV        : +{b['ev']*100:.1f}%\n")
+            f.write(f"   Stake     : ${b['kelly_stake']:.2f} ({b['stake_pct']:.2f}% of bankroll)\n")
+            f.write(f"   Confidence: {b['confidence']}\n")
+            if fallback_note:
+                f.write(f"   Note      :{fallback_note}\n")
+            f.write("\n")
+            
+        if not batch_bets:
+            f.write("   No BATCH single bets today.\n\n")
+            
+        f.write("── MONITOR LIST (close to threshold — watch only) ───────────────\n\n")
+        for b in monitor_bets:
+            f.write(f"   {b['fixture']} | {b['market']} | {b['selection']} | Odds: {b['raw_odds']:.2f} | EV: +{b['ev']*100:.1f}%\n")
+            
+        if not monitor_bets:
+            f.write("   No bets in monitor list.\n")
+        f.write("\n")
+            
+        f.write("── PARLAYS (BATCH — place these) ────────────────────────────────\n\n")
+        for p in parlays:
+            f.write(f"#{p['rank']} PARLAY | Odds: {p['parlay_odds']:.2f} | EV: +{p['parlay_ev']*100:.1f}%\n")
+            for i, leg in enumerate(p['legs']):
+                f.write(f"   Leg {i+1} : {leg} ({p['fixtures'][i]})\n")
+            f.write(f"   Stake : ${p['parlay_stake']:.2f} ({p['stake_pct']:.2f}% of bankroll)\n\n")
+            
+        if not parlays:
+            f.write("   No valid BATCH parlays today.\n\n")
+            
+        f.write("── PORTFOLIO SUMMARY ────────────────────────────────────────────\n")
+        f.write(f"   Total BATCH bets    : {len(batch_bets)}\n")
+        f.write(f"   Total BATCH parlays : {len(parlays)}\n")
+        f.write(f"   Total stake today   : ${total_stake:.2f} ({(total_stake/bankroll)*100:.2f}% of bankroll)\n")
+        f.write(f"   Expected return     : ${expected_return:.2f}\n")
+        f.write(f"   Stop-loss remaining : ${stop_loss_remaining:.2f} before DRAWDOWN_PAUSE triggers\n\n")
+        
+        f.write("================================================================\n")
+        f.write("RISK DISCLAIMER: This is a model output. All predictions carry\n")
+        f.write("uncertainty. Never bet more than you can afford to lose.\n")
+        f.write("Paper trade first. Verify odds before placing any bet.\n")
+        f.write("================================================================\n")
+        
+    print(f"Scrape complete    : Fixtures and markets processed.")
+    print(f"BATCH bets found   : {len(batch_bets)}")
+    print(f"BATCH parlays found: {len(parlays)}")
+    print(f"Total stake        : ${total_stake:.2f}")
+    print(f"Output saved to    : data/TODAYS_BETS_{today_str}.txt")
+    print(f"Machine Output     : data/TODAYS_BETS_{today_str}.json")
 
-
-def calculate_fair_prob_passes(player_name: str, threshold: float = 40.5) -> float:
-    """Calculate fair probability for passes over market using historical stats."""
-    Stats_P = get_player_historical_stats(player_name, competition_type=0)
-    
-    if Stats_P is None or len(Stats_P) == 0:
-        return 0.5
-    
-    avg_passes = Stats_P.get('avg_passes', 35.0)
-    std_passes = Stats_P.get('std_passes', 10.0)
-    
-    z_score = (threshold - avg_passes) / max(std_passes, 1.0)
-    fair_prob = 1.0 - stats.norm.cdf(z_score)
-    
-    return float(np.clip(fair_prob, 0.05, 0.95))
-
-
-def calculate_ev(fair_prob: float, odds: float) -> Optional[float]:
-    """Calculate Expected Value from fair probability and decimal odds."""
-    if odds is None or odds <= 1.0:
-        return None
-    ev = (fair_prob * (odds - 1)) - ((1 - fair_prob) * 1)
-    return float(ev)
-
-
-def kelly_stake(fair_prob: float, odds: float, bankroll: float, quarter_kelly: bool = True) -> float:
-    """Calculate Kelly stake size."""
-    if odds <= 1.0 or fair_prob <= 0:
-        return 0.0
-    
-    b = odds - 1
-    q = 1 - fair_prob
-    kelly_fraction = (b * fair_prob - q) / b
-    
-    if kelly_fraction <= 0:
-        return 0.0
-    
-    if quarter_kelly:
-        kelly_fraction *= 0.25
-    
-    stake = bankroll * kelly_fraction
-    max_stake = bankroll * 0.08
-    return min(stake, max_stake)
-
-
-def scan_odds_db() -> List[Dict[str, Any]]:
-    """Scan odds_stream.db for available player markets."""
-    if not os.path.exists(ODDS_DB):
-        print(f"WARNING: Odds database not found: {ODDS_DB}")
-        return []
-    
-    conn = sqlite3.connect(ODDS_DB)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    SELECT DISTINCT 
-        match_id,
-        market_type,
-        selection_name,
-        price,
-        bookmaker
-    FROM odds_feed
-    WHERE timestamp > datetime("now", "-7 days")
-    ORDER BY match_id, market_type
-    ''')
-    
-    rows = cursor.fetchall()
-    conn.close()
-    
-    opportunities = []
-    for row in rows:
-        match_id, market_type, selection_name, price, bookmaker = row
-        
-        if ' - ' not in selection_name:
-            continue
-        
-        parts = selection_name.split(' - ')
-        if len(parts) < 2:
-            continue
-        
-        outcome = parts[0].strip()
-        player_name = ' - '.join(parts[1:]).strip()
-        
-        if 'Over' not in outcome:
-            continue
-        
-        opportunities.append({
-            'match_id': match_id,
-            'market_type': market_type,
-            'player_name': player_name,
-            'outcome': outcome,
-            'odds': price,
-            'bookmaker': bookmaker
-        })
-    
-    return opportunities
-
-
-def generate_predictions(bankroll: float = 500.0) -> List[Dict[str, Any]]:
-    """Generate predictions for all available opportunities."""
-    print("=" * 70)
-    print("DeepFieldPro Prediction Engine — International Friendlies")
-    print("=" * 70)
-    print(f"Bankroll: ${bankroll:.2f}")
-    print(f"Timestamp: {datetime.now(timezone.utc).isoformat()}")
-    print()
-    
-    platt_scaler = load_platt_scaler()
-    
-    opportunities = scan_odds_db()
-    print(f"Found {len(opportunities)} market opportunities in odds_stream.db")
-    print()
-    
-    predictions = []
-    
-    for opp in opportunities:
-        player_name = opp['player_name']
-        market_type = opp['market_type']
-        odds = opp['odds']
-        
-        print(f"Analyzing: {player_name} | {market_type} @ {odds:.2f}")
-        
-        fair_prob = None
-        raw_prob = None
-        
-        if 'passes' in market_type:
-            threshold = float(market_type.split('_')[-1])
-            fair_prob = calculate_fair_prob_passes(player_name, threshold)
-            raw_prob = fair_prob
-        elif 'sot' in market_type.lower():
-            try:
-                Stats_P = get_player_historical_stats(player_name, competition_type=1)
-                if Stats_P:
-                    OppProfile_P = {'opp_ppda': 9.5, 'opp_possession': 50}
-                    Features_V = build_feature_vector(Stats_P, OppProfile_P)
-                    
-                    models = load_models_international()
-                    model = models.get('international', models.get('club'))
-                    
-                    if model:
-                        raw_prob = float(model.predict_proba([Features_V])[0][1])
-                        
-                        if platt_scaler:
-                            calib_input = np.array([[raw_prob]])
-                            calibrated_probs = platt_scaler.predict_proba(calib_input)[0]
-                            fair_prob = float(calibrated_probs[1])
-                            
-                            if fair_prob < 0.10 or fair_prob > 0.90:
-                                print(f"  ⚠ LOW_CONFIDENCE: Calibrated prob {fair_prob:.3f} outside bounds")
-                                continue
-                        else:
-                            fair_prob = raw_prob
-            except Exception as e:
-                print(f"  Error computing SoT prob: {e}")
-                continue
-        else:
-            print(f"  Skipping unsupported market: {market_type}")
-            continue
-        
-        if fair_prob is None:
-            print(f"  Could not compute fair probability")
-            continue
-        
-        ev = calculate_ev(fair_prob, odds)
-        
-        if ev is None or ev <= 0:
-            print(f"  Fair Prob: {fair_prob:.3f} | EV: {ev:.4f} (NO BET)")
-            continue
-        
-        stake = kelly_stake(fair_prob, odds, bankroll)
-        
-        if stake < bankroll * 0.01:
-            print(f"  Fair Prob: {fair_prob:.3f} | EV: {ev:.4f} | Stake too small")
-            continue
-        
-        print(f"  ✓ BET RECOMMENDED")
-        print(f"    Fair Prob: {fair_prob:.3f} | Raw Prob: {raw_prob:.3f}")
-        print(f"    EV: +{ev:.4f} ({ev*100:.1f}%)")
-        print(f"    Stake: ${stake:.2f} ({stake/bankroll*100:.2f}% of bankroll)")
-        print()
-        
-        predictions.append({
-            'player_name': player_name,
-            'market': market_type,
-            'outcome': opp['outcome'],
-            'odds': odds,
-            'fair_prob': fair_prob,
-            'raw_prob': raw_prob,
-            'ev': ev,
-            'stake': stake,
-            'bookmaker': opp['bookmaker'],
-            'match_id': opp['match_id'],
-            'timestamp': datetime.now(timezone.utc).isoformat()
-        })
-    
-    return predictions
-
-
-def main():
-    """Main entry point."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Run DeepFieldPro predictions')
-    parser.add_argument('--bankroll', type=float, default=500.0, help='Starting bankroll')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run DeepFieldPro prediction pipeline")
+    parser.add_argument('--bankroll', type=float, default=100.0, help='Starting bankroll size (default: 100.0)')
     args = parser.parse_args()
     
-    predictions = generate_predictions(bankroll=args.bankroll)
+    bankroll = args.bankroll
     
-    print("=" * 70)
-    print("SUMMARY")
-    print("=" * 70)
+    # 1. Scrape odds
+    run_script('betarabia_scraper.py')
     
-    if len(predictions) == 0:
-        print("No bets recommended at current odds.")
-        print()
-        print("Possible reasons:")
-        print("  - No live odds in odds_stream.db")
-        print("  - All EV calculations are negative or zero")
-        print("  - Fair probabilities don't exceed threshold")
-        print()
-        print("Next steps:")
-        print("  1. Run scraper: python src/data_acquisition/betarabia_scraper.py")
-        print("  2. Wait for live odds to populate")
-        print("  3. Re-run: python src/run_todays_predictions.py --bankroll 500")
-    else:
-        print(f"Total bets: {len(predictions)}")
-        total_stake = sum(p['stake'] for p in predictions)
-        avg_ev = sum(p['ev'] for p in predictions) / len(predictions)
-        print(f"Total stake: ${total_stake:.2f}")
-        print(f"Average EV: +{avg_ev:.4f} ({avg_ev*100:.1f}%)")
-        print()
-        print("Recommended Bets:")
-        print("-" * 70)
-        for i, pred in enumerate(predictions, 1):
-            print(f"{i}. {pred['player_name']} | {pred['market']} | {pred['outcome']}")
-            print(f"   Odds: {pred['odds']:.2f} | Fair: {pred['fair_prob']:.3f} | EV: +{pred['ev']:.4f}")
-            print(f"   Stake: ${pred['stake']:.2f} | Book: {pred['bookmaker']}")
-            print()
-        
-        print("=" * 70)
-        print("DISCLAIMER: This is paper trading only. No real money involved.")
-        print("Track CLV after settlement to verify edge.")
-        print("=" * 70)
+    # 2. Compute EV
+    run_script('single_bet_predictor.py', str(bankroll))
     
-    return predictions
-
-
-if __name__ == '__main__':
-    main()
+    # 3. Build parlays
+    run_script('parlay_builder.py')
+    
+    # 4. Generate report
+    generate_output_file(bankroll)

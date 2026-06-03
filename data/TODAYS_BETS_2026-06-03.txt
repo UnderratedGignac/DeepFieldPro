@@ -1,0 +1,38 @@
+================================================================
+DEEPFIELDPRO — TODAY'S PREDICTIONS
+Date       : 2026-06-03
+Bankroll   : $500.00
+Generated  : 2026-06-03T05:11:46.715783
+================================================================
+
+── SINGLE BETS (BATCH — place these) ───────────────────────────
+
+#1 | Team A vs Team B — 20:00
+   Market    : Match Result
+   Selection : Home Win
+   Odds      : 2.50
+   Fair Prob : 45.0% (model estimate)
+   EV        : +12.5%
+   Stake     : $10.42 (2.08% of bankroll)
+   Confidence: HIGH
+
+── MONITOR LIST (close to threshold — watch only) ───────────────
+
+   No bets in monitor list.
+
+── PARLAYS (BATCH — place these) ────────────────────────────────
+
+   No valid BATCH parlays today.
+
+── PORTFOLIO SUMMARY ────────────────────────────────────────────
+   Total BATCH bets    : 1
+   Total BATCH parlays : 0
+   Total stake today   : $10.42 (2.08% of bankroll)
+   Expected return     : $1.30
+   Stop-loss remaining : $175.00 before DRAWDOWN_PAUSE triggers
+
+================================================================
+RISK DISCLAIMER: This is a model output. All predictions carry
+uncertainty. Never bet more than you can afford to lose.
+Paper trade first. Verify odds before placing any bet.
+================================================================

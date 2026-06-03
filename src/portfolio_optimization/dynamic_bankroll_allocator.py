@@ -1,6 +1,6 @@
 import logging
-from src.config import config
-from src.portfolio_optimization.portfolio_correlation_engine import correlation_engine
+from config import config
+from portfolio_optimization.portfolio_correlation_engine import correlation_engine
 
 logger = logging.getLogger(__name__)
 

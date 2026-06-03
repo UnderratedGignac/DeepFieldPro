@@ -1,0 +1,52 @@
+{
+    "generated_at": "2026-06-03T05:11:46.715783",
+    "bankroll": 500.0,
+    "bets": [
+        {
+            "fixture": "Team A vs Team B",
+            "kickoff": "20:00",
+            "market": "Match Result",
+            "selection": "Home Win",
+            "fair_prob": 0.45,
+            "raw_odds": 2.5,
+            "ev": 0.125,
+            "kelly_stake": 10.42,
+            "stake_pct": 2.08,
+            "confidence": "HIGH",
+            "is_fallback": false,
+            "status": "BATCH",
+            "rank": 1
+        },
+        {
+            "fixture": "Team A vs Team B",
+            "kickoff": "20:00",
+            "market": "Player Shots on Target Over 0.5",
+            "selection": "Robert Lewandowski Over 0.5",
+            "fair_prob": 0.201,
+            "raw_odds": 2.1,
+            "ev": -0.578,
+            "kelly_stake": 0.0,
+            "stake_pct": 0.0,
+            "confidence": "HIGH",
+            "is_fallback": false,
+            "status": "SKIP",
+            "rank": 2
+        },
+        {
+            "fixture": "Team A vs Team B",
+            "kickoff": "20:00",
+            "market": "Player Passes Over 30.5",
+            "selection": "Chris Wood Over 30.5",
+            "fair_prob": 0.201,
+            "raw_odds": 1.85,
+            "ev": -0.629,
+            "kelly_stake": 0.0,
+            "stake_pct": 0.0,
+            "confidence": "HIGH",
+            "is_fallback": false,
+            "status": "SKIP",
+            "rank": 3
+        }
+    ],
+    "parlays": []
+}
