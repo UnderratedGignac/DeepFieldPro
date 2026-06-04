@@ -28,9 +28,9 @@ RUN apt-get update && apt-get install -y \
     libxfixes3 \
     libxrandr2 \
     libgbm1 \
-    libpango-1-0-0 \
+    libpango-1.0-0 \
     libcairo2 \
-    libasound2 \
+    libasound2t64 \
     libnss3 \
     libnspr4 \
     postgresql-client \
