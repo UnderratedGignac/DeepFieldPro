@@ -52,7 +52,12 @@ def integrate_weather_features(df: pd.DataFrame, venue_coordinates: dict) -> pd.
     ['Date', 'Venue_Name', ...]
     """
     # Create a unique list of Match Date + Venue combinations to avoid hitting the API 22 times per match
-    unique_matches = df[['Date', 'Venue_Name']].drop_duplicates().dropna()
+    venue_col = 'Venue_Name' if 'Venue_Name' in df.columns else ('Venue' if 'Venue' in df.columns else None)
+    if not venue_col:
+        # Cannot integrate weather without venues
+        return df
+        
+    unique_matches = df[['Date', venue_col]].drop_duplicates().dropna()
     
     weather_records = []
     
@@ -77,7 +82,7 @@ def integrate_weather_features(df: pd.DataFrame, venue_coordinates: dict) -> pd.
     
     # In production, this loop should be parallelized/batched
     for _, row in unique_matches.iterrows():
-        venue = row['Venue_Name'] if 'Venue_Name' in row else ''
+        venue = row[venue_col]
         date = row['Date']
         
         # Merge provided coords with the built-in WC2026 coords
@@ -88,13 +93,13 @@ def integrate_weather_features(df: pd.DataFrame, venue_coordinates: dict) -> pd.
         
         weather = fetch_weather_data(lat, lon, date)
         weather['Date'] = date
-        weather['Venue_Name'] = venue
+        weather[venue_col] = venue
         weather_records.append(weather)
         
     weather_df = pd.DataFrame(weather_records)
     
     # Merge back onto main df
-    df = df.merge(weather_df, on=['Date', 'Venue_Name'], how='left')
+    df = df.merge(weather_df, on=['Date', venue_col], how='left')
     
     return df
 

@@ -27,23 +27,28 @@ def calculate_fatigue_features(df: pd.DataFrame, venue_coordinates: dict = None)
     # To do this cleanly, we can set Date as index and use rolling(window='7D')
     # We only count matches where the player actually played minutes
     
-    # Create a temporary dataframe with Date as index for rolling time windows
     temp_df = df[['Player', 'Date', 'Min']].copy()
     temp_df['match_played'] = np.where(temp_df['Min'] > 0, 1, 0)
     
-    temp_df = temp_df.set_index('Date').sort_index()
+    # Ensure no exact duplicate matches on the exact same date for the same player
+    temp_df = temp_df.drop_duplicates(subset=['Player', 'Date'])
     
-    def count_matches_in_window(player_data, days):
-        # We shift by 1 day so we don't count the CURRENT match in the trailing window
-        return player_data['match_played'].rolling(f'{days}D').sum().shift(1, freq='1D')
-        
-    # Apply rolling counts
-    temp_df['matches_last_7_days'] = temp_df.groupby('Player').apply(lambda x: count_matches_in_window(x, 7)).reset_index(level=0, drop=True)
-    temp_df['matches_last_14_days'] = temp_df.groupby('Player').apply(lambda x: count_matches_in_window(x, 14)).reset_index(level=0, drop=True)
+    # Sort and set Date as index for rolling time window
+    temp_df = temp_df.sort_values(by=['Player', 'Date'])
+    temp_df = temp_df.set_index('Date')
     
-    # Re-merge back to main df
-    temp_df = temp_df.reset_index()
-    df = df.merge(temp_df[['Player', 'Date', 'matches_last_7_days', 'matches_last_14_days']], on=['Player', 'Date'], how='left')
+    # Group by player, apply 7D/14D rolling sum, and shift by 1 to exclude current match
+    # rolling() on a datetime index requires the index to be monotonic per group
+    last_7 = temp_df.groupby('Player')['match_played'].rolling('7D').sum().groupby('Player').shift(1)
+    last_14 = temp_df.groupby('Player')['match_played'].rolling('14D').sum().groupby('Player').shift(1)
+    
+    # Reset index to turn MultiIndex (Player, Date) back into columns
+    last_7 = last_7.reset_index(name='matches_last_7_days')
+    last_14 = last_14.reset_index(name='matches_last_14_days')
+    
+    # Merge back to main df
+    df = df.merge(last_7, on=['Player', 'Date'], how='left')
+    df = df.merge(last_14, on=['Player', 'Date'], how='left')
     
     df['matches_last_7_days'] = df['matches_last_7_days'].fillna(0)
     df['matches_last_14_days'] = df['matches_last_14_days'].fillna(0)

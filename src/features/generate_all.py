@@ -27,40 +27,37 @@ def main():
     # 1. Clean Column Names (soccerdata outputs MultiIndex flattened to Tuples or strings like "('Performance', 'Sh')")
     # We will rename common columns to match our scripts' expectations
     rename_map = {
-        "('Unnamed: 0_level_0', 'Date')": "Date",
-        "('Unnamed: 1_level_0', 'Day')": "Day",
-        "('Unnamed: 2_level_0', 'Comp')": "Comp",
-        "('Unnamed: 3_level_0', 'Round')": "Round",
-        "('Unnamed: 4_level_0', 'Venue')": "Venue",
-        "('Unnamed: 5_level_0', 'Result')": "Result",
-        "('Unnamed: 6_level_0', 'Squad')": "Squad",
-        "('Unnamed: 7_level_0', 'Opponent')": "Opponent",
-        "('Unnamed: 8_level_0', 'Start')": "Start",
-        "('Unnamed: 9_level_0', 'Pos')": "Pos",
-        "('Unnamed: 10_level_0', 'Min')": "Min",
-        "('Performance', 'Sh')": "Sh",
-        "('Performance', 'SoT')": "SoT",
-        "('Performance', 'Gls')": "Gls",
-        "('Performance', 'Ast')": "Ast",
-        "('Performance', 'CrdY')": "CrdY",
-        "('Performance', 'CrdR')": "CrdR",
-        "('Performance', 'PKatt')": "PKatt",
-        "('Expected', 'xG')": "xG",
-        "('Expected', 'xAG')": "xAG",
-        "('Unnamed: 35_level_0', 'Match_ID')": "Match_ID",
-        "player": "Player"
+        "game_": "Date", # We will extract date from this string later
+        "league_": "Comp",
+        "team_": "Squad",
+        "pos_": "Pos",
+        "min_": "Min",
+        "Performance_Sh": "Sh",
+        "Performance_SoT": "SoT",
+        "Performance_Gls": "Gls",
+        "Performance_Ast": "Ast",
+        "Performance_CrdY": "CrdY",
+        "Performance_CrdR": "CrdR",
+        "Performance_PKatt": "PKatt",
+        "game_id_": "Match_ID",
+        "player_": "Player"
     }
     
     # Check current columns and rename if necessary
     for col in df.columns:
-        if isinstance(col, str):
-            for old, new in rename_map.items():
-                if old in col or (col.startswith('Unnamed:') and new in col):
-                     df.rename(columns={col: new}, inplace=True)
+        if col in rename_map:
+            df.rename(columns={col: rename_map[col]}, inplace=True)
                      
-    # Ensure Date is datetime
+    # Ensure Date is datetime (extracting from 'YYYY-MM-DD Match_Name')
     if 'Date' in df.columns:
-        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df['Date'] = pd.to_datetime(df['Date'].str[:10], errors='coerce')
+        
+    # Mock Opponent and Venue since they are missing in this view
+    if 'Opponent' not in df.columns:
+        df['Opponent'] = "Unknown"
+    if 'Venue' not in df.columns:
+        df['Venue'] = "Home"
+
         
     # Drop rows without dates
     df = df.dropna(subset=['Date'])

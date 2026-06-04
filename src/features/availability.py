@@ -13,7 +13,11 @@ def calculate_availability_features(df: pd.DataFrame, key_players_dict: dict = N
     
     # 1. Starting Status Features (Redundant with Minutes model, but useful globally)
     if 'is_starter' not in df.columns:
-        df['is_starter'] = df['Start'].apply(lambda x: 1 if str(x).upper() in ['Y', '1', 'YES', 'TRUE'] else 0)
+        if 'Start' in df.columns:
+            df['is_starter'] = df['Start'].apply(lambda x: 1 if str(x).upper() in ['Y', '1', 'YES', 'TRUE'] else 0)
+        else:
+            # Proxy: if they played >= 45 mins, assume they started
+            df['is_starter'] = np.where(df['Min'] >= 45, 1, 0)
         
     df['started_last_match'] = df.groupby('Player')['is_starter'].shift(1).fillna(0)
     df['started_last_3'] = df.groupby('Player')['is_starter'].transform(

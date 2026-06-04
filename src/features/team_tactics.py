@@ -21,12 +21,8 @@ def calculate_team_tactics(df: pd.DataFrame) -> pd.DataFrame:
     team_log = df[['Date', 'Squad', 'xG', 'Sh', 'SoT', 'Possession']].copy()
     
     # Add a mock PPDA or Proxy PPDA if missing
-    # True PPDA requires Opponent Passes / Team Defensive Actions.
-    # As a proxy, if we have 'Tkl' and 'Int' from advanced tables, we can invert them to get pressing intensity.
     if 'PPDA' not in team_log.columns:
         if 'Tkl' in team_log.columns and 'Int' in team_log.columns:
-            # Proxy: 100 / (Tackles + Interceptions + 1)
-            # Higher tackles/int = lower proxy score (meaning higher press)
             team_log['PPDA'] = 100 / (team_log['Tkl'] + team_log['Int'] + 1)
         else:
             team_log['PPDA'] = 12.0 # League average placeholder
@@ -39,12 +35,22 @@ def calculate_team_tactics(df: pd.DataFrame) -> pd.DataFrame:
         'PPDA': 'team_ppda'
     }, inplace=True)
     
+    # Aggregate to exactly 1 row per team per match to avoid merge explosion
+    team_log = team_log.groupby(['Date', 'Squad']).agg({
+        'team_xg': 'sum',
+        'team_shots': 'sum',
+        'team_sot': 'sum',
+        'team_possession': 'mean',
+        'team_ppda': 'mean'
+    }).reset_index()
+    
+    team_log = team_log.sort_values(by=['Squad', 'Date']).reset_index(drop=True)
+    
     # 3. Calculate Rolling Team Tactics (shift(1) prevents leakage)
     def calculate_rolling(df_log, team_col, feature, windows):
         for w in windows:
-            df_log[f'{feature}_last_{w}'] = df_log.groupby(team_col)[feature].transform(
-                lambda x: x.shift(1).rolling(window=w, min_periods=1).mean()
-            )
+            shifted = df_log.groupby(team_col)[feature].shift(1)
+            df_log[f'{feature}_last_{w}'] = shifted.groupby(df_log[team_col]).rolling(window=w, min_periods=1).mean().reset_index(0, drop=True)
         return df_log
 
     windows = [5]

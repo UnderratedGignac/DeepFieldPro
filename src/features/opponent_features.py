@@ -30,15 +30,27 @@ def calculate_opponent_features(df: pd.DataFrame) -> pd.DataFrame:
         'Possession': 'Attacking_Possession'
     }, inplace=True)
     
+    # Aggregate to match level first so we have exactly 1 row per team per match
+    # Since xG, Sh, SoT, Gls are typically already match totals repeated per player,
+    # or player specific depending on how they were loaded.
+    # The new scraper seems to give player-specific stats. 
+    # We must SUM them by Date, Opponent, Squad to get team totals.
+    defensive_log = defensive_log.groupby(['Date', 'Defending_Team', 'Attacking_Team']).agg({
+        'xGA': 'sum',
+        'ShA': 'sum',
+        'SoTA': 'sum',
+        'GA': 'sum',
+        'Attacking_Possession': 'mean' # possession is usually repeated
+    }).reset_index()
+    
     # Sort defensive log for rolling calculations
     defensive_log = defensive_log.sort_values(by=['Defending_Team', 'Date'])
     
     # Calculate rolling defensive metrics (shift(1) ensures we don't include the current game)
     def calculate_rolling(df, team_col, feature, windows):
         for w in windows:
-            df[f'opp_{feature}_last_{w}'] = df.groupby(team_col)[feature].transform(
-                lambda x: x.shift(1).rolling(window=w, min_periods=1).mean()
-            )
+            shifted = df.groupby(team_col)[feature].shift(1)
+            df[f'opp_{feature}_last_{w}'] = shifted.groupby(df[team_col]).rolling(window=w, min_periods=1).mean().reset_index(0, drop=True)
         return df
 
     windows = [5, 10]
@@ -46,9 +58,8 @@ def calculate_opponent_features(df: pd.DataFrame) -> pd.DataFrame:
         defensive_log = calculate_rolling(defensive_log, 'Defending_Team', feature, windows)
         
     # Calculate opponent possession allowed (how much possession they usually cede)
-    defensive_log['opp_possession_allowed'] = defensive_log.groupby('Defending_Team')['Attacking_Possession'].transform(
-        lambda x: x.shift(1).rolling(window=10, min_periods=1).mean()
-    )
+    shifted_possession = defensive_log.groupby('Defending_Team')['Attacking_Possession'].shift(1)
+    defensive_log['opp_possession_allowed'] = shifted_possession.groupby(defensive_log['Defending_Team']).rolling(window=10, min_periods=1).mean().reset_index(0, drop=True)
     
     # Calculate simple Defensive Rating based on xGA compared to league average
     # Using expanding mean to avoid data leakage

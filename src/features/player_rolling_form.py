@@ -26,9 +26,9 @@ def calculate_player_rolling_form(df: pd.DataFrame) -> pd.DataFrame:
             feature_name = metric.lower() if metric != 'Min' else 'minutes'
             col_name = f"{feature_name}_last_{w}"
             
-            df[col_name] = df.groupby('Player')[metric].transform(
-                lambda x: x.shift(1).rolling(window=w, min_periods=1).mean()
-            )
+            # Efficient rolling calculation that avoids MemoryError
+            shifted = df.groupby('Player')[metric].shift(1)
+            df[col_name] = shifted.groupby(df['Player']).rolling(window=w, min_periods=1).mean().reset_index(0, drop=True)
             
     # 4. Calculate Rolling Standard Deviations (Volatility/Variance)
     # This helps models understand if a player is consistent or highly volatile.
@@ -38,9 +38,8 @@ def calculate_player_rolling_form(df: pd.DataFrame) -> pd.DataFrame:
         col_name = f"rolling_std_{feature_name}"
         
         # We use a 10-match window for standard deviation to ensure enough sample size
-        df[col_name] = df.groupby('Player')[metric].transform(
-            lambda x: x.shift(1).rolling(window=10, min_periods=2).std()
-        )
+        shifted = df.groupby('Player')[metric].shift(1)
+        df[col_name] = shifted.groupby(df['Player']).rolling(window=10, min_periods=2).std().reset_index(0, drop=True)
         
     # 5. Handle missing values for rookies / start of season
     # For std dev, 1 match will result in NaN, fill with 0 variance for now
