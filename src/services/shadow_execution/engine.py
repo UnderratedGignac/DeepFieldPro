@@ -152,7 +152,7 @@ class ShadowExecutionEngine:
             predicted_probability=predicted_probability,
             ev_pct=ev_pct,
             status=BetStatus.PLACED,
-            placed_at=datetime.utcnow(),
+            placed_at=datetime.timezone.utcnow(),
             metadata=metadata or {},
         )
         bet.metadata["model_id"] = model_id
@@ -237,7 +237,7 @@ class ShadowExecutionEngine:
             BetStatus.SETTLED_LOSS,
             BetStatus.SETTLED_PUSH,
         ]:
-            bet.settled_at = datetime.utcnow()
+            bet.settled_at = datetime.timezone.utcnow()
             await self._calculate_profit_loss(bet)
 
             # Move to history
@@ -287,7 +287,7 @@ class ShadowExecutionEngine:
 
         bet.result = result
         bet.status = status
-        bet.settled_at = datetime.utcnow()
+        bet.settled_at = datetime.timezone.utcnow()
 
         # Set closing odds and calculate CLV
         if closing_odds:

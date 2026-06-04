@@ -41,7 +41,7 @@ def register(name, hypothesis, parameters=None):
     """Register a new experiment. Returns experiment_id."""
     init_db()
     exp_id = str(uuid.uuid4())[:8].upper()
-    now = datetime.datetime.now(datetime.UTC).isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
         """
@@ -79,7 +79,7 @@ def update_results(
             sharpe,
             status,
             notes,
-            datetime.datetime.now(datetime.UTC).isoformat(),
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
             experiment_id,
         ),
     )

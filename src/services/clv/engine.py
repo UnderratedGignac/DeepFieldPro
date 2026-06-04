@@ -124,7 +124,7 @@ class CLVEngine:
         if cache_key in self._clv_cache:
             cached = self._clv_cache[cache_key]
             if (
-                datetime.utcnow() - cached.timestamp
+                datetime.timezone.utcnow() - cached.timestamp
             ).total_seconds() < self._cache_ttl_seconds:
                 return cached
 
@@ -161,7 +161,7 @@ class CLVEngine:
             closing_odds=closing_odds,
             clv_pct=clv_pct,
             weighted_clv=weighted_clv,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.timezone.utcnow(),
             bet_timestamp=bet.placed_at,
             closing_timestamp=bet.closing_time,
             time_to_close_hours=time_to_close,
@@ -339,7 +339,7 @@ class CLVEngine:
             }
 
         # Time-based analysis (last 7/30 days)
-        now = datetime.utcnow()
+        now = datetime.timezone.utcnow()
         seven_days_ago = now - timedelta(days=7)
         thirty_days_ago = now - timedelta(days=30)
 

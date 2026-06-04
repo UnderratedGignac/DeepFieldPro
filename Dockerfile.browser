@@ -13,6 +13,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     python3-pip \
     postgresql-client \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies

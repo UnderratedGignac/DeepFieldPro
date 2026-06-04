@@ -555,7 +555,7 @@ def run_simulation(Bankroll_P: float):
         with open(MissingPath_V, "a") as F_V:
             for Name_V in MissingLog_V:
                 F_V.write(
-                    f"{datetime.datetime.now(datetime.UTC).isoformat()} | MISSING: {Name_V}\n"
+                    f"{datetime.datetime.now(datetime.timezone.utc).isoformat()} | MISSING: {Name_V}\n"
                 )
 
     return AllBets_V
@@ -653,7 +653,7 @@ def write_output(Bets_P: list, Bankroll_P: float):
 
     # Save machine-readable JSON
     JsonOut_V = {
-        "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "bankroll": Bankroll_P,
         "total_stake": TotalStake_V,
         "expected_return": ExpectedReturn_V,

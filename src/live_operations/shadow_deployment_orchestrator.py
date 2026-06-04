@@ -54,7 +54,7 @@ def record_signal(fixture, selection, market, signal_odds, fair_prob, ev, stake)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
-            datetime.datetime.now(datetime.UTC).isoformat(),
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
             fixture,
             selection,
             market,
@@ -80,7 +80,7 @@ def settle_bet(bet_id, closing_odds):
         UPDATE shadow_bets SET status='SETTLED', closing_odds=?, clv=?, settled_at=?
         WHERE id=?
     """,
-        (closing_odds, clv, datetime.datetime.now(datetime.UTC).isoformat(), bet_id),
+        (closing_odds, clv, datetime.datetime.now(datetime.timezone.utc).isoformat(), bet_id),
     )
     conn.commit()
     conn.close()

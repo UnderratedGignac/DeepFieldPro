@@ -29,7 +29,7 @@ class DeploymentState(BaseModel):
     current_health: HealthStatus = HealthStatus.HEALTHY
     days_in_phase: int = 0
     phase_drawdown_pct: float = 0.0
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=datetime.timezone.utcnow)
 
 
 class CapitalAllocationRequest(BaseModel):

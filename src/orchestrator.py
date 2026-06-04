@@ -272,7 +272,7 @@ class DeepFieldOrchestrator:
 
                 # Collect metrics
                 metrics = {
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.timezone.utcnow().isoformat(),
                     "sessions": {},
                     "websocket": {},
                 }

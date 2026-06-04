@@ -102,7 +102,7 @@ def get_player_historical_stats(
                 return pd.Series(mean_row)
         return None
 
-    row = matches.sort_values("season", ascending=False).iloc[0].copy()
+    row = matches.sort_values("match_date", ascending=False).iloc[0].copy()
     row["is_fallback"] = False
     return row
 

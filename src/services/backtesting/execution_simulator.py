@@ -79,7 +79,7 @@ class ExecutionResult:
     rejection_reason: Optional[RejectionReason] = None
     latency_ms: float = 0.0
     slippage_pct: float = 0.0
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=datetime.timezone.utcnow)
     message: str = ""
 
 
@@ -199,7 +199,7 @@ class ExecutionSimulator:
         Returns:
             ExecutionResult with status and details
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.timezone.utcnow()
 
         # Get sportsbook profile
         profile = self._sportsbook_profiles.get(request.sportsbook_id)
@@ -267,7 +267,7 @@ class ExecutionSimulator:
                 )
 
         # Check for stale odds
-        odds_age = (datetime.utcnow() - market_state["last_update"]).total_seconds()
+        odds_age = (datetime.timezone.utcnow() - market_state["last_update"]).total_seconds()
         if odds_age > profile.stale_odds_threshold_sec:
             return ExecutionResult(
                 request_id=request.request_id,
@@ -333,7 +333,7 @@ class ExecutionSimulator:
             )
 
         # Successful execution
-        execution_time = datetime.utcnow()
+        execution_time = datetime.timezone.utcnow()
         total_latency = (execution_time - start_time).total_seconds() * 1000
 
         return ExecutionResult(

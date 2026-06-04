@@ -28,7 +28,7 @@ class POASimulationLab:
         logger.info("=== POLICY OUTCOME AUDITOR (POA) & APO SIMULATION LAB ====")
         logger.info("==========================================================")
         # Mocking a batch of 4 decisions resolved at T+24h
-        now = datetime.utcnow()  # noqa: F841
+        now = datetime.timezone.utcnow()  # noqa: F841
         mock_data = [
             # 1. We Executed. Realized CLV was negative. Over-Aggressive.
             {

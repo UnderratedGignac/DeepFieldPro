@@ -136,7 +136,7 @@ class RiskEngine:
             initial = current
 
         # Calculate P/L periods
-        now = datetime.utcnow()
+        now = datetime.timezone.utcnow()
         daily_start = now - timedelta(days=1)
         weekly_start = now - timedelta(weeks=1)
         monthly_start = now - timedelta(days=30)
@@ -178,7 +178,7 @@ class RiskEngine:
             available_for_betting=available,
             total_exposure=active_exposure,
             active_bets_count=active_bets,
-            last_updated=datetime.utcnow(),
+            last_updated=datetime.timezone.utcnow(),
         )
 
     async def _calculate_pl(self, start: datetime, end: datetime) -> Decimal:
@@ -474,7 +474,7 @@ class RiskEngine:
             balance=new_bankroll,
             peak_balance=new_peak,
             change=profit_loss,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.timezone.utcnow(),
         )
 
         self.db_session.add(history_entry)

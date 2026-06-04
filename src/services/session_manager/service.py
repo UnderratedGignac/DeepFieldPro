@@ -56,8 +56,8 @@ class SessionMetrics:
     websocket_disconnects: int = 0
     captcha_events: int = 0
     avg_response_latency_ms: float = 0.0
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    last_health_check: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=datetime.timezone.utcnow)
+    last_health_check: datetime = field(default_factory=datetime.timezone.utcnow)
 
 
 class SessionManager:
@@ -156,8 +156,8 @@ class SessionManager:
 
         self._sessions[session_id] = {
             "sportsbook": sportsbook,
-            "created_at": datetime.utcnow(),
-            "last_activity": datetime.utcnow(),
+            "created_at": datetime.timezone.utcnow(),
+            "last_activity": datetime.timezone.utcnow(),
             "state": SessionState.INITIALIZING,
             "authenticated": False,
             "context": context,
@@ -251,7 +251,7 @@ class SessionManager:
                 session["authenticated"] = True
                 session["auth_credentials"] = credentials
                 session["state"] = SessionState.AUTHENTICATED
-                session["last_activity"] = datetime.utcnow()
+                session["last_activity"] = datetime.timezone.utcnow()
 
                 # Extract and store tokens
                 await self._extract_auth_tokens(session_id, page)
@@ -371,7 +371,7 @@ class SessionManager:
                 logger.warning(f"Rate limited by circuit breaker for {sportsbook}")
                 return False
 
-        now = datetime.utcnow()
+        now = datetime.timezone.utcnow()
         window_start = now - timedelta(seconds=self.RATE_LIMIT_WINDOW_SECONDS)
 
         if session_id not in self._rate_limits:
@@ -410,7 +410,7 @@ class SessionManager:
             return False
 
         session = self._sessions[session_id]
-        session["last_activity"] = datetime.utcnow()
+        session["last_activity"] = datetime.timezone.utcnow()
 
         # Perform keep-alive action
         try:
@@ -430,7 +430,7 @@ class SessionManager:
             return
 
         metrics = self._session_metrics[session_id]
-        now = datetime.utcnow()
+        now = datetime.timezone.utcnow()
 
         metrics.requests_total += 1
         metrics.last_request_time = now
@@ -491,7 +491,7 @@ class SessionManager:
         latency_score *= 0.2
 
         # Age component (10% weight) - older sessions slightly less trusted
-        age_minutes = (datetime.utcnow() - metrics.created_at).total_seconds() / 60
+        age_minutes = (datetime.timezone.utcnow() - metrics.created_at).total_seconds() / 60
         age_score = max(0.5, 1.0 - (age_minutes / 60)) * 0.1
 
         total_score = success_score + failure_score + latency_score + age_score
@@ -531,7 +531,7 @@ class SessionManager:
                 last_activity = session.get("last_activity")
                 if last_activity:
                     idle_minutes = (
-                        datetime.utcnow() - last_activity
+                        datetime.timezone.utcnow() - last_activity
                     ).total_seconds() / 60
                     if idle_minutes > self.SESSION_TIMEOUT_MINUTES:
                         logger.info(
@@ -662,7 +662,7 @@ class CircuitBreaker:
                 self.failure_count = max(0, self.failure_count - 1)
         else:
             self.failure_count += 1
-            self.last_failure_time = datetime.utcnow()
+            self.last_failure_time = datetime.timezone.utcnow()
 
             if self.failure_count >= self.failure_threshold:
                 self._open_circuit()
@@ -701,7 +701,7 @@ class CircuitBreaker:
         if not self.last_failure_time:
             return True
 
-        elapsed = (datetime.utcnow() - self.last_failure_time).total_seconds()
+        elapsed = (datetime.timezone.utcnow() - self.last_failure_time).total_seconds()
         return elapsed >= self.recovery_timeout_seconds
 
     def is_open(self) -> bool:

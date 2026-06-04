@@ -41,7 +41,7 @@ def record_clv(sportsbook, market, fixture, bet_odds, closing_odds, latency_ms=0
             closing_odds,
             clv_pct,
             latency_ms,
-            datetime.datetime.now(datetime.UTC).isoformat(),
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
         ),
     )
     conn.commit()
