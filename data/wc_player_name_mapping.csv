@@ -1,0 +1,830 @@
+player_id,legal_name,fbref_name,match_score,nation_code,position
+sb_5503,Lionel Andrés Messi Cuccittini,,0.0,UNK,FWD
+sb_5668,Robert Lewandowski,Robert Lewandowski,1.0,UNK,FWD
+sb_8546,Niclas Füllkrug,Niclas Füllkrug,1.0,UNK,FWD
+sb_3009,Kylian Mbappé Lottin,Kylian Mbappé,1.167,UNK,MID
+sb_4320,Neymar da Silva Santos Junior,Eric da Silva Moreira,0.4,UNK,MID
+sb_3289,Romelu Lukaku Menama,Romelu Lukaku,1.167,UNK,FWD
+sb_28559,Enner Remberto Valencia Lastra,Enner Valencia,1.0,UNK,MID
+sb_5545,Breel-Donald Embolo,Breel Embolo,0.85,UNK,FWD
+sb_5187,Salem Mohammed Al Dawsari,,0.0,UNK,MID
+sb_8949,Takuma Asano,Takuma Asano,1.0,UNK,FWD
+sb_4269,Aleksandar Mitrović,,0.0,UNK,FWD
+sb_10955,Harry Kane,Harry Kane,1.0,UNK,FWD
+sb_2941,Ismaïla Sarr,Ismaila Sarr,1.0,UNK,MID
+sb_5226,Mehdi Taremi,,0.0,UNK,FWD
+sb_7426,Jean-Charles Castelletto,,0.0,UNK,DEF
+sb_5207,Cristiano Ronaldo dos Santos Aveiro,Jonathan dos Santos,0.4,UNK,FWD
+sb_11456,Lautaro Javier Martínez,Lautaro Martínez,1.167,UNK,MID
+sb_3604,Olivier Giroud,Olivier Giroud,1.0,UNK,MID
+sb_8966,Kai Havertz,Kai Havertz,1.0,UNK,FWD
+sb_5258,Giorgian Daniel De Arrascaeta Benedetti,,0.0,UNK,MID
+sb_3347,André Ayew Pelé,André Ayew,1.167,UNK,FWD
+sb_39565,Jamal Musiala,Jamal Musiala,1.0,UNK,MID
+sb_6583,Carlos Soler Barragán,Carlos Soler,1.167,UNK,MID
+sb_3477,Álvaro Borja Morata Martín,Álvaro Morata,1.0,UNK,FWD
+sb_10287,İlkay Gündoğan,İlkay Gündoğan,1.0,UNK,MID
+sb_3441,Nikola Vlašić,Nikola Vlašić,1.0,UNK,MID
+sb_38803,Gonçalo Matias Ramos,Gonçalo Ramos,1.167,UNK,FWD
+sb_5224,Sardar Azmoun,,0.0,UNK,MID
+sb_37211,Kaoru Mitoma,Kaoru Mitoma,1.0,UNK,DEF
+sb_22097,Randal Kolo Muani,Randal Kolo Muani,1.0,UNK,FWD
+sb_5732,Andreas Evald Cornelius,,0.0,UNK,FWD
+sb_3280,Richarlison de Andrade,Richarlison,0.8,UNK,FWD
+sb_3318,Marcus Rashford,Marcus Rashford,1.0,UNK,MID
+sb_25104,Rodrygo Silva de Goes,Rodrygo,0.8,UNK,MID
+sb_12365,Alphonso Davies,Alphonso Davies,1.0,UNK,DEF
+sb_23640,Jonathan David,Jonathan David,1.0,UNK,FWD
+sb_29560,Julián Álvarez,Julián Álvarez,1.0,UNK,FWD
+sb_8246,Christian Pulisic,Christian Pulisic,1.0,UNK,MID
+sb_2988,Memphis Depay,,0.0,UNK,FWD
+sb_18015,Dušan Vlahović,Dušan Vlahović,1.0,UNK,FWD
+sb_6748,Ferrán Torres García,Ferrán Torres,1.167,UNK,MID
+sb_16532,Daniel Olmo Carvajal,Dani Carvajal,0.85,UNK,MID
+sb_6399,Gareth Frank Bale,,0.0,UNK,FWD
+sb_22041,Marko Livaja,,0.0,UNK,FWD
+sb_25305,Pedro Guilherme Abreu dos Santos,Pedro Santos,0.9,UNK,MID
+sb_28263,Gonzalo Ariel Montiel,,0.0,UNK,DEF
+sb_4354,Phil Foden,Phil Foden,1.0,UNK,MID
+sb_3853,Kieffer Roberto Francisco Moore,,0.0,UNK,FWD
+sb_7745,Steven Berghuis,Steven Berghuis,1.0,UNK,MID
+sb_16308,Leandro Daniel Paredes,,0.0,UNK,MID
+sb_8400,Serge Gnabry,Serge Gnabry,1.0,UNK,MID
+sb_24024,Tajon Buchanan,Tajon Buchanan,1.0,UNK,MID
+sb_7891,Teun Koopmeiners,Teun Koopmeiners,1.0,UNK,MID
+sb_26301,Ernesto Alexis Vega Rojas,Alexis Vega,1.0,UNK,MID
+sb_28914,Lovro Majer,Lovro Majer,1.0,UNK,MID
+sb_5539,Carlos Henrique Casimiro,,0.0,UNK,MID
+sb_8776,Takumi Minamino,Takumi Minamino,1.0,UNK,MID
+sb_7829,Wout Weghorst,Wout Weghorst,1.0,UNK,FWD
+sb_44703,Alistair Johnston,,0.0,UNK,DEF
+sb_16352,Issam Jebali,,0.0,UNK,FWD
+sb_26400,Henry Josué Martín Mex,Henry Martín,1.0,UNK,FWD
+sb_5203,Sergio Busquets i Burgos,,0.0,UNK,MID
+sb_5549,Manuel Obafemi Akanji,Manuel Akanji,1.167,UNK,DEF
+sb_3167,Antonio Rüdiger,Antonio Rüdiger,1.0,UNK,DEF
+sb_17033,Mohammed Kudus,Mohammed Kudus,1.0,UNK,MID
+sb_11174,Vincent Paté Aboubakar,,0.0,UNK,FWD
+sb_37726,Moisés Isaac Caicedo Corozo,Moisés Caicedo,1.0,UNK,MID
+sb_23910,Youssef Msakni,,0.0,UNK,MID
+sb_37208,Ao Tanaka,Ao Tanaka,1.0,UNK,MID
+sb_6302,Kasper Dolberg,Kasper Dolberg,1.0,UNK,MID
+sb_5260,Rodrigo Bentancur Colmán,Rodrigo Bentancur,1.167,UNK,MID
+sb_3457,Michy Batshuayi Tunga,Michy Batshuayi,1.167,UNK,MID
+sb_6720,Pablo Sarabia García,Pablo Garcia,1.167,UNK,MID
+sb_5204,Bruno Miguel Borges Fernandes,Bruno Fernandes,1.0,UNK,MID
+sb_3300,Maya Yoshida,,0.0,UNK,DEF
+sb_3669,Virgil van Dijk,Virgil van Dijk,1.0,UNK,DEF
+sb_5469,Marcelo Brozović,,0.0,UNK,MID
+sb_48347,Amadou Onana,Amadou Onana,1.0,UNK,MID
+sb_22008,Haji Wright,,0.0,UNK,FWD
+sb_7472,Nicolas Alexis Julio N'Koulou Ndoubena,,0.0,UNK,DEF
+sb_10595,Raphael Dias Belloli,,0.0,UNK,MID
+sb_4372,Marcos Aoás Corrêa,,0.0,UNK,DEF
+sb_40542,Gue-Sung Cho,,0.0,UNK,FWD
+sb_20033,Luuk de Jong,Luuk de Jong,1.0,UNK,MID
+sb_5191,Mohammed Al Burayk,Musah Mohammed,0.85,UNK,DEF
+sb_8361,Ritsu Doan,Ritsu Doan,1.0,UNK,MID
+sb_3959,Andreas Christensen,Andreas Christensen,1.0,UNK,DEF
+sb_3499,Jean-Eric Maxim Choupo-Moting,,0.0,UNK,FWD
+sb_5839,Yeltsin Ignacio Tejeda Valverde,,0.0,UNK,MID
+sb_5604,Young-Gwon Kim,,0.0,UNK,DEF
+sb_11603,Mario Pašalić,Mario Pašalić,1.0,UNK,MID
+sb_10481,Aurélien Djani Tchouaméni,Aurélien Tchouaméni,1.167,UNK,MID
+sb_30714,Jude Bellingham,Jude Bellingham,1.0,UNK,MID
+sb_26280,Orbelín Pineda Alvarado,,0.0,UNK,MID
+sb_5719,Marco Asensio Willemsen,Marco Asensio,1.167,UNK,FWD
+sb_6324,Leon Goretzka,Leon Goretzka,1.0,UNK,MID
+sb_38718,Enzo Fernandez,Enzo Fernández,1.0,UNK,MID
+sb_20611,Boulaye Dia,Boulaye Dia,1.0,UNK,FWD
+sb_18395,Vinícius José Paixão de Oliveira Júnior,Vinicius Júnior,0.833,UNK,MID
+sb_124495,Almoez Ali Zainalabiddin Abdulla,,0.0,UNK,FWD
+sb_5463,Luka Modrić,Luka Modrić,1.0,UNK,MID
+sb_5237,Hakim Ziyech,,0.0,UNK,FWD
+sb_5240,Saman Ghoddos,,0.0,UNK,MID
+sb_5460,Andrej Kramarić,Andrej Kramarić,1.0,UNK,MID
+sb_16527,Mislav Oršić,,0.0,UNK,MID
+sb_25142,Bruno Guimarães Rodriguez Moura,Bruno Guimarães,1.0,UNK,MID
+sb_5620,Hee-Chan Hwang,Hwang Hee-chan,1.5,UNK,MID
+sb_9638,Jack Grealish,Jack Grealish,1.0,UNK,MID
+sb_6301,Youssef En-Nesyri,Youssef En-Nesyri,1.0,UNK,FWD
+sb_5660,Piotr Zieliński,Piotr Zieliński,1.0,UNK,MID
+sb_5507,Nicolás Alejandro Tagliafico,Nicolás Tagliafico,1.167,UNK,DEF
+sb_8118,Frenkie de Jong,Frenkie de Jong,1.0,UNK,MID
+sb_15452,Carlos Uriel Antuna Romero,Carlos Romero,1.0,UNK,MID
+sb_30519,Mohamed Salisu,Mohammed Salisu,0.85,UNK,DEF
+sb_8217,Kingsley Coman,,0.0,UNK,MID
+sb_22600,Lucas Tolentino Coelho de Lima,Lima,0.8,UNK,MID
+sb_3634,Abdelhamid Sabiri,Abdelhamid Sabiri,1.0,UNK,MID
+sb_5630,Dries Mertens,Dylan Mertens,0.85,UNK,MID
+sb_6983,Remo Freuler,Remo Freuler,1.0,UNK,MID
+sb_30628,Daizen Maeda,,0.0,UNK,FWD
+sb_12041,João Félix Sequeira,,0.0,UNK,MID
+sb_88123,Cheikh Ahmadou Bamba Mbacke Dieng,Bamba Dieng,0.9,UNK,FWD
+sb_5245,Achraf Hakimi Mouh,Achraf Hakimi,1.167,UNK,DEF
+sb_5246,Luis Alberto Suárez Díaz,Luis Díaz,1.0,UNK,FWD
+sb_3086,Ben Davies,Ben Davies,1.0,UNK,DEF
+sb_3026,Adrien Rabiot,Adrien Rabiot,1.0,UNK,MID
+sb_3533,Xherdan Shaqiri,,0.0,UNK,MID
+sb_27569,Jesper Lindstrøm,Jesper Lindstrøm,1.0,UNK,MID
+sb_8804,Jonas Hofmann,Jonas Hofmann,1.0,UNK,MID
+sb_3202,Gabriel Fernando de Jesus,Gabriel Jesus,1.0,UNK,FWD
+sb_124899,Ismaeel Mohammad Mohammad,,0.0,UNK,DEF
+sb_3244,John Stones,John Stones,1.0,UNK,DEF
+sb_67700,Badr Banoun,,0.0,UNK,MID
+sb_22084,Bukayo Saka,Bukayo Saka,1.0,UNK,MID
+sb_3083,Heung-Min Son,,0.0,UNK,MID
+sb_20750,Cody Mathès Gakpo,Cody Gakpo,1.167,UNK,FWD
+sb_5579,Joshua Kimmich,Joshua Kimmich,1.0,UNK,MID
+sb_3436,Idrissa Gana Gueye,Idrissa Gana Gueye,1.0,UNK,MID
+sb_3377,Timothy Weah,Timothy Weah,1.0,UNK,FWD
+sb_5743,Paulo Bruno Exequiel Dybala,Paulo Dybala,1.0,UNK,MID
+sb_3196,Wahbi Khazri,,0.0,UNK,FWD
+sb_5474,Ivan Perišić,Ivan Perišić,1.0,UNK,MID
+sb_5713,Mohammed Kanoo,Musah Mohammed,0.85,UNK,MID
+sb_44225,Osman Bukari,,0.0,UNK,MID
+sb_9411,Daichi Kamada,Daichi Kamada,1.0,UNK,MID
+sb_3311,Daley Blind,Daley Blind,1.0,UNK,DEF
+sb_17042,Andreas Skov Olsen,Andreas Skov Olsen,1.0,UNK,MID
+sb_130185,Keysher Fuller Spence,,0.0,UNK,DEF
+sb_9236,Mohamed Dräger,Mostafa Mohamed,0.85,UNK,MID
+sb_10868,Ricardo Jorge Luz Horta,Ricardo Horta,1.0,UNK,MID
+sb_3336,Harry Maguire,Harry Maguire,1.0,UNK,DEF
+sb_21736,Zakaria Aboukhlal,Zakaria Aboukhlal,1.0,UNK,FWD
+sb_57620,Sultan Abdullah Salim Al Ghannam,,0.0,UNK,DEF
+sb_4447,Martin Braithwaite Christensen,Mario Martín,0.85,UNK,FWD
+sb_16459,Cyle Larin,Cyle Larin,1.0,UNK,FWD
+sb_8526,Weston McKennie,Weston McKennie,1.0,UNK,MID
+sb_9904,Frederico Rodrigues Santos,,0.0,UNK,MID
+sb_22168,Joshua Sargent,,0.0,UNK,FWD
+sb_124494,Abdelkarim Hassan Al Haj Fadlalla,,0.0,UNK,DEF
+sb_24085,Pervis Josué Estupiñán Tenorio,Pervis Estupiñán,1.0,UNK,DEF
+sb_5562,Thomas Müller,,0.0,UNK,MID
+sb_5209,Raphaël Adelino José Guerreiro,Raphaël Guerreiro,1.0,UNK,DEF
+sb_5220,Morteza Pouraliganji,,0.0,UNK,DEF
+sb_4318,Davy Klaassen,Davy Klaassen,1.0,UNK,MID
+sb_29966,Ui-Jo Hwang,Hwang Ui-jo,1.5,UNK,FWD
+sb_59493,Abderrazak Hamdallah,,0.0,UNK,FWD
+sb_29976,Gabriel Teodoro Martinelli Silva,Gabriel Martinelli,1.0,UNK,MID
+sb_5239,Alireza Jahanbakhsh,,0.0,UNK,MID
+sb_5543,Haris Seferović,,0.0,UNK,FWD
+sb_5490,Jackson Irvine,Jackson Irvine,1.0,UNK,FWD
+sb_31955,Jakub Kamiński,Jakub Kamiński,1.0,UNK,MID
+sb_34396,Michael Steveen Estrada Martínez,,0.0,UNK,FWD
+sb_7797,Rodrigo Javier De Paul,,0.0,UNK,MID
+sb_16022,Christian Fassnacht,,0.0,UNK,MID
+sb_5219,Romain Saïss,,0.0,UNK,DEF
+sb_5571,Hirving Rodrigo Lozano Bahena,,0.0,UNK,MID
+sb_124901,Mohammed Muntari,Musah Mohammed,0.85,UNK,FWD
+sb_6383,Thomas Teye Partey,Thomas Partey,1.167,UNK,MID
+sb_5235,Ramin Rezaeian,,0.0,UNK,MID
+sb_8259,Steven Bergwijn,,0.0,UNK,FWD
+sb_3530,Hiroki Sakai,,0.0,UNK,MID
+sb_30401,Ruben Vargas,Ruben Vargas,1.0,UNK,MID
+sb_3500,Granit Xhaka,Granit Xhaka,1.0,UNK,MID
+sb_4319,Edinson Roberto Cavani Gómez,Emiliano Gómez,0.85,UNK,FWD
+sb_2995,Ángel Fabián Di María Hernández,,0.0,UNK,DEF
+sb_5487,Antoine Griezmann,Antoine Griezmann,1.0,UNK,MID
+sb_29201,Nahuel Molina Lucero,Nahuel Molina,1.167,UNK,DEF
+sb_32478,Darwin Gabriel Núñez Ribeiro,,0.0,UNK,MID
+sb_28825,Luis Gerardo Chávez Magallón,,0.0,UNK,MID
+sb_11493,Gleison Bremer Silva Nascimento,Gleison Bremer,1.0,UNK,MID
+sb_27886,Alexis Mac Allister,Alexis Mac Allister,1.0,UNK,MID
+sb_40538,Jin-Su Kim,,0.0,UNK,DEF
+sb_56755,Abdulelah Saad Hameed Al-Malki,,0.0,UNK,MID
+sb_5633,Yannick Ferreira Carrasco,,0.0,UNK,MID
+sb_20016,Kléper Laveran Lima Ferreira,,0.0,UNK,MID
+sb_3551,Karl Brillant Toko Ekambi,,0.0,UNK,MID
+sb_5589,Sergej Milinković-Savić,,0.0,UNK,MID
+sb_3053,Leroy Sané,Leroy Sané,1.0,UNK,MID
+sb_227697,Garang Kuol,,0.0,UNK,FWD
+sb_18242,Tim Ream,,0.0,UNK,DEF
+sb_33492,Mitchell Thomas Duke,,0.0,UNK,FWD
+sb_8814,Nico Elvedi,Nico Elvedi,1.0,UNK,DEF
+sb_139016,Achraf Dari,,0.0,UNK,DEF
+sb_21881,Sergino Dest,Sergiño Dest,1.0,UNK,DEF
+sb_13314,Famara Diedhiou,,0.0,UNK,MID
+sb_29377,Brennan Johnson,Brennan Johnson,1.0,UNK,DEF
+sb_12623,Pierre Kunde Malong,,0.0,UNK,MID
+sb_18360,Rafael Alexandre Conceição Leão,Rafael Leão,1.0,UNK,MID
+sb_27163,Juan Pablo Vargas Campos,Juan Pablo Vargas,1.25,UNK,DEF
+sb_3089,Kevin De Bruyne,Kevin De Bruyne,1.0,UNK,MID
+sb_27719,Strahinja Pavlović,Strahinja Pavlović,1.0,UNK,DEF
+sb_5573,Héctor Alfredo Moreno Herrera,Héctor Herrera,1.0,UNK,DEF
+sb_5675,Kalidou Koulibaly,,0.0,UNK,DEF
+sb_31295,Yahia Attiyat allah,,0.0,UNK,DEF
+sb_8125,Denzel Dumfries,Denzel Dumfries,1.0,UNK,DEF
+sb_27768,Lisandro Martínez,Lisandro Martínez,1.0,UNK,DEF
+sb_8346,Craig Goodwin,,0.0,UNK,MID
+sb_11187,Stephen Antunes Eustáquio,Stephen Eustáquio,1.167,UNK,MID
+sb_3471,Dejan Lovren,,0.0,UNK,DEF
+sb_29595,Ko Itakura,Ko Itakura,1.0,UNK,DEF
+sb_5477,Ousmane Dembélé,Ousmane Dembélé,1.0,UNK,MID
+sb_54144,Nawaf Shaker Al Abid,,0.0,UNK,MID
+sb_13620,Éder Gabriel Militão,Éder Militão,1.167,UNK,DEF
+sb_3043,Christian Dannemann Eriksen,Christian Eriksen,1.167,UNK,MID
+sb_30111,Felix Eduardo Torres Caicedo,,0.0,UNK,DEF
+sb_3557,Naïm Sliti,,0.0,UNK,MID
+sb_31684,Atiba Hutchinson,,0.0,UNK,MID
+sb_38792,Yunus Dimoara Musah,Yunus Musah,1.167,UNK,MID
+sb_23763,In-Beom Hwang,Hwang In-beom,1.5,UNK,MID
+sb_5456,Mateo Kovačić,Mateo Kovačić,1.0,UNK,MID
+sb_51469,Saleh Khalid Al Shehri,,0.0,UNK,FWD
+sb_3233,Raheem Sterling,Raheem Sterling,1.0,UNK,MID
+sb_8247,Joachim Andersen,Joachim Andersen,1.0,UNK,DEF
+sb_3176,Thomas Meunier,Thomas Meunier,1.0,UNK,DEF
+sb_37221,Hidemasa Morita,Hidemasa Morita,1.0,UNK,MID
+sb_348757,Kevin José Rodríguez Cortez,Kevin,0.8,UNK,FWD
+sb_23721,Wataru Endo,Wataru Endo,1.0,UNK,MID
+sb_12803,Romario Andrés Ibarra Mina,,0.0,UNK,MID
+sb_3625,Sofiane Boufal,Sofiane Boufal,1.0,UNK,MID
+sb_4935,Bryan Mbeumo,Bryan Mbeumo,1.0,UNK,MID
+sb_296254,Walid Cheddira,Walid Cheddira,1.0,UNK,FWD
+sb_9922,David Junior Hoilett,,0.0,UNK,MID
+sb_37215,Shogo Taniguchi,,0.0,UNK,DEF
+sb_5259,José María Giménez de Vargas,José María Giménez,1.1,UNK,DEF
+sb_9286,Antoine Semenyo,Antoine Semenyo,1.0,UNK,DEF
+sb_6704,Theo Bernard François Hernández,,0.0,UNK,MID
+sb_124161,Mehdi Torabi,,0.0,UNK,DEF
+sb_6393,Iñaki Williams Arthuer,Iñaki Williams,1.167,UNK,FWD
+sb_12149,Nayef Aguerd,Nayef Aguerd,1.0,UNK,DEF
+sb_11737,Krystian Bielik,,0.0,UNK,MID
+sb_3295,Thiago Emiliano da Silva,Thiago Silva,1.0,UNK,DEF
+sb_51099,Firas Tariq Nasser Al Albirakan,,0.0,UNK,MID
+sb_30016,Martin Hongla Yma II,Mario Martín,0.85,UNK,MID
+sb_5603,Nikola Milenković,Nikola Milenković,1.0,UNK,DEF
+sb_6328,Kendall Jamaal Waston Manley,,0.0,UNK,DEF
+sb_6773,Federico Santiago Valverde Dipetta,Federico Valverde,1.0,UNK,MID
+sb_7843,Mason Mount,Mason Mount,1.0,UNK,MID
+sb_5485,Raphaël Varane,,0.0,UNK,DEF
+sb_3034,Kamil Glik,,0.0,UNK,DEF
+sb_16026,Djibril Sow,Djibril Sow,1.0,UNK,MID
+sb_36288,Facundo Pellistri Rebollo,,0.0,UNK,MID
+sb_46258,Azzedine Ounahi,Azzedine Ounahi,1.0,UNK,MID
+sb_5665,Arkadiusz Milik,Arkadiusz Milik,1.0,UNK,FWD
+sb_22740,Kang-In Lee,Lee Kang-in,1.5,UNK,MID
+sb_25363,Antony Matheus dos Santos,Aderlan Santos,0.85,UNK,MID
+sb_3077,Jan Vertonghen,,0.0,UNK,DEF
+sb_31152,Gonzalo Jordy Plata Jiménez,,0.0,UNK,MID
+sb_35658,Kamaldeen Sulemana,Kamaldeen Sulemana,1.0,UNK,MID
+sb_11184,Otávio Edmilson da Silva Monteiro,Otávio,0.8,UNK,MID
+sb_6300,Sebastián Coates Nión,,0.0,UNK,MID
+sb_51096,Ali Al Hassan,,0.0,UNK,MID
+sb_37122,Yuki Soma,,0.0,UNK,MID
+sb_24243,Brenden Aaronson,Brenden Aaronson,1.0,UNK,MID
+sb_3767,Ellyes Joris Skhiri,Ellyes Skhiri,1.167,UNK,MID
+sb_35592,Anis Ben Slimane,,0.0,UNK,MID
+sb_26368,César Jasib Montes Castro,Christopher Castro,0.85,UNK,DEF
+sb_3264,Vincent Janssen,,0.0,UNK,MID
+sb_20758,Krépin Diatta,Krépin Diatta,1.0,UNK,MID
+sb_5479,Aziz Eraltay Behich,,0.0,UNK,DEF
+sb_3532,Jordan Brian Henderson,Jordan Henderson,1.167,UNK,MID
+sb_44166,Jakub Piotr Kiwior,Jakub Kiwior,1.167,UNK,DEF
+sb_15890,Noussair Mazraoui,Noussair Mazraoui,1.0,UNK,DEF
+sb_6331,Leander Dendoncker,Leander Dendoncker,1.0,UNK,MID
+sb_23527,Junya Ito,,0.0,UNK,DEF
+sb_6297,Maximiliano Gómez González,,0.0,UNK,MID
+sb_21026,Pape Gueye,Pape Gueye,1.0,UNK,MID
+sb_5481,Mathew Leckie,,0.0,UNK,MID
+sb_33602,Tariq Lamptey,Tariq Lamptey,1.0,UNK,DEF
+sb_44955,Aïssa Bilal Laïdouni,,0.0,UNK,MID
+sb_7104,Mathías Olivera Miramontes,Mathías Olivera,1.167,UNK,DEF
+sb_124167,Ahmad Nourollahi,,0.0,UNK,MID
+sb_33018,Joško Gvardiol,Joško Gvardiol,1.0,UNK,DEF
+sb_43565,Min Jae Kim,,0.0,UNK,DEF
+sb_5537,Fabian Lukas Schär,Fabian Schär,1.167,UNK,MID
+sb_50498,Pape Matar Sarr,Pape Matar Sarr,1.0,UNK,MID
+sb_8227,Mario Götze,Mario Götze,1.0,UNK,MID
+sb_4324,Daniel Alves da Silva,Eric da Silva Moreira,0.5,UNK,MID
+sb_6322,Niklas Süle,Niklas Süle,1.0,UNK,DEF
+sb_34339,Giovanni Reyna,Gio Reyna,0.85,UNK,FWD
+sb_34794,Neco Williams,Neco Williams,1.0,UNK,DEF
+sb_3450,Jordan Ayew,Joan Jordán,0.85,UNK,FWD
+sb_11135,Ibrahima Konaté,Ibrahima Konaté,1.0,UNK,DEF
+sb_11990,Youssouf Fofana,Youssouf Fofana,1.0,UNK,MID
+sb_5231,Karim Ansarifard,,0.0,UNK,MID
+sb_5722,Saeid Ezatolahi Afagh,,0.0,UNK,MID
+sb_4506,Nampalys Mendy,Nobel Mendy,0.85,UNK,MID
+sb_4445,Jules Koundé,Jules Koundé,1.0,UNK,MID
+sb_37737,Angelo Smit Preciado Quiñónez,,0.0,UNK,DEF
+sb_5230,Ehsan Hajsafi,,0.0,UNK,MID
+sb_26318,Rogelio Gabriel Funes Mori,Rogelio Funes Mori,1.25,UNK,MID
+sb_10931,Joe Allen,,0.0,UNK,MID
+sb_24547,Alexander Hartmann Bah,Alexander Bah,1.167,UNK,DEF
+sb_6319,Luka Jović,,0.0,UNK,FWD
+sb_3193,Bernardo Mota Veiga de Carvalho e Silva,Bernardo Silva,0.786,UNK,MID
+sb_5833,Nemanja Radonjić,,0.0,UNK,DEF
+sb_5255,Matías Vecino Falero,Matías Vecino,1.167,UNK,MID
+sb_9540,Harry Wilson,Harry Wilson,1.0,UNK,MID
+sb_5576,Jesús Daniel Gallardo Vasconcelos,Jesús Gallardo,1.0,UNK,DEF
+sb_39161,Alejandro Balde Martínez,Alejandro Balde,1.167,UNK,DEF
+sb_16120,Richie Laryea,,0.0,UNK,MID
+sb_3831,Dušan Tadić,,0.0,UNK,MID
+sb_2972,Marcus Thuram,Marcus Thuram,1.0,UNK,MID
+sb_23774,Selim Amallah,,0.0,UNK,MID
+sb_33477,Riley McGree,,0.0,UNK,MID
+sb_5655,Dylan Daniel Mahmoud Bronn,,0.0,UNK,MID
+sb_80484,Iliman Ndiaye,Iliman Ndiaye,1.0,UNK,MID
+sb_74588,Christopher Wooh,Christopher Wooh,1.0,UNK,MID
+sb_7693,Bruno Petković,Bruno Petković,1.0,UNK,FWD
+sb_5249,Diego Roberto Godín Leal,,0.0,UNK,DEF
+sb_51969,Jackson Gabriel Porozo Vernaza,Jackson Porozo,1.0,UNK,DEF
+sb_18722,Mathias Jensen,Mathias Jensen,1.0,UNK,MID
+sb_9927,Rúben Diogo Da Silva Neves,Rubén,0.8,UNK,MID
+sb_23874,Ali Gholizadeh,,0.0,UNK,MID
+sb_7796,Silvan Widmer,Silvan Widmer,1.0,UNK,DEF
+sb_5581,Joel Nathaniel Campbell Samuels,,0.0,UNK,MID
+sb_41711,Sang-Ho Na,,0.0,UNK,MID
+sb_22293,Harry Souttar,,0.0,UNK,DEF
+sb_3382,Luke Shaw,Luke Shaw,1.0,UNK,DEF
+sb_28729,Diego Nicolás De La Cruz Arcosa,Adrián de la Fuente,0.333,UNK,MID
+sb_12770,Jonathan Osorio,,0.0,UNK,MID
+sb_51705,Abdulrahman Al-Obood,,0.0,UNK,MID
+sb_3141,André-Frank Zambo Anguissa,Andre-Frank Zambo Anguissa,1.0,UNK,MID
+sb_5651,Yassine Meriah,,0.0,UNK,DEF
+sb_132728,Jewison Bennette,,0.0,UNK,MID
+sb_8654,Ante Budimir,Ante Budimir,1.0,UNK,MID
+sb_28370,Fran Karačić,,0.0,UNK,DEF
+sb_12524,Walker Zimmerman,,0.0,UNK,DEF
+sb_40211,Jeremy Leonel Sarmiento Morante,Jeremy Sarmiento,1.0,UNK,FWD
+sb_133353,Pablo Martín Páez Gavira,Pablo,0.8,UNK,MID
+sb_16554,Joakim Mæhle,Joakim Mæhle,1.0,UNK,DEF
+sb_19597,Marcos Javier Acuña,,0.0,UNK,DEF
+sb_6687,Saša Lukić,Saša Lukić,1.0,UNK,MID
+sb_16252,Mark Anthony Kaye,,0.0,UNK,MID
+sb_51094,Abdulelah Al Amri,,0.0,UNK,DEF
+sb_5538,Denis Lemi Zakaria Lako Lado,Denis Zakaria,0.9,UNK,MID
+sb_29006,Noah Okafor,Noah Okafor,1.0,UNK,MID
+sb_124506,Pedro Miguel Correia,Pedro,0.8,UNK,DEF
+sb_5211,Jordi Alba Ramos,,0.0,UNK,DEF
+sb_10530,Jules Olivier Ntcham,Olivier Ntcham,1.167,UNK,MID
+sb_7005,João Pedro Cavaco Cancelo,João Cancelo,1.0,UNK,DEF
+sb_34639,Vitor Machado Ferreira,,0.0,UNK,MID
+sb_7979,Przemysław Frankowski,Przemysław Frankowski,1.0,UNK,MID
+sb_5222,Roozbeh Cheshmi,,0.0,UNK,DEF
+sb_36148,José Adoni Cifuentes Charcopa,,0.0,UNK,MID
+sb_5214,William Silva de Carvalho,William Carvalho,1.0,UNK,MID
+sb_33488,Keanu Baccus,,0.0,UNK,MID
+sb_4353,Aymeric Laporte,Aymeric Laporte,1.0,UNK,MID
+sb_6318,Andrija Živković,,0.0,UNK,DEF
+sb_8859,Ajdin Hrustic,Ajdin Hrustic,1.0,UNK,MID
+sb_3281,Aaron Mooy,,0.0,UNK,MID
+sb_7459,Jawad El Yamiq,,0.0,UNK,DEF
+sb_40784,Akram Hassan Afif,,0.0,UNK,FWD
+sb_149714,Abdessamad Ezzalzouli,Abde Ezzalzouli,0.85,UNK,MID
+sb_3512,Marko Grujić,,0.0,UNK,MID
+sb_3308,Kieran Trippier,Kieran Trippier,1.0,UNK,DEF
+sb_31029,Salis Abdul Samed,Salis Abdul Samed,1.0,UNK,MID
+sb_8553,Abdou Diallo,Amad Diallo,0.85,UNK,DEF
+sb_124514,Abdulaziz Hatem Mohammed Abdullah,,0.0,UNK,MID
+sb_7993,Filip Mladenović,Filip Mladenović,1.0,UNK,MID
+sb_82257,Rubin Colwill,,0.0,UNK,MID
+sb_3913,Edimilson Fernandes,,0.0,UNK,MID
+sb_3517,Aaron Ramsey,Aaron Ramsey,1.0,UNK,MID
+sb_5642,Axel Witsel,Axel Witsel,1.0,UNK,MID
+sb_7439,Axel Disasi,Axel Disasi,1.0,UNK,DEF
+sb_31751,Pathé Ismaël Ciss,Pathé Ciss,1.167,UNK,MID
+sb_5650,Ferjani Sassi,,0.0,UNK,MID
+sb_12625,Borna Sosa,Borna Sosa,1.0,UNK,DEF
+sb_3063,Danilo Luiz da Silva,Danilo,0.8,UNK,MID
+sb_3570,Pierre-Emile Højbjerg,Pierre Højbjerg,0.85,UNK,MID
+sb_12493,Krzysztof Piątek,,0.0,UNK,FWD
+sb_28453,Michał Skóraś,,0.0,UNK,MID
+sb_5206,Rúben Santos Gato Alves Dias,Rúben Dias,0.9,UNK,DEF
+sb_22067,Woo-Yeong Jeong,Jeong Woo-yeong,1.5,UNK,MID
+sb_16028,José Diogo Dalot Teixeira,Diogo Dalot,1.0,UNK,MID
+sb_28268,Exequiel Alejandro Palacios,Exequiel Palacios,1.167,UNK,MID
+sb_5600,Francisco Javier Calvo Quesada,,0.0,UNK,DEF
+sb_6945,Alex Sandro Lobo Silva,André Silva,0.85,UNK,DEF
+sb_3090,Nicolás Hernán Otamendi,Nicolás Otamendi,1.167,UNK,DEF
+sb_49337,Josip Stanišić,Josip Stanišić,1.0,UNK,MID
+sb_7145,Darko Lazović,,0.0,UNK,MID
+sb_7161,Germán Alejandro Pezzella,Giuseppe Pezzella,0.85,UNK,DEF
+sb_23264,Seung-Ho Paik,,0.0,UNK,MID
+sb_6840,Marcos Llorente Moreno,Marcos Llorente,1.167,UNK,MID
+sb_29163,Josip Juranović,Josip Juranović,1.0,UNK,DEF
+sb_4734,Matty Cash,Matty Cash,1.0,UNK,DEF
+sb_3637,Grzegorz Krychowiak,,0.0,UNK,MID
+sb_5623,Jae-Sung Lee,Lee Jae-sung,1.5,UNK,MID
+sb_124488,Hassan Khalid Al Heidos,Haissem Hassan,0.85,UNK,MID
+sb_45047,Alidu Seidu,Alidu Seidu,1.0,UNK,DEF
+sb_12751,Tyler Adams,Tyler Adams,1.0,UNK,MID
+sb_128793,Taha Yassine Khenissi,,0.0,UNK,MID
+sb_4934,Ethan Ampadu,Ethan Ampadu,1.0,UNK,MID
+sb_12169,João Maria Lobo Alves Palhinha Gonçalves,João Gonçalves,0.833,UNK,MID
+sb_5567,Edson Omar Álvarez Velázquez,Edson Álvarez,1.0,UNK,MID
+sb_3404,Youssouf Sabaly,,0.0,UNK,DEF
+sb_132497,Gerson Torres Barrantes,,0.0,UNK,MID
+sb_32450,Montassar Omar Talbi,Montassar Talbi,1.167,UNK,DEF
+sb_5591,Filip Kostić,Filip Kostić,1.0,UNK,DEF
+sb_32915,Ismail Jakobs,Ismail Jakobs,1.0,UNK,DEF
+sb_7006,Alejandro Darío Gómez,Alejandro Gómez,1.167,UNK,MID
+sb_16346,Ngoran Suiru Fai Collins,Nnamdi Collins,0.85,UNK,DEF
+sb_3621,Eden Hazard,,0.0,UNK,DEF
+sb_5234,Sofyan Amrabat,Sofyan Amrabat,1.0,UNK,MID
+sb_5618,Woo-Young Jung,,0.0,UNK,MID
+sb_3639,Georges-Kévin Nkoudou Mbida,,0.0,UNK,MID
+sb_26406,Jorge Eduardo Sánchez Ramos,Jorge Sánchez,1.0,UNK,DEF
+sb_11127,Borna Barišić,,0.0,UNK,MID
+sb_51710,Saud Abdullah Abdul Hamid,,0.0,UNK,DEF
+sb_40874,Matheus Luiz Nunes,Matheus Nunes,1.167,UNK,MID
+sb_6765,Rodrigo Hernández Cascante,,0.0,UNK,DEF
+sb_40564,Kyung-Won Kwon,,0.0,UNK,MID
+sb_5233,Munir Mohand Mohamedi,,0.0,UNK,GK
+sb_6785,Yassine Bounou,,0.0,UNK,GK
+sb_21214,Ilias Chair,,0.0,UNK,MID
+sb_102668,Yahya Jabrane,,0.0,UNK,MID
+sb_131037,Anass Zaroury,,0.0,UNK,MID
+sb_139011,Ahmed Reda Tagnaouti,,0.0,UNK,GK
+sb_156734,Bilal El Khannous,Bilal El Khannouss,0.667,UNK,MID
+sb_4106,Ike Ugbo,,0.0,UNK,FWD
+sb_9036,David Wallace Wotherspoon,,0.0,UNK,MID
+sb_11846,Steven de Sousa Vitoria,,0.0,UNK,DEF
+sb_12779,Samuel Piette,,0.0,UNK,MID
+sb_13885,Liam Fraser,,0.0,UNK,MID
+sb_15958,Milan Borjan,,0.0,UNK,GK
+sb_23363,Liam Millar,,0.0,UNK,MID
+sb_23760,Derek Cornelius,Derek Cornelius,1.0,UNK,MID
+sb_23828,Kamal Miller,,0.0,UNK,DEF
+sb_26348,Lucas Daniel Cavallini,Lucas Cavallini,1.167,UNK,MID
+sb_29758,Sam Adekugbe,,0.0,UNK,DEF
+sb_35707,Joel Waterman,,0.0,UNK,MID
+sb_36794,Dayne Tristan St. Clair,,0.0,UNK,MID
+sb_49259,James Pantemis,,0.0,UNK,MID
+sb_133229,Ismael Koné,Ismaël Koné,1.0,UNK,DEF
+sb_3205,Kyle Walker,Kyle Walker,1.0,UNK,MID
+sb_3468,Jordan Pickford,Jordan Pickford,1.0,UNK,GK
+sb_3474,Nick Pope,Nick Pope,1.0,UNK,MID
+sb_3616,Callum Wilson,Callum Wilson,1.0,UNK,FWD
+sb_3664,Trent Alexander-Arnold,Trent Alexander-Arnold,1.0,UNK,MID
+sb_3943,Declan Rice,Declan Rice,1.0,UNK,MID
+sb_4706,Kalvin Phillips,,0.0,UNK,MID
+sb_9905,James Maddison,James Maddison,1.0,UNK,MID
+sb_9928,Conor Coady,,0.0,UNK,MID
+sb_10956,Eric Dier,Eric Dier,1.0,UNK,DEF
+sb_22783,Aaron Ramsdale,Aaron Ramsdale,1.0,UNK,MID
+sb_22809,Ben White,Ben White,1.0,UNK,MID
+sb_29399,Conor Gallagher,Conor Gallagher,1.0,UNK,MID
+sb_5227,Alireza Safar Beiranvand,,0.0,UNK,GK
+sb_5228,Seyed Majid Hosseini,Majid Hosseini,1.167,UNK,DEF
+sb_5241,Vahid Amiri,,0.0,UNK,MID
+sb_5720,Milad Mohammadi,,0.0,UNK,DEF
+sb_11224,Amir Abedzadeh,,0.0,UNK,MID
+sb_23538,Sadegh Moharrami,,0.0,UNK,DEF
+sb_124175,Mohammad Hossein Kanani Zadegan,,0.0,UNK,DEF
+sb_124177,Shoja Khalilzadeh,,0.0,UNK,MID
+sb_124183,Payam Niazmand,,0.0,UNK,MID
+sb_125818,Ali Karimi,Ali Karimi,1.0,UNK,MID
+sb_125823,Seyed Hossein Hosseini,,0.0,UNK,GK
+sb_326758,Abolfazl Jalali,,0.0,UNK,MID
+sb_2954,Youri Tielemans,Youri Tielemans,1.0,UNK,MID
+sb_3509,Thibaut Courtois,Thibaut Courtois,1.0,UNK,GK
+sb_3539,Simon Mignolet,Santiago Simón,0.85,UNK,MID
+sb_5632,Thorgan Hazard,,0.0,UNK,MID
+sb_6989,Timothy Castagne,Timothy Castagne,1.0,UNK,DEF
+sb_8240,Koen Casteels,,0.0,UNK,MID
+sb_8854,Wout Faes,Wout Faes,1.0,UNK,MID
+sb_16275,Ikoma Loïs Openda,Loïs Openda,1.167,UNK,MID
+sb_16281,Hans Vanaken,,0.0,UNK,MID
+sb_16559,Leandro Trossard,Leandro Trossard,1.0,UNK,FWD
+sb_20005,Toby Alderweireld,,0.0,UNK,DEF
+sb_23650,Jeremy Doku,Jeremy Doku,1.0,UNK,MID
+sb_32688,Charles De Ketelaere,Charles De Ketelaere,1.0,UNK,MID
+sb_43913,Arthur Theate,Arthur Theate,1.0,UNK,MID
+sb_114832,Zeno Debast,Zeno Debast,1.0,UNK,MID
+sb_5468,Domagoj Vida,,0.0,UNK,MID
+sb_16531,Dominik Livaković,Dominik Livaković,1.0,UNK,GK
+sb_28835,Ivica Ivušić,,0.0,UNK,GK
+sb_29342,Ivo Grbić,Ivo Grbić,1.0,UNK,GK
+sb_32602,Kristijan Jakić,Kristijan Jakić,1.0,UNK,MID
+sb_32689,Martin Erlić,Mario Martín,0.85,UNK,DEF
+sb_37148,Josip Šutalo,Josip Šutalo,1.0,UNK,MID
+sb_39490,Luka Sučić,Luka Sučić,1.0,UNK,MID
+sb_3306,Nathan Aké,Nathan Aké,1.0,UNK,DEF
+sb_6994,Marten de Roon,Marten de Roon,1.0,UNK,MID
+sb_7787,Stefan de Vrij,Stefan de Vrij,1.0,UNK,MID
+sb_7838,Remko Pasveer,Remko Pasveer,1.0,UNK,MID
+sb_8069,Matthijs de Ligt,Matthijs de Ligt,1.0,UNK,MID
+sb_8124,Tyrell Malacia,Tyrell Malacia,1.0,UNK,MID
+sb_8326,Andries Noppert,Andries Noppert,1.0,UNK,GK
+sb_16185,Justin Bijlow,Justin Bijlow,1.0,UNK,MID
+sb_21547,Noa Lang,Noa Lang,1.0,UNK,MID
+sb_21809,Jurriën David Norman Timber,Jurriën Timber,1.0,UNK,DEF
+sb_21879,Kenneth Taylor,Kenneth Taylor,1.0,UNK,MID
+sb_32712,Jeremie Frimpong,Jeremie Frimpong,1.0,UNK,MID
+sb_39167,Xavi Simons,Xavi Simons,1.0,UNK,MID
+sb_12583,Carlos Armando Gruezo Arboleda,Carlos Gruezo,1.0,UNK,MID
+sb_15486,Diego José Palacios Espinoza,Dagoberto Espinoza,0.85,UNK,MID
+sb_23830,Jhegson Sebastián Méndez Carabalí,,0.0,UNK,MID
+sb_25083,Xavier Ricardo Arreaga Bermello,,0.0,UNK,MID
+sb_25352,Robert Abel Arboleda Escobar,,0.0,UNK,MID
+sb_28511,Ángel Israel Mena Delgado,,0.0,UNK,MID
+sb_32677,Alexander Domínguez Carabalí,,0.0,UNK,MID
+sb_34194,Eduar Ayrton Preciado García,Eder García,0.85,UNK,MID
+sb_37522,Hernán Ismael Galíndez,,0.0,UNK,GK
+sb_37742,Wellington Moisés Ramírez Preciado,,0.0,UNK,MID
+sb_37945,Alan Steven Franco Palma,Alan,0.8,UNK,MID
+sb_38004,Piero Martín Hincapié Reyna,Piero Hincapié,1.0,UNK,DEF
+sb_41593,Willian Joel Pacho Tenorio,Willian Pacho,1.0,UNK,MID
+sb_91090,Djorkaeff Neicer Reasco González,Diego González,0.85,UNK,MID
+sb_3175,Eiji Kawashima,,0.0,UNK,MID
+sb_5690,Yuto Nagatomo,,0.0,UNK,DEF
+sb_5693,Gaku Shibasaki,,0.0,UNK,MID
+sb_23730,Takehiro Tomiyasu,Takehiro Tomiyasu,1.0,UNK,MID
+sb_25719,Shūichi Gonda,,0.0,UNK,GK
+sb_29366,Daniel Schmidt,,0.0,UNK,MID
+sb_31090,Takefusa Kubo,Takefusa Kubo,1.0,UNK,MID
+sb_37209,Miki Yamane,,0.0,UNK,MID
+sb_38285,Ayase Ueda,Ayase Ueda,1.0,UNK,MID
+sb_95272,Hiroki Ito,Hiroki Ito,1.0,UNK,MID
+sb_100436,Shuto Machino,Shuto Machino,1.0,UNK,MID
+sb_3957,César Azpilicueta Tanco,César Azpilicueta,1.167,UNK,DEF
+sb_4127,David Raya Martin,David Raya,1.167,UNK,MID
+sb_5199,Jorge Resurrección Merodio,,0.0,UNK,MID
+sb_5721,Daniel Carvajal Ramos,,0.0,UNK,DEF
+sb_6892,Pau Francisco Torres,Pau Torres,1.167,UNK,DEF
+sb_9843,Robert Lynch Sanchez,Robert Sánchez,1.167,UNK,MID
+sb_11748,Unai Simón Mendibil,Unai Simón,1.167,UNK,GK
+sb_30486,Pedro González López,Pau López,0.85,UNK,MID
+sb_30756,Anssumane Fati,Ansu Fati,0.85,UNK,MID
+sb_31953,Eric García Martret,Eric García,1.167,UNK,MID
+sb_35641,Hugo Guillamón Sanmartín,,0.0,UNK,MID
+sb_50494,Yeremy Jesús Pino Santos,,0.0,UNK,MID
+sb_68574,Nicholas Williams Arthuer,,0.0,UNK,MID
+sb_3658,DeAndre Yedlin,,0.0,UNK,MID
+sb_4614,Antonee Robinson,Antonee Robinson,1.0,UNK,DEF
+sb_6806,Shaquell Moore,,0.0,UNK,DEF
+sb_12352,Matthew Charles Turner,,0.0,UNK,GK
+sb_12746,Sean Johnson,,0.0,UNK,MID
+sb_12757,Aaron Long,,0.0,UNK,MID
+sb_13035,Kellyn Kai Perry-Acosta,,0.0,UNK,MID
+sb_13442,Cristian Roldán León,,0.0,UNK,MID
+sb_15971,Cameron Carter-Vickers,,0.0,UNK,MID
+sb_21201,Ethan Horvath,,0.0,UNK,MID
+sb_22433,Jesus Ferreira,Juan Jesus,0.85,UNK,MID
+sb_23789,Jordan Morris,Joan Jordán,0.85,UNK,MID
+sb_33274,Luca de la Torre,Adrián de la Fuente,0.5,UNK,MID
+sb_36830,Joseph Scally,Joe Scally,0.85,UNK,MID
+sb_3488,Wayne Hennessey,,0.0,UNK,GK
+sb_3839,Tom Lockyer,,0.0,UNK,MID
+sb_4584,Adam Davies,Alphonso Davies,0.85,UNK,MID
+sb_4767,Chris Mepham,,0.0,UNK,DEF
+sb_4774,Connor Roberts,,0.0,UNK,DEF
+sb_9914,Daniel Ward,,0.0,UNK,GK
+sb_10928,Chris Gunter,Christian Günter,0.85,UNK,MID
+sb_10932,Jonathan Williams,,0.0,UNK,MID
+sb_11250,Joe Rodon,Joe Rodon,1.0,UNK,DEF
+sb_11252,Daniel James,Daniel James,1.0,UNK,MID
+sb_12014,Mark Thomas Harris,,0.0,UNK,MID
+sb_21446,Matthew Robert Smith,,0.0,UNK,MID
+sb_22074,Joseff Morrell,,0.0,UNK,MID
+sb_33121,Benjamin Cabango,,0.0,UNK,MID
+sb_33144,Dylan Levitt,,0.0,UNK,MID
+sb_50528,Sorba Thomas,,0.0,UNK,MID
+sb_3099,Hugo Lloris,,0.0,UNK,MID
+sb_3379,Alphonse Areola,Alphonse Areola,1.0,UNK,MID
+sb_3543,Steve Mandanda,,0.0,UNK,GK
+sb_5476,Benjamin Pavard,Benjamin Pavard,1.0,UNK,MID
+sb_7153,Jordan Veretout,Joan Jordán,0.85,UNK,MID
+sb_7345,Mattéo Guendouzi Olié,Mattéo Guendouzi,1.167,UNK,MID
+sb_8519,Dayotchanculle Upamecano,Dayot Upamecano,0.85,UNK,MID
+sb_17592,William Saliba,William Saliba,1.0,UNK,DEF
+sb_24778,Eduardo Camavinga,Eduardo Camavinga,1.0,UNK,DEF
+sb_5647,Ali Maâloul,,0.0,UNK,DEF
+sb_5653,Mouez Hassen,,0.0,UNK,MID
+sb_6342,Aymen Mathlouthi,,0.0,UNK,MID
+sb_6347,Ghilane Chalali,,0.0,UNK,MID
+sb_25582,Nader Ghandri,,0.0,UNK,DEF
+sb_30681,Ali Abdi,Ali Abdi,1.0,UNK,MID
+sb_50988,Hannibal Mejbri,Hannibal Mejbri,1.0,UNK,MID
+sb_68749,Seifeddine Jaziri,,0.0,UNK,MID
+sb_102816,Mohamed Ali Ben Romdhane,Mostafa Mohamed,0.85,UNK,MID
+sb_105943,Aymen Dahmen,,0.0,UNK,GK
+sb_105944,Wajdi Kechrida,,0.0,UNK,DEF
+sb_136296,Bechir Ben Said,,0.0,UNK,MID
+sb_163049,Bilel Ifa,,0.0,UNK,MID
+sb_7551,Enzo Ebosse,Enzo Ebosse,1.0,UNK,MID
+sb_8064,André Onana,André Onana,1.0,UNK,GK
+sb_8591,Samuel Yves Oum Gwet,,0.0,UNK,MID
+sb_13454,Nouhou Tolo,,0.0,UNK,DEF
+sb_15326,Devis Rogers Epassy Mboka,,0.0,UNK,MID
+sb_16014,Jean Pierre Nsamé,,0.0,UNK,MID
+sb_16015,Nicolas Moumi Ngamaleu,,0.0,UNK,MID
+sb_21456,Olivier Mbaissidara Mbaizo,,0.0,UNK,MID
+sb_28966,Gaël Ondoua,,0.0,UNK,MID
+sb_33813,Jerome Ngom Mbekeli,,0.0,UNK,MID
+sb_44842,Simon Brady Ngapandouetnbu,Santiago Simón,0.85,UNK,MID
+sb_46903,Christian Mougang Bassogog,,0.0,UNK,MID
+sb_349913,Souaibou Marou,,0.0,UNK,MID
+sb_5544,Ricardo Iván Rodríguez Araya,Ricardo Rodríguez,1.0,UNK,DEF
+sb_5550,Yann Sommer,Yann Sommer,1.0,UNK,GK
+sb_8561,Fabian Frei,,0.0,UNK,MID
+sb_16016,Michel Aebischer,Michel Aebischer,1.0,UNK,MID
+sb_17974,Gregor Kobel,Gregor Kobel,1.0,UNK,MID
+sb_29003,Jonas Omlin,,0.0,UNK,MID
+sb_29012,Eray Ervin Cömert,Eray Cömert,1.167,UNK,DEF
+sb_41655,Ardon Jashari,Ardon Jashari,1.0,UNK,MID
+sb_46313,Philipp Köhn,Philipp Köhn,1.0,UNK,MID
+sb_50436,Fabian Rieder,Fabian Rieder,1.0,UNK,MID
+sb_2989,Alexander Djiku,Alexander Djiku,1.0,UNK,DEF
+sb_3709,Daniel Amartey,,0.0,UNK,DEF
+sb_8108,Lawrence Ati-Zigi,,0.0,UNK,GK
+sb_9859,Elisha Owusu,Elisha Owusu,1.0,UNK,MID
+sb_12259,Denis Odoi,Denis Odoi,1.0,UNK,MID
+sb_12325,Abdul Rahman Baba,,0.0,UNK,DEF
+sb_16555,Joseph Aidoo,Joseph Aidoo,1.0,UNK,MID
+sb_23615,Gideon Mensah,Gideon Mensah,1.0,UNK,MID
+sb_28616,Daniel-Kofi Kyereh,,0.0,UNK,MID
+sb_43891,Kamal Sowah,Kamal Sowah,1.0,UNK,MID
+sb_52091,Abdul Manaf Nurudeen,,0.0,UNK,MID
+sb_136305,Daniel Afriyie Barnieh,,0.0,UNK,MID
+sb_136306,Abdul Fatawu Issahaku,,0.0,UNK,MID
+sb_147563,Ibrahim Danlad,,0.0,UNK,MID
+sb_4272,João Mário Naval da Costa Eduardo,João Costa,0.833,UNK,MID
+sb_5205,Rui Pedro dos Santos Patrício,Pedro Santos,0.9,UNK,MID
+sb_5218,André Miguel Valente Silva,André Silva,1.0,UNK,MID
+sb_13621,Danilo Luís Hélio Pereira,Danilo,0.8,UNK,DEF
+sb_18866,José Pedro Malheiro de Sá,José Sá,0.9,UNK,MID
+sb_32975,Diogo Meireles Costa,Diogo Costa,1.167,UNK,GK
+sb_143854,António João Pereira Albuquerque Tavares Silva,António Silva,0.833,UNK,MID
+sb_3675,Fodé Ballo Touré,,0.0,UNK,MID
+sb_3684,Cheikhou Kouyaté,,0.0,UNK,MID
+sb_7379,Edouard Mendy,,0.0,UNK,GK
+sb_8870,Alfred Benjamin Gomis,,0.0,UNK,MID
+sb_10603,Mamadou Loum N'Diaye,,0.0,UNK,MID
+sb_15970,Pape Abou Cissé,,0.0,UNK,DEF
+sb_17456,Timothy Dieng,,0.0,UNK,MID
+sb_34893,Moustapha Name,,0.0,UNK,MID
+sb_39595,Formose Mendy,Formose Mendy,1.0,UNK,MID
+sb_50497,Nicolas Jackson,Nicolas Jackson,1.0,UNK,MID
+sb_312414,Moussa N''Diaye,,0.0,UNK,MID
+sb_4626,Jan Bednarek,Jan Bednarek,1.0,UNK,MID
+sb_4664,Sebastian Szymański,Sebastian Szymański,1.0,UNK,MID
+sb_4682,Robert Gumny,,0.0,UNK,MID
+sb_4685,Artur Jędrzejczyk,,0.0,UNK,MID
+sb_5667,Kamil Grosicki,,0.0,UNK,MID
+sb_5669,Wojciech Szczęsny,Wojciech Szczęsny,1.0,UNK,GK
+sb_5673,Bartosz Bereszyński,,0.0,UNK,DEF
+sb_8021,Szymon Żurkowski,,0.0,UNK,MID
+sb_8704,Mateusz Wieteska,Mateusz Wieteska,1.0,UNK,MID
+sb_8714,Damian Szymański,Damián,0.8,UNK,MID
+sb_8836,Karol Świderski,,0.0,UNK,MID
+sb_11508,Łukasz Skorupski,Łukasz Skorupski,1.0,UNK,MID
+sb_24413,Kamil Grabara,Kamil Grabara,1.0,UNK,MID
+sb_50502,Nicola Zalewski,Nicola Zalewski,1.0,UNK,MID
+sb_5173,Abdullah Ibrahim Otayf,,0.0,UNK,MID
+sb_5188,Hattan Babhir,,0.0,UNK,MID
+sb_5714,Mohammed Khalil Al Owais,Musah Mohammed,0.85,UNK,GK
+sb_5715,Ali Albulayhi,,0.0,UNK,DEF
+sb_51103,Abdullah Mohammed Madu,,0.0,UNK,MID
+sb_51546,Hassan Mohammed Al-Tambakti,Haissem Hassan,0.85,UNK,MID
+sb_51632,Sami Khalil Al Naji,,0.0,UNK,MID
+sb_51663,Mohammed Al Rubaie Al Yami,Musah Mohammed,0.85,UNK,MID
+sb_54149,Nawaf Alaqidi,,0.0,UNK,MID
+sb_74623,Nasser Al Dawsari,,0.0,UNK,FWD
+sb_121539,Haitham Mohammed Asiri,,0.0,UNK,MID
+sb_124490,Ahmed Alaa Eldin Abdelmotaal,,0.0,UNK,MID
+sb_124492,Karim Boudiaf,,0.0,UNK,MID
+sb_124493,Boualem Khoukhi,,0.0,UNK,DEF
+sb_124496,Saad Abdullah Al Sheeb,,0.0,UNK,MID
+sb_124500,Assim Omer Al Haj Madibo,,0.0,UNK,MID
+sb_124503,Bassam Hisham Al Rawi,,0.0,UNK,MID
+sb_124504,Tarek Salman Salman,,0.0,UNK,MID
+sb_124510,Meshaal Aissa Barsham,,0.0,UNK,GK
+sb_124512,Mosaab Khoder Jibril,,0.0,UNK,DEF
+sb_124526,Salem Ali Al Hajri,,0.0,UNK,MID
+sb_124900,Homam Alamin Ahmed,,0.0,UNK,DEF
+sb_124909,Mohammed Waed Abdulwahhab Al Bayati,Musah Mohammed,0.85,UNK,MID
+sb_126962,Jassem Gaber Abdulsallam,,0.0,UNK,MID
+sb_130272,Yousef Hassan Mohamed Ali,Mohamed Ali Cho,0.5,UNK,MID
+sb_146267,Khalid Muneer Mazeed,,0.0,UNK,MID
+sb_149463,Ali Assadalla Thaimn Qambar,,0.0,UNK,MID
+sb_150429,Mostafa Taerk Mashaal,,0.0,UNK,MID
+sb_157455,Naif Abdulraheem Al Hadhrami,,0.0,UNK,MID
+sb_3815,Kasper Schmeichel,,0.0,UNK,GK
+sb_5524,Jens Stryger Larsen,Jacob Bruun Larsen,0.85,UNK,MID
+sb_5534,Simon Thorup Kjær,Santiago Simón,0.85,UNK,MID
+sb_5536,Yussuf Yurary Poulsen,Yussuf Poulsen,1.167,UNK,MID
+sb_6797,Daniel Wass,,0.0,UNK,MID
+sb_7097,Christian Nørgaard,Christian Nørgaard,1.0,UNK,MID
+sb_12420,Frederik Rønnow,Frederik Rønnow,1.0,UNK,MID
+sb_16190,Rasmus Nissen Kristensen,Rasmus Kristensen,1.167,UNK,DEF
+sb_16294,Robert Skov,Robert Skov,1.0,UNK,MID
+sb_17043,Victor Nelsson,Victor Nelsson,1.0,UNK,DEF
+sb_21261,Jonas Older Wind,Jonas Wind,1.167,UNK,MID
+sb_24443,Mikkel Damsgaard,Mikkel Damsgaard,1.0,UNK,MID
+sb_27038,Oliver Christensen,Oliver Christensen,1.0,UNK,MID
+sb_4440,Kevin Trapp,Kevin Trapp,1.0,UNK,MID
+sb_5555,Julian Brandt,Julian Brandt,1.0,UNK,MID
+sb_5570,Manuel Neuer,Manuel Neuer,1.0,UNK,GK
+sb_8507,Lukas Klostermann,Lukas Klostermann,1.0,UNK,MID
+sb_8511,Thilo Kehrer,Thilo Kehrer,1.0,UNK,MID
+sb_8808,Matthias Ginter,Matthias Ginter,1.0,UNK,MID
+sb_8945,Christian Günter,Christian Günter,1.0,UNK,MID
+sb_12034,David Raum,David Raum,1.0,UNK,DEF
+sb_20055,Marc-André ter Stegen,Marc-André ter Stegen,1.0,UNK,MID
+sb_24118,Nico Schlotterbeck,Nico Schlotterbeck,1.0,UNK,DEF
+sb_24916,Armel Bella-Kotchap,,0.0,UNK,MID
+sb_35609,Karim-David Adeyemi,Karim Adeyemi,0.85,UNK,MID
+sb_38837,Youssoufa Moukoko,,0.0,UNK,MID
+sb_5527,Thomas Delaney,,0.0,UNK,MID
+sb_5563,José Andrés Guardado Hernández,Javier Hernández,0.85,UNK,MID
+sb_5568,Raúl Alonso Jiménez Rodríguez,Raúl Jiménez,1.0,UNK,FWD
+sb_5575,Héctor Miguel Herrera López,Héctor Herrera,1.0,UNK,MID
+sb_5577,Francisco Guillermo Ochoa Magaña,,0.0,UNK,GK
+sb_11388,Néstor Alejandro Araújo Razo,,0.0,UNK,MID
+sb_15872,Érick Gabriel Gutiérrez Galaviz,Erick Gutiérrez,1.0,UNK,MID
+sb_26297,Carlos Alberto Rodríguez Gómez,,0.0,UNK,MID
+sb_26336,Johan Felipe Vásquez Ibarra,Johan Vásquez,1.0,UNK,MID
+sb_26375,Roberto Carlos Alvarado Hernández,Roberto Alvarado,1.0,UNK,MID
+sb_26386,Luis Francisco Romo Barrón,Luis Romo,1.0,UNK,MID
+sb_26389,Alfredo Talavera Díaz,,0.0,UNK,MID
+sb_27896,Gerardo Daniel Arteaga Zamora,Gerardo Arteaga,1.0,UNK,MID
+sb_28522,Rodolfo Cota Robles,Rodolfo Cota,1.167,UNK,MID
+sb_30500,Kevin Nahin Álvarez Campos,Kevin Álvarez,1.0,UNK,MID
+sb_3067,Ederson Santana de Moraes,Ederson,0.8,UNK,MID
+sb_3247,Fábio Henrique Tavares,Fábio,0.8,UNK,MID
+sb_5547,Alisson Ramsés Becker,Alisson,0.8,UNK,GK
+sb_11183,Alex Nicolao Telles,,0.0,UNK,DEF
+sb_25101,Weverton Pereira da Silva,Eric da Silva Moreira,0.5,UNK,MID
+sb_25154,Éverton Augusto de Barros Ribeiro,,0.0,UNK,MID
+sb_12326,Renato Steffen,,0.0,UNK,MID
+sb_6312,Franco Armani,,0.0,UNK,MID
+sb_6377,Ángel Martín Correa,Ángel Correa,1.167,UNK,MID
+sb_6694,Gerónimo Rulli,Gerónimo Rulli,1.0,UNK,MID
+sb_6909,Damián Emiliano Martínez,Emiliano Martínez,1.167,UNK,GK
+sb_20572,Cristian Gabriel Romero,Cristian Romero,1.167,UNK,DEF
+sb_21081,Juan Marcos Foyth,Juan Foyth,1.167,UNK,MID
+sb_26404,Guido Rodríguez,Guido Rodríguez,1.0,UNK,MID
+sb_28637,Thiago Ezequiel Almada,Thiago Almada,1.167,UNK,MID
+sb_5582,Celso Borges Mora,Christopher Mora,0.85,UNK,MID
+sb_5592,Bryan Ruiz González,Bryan González,1.167,UNK,MID
+sb_5595,Johan Alberto Venegas Ulloa,,0.0,UNK,FWD
+sb_5597,Keylor Navas Gamboa,Keylor Navas,1.167,UNK,GK
+sb_5598,Óscar Esau Duarte Gaitán,,0.0,UNK,DEF
+sb_5836,Bryan Oviedo,,0.0,UNK,DEF
+sb_15477,Ronald Alberto Matarrita Ulate,,0.0,UNK,MID
+sb_97291,Patrick Gilmar Sequeira Mejías,Patrick Sequeira,1.0,UNK,MID
+sb_108340,Brandon Aguilera Zamora,Brandon Aguilera,1.167,UNK,MID
+sb_130194,Esteban Alvarado Brown,,0.0,UNK,MID
+sb_132271,Carlos Manuel Martínez Castro,Christopher Castro,0.85,UNK,MID
+sb_132296,Anthony Daniel Contreras Enríquez,,0.0,UNK,DEF
+sb_132743,Douglas Andrey López Araya,,0.0,UNK,MID
+sb_132756,Youstin Delfin Salas Gómez,,0.0,UNK,DEF
+sb_132772,Daniel Alonso Chacón Salas,,0.0,UNK,MID
+sb_135271,Roan Roberto Wilson Gordon,,0.0,UNK,MID
+sb_184468,Álvaro José Zamora Mata,,0.0,UNK,MID
+sb_283799,Anthony William Hernández González,Alfonso González,0.85,UNK,MID
+sb_6321,Milos Veljkovic,,0.0,UNK,DEF
+sb_6698,Marko Dmitrović,Marko Dmitrović,1.0,UNK,MID
+sb_6901,Nemanja Maksimović,,0.0,UNK,MID
+sb_7117,Filip Đuričić,,0.0,UNK,MID
+sb_10477,Stefan Mitrović,Stefan Mitrović,1.0,UNK,MID
+sb_15731,Predrag Rajković,,0.0,UNK,MID
+sb_16489,Nemanja Gudelj,Nemanja Gudelj,1.0,UNK,DEF
+sb_18737,Srđan Babić,,0.0,UNK,MID
+sb_20600,Vanja Milinković Savić,,0.0,UNK,GK
+sb_24267,Uroš Račić,,0.0,UNK,MID
+sb_30179,Ivan Ilić,Ivan Ilić,1.0,UNK,MID
+sb_43666,Strahinja Eraković,,0.0,UNK,MID
+sb_3240,Mathew Ryan,Mathew Ryan,1.0,UNK,GK
+sb_9430,Jason Cummings,,0.0,UNK,MID
+sb_9980,Jamie MacLaren,,0.0,UNK,FWD
+sb_15957,Miloš Degenek,,0.0,UNK,DEF
+sb_16549,Danny Vuković,,0.0,UNK,MID
+sb_22371,Bailey Wright,,0.0,UNK,MID
+sb_24475,Awer Mabil,,0.0,UNK,MID
+sb_33446,Thomas Deng,,0.0,UNK,MID
+sb_33465,Joel King,Joshua King,0.85,UNK,MID
+sb_33495,Kye Rowles,,0.0,UNK,DEF
+sb_33502,Cameron Peter Devlin,,0.0,UNK,MID
+sb_33564,Andrew Redmayne,Andrew,0.8,UNK,MID
+sb_33572,Nathaniel Atkinson,,0.0,UNK,MID
+sb_36158,Marco Tilio,,0.0,UNK,MID
+sb_3135,Chang-Hoon Kwon,,0.0,UNK,MID
+sb_5619,Hyeon-Woo Jo,,0.0,UNK,MID
+sb_5986,Chul Hong,,0.0,UNK,MID
+sb_37641,Seung-Gyu Kim,,0.0,UNK,GK
+sb_40550,Bum-Keun Song,,0.0,UNK,MID
+sb_40558,Jun-Ho Son,,0.0,UNK,MID
+sb_40578,Tae-Hwan Kim,,0.0,UNK,MID
+sb_40664,Min-Kyu Song,,0.0,UNK,MID
+sb_40672,Moon-Hwan Kim,,0.0,UNK,DEF
+sb_41495,Jong-Gyu Yoon,,0.0,UNK,MID
+sb_99479,Yu-Min Cho,,0.0,UNK,MID
+sb_5248,José Martín Cáceres Silva,José Silva,1.0,UNK,DEF
+sb_5264,Guillermo Varela Olivera,,0.0,UNK,MID
+sb_5266,Lucas Torreira Di Pascua,Lucas Torreira,1.0,UNK,MID
+sb_5267,Néstor Fernando Muslera Micol,,0.0,UNK,MID
+sb_26323,Carlos Sebastián Sosa Silva,Caio Henrique Oliveira Silva,0.85,UNK,MID
+sb_33099,José Luis Rodríguez Bebanz,José Luis Rodríguez,1.25,UNK,MID
+sb_34476,Matías Nicolás Viña Susperreguy,,0.0,UNK,DEF
+sb_36659,Manuel Ugarte Ribeiro,Manuel Ugarte,1.167,UNK,MID
+sb_36666,Agustín Canobbio Graviz,,0.0,UNK,MID
+sb_36710,Sergio Rochet Álvarez,,0.0,UNK,GK
+sb_44649,Facundo Daniel Torres Pérez,Francisco Perez,0.85,UNK,MID
+sb_51470,Riyadh Sharahili,,0.0,UNK,DEF
+sb_41092,Nuno Mendes,Nuno Mendes,1.0,UNK,DEF
+sb_5178,Salman Mohammed Al Faraj,,0.0,UNK,MID
+sb_5183,Yasir Gharsan Al Shahrani,,0.0,UNK,DEF
+sb_5484,Lucas Hernández Pi,Lucas Hernández,1.167,UNK,DEF
