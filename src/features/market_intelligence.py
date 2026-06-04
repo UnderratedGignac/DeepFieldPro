@@ -17,8 +17,8 @@ def calculate_market_intelligence(df: pd.DataFrame) -> pd.DataFrame:
     odds_cols = ['opening_odds', 'current_odds', 'closing_odds']
     for col in odds_cols:
         if col not in df.columns:
-            # Placeholder for missing odds data
-            df[col] = 1.0
+            # Safely assign NaN for missing odds data to prevent math breakage
+            df[col] = np.nan
             
     # Calculate Line Movement (absolute difference)
     # Negative line movement means the odds dropped (became more favored)
