@@ -25,11 +25,16 @@ def get_todays_fixtures_free():
                 if e['status']['type'] == 'inprogress': status_code = '1H'
                 elif e['status']['type'] == 'finished': status_code = 'FT'
                 
+                home_score = e.get('homeScore', {}).get('current', None)
+                away_score = e.get('awayScore', {}).get('current', None)
+                
                 formatted_fixtures.append({
                     'fixture': {
                         'id': e['id'],
                         'date': kickoff_iso,
-                        'status': {'short': status_code}
+                        'status': {'short': status_code},
+                        'home_score': home_score,
+                        'away_score': away_score
                     },
                     'league': {'name': e['tournament']['name']},
                     'teams': {

@@ -276,6 +276,15 @@
             border-left: 3px solid var(--primary);
         }
 
+        .market-section { margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;}
+        .market-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem;}
+        .market-btn {
+            background: var(--surface-hover); border: 1px solid var(--border-color); color: var(--text-main);
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; gap: 10px; align-items: center; width: 100%; justify-content: space-between;
+        }
+        .market-btn:hover { background: var(--primary); color: var(--bg-color); border-color: var(--primary); font-weight: 600;}
+        .market-btn span.prob { background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; font-family: 'Outfit', sans-serif;}
+
         .pred-winner { font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
         .pred-score { font-size: 1rem; color: var(--text-main); font-weight: 600; margin-bottom: 12px; }
 
@@ -379,6 +388,9 @@
             </a>
             <a class="nav-item" onclick="switchView('tracker-view', this)">
                 <i class="fa-solid fa-list-check"></i> Bet Tracker
+            </a>
+            <a class="nav-item" onclick="switchView('performance-view', this)">
+                <i class="fa-solid fa-chart-line"></i> Performance (AI vs User)
             </a>
             <a class="nav-item" onclick="switchView('settings-view', this)">
                 <i class="fa-solid fa-microchip"></i> Engine Settings
@@ -563,6 +575,72 @@
             </div>
         </div>
 
+        <!-- PERFORMANCE VIEW -->
+        <div id="performance-view" class="view-section">
+            <div class="kpi-grid">
+                <div class="kpi-card" style="border-left: 4px solid var(--primary);">
+                    <div class="kpi-title">AI PNL (Recommendations)</div>
+                    <div class="kpi-value" id="perf-ai-pnl">Loading...</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="perf-ai-winrate">Win Rate: Loading...</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid var(--secondary);">
+                    <div class="kpi-title">My Total PNL</div>
+                    <div class="kpi-value" id="perf-user-pnl">Loading...</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="perf-user-winrate">Win Rate: Loading...</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid #00ff88;">
+                    <div class="kpi-title">My PNL (Following AI)</div>
+                    <div class="kpi-value" style="color: #00ff88;" id="perf-user-rec-pnl">Loading...</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="perf-user-rec-stats">Loading...</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid #ff4d4d;">
+                    <div class="kpi-title">My PNL (Going Rogue)</div>
+                    <div class="kpi-value" style="color: #ff4d4d;" id="perf-user-own-pnl">Loading...</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="perf-user-own-stats">Loading...</div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px;">
+                <!-- AI Recommended Ledger -->
+                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
+                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-brain"></i> AI Recommended Ledger</h3>
+                    <table class="data-table" id="perf-ai-table">
+                        <thead>
+                            <tr>
+                                <th>Match / Market</th>
+                                <th>Odds</th>
+                                <th>Stake</th>
+                                <th>PNL</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" style="text-align: center;">Loading AI Ledger...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- User Placed Ledger -->
+                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
+                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-user"></i> My Placed Bets</h3>
+                    <table class="data-table" id="perf-user-table">
+                        <thead>
+                            <tr>
+                                <th>Match / Market</th>
+                                <th>Odds</th>
+                                <th>Stake</th>
+                                <th>PNL</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" style="text-align: center;">Loading User Ledger...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script>
@@ -578,9 +656,29 @@
                 'live-view': 'Live Match Radar',
                 'bankroll-view': 'Capital Overview',
                 'tracker-view': 'Execution Ledger',
-                'settings-view': 'Engine Configuration'
+                'settings-view': 'Engine Configuration',
+                'performance-view': 'User vs AI Performance'
             };
             document.getElementById('page-title').innerText = titles[viewId];
+            
+            const paths = {
+                'live-view': '/',
+                'bankroll-view': '/bankroll',
+                'tracker-view': '/tracker',
+                'settings-view': '/settings',
+                'performance-view': '/performance'
+            };
+            if(window.location.pathname !== paths[viewId]) {
+                history.pushState(null, '', paths[viewId]);
+            }
+            
+            if(viewId === 'performance-view') {
+                loadPerformance();
+            } else if(viewId === 'tracker-view') {
+                loadTracker();
+            } else if(viewId === 'bankroll-view') {
+                loadBankroll();
+            }
         }
 
         // Live Dashboard Logic
@@ -664,6 +762,27 @@
                             </div>
                         </div>
                     `;
+
+                    if(p.markets) {
+                        contentHTML += `<div class="market-section"><h4 style="color:var(--secondary);margin-bottom:10px;"><i class="fa-solid fa-store"></i> Betarabia Markets</h4>`;
+                        for(const [marketName, selections] of Object.entries(p.markets)) {
+                            contentHTML += `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; margin-bottom:4px;">${marketName}</div>`;
+                            selections.forEach(sel => {
+                                const recBadge = sel.recommended ? `<span style="background:linear-gradient(135deg, var(--primary), var(--secondary)); color:var(--bg-color); font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.65rem; text-transform:uppercase; margin-left:8px;">RECOMMENDED</span>` : '';
+                                contentHTML += `
+                                <div class="market-row" style="margin-bottom: 6px;">
+                                    <button class="market-btn" onclick="placeBet('${p.match}', '${marketName}', '${sel.selection}', ${sel.prob}, ${sel.odds}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="display:flex; align-items:center;">${sel.selection} ${recBadge}</span>
+                                        <span style="font-family:'Outfit',sans-serif; font-weight:700;">
+                                            <span style="color:var(--text-muted); font-size:0.8rem; margin-right:8px;">${sel.prob}%</span>
+                                            <span style="color:var(--primary);">@ ${sel.odds.toFixed(2)}</span>
+                                        </span>
+                                    </button>
+                                </div>`;
+                            });
+                        }
+                        contentHTML += `</div>`;
+                    }
                 } else {
                     contentHTML += `
                         <div class="status-pending">
@@ -671,11 +790,154 @@
                             Neural net locked. Prediction requires confirmed starting XI to evaluate aggregate impact.
                         </div>
                     `;
+                    
+                    if (match.prematch_markets) {
+                        contentHTML += `<div class="market-section"><h4 style="color:var(--secondary);margin-bottom:10px;"><i class="fa-solid fa-store"></i> Live Betarabia Odds</h4>`;
+                        for(const [marketName, selections] of Object.entries(match.prematch_markets)) {
+                            if (selections && selections.length > 0) {
+                                contentHTML += `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; margin-bottom:4px;">${marketName}</div>`;
+                                selections.forEach(sel => {
+                                    contentHTML += `
+                                    <div class="market-row" style="margin-bottom: 6px;">
+                                        <button class="market-btn" onclick="placeBet('${match.match}', '${marketName}', '${sel.selection}', 0.0, ${sel.odds}, 0)" style="display:flex; justify-content:space-between; align-items:center;">
+                                            <span>${sel.selection}</span>
+                                            <span style="font-family:'Outfit',sans-serif; font-weight:700; color:var(--primary);">@ ${sel.odds.toFixed(2)}</span>
+                                        </button>
+                                    </div>`;
+                                });
+                            }
+                        }
+                        contentHTML += `</div>`;
+                    }
                 }
 
                 card.innerHTML = contentHTML;
                 dashboard.appendChild(card);
             });
+        }
+
+        async function placeBet(match, market, selection, prob, odds, recommended) {
+            let stake = prompt(`Place Bet on [${match}] - ${market}: ${selection}\n\nLive Odds: @ ${odds.toFixed(2)}\nAI Probability: ${prob}%\n\nEnter Stake ($):`, "100");
+            if(stake !== null && stake !== "") {
+                try {
+                    const res = await fetch('/api/place_bet', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({match, market, selection, prob, odds, recommended, stake})
+                    });
+                    if(!res.ok) throw new Error("Bet failed");
+                    alert("Bet Transmitted Successfully to Ledger!");
+                    loadBankroll();
+                    loadTracker();
+                } catch(e) {
+                    alert("Failed to place bet.");
+                }
+            }
+        }
+
+        async function settleBet(betId, outcome) {
+            if(confirm(`Are you sure you want to settle this bet manually as ${outcome}?`)) {
+                try {
+                    const res = await fetch('/api/settle_bet', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({bet_id: betId, outcome: outcome})
+                    });
+                    if(!res.ok) throw new Error("Settlement failed");
+                    alert("Bet Settled Successfully!");
+                    loadPerformance();
+                    loadBankroll();
+                    loadTracker();
+                } catch(e) {
+                    alert("Failed to settle bet manually.");
+                }
+            }
+        }
+
+        async function loadPerformance() {
+            try {
+                const res = await fetch('/api/performance');
+                const data = await res.json();
+                
+                document.getElementById('perf-ai-pnl').innerText = `$${data.ai.pnl.toLocaleString()}`;
+                document.getElementById('perf-ai-pnl').style.color = data.ai.pnl >= 0 ? 'var(--primary)' : '#ff4d4d';
+                document.getElementById('perf-ai-winrate').innerText = `Win Rate: ${data.ai.win_rate}% (${data.ai.wins}W - ${data.ai.losses}L)`;
+                
+                document.getElementById('perf-user-pnl').innerText = `$${data.user.pnl.toLocaleString()}`;
+                document.getElementById('perf-user-pnl').style.color = data.user.pnl >= 0 ? 'var(--primary)' : '#ff4d4d';
+                document.getElementById('perf-user-winrate').innerText = `Win Rate: ${data.user.win_rate}% (${data.user.wins}W - ${data.user.losses}L)`;
+                
+                document.getElementById('perf-user-rec-pnl').innerText = `$${data.user_rec.pnl.toLocaleString()}`;
+                document.getElementById('perf-user-rec-pnl').style.color = data.user_rec.pnl >= 0 ? '#00ff88' : '#ff4d4d';
+                document.getElementById('perf-user-rec-stats').innerText = `Win Rate: ${data.user_rec.win_rate}% | Total: ${data.user_rec.total} bets`;
+                
+                document.getElementById('perf-user-own-pnl').innerText = `$${data.user_own.pnl.toLocaleString()}`;
+                document.getElementById('perf-user-own-pnl').style.color = data.user_own.pnl >= 0 ? '#00ff88' : '#ff4d4d';
+                document.getElementById('perf-user-own-stats').innerText = `Win Rate: ${data.user_own.win_rate}% | Total: ${data.user_own.total} bets`;
+                
+                const aiBody = document.querySelector('#perf-ai-table tbody');
+                if (data.raw_ai_bets.length === 0) {
+                    aiBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No AI recommended bets yet.</td></tr>';
+                } else {
+                    aiBody.innerHTML = data.raw_ai_bets.map(b => {
+                        let tag = `<span class="tag-open">OPEN</span>`;
+                        let actionButtons = '';
+                        if (b.result === 'W') tag = `<span class="tag-win">WIN</span>`;
+                        else if (b.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
+                        else if (b.result === 'VOID') tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1); color:#aaa;">VOID</span>`;
+                        else {
+                            actionButtons = `
+                                <div style="display:flex; gap:4px; margin-top:5px;">
+                                    <button onclick="settleBet('${b.bet_id}', 'W')" style="background:#00ff88; color:#0A1910; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Win">W</button>
+                                    <button onclick="settleBet('${b.bet_id}', 'L')" style="background:#ff4d4d; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Loss">L</button>
+                                    <button onclick="settleBet('${b.bet_id}', 'VOID')" style="background:#aaa; color:#0A1910; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Void">V</button>
+                                </div>
+                            `;
+                        }
+                        let pnlVal = b.pnl ? (b.pnl >= 0 ? `+$${b.pnl.toFixed(2)}` : `-$${Math.abs(b.pnl).toFixed(2)}`) : '-';
+                        return `<tr>
+                            <td><strong>${b.player_id}</strong><br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
+                            <td>${b.entry_odds}</td>
+                            <td>$${b.stake}</td>
+                            <td style="color: ${b.pnl >= 0 ? '#00ff88' : '#ff4d4d'}">${pnlVal}</td>
+                            <td>${tag}${actionButtons}</td>
+                        </tr>`;
+                    }).join('');
+                }
+                
+                const userBody = document.querySelector('#perf-user-table tbody');
+                if (data.raw_user_bets.length === 0) {
+                    userBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No bets placed by you yet.</td></tr>';
+                } else {
+                    userBody.innerHTML = data.raw_user_bets.map(b => {
+                        let tag = `<span class="tag-open">OPEN</span>`;
+                        let actionButtons = '';
+                        if (b.result === 'W') tag = `<span class="tag-win">WIN</span>`;
+                        else if (b.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
+                        else if (b.result === 'VOID') tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1); color:#aaa;">VOID</span>`;
+                        else {
+                            actionButtons = `
+                                <div style="display:flex; gap:4px; margin-top:5px;">
+                                    <button onclick="settleBet('${b.bet_id}', 'W')" style="background:#00ff88; color:#0A1910; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Win">W</button>
+                                    <button onclick="settleBet('${b.bet_id}', 'L')" style="background:#ff4d4d; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Loss">L</button>
+                                    <button onclick="settleBet('${b.bet_id}', 'VOID')" style="background:#aaa; color:#0A1910; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Void">V</button>
+                                </div>
+                            `;
+                        }
+                        let pnlVal = b.pnl ? (b.pnl >= 0 ? `+$${b.pnl.toFixed(2)}` : `-$${Math.abs(b.pnl).toFixed(2)}`) : '-';
+                        let followTag = b.is_recommended ? `<span style="background:rgba(229,193,88,0.15); color:var(--primary); font-size:0.65rem; padding:1px 4px; border-radius:3px; font-weight:600; margin-left:5px; border: 1px solid rgba(229,193,88,0.3)">AI RECOMMENDED</span>` : `<span style="background:rgba(255,77,77,0.1); color:#ff4d4d; font-size:0.65rem; padding:1px 4px; border-radius:3px; font-weight:600; margin-left:5px; border: 1px solid rgba(255,77,77,0.2)">MY CHOICE</span>`;
+                        return `<tr>
+                            <td><strong>${b.player_id}</strong> ${followTag}<br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
+                            <td>${b.entry_odds}</td>
+                            <td>$${b.stake}</td>
+                            <td style="color: ${b.pnl >= 0 ? '#00ff88' : '#ff4d4d'}">${pnlVal}</td>
+                            <td>${tag}${actionButtons}</td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (e) {
+                console.error("Error loading performance stats:", e);
+            }
         }
 
         setInterval(() => {
@@ -779,15 +1041,27 @@
                 tbody.innerHTML = data.bets.map(b => {
                     let statusTag = `<span class="tag-open">OPEN</span>`;
                     if(b.result === 'W') statusTag = `<span class="tag-win">WIN</span>`;
-                    if(b.result === 'L') statusTag = `<span class="tag-loss">LOSS</span>`;
+                    else if(b.result === 'L') statusTag = `<span class="tag-loss">LOSS</span>`;
+                    else if(b.result === 'VOID') statusTag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1); color:#aaa;">VOID</span>`;
                     
-                    let pnlStr = b.pnl ? `$${b.pnl}` : '-';
+                    let pnlColor = 'inherit';
+                    let pnlStr = '-';
+                    if (b.pnl !== null && b.pnl !== undefined && b.result !== 'OPEN') {
+                        if (b.pnl >= 0) {
+                            pnlStr = `+$${b.pnl.toFixed(2)}`;
+                            pnlColor = '#00ff88';
+                        } else {
+                            pnlStr = `-$${Math.abs(b.pnl).toFixed(2)}`;
+                            pnlColor = '#ff4d4d';
+                        }
+                    }
+                    
                     return `<tr>
                         <td><strong>${b.player_id}</strong><br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
                         <td>${b.entry_odds}</td>
                         <td>${b.closing_odds || '-'}</td>
                         <td><span style="color: ${b.edge_pct > 0 ? '#00ff88' : 'inherit'}">${b.edge_pct > 0 ? '+' : ''}${b.edge_pct}%</span></td>
-                        <td>${pnlStr}</td>
+                        <td style="color: ${pnlColor}">${pnlStr}</td>
                         <td>${statusTag}</td>
                     </tr>`;
                 }).join('');
@@ -853,10 +1127,27 @@
             }
         }
 
-        // Initialize All
-        fetchState();
-        loadBankroll();
-        loadTracker();
+        // Initialize and Route
+        window.addEventListener('popstate', handleRouting);
+
+        function handleRouting() {
+            const path = window.location.pathname;
+            const navItems = document.querySelectorAll('.nav-item');
+            if (path === '/performance') {
+                switchView('performance-view', navItems[3]);
+            } else if (path === '/tracker') {
+                switchView('tracker-view', navItems[2]);
+            } else if (path === '/bankroll') {
+                switchView('bankroll-view', navItems[1]);
+            } else if (path === '/settings') {
+                switchView('settings-view', navItems[4]);
+            } else {
+                switchView('live-view', navItems[0]);
+                fetchState();
+            }
+        }
+
+        handleRouting();
         loadSettings();
     </script>
 </body>

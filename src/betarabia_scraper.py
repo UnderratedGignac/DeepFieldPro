@@ -281,81 +281,160 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
         if not isinstance(Data_V, dict):
             continue
 
-        # Odds endpoint returns {"odds": {odd_id: odd_object}}
-        RawOdds_V = Data_V.get("odds", {})
-        if not isinstance(RawOdds_V, dict):
-            continue
-
-        for OddId_V, Odd_V in RawOdds_V.items():
-            if not isinstance(Odd_V, dict):
-                continue
-
-            EventId_V = str(Odd_V.get("eventId", ""))
-            if EventId_V not in MarketsByEvent_V:
-                continue
-
-            OddValue_V = Odd_V.get("oddValue")
-            try:
-                OddValue_V = float(OddValue_V)
-                if not (1.01 <= OddValue_V <= 100.0):
+        # Option A: Parse nested odds from events directly (new format)
+        if "events" in Data_V:
+            RawEvents_V = Data_V["events"]
+            EventList_V = list(RawEvents_V.values()) if isinstance(RawEvents_V, dict) else RawEvents_V
+            for Ev_V in EventList_V:
+                if not isinstance(Ev_V, dict):
                     continue
-            except (TypeError, ValueError):
-                continue
+                EventId_V = str(Ev_V.get("id"))
+                if EventId_V not in MarketsByEvent_V:
+                    continue
+                
+                MainOdds_V = Ev_V.get("main_odds", {})
+                if not isinstance(MainOdds_V, dict):
+                    continue
+                
+                # 1. Match Result (main)
+                main_market = MainOdds_V.get("main")
+                if isinstance(main_market, dict):
+                    for OddId_V, Odd_V in main_market.items():
+                        if not isinstance(Odd_V, dict):
+                            continue
+                        OddValue_V = Odd_V.get("odd_value")
+                        try:
+                            OddValue_V = float(OddValue_V)
+                        except (TypeError, ValueError):
+                            continue
+                        OddCode_V = Odd_V.get("odd_code", "")
+                        SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
+                        SelectionNorm_V = _normalize_selection(
+                            SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), None
+                        )
+                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
+                            MarketsByEvent_V[EventId_V].append({
+                                "market_id": Odd_V.get("unique_id", OddId_V),
+                                "market_name": "Match Result",
+                                "selection_name": SelectionNorm_V,
+                                "raw_odds": OddValue_V,
+                                "odd_code": OddCode_V
+                            })
+                
+                # 2. Both Teams to Score (bothscore)
+                bothscore_market = MainOdds_V.get("bothscore")
+                if isinstance(bothscore_market, dict):
+                    for OddId_V, Odd_V in bothscore_market.items():
+                        if not isinstance(Odd_V, dict):
+                            continue
+                        OddValue_V = Odd_V.get("odd_value")
+                        try:
+                            OddValue_V = float(OddValue_V)
+                        except (TypeError, ValueError):
+                            continue
+                        OddCode_V = Odd_V.get("odd_code", "")
+                        SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
+                        SelectionNorm_V = _normalize_selection(
+                            SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), None
+                        )
+                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
+                            MarketsByEvent_V[EventId_V].append({
+                                "market_id": Odd_V.get("unique_id", OddId_V),
+                                "market_name": "Both teams to score",
+                                "selection_name": SelectionNorm_V,
+                                "raw_odds": OddValue_V,
+                                "odd_code": OddCode_V
+                            })
+                
+                # 3. Total Goals (total)
+                total_market = MainOdds_V.get("total")
+                if isinstance(total_market, dict):
+                    for OddId_V, Odd_V in total_market.items():
+                        if not isinstance(Odd_V, dict):
+                            continue
+                        OddValue_V = Odd_V.get("odd_value")
+                        try:
+                            OddValue_V = float(OddValue_V)
+                        except (TypeError, ValueError):
+                            continue
+                        OddCode_V = Odd_V.get("odd_code", "")
+                        LineRaw_V = Odd_V.get("additional_value_raw") or Odd_V.get("additional_value", "")
+                        try:
+                            Line_V = float(str(LineRaw_V).strip())
+                        except Exception:
+                            Line_V = 2.5
+                        SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
+                        if "over" in SelectionName_V.lower() or "ovr" in OddCode_V.lower() or "over" in str(Odd_V.get("name", "")).lower():
+                            SelectionNorm_V = f"Total OVER {Line_V}"
+                        else:
+                            SelectionNorm_V = f"Total UNDER {Line_V}"
+                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
+                            MarketsByEvent_V[EventId_V].append({
+                                "market_id": Odd_V.get("unique_id", OddId_V),
+                                "market_name": "Total Goals",
+                                "selection_name": SelectionNorm_V,
+                                "raw_odds": OddValue_V,
+                                "odd_code": OddCode_V
+                            })
 
-            MarketName_V = ""
-            SelectionName_V = Odd_V.get("name", "")
-            OddCode_V = Odd_V.get("oddCode", "")
+        # Option B: Odds endpoint returns {"odds": {odd_id: odd_object}} (old format, legacy support)
+        RawOdds_V = Data_V.get("odds", {})
+        if isinstance(RawOdds_V, dict) and len(RawOdds_V) > 0:
+            for OddId_V, Odd_V in RawOdds_V.items():
+                if not isinstance(Odd_V, dict):
+                    continue
 
-            # Map oddCode to readable market name
-            MarketName_V = ODD_CODE_MAP.get(OddCode_V, "")
-            if not MarketName_V:
-                # Try to infer from name
+                EventId_V = str(Odd_V.get("eventId", ""))
+                if EventId_V not in MarketsByEvent_V:
+                    continue
+
+                OddValue_V = Odd_V.get("oddValue")
+                try:
+                    OddValue_V = float(OddValue_V)
+                    if not (1.01 <= OddValue_V <= 100.0):
+                        continue
+                except (TypeError, ValueError):
+                    continue
+
+                MarketName_V = ""
+                SelectionName_V = Odd_V.get("name", "")
+                OddCode_V = Odd_V.get("oddCode", "")
+
+                MarketName_V = ODD_CODE_MAP.get(OddCode_V, "")
+                if not MarketName_V:
+                    NameLower_V = SelectionName_V.lower()
+                    if "both teams" in NameLower_V:
+                        MarketName_V = "Both teams to score"
+                    elif "over" in NameLower_V or "under" in NameLower_V:
+                        MarketName_V = "Total Goals"
+                    else:
+                        MarketName_V = "Match Result"
+
+                CodeLower_V = OddCode_V.lower()
                 NameLower_V = SelectionName_V.lower()
-                if "both teams" in NameLower_V:
-                    MarketName_V = "Both teams to score"
-                elif "over" in NameLower_V or "under" in NameLower_V:
-                    MarketName_V = "Total Goals"
-                elif SelectionName_V in ("1", "X", "2"):
-                    MarketName_V = "Match Result"
-                else:
-                    MarketName_V = "Match Result"
+                if any(Skip_V in CodeLower_V or Skip_V in NameLower_V for Skip_V in ["corner", "offside", "freeKick", "booking"]):
+                    continue
 
-            # Skip non-football-relevant markets (corners, offsides, non-standard)
-            CodeLower_V = OddCode_V.lower()
-            NameLower_V = SelectionName_V.lower()
-            if any(
-                Skip_V in CodeLower_V or Skip_V in NameLower_V
-                for Skip_V in [
-                    "corner", "offside", "freeKick", "free_kick",
-                    "freekick", "yellow_card", "yellowcard", "booking",
-                ]
-            ):
-                continue  # Skip non-main markets
+                AdditionalValue_V = Odd_V.get("additionalValue", "")
+                try:
+                    BettingLine_V = float(str(AdditionalValue_V).strip()) if AdditionalValue_V else None
+                except (ValueError, TypeError):
+                    BettingLine_V = None
 
-            # Extract betting line from additionalValue (e.g. 2.5 for Over 2.5)
-            AdditionalValue_V = Odd_V.get("additionalValue", "")
-            try:
-                BettingLine_V = float(str(AdditionalValue_V).strip()) if AdditionalValue_V else None
-            except (ValueError, TypeError):
-                BettingLine_V = None
+                SelectionNorm_V = _normalize_selection(
+                    SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), BettingLine_V
+                )
 
-            # Normalize selection names for predictor compatibility
-            SelectionNorm_V = _normalize_selection(
-                SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}),
-                BettingLine_V
-            )
-
-            MarketId_V = f"{EventId_V}_{OddId_V}"
-
-            MarketsByEvent_V[EventId_V].append(
-                {
-                    "market_id": MarketId_V,
-                    "market_name": MarketName_V,
-                    "selection_name": SelectionNorm_V,
-                    "raw_odds": OddValue_V,
-                    "odd_code": OddCode_V,
-                }
-            )
+                MarketId_V = f"{EventId_V}_{OddId_V}"
+                exists = any(m["market_id"] == MarketId_V for m in MarketsByEvent_V[EventId_V])
+                if not exists:
+                    MarketsByEvent_V[EventId_V].append({
+                        "market_id": MarketId_V,
+                        "market_name": MarketName_V,
+                        "selection_name": SelectionNorm_V,
+                        "raw_odds": OddValue_V,
+                        "odd_code": OddCode_V
+                    })
 
     return MarketsByEvent_V
 
@@ -711,6 +790,8 @@ async def run_scraper():
                     MarketsScraped_V += 1
 
         except Exception as MainErr_V:
+            import traceback
+            traceback.print_exc()
             with open(ERROR_LOG_PATH, "a") as F_V:
                 F_V.write(
                     f"[{datetime.datetime.now(datetime.timezone.utc).isoformat()}] "
