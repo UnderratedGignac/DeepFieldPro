@@ -47,12 +47,26 @@ def initialize_caches(df):
             pname = row['player_name']
             cpname = clean_name(pname)
             if cpname:
+                import pandas as pd
+                g = row.get('goals', 0)
+                a = row.get('assists', 0)
+                s = row.get('shots', 0)
+                p = row.get('passes', 0)
+                r = row.get('rating', 6.5)
+                
+                # Check for NaN and sanitize
+                g = 0.0 if pd.isna(g) else float(g)
+                a = 0.0 if pd.isna(a) else float(a)
+                s = 0.0 if pd.isna(s) else float(s)
+                p = 0.0 if pd.isna(p) else float(p)
+                r = 6.5 if pd.isna(r) else float(r)
+                
                 PLAYER_STATS_CACHE[cpname] = {
-                    'goals_roll': row.get('goals', 0),
-                    'assists_roll': row.get('assists', 0),
-                    'shots_roll': row.get('shots', 0),
-                    'passes_roll': row.get('passes', 0),
-                    'rating_roll': row.get('rating', 6.5)
+                    'goals_roll': g,
+                    'assists_roll': a,
+                    'shots_roll': s,
+                    'passes_roll': p,
+                    'rating_roll': r
                 }
                 
     # 2. Team Players Cache (for estimated lineups)
@@ -279,16 +293,24 @@ def load_predictions_from_db():
 
 def get_player_rolling_stats(player_name, df):
     cpname = clean_name(player_name)
+    import pandas as pd
     if cpname in PLAYER_STATS_CACHE:
-        return PLAYER_STATS_CACHE[cpname]
+        stats = PLAYER_STATS_CACHE[cpname]
+        return {
+            'goals_roll': 0.0 if pd.isna(stats.get('goals_roll')) else float(stats.get('goals_roll', 0.0)),
+            'assists_roll': 0.0 if pd.isna(stats.get('assists_roll')) else float(stats.get('assists_roll', 0.0)),
+            'shots_roll': 0.0 if pd.isna(stats.get('shots_roll')) else float(stats.get('shots_roll', 0.0)),
+            'passes_roll': 0.0 if pd.isna(stats.get('passes_roll')) else float(stats.get('passes_roll', 0.0)),
+            'rating_roll': 6.5 if pd.isna(stats.get('rating_roll')) else float(stats.get('rating_roll', 6.5))
+        }
     else:
         # Inject slight variance so unknown players don't all get exactly 0.18
         return {
-            'goals_roll': max(0, np.random.normal(0.1, 0.05)),
-            'assists_roll': max(0, np.random.normal(0.05, 0.02)),
-            'shots_roll': max(0, np.random.normal(0.5, 0.2)),
-            'passes_roll': max(0, np.random.normal(15.0, 5.0)),
-            'rating_roll': np.clip(np.random.normal(6.0, 0.3), 4.0, 8.0)
+            'goals_roll': float(max(0.0, np.random.normal(0.1, 0.05))),
+            'assists_roll': float(max(0.0, np.random.normal(0.05, 0.02))),
+            'shots_roll': float(max(0.0, np.random.normal(0.5, 0.2))),
+            'passes_roll': float(max(0.0, np.random.normal(15.0, 5.0))),
+            'rating_roll': float(np.clip(np.random.normal(6.0, 0.3), 4.0, 8.0))
         }
 
 
