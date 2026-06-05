@@ -370,6 +370,159 @@
             color: #ff4d4d; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer;
         }
         .btn-danger:hover { background: rgba(255, 50, 50, 0.2); }
+
+        .match-card {
+            cursor: pointer;
+        }
+
+        /* MODAL STYLES */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 25, 16, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        .modal-content {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 40px rgba(229,193,88,0.1);
+            position: relative;
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .modal-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-top: 5px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--primary);
+        }
+
+        .modal-tabs {
+            display: flex;
+            background: var(--bg-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 16px;
+        }
+
+        .modal-tab {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .modal-tab:hover {
+            color: var(--text-main);
+        }
+
+        .modal-tab.active {
+            color: var(--primary);
+        }
+
+        .modal-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0; height: 3px;
+            background: var(--primary);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) var(--bg-color);
+        }
+
+        .modal-tab-content {
+            display: none;
+        }
+
+        .modal-tab-content.active {
+            display: block;
+        }
+
+        .modal-table-container {
+            margin-bottom: 24px;
+        }
+
+        .modal-table-title {
+            color: var(--primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .value-badge {
+            background: rgba(0, 255, 100, 0.1);
+            color: #00ff88;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+
+        .summary-card {
+            background: var(--bg-color);
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -832,6 +985,14 @@
                 }
 
                 card.innerHTML = contentHTML;
+                
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('button')) return;
+                    if (match.prediction && match.prediction.detailed_prediction) {
+                        openPredictionModal(match);
+                    }
+                });
+
                 dashboard.appendChild(card);
             });
         }
@@ -1137,8 +1298,302 @@
             }
         }
 
+        // Detailed Prediction Modal Handlers
+        function openPredictionModal(match) {
+            const p = match.prediction;
+            const d = p.detailed_prediction;
+            if (!d) return;
+            
+            document.getElementById('modal-league').innerText = match.league;
+            document.getElementById('modal-title').innerText = match.match;
+            
+            // Tab 1: Summary
+            document.getElementById('modal-summary-text').innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <strong><i class="fa-solid fa-brain"></i> TACTICAL SUMMARY & EXPECTED MATCH FLOW</strong>
+                    <span style="background:rgba(229,193,88,0.15); color:var(--primary); padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.8rem;">CONFIDENCE: ${d.confidence || 7}/10</span>
+                </div>
+                <div>${d.tactical_summary}</div>
+            `;
+            
+            const val = d.value_analysis;
+            document.getElementById('modal-value-table').innerHTML = `
+                <tr><td><strong>Best Match Result Pick</strong></td><td><span class="value-badge">${val.best_result}</span></td></tr>
+                <tr><td><strong>Best Goals Market Pick</strong></td><td><span class="value-badge">${val.best_goals}</span></td></tr>
+                <tr><td><strong>Best Cards Market Pick</strong></td><td><span class="value-badge">${val.best_cards}</span></td></tr>
+                <tr><td><strong>Best Corners Market Pick</strong></td><td><span class="value-badge">${val.best_corners}</span></td></tr>
+                <tr><td><strong>Best Player Prop Pick</strong></td><td><span class="value-badge">${val.best_player_prop}</span></td></tr>
+                <tr><td><strong>Safest Prediction</strong></td><td><span class="value-badge" style="background:rgba(0,255,100,0.12); color:#00ff88;">${val.safest}</span></td></tr>
+                <tr><td><strong>Highest-Risk/Highest-Reward</strong></td><td><span class="value-badge" style="background:rgba(255,77,77,0.12); color:#ff4d4d;">${val.high_risk_reward}</span></td></tr>
+            `;
+            
+            // Tab 2: Result & Goals
+            document.getElementById('modal-prob-home').innerText = `${d.home_prob}%`;
+            document.getElementById('modal-prob-draw').innerText = `${d.draw_prob}%`;
+            document.getElementById('modal-prob-away').innerText = `${d.away_prob}%`;
+            
+            document.getElementById('modal-goals-table').innerHTML = `
+                <tr><td>Home Team xG</td><td style="font-weight:700;">${d.home_xg}</td></tr>
+                <tr><td>Away Team xG</td><td style="font-weight:700;">${d.away_xg}</td></tr>
+                <tr><td>Over 0.5 Goals</td><td>${d.over_05}%</td></tr>
+                <tr><td>Over 1.5 Goals</td><td>${d.over_15}%</td></tr>
+                <tr><td>Over 2.5 Goals</td><td>${d.over_25}%</td></tr>
+                <tr><td>Over 3.5 Goals</td><td>${d.over_35}%</td></tr>
+                <tr><td>Under 2.5 Goals</td><td>${d.under_25}%</td></tr>
+                <tr><td>Both Teams To Score (BTTS)</td><td>${d.btts_yes}%</td></tr>
+            `;
+            
+            // Tab 3: Player Props
+            document.getElementById('modal-goalscorer-table').innerHTML = d.goalscorers.map(pl => `
+                <tr>
+                    <td><strong>${pl.name}</strong> (${pl.team})</td>
+                    <td>${pl.anytime_goal_prob}%</td>
+                    <td>${pl.first_goal_prob}%</td>
+                    <td style="color:var(--secondary); font-weight:700;">${pl.rating}</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('modal-shots-table').innerHTML = d.shots_players.map(pl => `
+                <tr>
+                    <td><strong>${pl.name}</strong> (${pl.team})</td>
+                    <td>${pl.exp_shots}</td>
+                    <td>${pl.exp_sot}</td>
+                    <td style="color:var(--secondary); font-weight:700;">${pl.rating}</td>
+                </tr>
+            `).join('');
+            
+            // Tab 4: Team Stats & Corners & Cards
+            document.getElementById('modal-corners-table').innerHTML = `
+                <tr><td>Total Match Corners</td><td style="font-weight:700;">${d.corners_total}</td></tr>
+                <tr><td>Home Team Corners</td><td>${d.corners_home}</td></tr>
+                <tr><td>Away Team Corners</td><td>${d.corners_away}</td></tr>
+                <tr><td>Over 7.5 Corners</td><td>${d.corners_over_75}%</td></tr>
+                <tr><td>Over 8.5 Corners</td><td>${d.corners_over_85}%</td></tr>
+                <tr><td>Over 9.5 Corners</td><td>${d.corners_over_95}%</td></tr>
+                <tr><td>Over 10.5 Corners</td><td>${d.corners_over_105}%</td></tr>
+            `;
+            
+            document.getElementById('modal-cards-table').innerHTML = `
+                <tr><td>Home Yellow Cards</td><td>${d.cards_yellow_home}</td></tr>
+                <tr><td>Away Yellow Cards</td><td>${d.cards_yellow_away}</td></tr>
+                <tr><td>Total Yellow Cards</td><td style="font-weight:700;">${d.cards_yellow_total}</td></tr>
+                <tr><td>Total Red Cards</td><td>${d.cards_red_total}</td></tr>
+            `;
+            
+            document.getElementById('modal-cards-table').innerHTML += `
+                <tr><td colspan="2" style="font-weight:700; color:var(--primary); padding-top:10px; border-bottom:none;">Key Player Disciplinary Risk:</td></tr>
+            ` + d.cards_players.map(pl => `
+                <tr>
+                    <td>${pl.name} (${pl.team})</td>
+                    <td>Yellow: ${pl.yellow_prob}% | Red: ${pl.red_prob}%</td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('modal-additional-table').innerHTML = `
+                <tr><td>Possession %</td><td style="font-weight:700; color:var(--primary);">${d.possession_home}%</td><td style="font-weight:700; color:var(--secondary);">${d.possession_away}%</td></tr>
+                <tr><td>Fouls Committed</td><td>${d.fouls_home}</td><td>${d.fouls_away}</td></tr>
+                <tr><td>Offsides</td><td>${d.offsides_home}</td><td>${d.offsides_away}</td></tr>
+                <tr><td>Saves</td><td>${d.saves_home}</td><td>${d.saves_away}</td></tr>
+                <tr><td>Clean Sheet Probability</td><td>${d.clean_sheet_home}%</td><td>${d.clean_sheet_away}%</td></tr>
+            `;
+            
+            // Switch tabs to default Tab 1
+            const defaultTabBtn = document.querySelectorAll('.modal-tab')[0];
+            switchModalTab('tab-summary', defaultTabBtn);
+            
+            document.getElementById('detail-modal').style.display = 'flex';
+        }
+        
+        function closePredictionModal() {
+            document.getElementById('detail-modal').style.display = 'none';
+        }
+        
+        function switchModalTab(tabId, btn) {
+            document.querySelectorAll('.modal-tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            document.querySelectorAll('.modal-tab').forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
         handleRouting();
         loadSettings();
     </script>
+
+    <!-- DETAIL MODAL -->
+    <div id="detail-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="league-badge" id="modal-league">League Name</span>
+                    <h2 class="modal-title" id="modal-title">Home vs Away</h2>
+                </div>
+                <button class="modal-close" onclick="closePredictionModal()">&times;</button>
+            </div>
+            
+            <div class="modal-tabs">
+                <button class="modal-tab active" onclick="switchModalTab('tab-summary', this)">Summary & Value</button>
+                <button class="modal-tab" onclick="switchModalTab('tab-goals-result', this)">Result & Goals</button>
+                <button class="modal-tab" onclick="switchModalTab('tab-player-props', this)">Player Props</button>
+                <button class="modal-tab" onclick="switchModalTab('tab-stats', this)">Team Stats</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Tab: Summary -->
+                <div id="tab-summary" class="modal-tab-content active">
+                    <div class="summary-card" id="modal-summary-text">
+                        No summary available.
+                    </div>
+                    
+                    <div class="modal-table-container">
+                        <div class="modal-table-title"><i class="fa-solid fa-gem"></i> Betting Value Analysis</div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Market Pick</th>
+                                    <th>Selection & Value Context</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-value-table">
+                                <!-- Value Picks -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Tab: Goals & Result -->
+                <div id="tab-goals-result" class="modal-tab-content">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                        <div>
+                            <div class="modal-table-title"><i class="fa-solid fa-scale-balanced"></i> Match Result Probabilities</div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Outcome</th>
+                                        <th>Probability</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Home Win</td>
+                                        <td id="modal-prob-home" style="font-weight:700; color:var(--primary);">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Draw</td>
+                                        <td id="modal-prob-draw" style="font-weight:700; color:var(--text-muted);">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Away Win</td>
+                                        <td id="modal-prob-away" style="font-weight:700; color:var(--primary);">0%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <div class="modal-table-title"><i class="fa-solid fa-bullseye"></i> Goal Market Probabilities</div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Market Line</th>
+                                        <th>Probability</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-goals-table">
+                                    <!-- Goal Markets -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab: Player Props -->
+                <div id="tab-player-props" class="modal-tab-content">
+                    <div class="modal-table-container">
+                        <div class="modal-table-title"><i class="fa-solid fa-shoe-prints"></i> Player Goalscorer Predictions</div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Player (Role)</th>
+                                    <th>Anytime Goal %</th>
+                                    <th>First Goal %</th>
+                                    <th>Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-goalscorer-table">
+                                <!-- Goalscorers -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="modal-table-container">
+                        <div class="modal-table-title"><i class="fa-solid fa-gun"></i> Attacking & Shots Predictions</div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Player (Role)</th>
+                                    <th>Expected Shots</th>
+                                    <th>Expected Shots on Target</th>
+                                    <th>Rating</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-shots-table">
+                                <!-- Shots -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Tab: Team Stats -->
+                <div id="tab-stats" class="modal-tab-content">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                        <div>
+                            <div class="modal-table-title"><i class="fa-solid fa-chart-bar"></i> Corner Predictions</div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Corner Line</th>
+                                        <th>Value / Probability</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-corners-table">
+                                    <!-- Corners -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <div class="modal-table-title"><i class="fa-solid fa-address-card"></i> Card & Booking Predictions</div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Card Line</th>
+                                        <th>Value / Probability</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-cards-table">
+                                    <!-- Cards -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-table-container" style="margin-top:20px;">
+                        <div class="modal-table-title"><i class="fa-solid fa-list"></i> Additional Match Statistics</div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Home Team</th>
+                                    <th>Away Team</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-additional-table">
+                                <!-- Additional Stats -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

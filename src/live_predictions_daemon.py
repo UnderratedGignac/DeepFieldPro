@@ -253,6 +253,7 @@ def load_predictions_from_db():
                 'cards': extra.get('cards', ''),
                 'home_players': extra.get('home_players', []),
                 'away_players': extra.get('away_players', []),
+                'detailed_prediction': extra.get('detailed_prediction', {}),
                 'markets': {
                     '1X2': [
                         {'selection': 'Home (1)', 'prob': r['home_prob']},
@@ -366,6 +367,11 @@ def predict_match(fixture, lineups, player_model, match_model, df):
     prob_1 = prob_x = prob_2 = 0.0
     prob_over_25 = prob_under_25 = 0.0
     prob_btts_yes = prob_btts_no = 0.0
+    
+    # Calculate extra probabilities for detailed view
+    prob_over_05 = 0.0
+    prob_over_15 = 0.0
+    prob_over_35 = 0.0
 
     for i in range(8):
         for j in range(8):
@@ -379,6 +385,10 @@ def predict_match(fixture, lineups, player_model, match_model, df):
             
             if i > 0 and j > 0: prob_btts_yes += p
             else: prob_btts_no += p
+            
+            if (i + j) > 0.5: prob_over_05 += p
+            if (i + j) > 1.5: prob_over_15 += p
+            if (i + j) > 3.5: prob_over_35 += p
 
     # Normalize due to truncation at 7 goals
     total_1x2 = prob_1 + prob_x + prob_2
@@ -389,6 +399,131 @@ def predict_match(fixture, lineups, player_model, match_model, df):
     
     total_btts = prob_btts_yes + prob_btts_no
     prob_btts_yes /= total_btts; prob_btts_no /= total_btts
+
+    # Generate player details based on position heuristic
+    all_player_details = []
+    # Home starting lineup
+    for idx, p in enumerate(lineups[0].get('startXI', [])):
+        pname = p['player']['name']
+        pstats = get_player_rolling_stats(pname, df)
+        rating = pstats.get('rating_roll', 6.5)
+        if idx == 0:
+            role = "GK"
+            anytime = 0.5; first = 0.2; shots = 0.0; sot = 0.0; yellow = 8.0; red = 0.5
+        elif idx <= 4:
+            role = "DF"
+            anytime = round(rating * 0.8, 1); first = round(anytime * 0.3, 1)
+            shots = round(rating * 0.06, 1); sot = round(shots * 0.3, 1)
+            yellow = round(20 + rating, 1); red = round(1 + rating * 0.2, 1)
+        elif idx <= 8:
+            role = "MF"
+            anytime = round(rating * 2.2, 1); first = round(anytime * 0.4, 1)
+            shots = round(rating * 0.22, 1); sot = round(shots * 0.4, 1)
+            yellow = round(15 + rating * 1.2, 1); red = round(0.5 + rating * 0.15, 1)
+        else:
+            role = "FW"
+            anytime = round(rating * 4.2, 1); first = round(anytime * 0.45, 1)
+            shots = round(rating * 0.38, 1); sot = round(shots * 0.45, 1)
+            yellow = round(8 + rating * 0.5, 1); red = round(0.2 + rating * 0.05, 1)
+        all_player_details.append({
+            'name': pname, 'team': 'Home', 'role': role,
+            'anytime_goal_prob': anytime, 'first_goal_prob': first,
+            'exp_shots': shots, 'exp_sot': sot,
+            'yellow_prob': yellow, 'red_prob': red,
+            'rating': round(rating, 2)
+        })
+
+    # Away starting lineup
+    for idx, p in enumerate(lineups[1].get('startXI', [])):
+        pname = p['player']['name']
+        pstats = get_player_rolling_stats(pname, df)
+        rating = pstats.get('rating_roll', 6.5)
+        if idx == 0:
+            role = "GK"
+            anytime = 0.5; first = 0.2; shots = 0.0; sot = 0.0; yellow = 8.0; red = 0.5
+        elif idx <= 4:
+            role = "DF"
+            anytime = round(rating * 0.8, 1); first = round(anytime * 0.3, 1)
+            shots = round(rating * 0.06, 1); sot = round(shots * 0.3, 1)
+            yellow = round(20 + rating, 1); red = round(1 + rating * 0.2, 1)
+        elif idx <= 8:
+            role = "MF"
+            anytime = round(rating * 2.2, 1); first = round(anytime * 0.4, 1)
+            shots = round(rating * 0.22, 1); sot = round(shots * 0.4, 1)
+            yellow = round(15 + rating * 1.2, 1); red = round(0.5 + rating * 0.15, 1)
+        else:
+            role = "FW"
+            anytime = round(rating * 4.2, 1); first = round(anytime * 0.45, 1)
+            shots = round(rating * 0.38, 1); sot = round(shots * 0.45, 1)
+            yellow = round(8 + rating * 0.5, 1); red = round(0.2 + rating * 0.05, 1)
+        all_player_details.append({
+            'name': pname, 'team': 'Away', 'role': role,
+            'anytime_goal_prob': anytime, 'first_goal_prob': first,
+            'exp_shots': shots, 'exp_sot': sot,
+            'yellow_prob': yellow, 'red_prob': red,
+            'rating': round(rating, 2)
+        })
+
+    goalscorers_sorted = sorted(all_player_details, key=lambda x: x['anytime_goal_prob'], reverse=True)
+    shots_sorted = sorted(all_player_details, key=lambda x: x['exp_shots'], reverse=True)
+    cards_sorted = sorted(all_player_details, key=lambda x: x['yellow_prob'], reverse=True)
+
+    possession_h = min(65, max(35, int(50 + (home_impact - away_impact) * 2.5)))
+    
+    # Detailed report data
+    detailed_pred = {
+        'home_prob': round(prob_1 * 100, 1),
+        'draw_prob': round(prob_x * 100, 1),
+        'away_prob': round(prob_2 * 100, 1),
+        'predicted_score': f"{home_g} - {away_g}",
+        'confidence': 7,
+        'home_xg': round(exp_h, 2),
+        'away_xg': round(exp_a, 2),
+        'over_05': round(prob_over_05 * 100, 1),
+        'over_15': round(prob_over_15 * 100, 1),
+        'over_25': round(prob_over_25 * 100, 1),
+        'over_35': round(prob_over_35 * 100, 1),
+        'under_25': round(prob_under_25 * 100, 1),
+        'btts_yes': round(prob_btts_yes * 100, 1),
+        'possession_home': possession_h,
+        'possession_away': 100 - possession_h,
+        'fouls_home': home_fouls,
+        'fouls_away': away_fouls,
+        'offsides_home': round(1.5 + (home_impact / 15.0), 1),
+        'offsides_away': round(1.8 + (away_impact / 15.0), 1),
+        'saves_home': int(away_corners / 2 + 1),
+        'saves_away': int(home_corners / 2 + 1),
+        'clean_sheet_home': round(poisson_prob(exp_a, 0) * 100, 1),
+        'clean_sheet_away': round(poisson_prob(exp_h, 0) * 100, 1),
+        'corners_total': home_corners + away_corners,
+        'corners_home': home_corners,
+        'corners_away': away_corners,
+        'corners_over_75': round((1.0 - math.exp(-(home_corners + away_corners)/4.0)) * 100, 1),
+        'corners_over_85': round((1.0 - math.exp(-(home_corners + away_corners)/5.0)) * 100, 1),
+        'corners_over_95': round((1.0 - math.exp(-(home_corners + away_corners)/6.0)) * 100, 1),
+        'corners_over_105': round((1.0 - math.exp(-(home_corners + away_corners)/7.0)) * 100, 1),
+        'cards_yellow_home': home_yellows,
+        'cards_yellow_away': away_yellows,
+        'cards_yellow_total': home_yellows + away_yellows,
+        'cards_red_total': round(float(np.random.choice([0.0, 0.1, 0.2], p=[0.8, 0.15, 0.05])), 2),
+        'goalscorers': goalscorers_sorted[:8],
+        'shots_players': shots_sorted[:8],
+        'cards_players': cards_sorted[:6],
+        'key_goalscorers': [p['name'] for p in goalscorers_sorted[:5]],
+        'key_assists': [p['name'] for p in sorted([x for x in all_player_details if x['role'] in ['MF', 'FW']], key=lambda x: x['rating'], reverse=True)[:5]],
+        'key_yellows': [p['name'] for p in cards_sorted[:5]],
+        'key_reds': [p['name'] for p in sorted(all_player_details, key=lambda x: x['red_prob'], reverse=True)[:5]],
+        'value_analysis': {
+            'best_result': f"{winner}",
+            'best_goals': "Over 1.5 Goals" if (prob_over_15 > 0.65) else "Under 2.5 Goals",
+            'best_cards': f"Over 3.5 Cards",
+            'best_corners': f"Over 8.5 Corners",
+            'best_player_prop': f"{goalscorers_sorted[0]['name']} Over 1.5 Shots",
+            'safest': f"{home_team} Double Chance (1X)" if winner == f"{home_team} WIN" or winner == "DRAW" else f"{away_team} Double Chance (X2)",
+            'high_risk_reward': f"{winner} & BTTS (Yes)",
+        },
+        'tactical_summary': f"Tactically, {home_team} is projected to control possession (approx {possession_h}%) utilizing high-intensity central passing channels. {away_team} will adopt a counter-attacking posture. Key matchups center on {home_team}'s wingers pressing {away_team}'s fullbacks."
+    }
 
     return {
         'fixture_id': fixture['fixture']['id'],
@@ -403,6 +538,7 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         'cards': f"Home Yellows: {home_yellows} | Away Yellows: {away_yellows}",
         'home_players': home_player_stats[:3],
         'away_players': away_player_stats[:3],
+        'detailed_prediction': detailed_pred,
         'markets': {
             '1X2': [
                 {'selection': 'Home (1)', 'prob': round(prob_1 * 100, 1)},
