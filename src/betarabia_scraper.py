@@ -250,6 +250,20 @@ def parse_kickertech_events(ApiResponses_P: list) -> dict:
             SportId_V = Ev_V.get("sportId") or Ev_V.get("sport_id", 0)
 
             if HomeTeam_V and AwayTeam_V:
+                h = str(HomeTeam_V).lower()
+                a = str(AwayTeam_V).lower()
+                t = str(TournamentName_V).lower()
+                is_women = False
+                for kw in ["women", "female", "feminin", "femenil", "femenino", "femminile", "women's"]:
+                    if kw in h or kw in a or kw in t:
+                        is_women = True
+                        break
+                if h.endswith(" (w)") or h.endswith(" w") or a.endswith(" (w)") or a.endswith(" w"):
+                    is_women = True
+                    
+                if is_women:
+                    continue
+                    
                 EventsById_V[str(EventId_V)] = {
                     "fixture_id": str(EventId_V),
                     "home_team": str(HomeTeam_V),
@@ -573,6 +587,19 @@ async def scrape_fixture_list_html(Page_P) -> list:
             )
 
             if HomeTeam_V and AwayTeam_V:
+                h = HomeTeam_V.lower()
+                a = AwayTeam_V.lower()
+                is_women = False
+                for kw in ["women", "female", "feminin", "femenil", "femenino", "femminile", "women's"]:
+                    if kw in h or kw in a:
+                        is_women = True
+                        break
+                if h.endswith(" (w)") or h.endswith(" w") or a.endswith(" (w)") or a.endswith(" w"):
+                    is_women = True
+                    
+                if is_women:
+                    continue
+                    
                 FixtureId_V = f"{HomeTeam_V.strip().lower().replace(' ', '_')}_vs_{AwayTeam_V.strip().lower().replace(' ', '_')}"
                 Now_V = datetime.datetime.now(datetime.timezone.utc)
                 TodayStr_V = Now_V.strftime("%Y-%m-%d")

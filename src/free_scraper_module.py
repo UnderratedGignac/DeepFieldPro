@@ -18,6 +18,23 @@ def get_todays_fixtures_free():
             # Format to match the old API structure for seamless integration
             formatted_fixtures = []
             for e in events:
+                # Filter out women's matches
+                tournament_name = e.get('tournament', {}).get('name', '').lower()
+                category_name = e.get('tournament', {}).get('category', {}).get('name', '').lower()
+                home_name = e.get('homeTeam', {}).get('name', '').lower()
+                away_name = e.get('awayTeam', {}).get('name', '').lower()
+                
+                is_women = False
+                for kw in ["women", "female", "feminin", "femenil", "femenino", "femminile", "women's"]:
+                    if kw in tournament_name or kw in category_name or kw in home_name or kw in away_name:
+                        is_women = True
+                        break
+                if home_name.endswith(" (w)") or home_name.endswith(" w") or away_name.endswith(" (w)") or away_name.endswith(" w"):
+                    is_women = True
+                    
+                if is_women:
+                    continue
+                    
                 # Sofascore uses Unix timestamps
                 kickoff_iso = datetime.datetime.fromtimestamp(e['startTimestamp'], datetime.timezone.utc).isoformat()
                 
