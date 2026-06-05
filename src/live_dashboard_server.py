@@ -439,6 +439,17 @@ def get_comparison(fixture_id):
         "actuals": actuals
     })
 
+def start_background_prediction_worker():
+    try:
+        import threading
+        from live_predictions_daemon import run_daemon
+        thread = threading.Thread(target=run_daemon, daemon=True)
+        thread.start()
+        print("[*] Background prediction worker thread started successfully.")
+    except Exception as e:
+        print("[!] Failed to start background prediction worker thread:", e)
+
 if __name__ == '__main__':
+    start_background_prediction_worker()
     print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5000")
     app.run(host='127.0.0.1', port=5000, debug=False)
