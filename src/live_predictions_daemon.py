@@ -583,9 +583,9 @@ def update_markdown_artifact(results, timestamp):
         h_players = r.get('home_players', [])
         a_players = r.get('away_players', [])
         if h_players:
-            out_text += "- **Top Impact Players (Home):** " + ", ".join([f"{p['name']} ({p['impact']})" for p in h_players]) + "\n"
+            out_text += "- **Top Impact Players (Home):** " + ", ".join([f"{p.get('name', 'Unknown')} ({p.get('impact', p.get('rating', 'N/A'))})" for p in h_players]) + "\n"
         if a_players:
-            out_text += "- **Top Impact Players (Away):** " + ", ".join([f"{p['name']} ({p['impact']})" for p in a_players]) + "\n\n"
+            out_text += "- **Top Impact Players (Away):** " + ", ".join([f"{p.get('name', 'Unknown')} ({p.get('impact', p.get('rating', 'N/A'))})" for p in a_players]) + "\n\n"
         out_text += "---\n\n"
         
     # Write to artifact dir directly if possible, or data dir
