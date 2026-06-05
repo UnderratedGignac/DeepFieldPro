@@ -712,8 +712,14 @@
             dashboard.innerHTML = '';
             
             matches.sort((a, b) => {
-                if (a.has_lineup && !b.has_lineup) return -1;
-                if (!a.has_lineup && b.has_lineup) return 1;
+                const aHasLineup = a.has_lineup ? 1 : 0;
+                const bHasLineup = b.has_lineup ? 1 : 0;
+                if (aHasLineup !== bHasLineup) return bHasLineup - aHasLineup;
+                
+                const aHasPred = a.prediction ? 1 : 0;
+                const bHasPred = b.prediction ? 1 : 0;
+                if (aHasPred !== bHasPred) return bHasPred - aHasPred;
+                
                 return new Date(a.kickoff) - new Date(b.kickoff);
             });
 
@@ -722,13 +728,27 @@
                 card.className = 'match-card';
                 card.style.animationDelay = `${index * 0.03}s`;
 
+                let lineupBadge = '';
+                if (match.prediction) {
+                    if (match.has_lineup) {
+                        lineupBadge = `<span style="background:rgba(0,255,100,0.12); color:#00ff88; font-size:0.65rem; font-weight:700; padding:3px 8px; border-radius:12px; border:1px solid rgba(0,255,100,0.25); display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-circle-check"></i> OFFICIAL XI</span>`;
+                    } else {
+                        lineupBadge = `<span style="background:rgba(229,193,88,0.12); color:var(--primary); font-size:0.65rem; font-weight:700; padding:3px 8px; border-radius:12px; border:1px solid rgba(229,193,88,0.25); display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-hourglass-half"></i> ESTIMATED XI</span>`;
+                    }
+                } else {
+                    lineupBadge = `<span style="background:rgba(255,255,255,0.05); color:var(--text-muted); font-size:0.65rem; font-weight:700; padding:3px 8px; border-radius:12px; border:1px solid var(--border-color); display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-lock"></i> NO XI</span>`;
+                }
+
                 let contentHTML = `
-                    <div class="league-badge">${match.league}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div class="league-badge" style="margin:0;">${match.league}</div>
+                        ${lineupBadge}
+                    </div>
                     <h2 class="match-title">${match.match}</h2>
                     <div class="kickoff"><i class="fa-solid fa-clock"></i> Kickoff: ${formatTime(match.kickoff)}</div>
                 `;
 
-                if (match.has_lineup && match.prediction) {
+                if (match.prediction) {
                     const p = match.prediction;
                     const formatPlayers = (players) => players.map(pl => `${pl.name} (${pl.impact})`).join(', ');
 
@@ -786,8 +806,8 @@
                 } else {
                     contentHTML += `
                         <div class="status-pending">
-                            <span><i class="fa-solid fa-lock"></i> Awaiting Official Lineups</span>
-                            Neural net locked. Prediction requires confirmed starting XI to evaluate aggregate impact.
+                            <span><i class="fa-solid fa-lock"></i> Awaiting Prediction</span>
+                            Daemon is generating expected outcome based on historical performance...
                         </div>
                     `;
                     

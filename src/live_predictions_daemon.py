@@ -6,11 +6,69 @@ import datetime
 import time
 import os
 import math
-
 import sys
+
+# Unicode-safe print override for Windows console compatibility
+_orig_print = print
+def print(*args, **kwargs):
+    enc = sys.stdout.encoding or 'utf-8'
+    cleaned = []
+    for a in args:
+        if isinstance(a, str):
+            cleaned.append(a.encode(enc, errors='replace').decode(enc))
+        else:
+            cleaned.append(a)
+    _orig_print(*cleaned, **kwargs)
+
 sys.path.insert(0, os.path.dirname(__file__))
 from free_scraper_module import get_todays_fixtures_free as get_todays_fixtures
 from free_scraper_module import get_fixture_lineups_free as get_fixture_lineups
+
+PLAYER_STATS_CACHE = {}
+TEAM_PLAYERS_CACHE = {}
+
+def clean_name(name):
+    import unicodedata
+    import re
+    if not name or not isinstance(name, str):
+        return ""
+    n = name.lower()
+    n = "".join(c for c in unicodedata.normalize('NFD', n) if unicodedata.category(c) != 'Mn')
+    return re.sub(r'[^a-z0-9]', '', n)
+
+def initialize_caches(df):
+    global PLAYER_STATS_CACHE, TEAM_PLAYERS_CACHE
+    print("[*] Initializing player and team stats caches...")
+    
+    # 1. Player Stats Cache
+    if 'player_name' in df.columns:
+        latest_players = df.drop_duplicates(subset=['player_name'], keep='last')
+        for _, row in latest_players.iterrows():
+            pname = row['player_name']
+            cpname = clean_name(pname)
+            if cpname:
+                PLAYER_STATS_CACHE[cpname] = {
+                    'goals_roll': row.get('goals', 0),
+                    'assists_roll': row.get('assists', 0),
+                    'shots_roll': row.get('shots', 0),
+                    'passes_roll': row.get('passes', 0),
+                    'rating_roll': row.get('rating', 6.5)
+                }
+                
+    # 2. Team Players Cache (for estimated lineups)
+    if 'team' in df.columns and 'player_name' in df.columns:
+        team_players_df = df.drop_duplicates(subset=['team', 'player_name'])
+        for _, row in team_players_df.iterrows():
+            tname = row['team']
+            pname = row['player_name']
+            ctname = clean_name(tname)
+            if ctname and pname:
+                if ctname not in TEAM_PLAYERS_CACHE:
+                    TEAM_PLAYERS_CACHE[ctname] = []
+                if pname not in TEAM_PLAYERS_CACHE[ctname]:
+                    TEAM_PLAYERS_CACHE[ctname].append(pname)
+                
+    print(f"[+] Cache initialized: {len(PLAYER_STATS_CACHE)} players, {len(TEAM_PLAYERS_CACHE)} teams cached.")
 
 def load_player_database():
     try:
@@ -22,17 +80,205 @@ def load_player_database():
     except Exception:
         return pd.read_csv('data/minor_leagues_2025.csv')
 
-def get_player_rolling_stats(player_name, df):
-    p_data = df[df['player_name'].astype(str).str.contains(player_name, case=False, na=False)]
-    if len(p_data) > 0:
-        latest = p_data.iloc[-1]
-        return {
-            'goals_roll': latest.get('goals', 0),
-            'assists_roll': latest.get('assists', 0),
-            'shots_roll': latest.get('shots', 0),
-            'passes_roll': latest.get('passes', 0),
-            'rating_roll': latest.get('rating', 6.5)
+def get_predicted_lineup(team_name, df):
+    """
+    Builds an estimated starting lineup of 11 players for a team by querying historical data.
+    Pads with generic players if less than 11 are found.
+    """
+    clean_t = clean_name(team_name)
+    if not clean_t:
+        return [{'player': {'name': f"Player {i+1}"}} for i in range(11)]
+        
+    try:
+        # Search in cache first
+        p_names = []
+        if clean_t in TEAM_PLAYERS_CACHE:
+            p_names = TEAM_PLAYERS_CACHE[clean_t][:11]
+        else:
+            # Fallback to key that contains clean_t
+            for ct in TEAM_PLAYERS_CACHE:
+                if clean_t in ct or ct in clean_t:
+                    p_names = TEAM_PLAYERS_CACHE[ct][:11]
+                    break
+                    
+        if p_names:
+            lineup = [{'player': {'name': name}} for name in p_names]
+            while len(lineup) < 11:
+                lineup.append({'player': {'name': f"{team_name} Gen {len(lineup)+1}"}})
+            return lineup
+    except Exception as e:
+        print(f"Error getting predicted lineup for {team_name}: {e}")
+        
+    return [{'player': {'name': f"{team_name} Gen {i+1}"}} for i in range(11)]
+
+
+def log_prediction_to_db(pred_res, has_lineup):
+    db_path = "data/bet_log.db"
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        
+        # Check if predictions table exists, create if not
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS predictions (
+                fixture_id TEXT PRIMARY KEY,
+                match_name TEXT,
+                league TEXT,
+                kickoff TEXT,
+                prediction TEXT,
+                expected_score TEXT,
+                home_prob REAL,
+                draw_prob REAL,
+                away_prob REAL,
+                over_prob REAL,
+                under_prob REAL,
+                btts_yes_prob REAL,
+                btts_no_prob REAL,
+                has_lineup INTEGER,
+                predicted_at TIMESTAMP
+            )
+        """)
+        
+        # Check if column extra_json exists
+        cur.execute("PRAGMA table_info(predictions)")
+        columns = [c[1] for c in cur.fetchall()]
+        if columns and "extra_json" not in columns:
+            cur.execute("ALTER TABLE predictions ADD COLUMN extra_json TEXT")
+            
+        fid = str(pred_res['fixture_id'])
+        match_name = pred_res['match']
+        league = pred_res['league']
+        kickoff = pred_res.get('kickoff', '')
+        prediction = pred_res['prediction']
+        expected_score = pred_res['expected_score']
+        
+        markets = pred_res['markets']
+        home_prob = draw_prob = away_prob = 0.0
+        for m in markets.get('1X2', []):
+            if 'Home' in m['selection'] or '1' in m['selection']: home_prob = m['prob']
+            elif 'Draw' in m['selection'] or 'X' in m['selection']: draw_prob = m['prob']
+            elif 'Away' in m['selection'] or '2' in m['selection']: away_prob = m['prob']
+            
+        over_prob = under_prob = 0.0
+        for m in markets.get('Over/Under 2.5', []):
+            if 'Over' in m['selection']: over_prob = m['prob']
+            elif 'Under' in m['selection']: under_prob = m['prob']
+            
+        btts_yes_prob = btts_no_prob = 0.0
+        for m in markets.get('BTTS', []):
+            if 'Yes' in m['selection']: btts_yes_prob = m['prob']
+            elif 'No' in m['selection']: btts_no_prob = m['prob']
+            
+        extra_data = {
+            'team_impacts': pred_res.get('team_impacts', ''),
+            'corners': pred_res.get('corners', ''),
+            'fouls': pred_res.get('fouls', ''),
+            'cards': pred_res.get('cards', ''),
+            'home_players': pred_res.get('home_players', []),
+            'away_players': pred_res.get('away_players', [])
         }
+        extra_json = json.dumps(extra_data)
+            
+        cur.execute("""
+            INSERT INTO predictions (
+                fixture_id, match_name, league, kickoff, prediction, expected_score,
+                home_prob, draw_prob, away_prob, over_prob, under_prob, btts_yes_prob, btts_no_prob,
+                has_lineup, predicted_at, extra_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(fixture_id) DO UPDATE SET
+                prediction=excluded.prediction,
+                expected_score=excluded.expected_score,
+                home_prob=excluded.home_prob,
+                draw_prob=excluded.draw_prob,
+                away_prob=excluded.away_prob,
+                over_prob=excluded.over_prob,
+                under_prob=excluded.under_prob,
+                btts_yes_prob=excluded.btts_yes_prob,
+                btts_no_prob=excluded.btts_no_prob,
+                has_lineup=excluded.has_lineup,
+                predicted_at=excluded.predicted_at,
+                extra_json=excluded.extra_json
+        """, (fid, match_name, league, kickoff, prediction, expected_score,
+              home_prob, draw_prob, away_prob, over_prob, under_prob, btts_yes_prob, btts_no_prob,
+              int(has_lineup), datetime.datetime.now().isoformat(), extra_json))
+        
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("Error logging prediction to DB:", e)
+
+def load_predictions_from_db():
+    db_path = "data/bet_log.db"
+    if not os.path.exists(db_path):
+        return {}
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='predictions'")
+        if not cur.fetchone():
+            conn.close()
+            return {}
+            
+        # Check if column extra_json exists
+        cur.execute("PRAGMA table_info(predictions)")
+        columns = [c[1] for c in cur.fetchall()]
+        has_extra_json = "extra_json" in columns
+        
+        cur.execute("SELECT * FROM predictions")
+        rows = cur.fetchall()
+        conn.close()
+        
+        preds = {}
+        for r in rows:
+            extra = {}
+            if has_extra_json and r['extra_json']:
+                try:
+                    extra = json.loads(r['extra_json'])
+                except Exception:
+                    pass
+                    
+            preds[int(r['fixture_id'])] = {
+                'fixture_id': int(r['fixture_id']),
+                'match': r['match_name'],
+                'league': r['league'],
+                'kickoff': r['kickoff'],
+                'prediction': r['prediction'],
+                'expected_score': r['expected_score'],
+                'has_lineup': bool(r['has_lineup']),
+                'team_impacts': extra.get('team_impacts', ''),
+                'corners': extra.get('corners', ''),
+                'fouls': extra.get('fouls', ''),
+                'cards': extra.get('cards', ''),
+                'home_players': extra.get('home_players', []),
+                'away_players': extra.get('away_players', []),
+                'markets': {
+                    '1X2': [
+                        {'selection': 'Home (1)', 'prob': r['home_prob']},
+                        {'selection': 'Draw (X)', 'prob': r['draw_prob']},
+                        {'selection': 'Away (2)', 'prob': r['away_prob']}
+                    ],
+                    'Over/Under 2.5': [
+                        {'selection': 'Over 2.5', 'prob': r['over_prob']},
+                        {'selection': 'Under 2.5', 'prob': r['under_prob']}
+                    ],
+                    'BTTS': [
+                        {'selection': 'Yes', 'prob': r['btts_yes_prob']},
+                        {'selection': 'No', 'prob': r['btts_no_prob']}
+                    ]
+                }
+            }
+        return preds
+    except Exception as e:
+        print("Error loading predictions from DB:", e)
+        return {}
+
+
+def get_player_rolling_stats(player_name, df):
+    cpname = clean_name(player_name)
+    if cpname in PLAYER_STATS_CACHE:
+        return PLAYER_STATS_CACHE[cpname]
     else:
         # Inject slight variance so unknown players don't all get exactly 0.18
         return {
@@ -42,6 +288,7 @@ def get_player_rolling_stats(player_name, df):
             'passes_roll': max(0, np.random.normal(15.0, 5.0)),
             'rating_roll': np.clip(np.random.normal(6.0, 0.3), 4.0, 8.0)
         }
+
 
 def predict_match(fixture, lineups, player_model, match_model, df):
     home_team = fixture['teams']['home']['name']
@@ -147,6 +394,7 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         'fixture_id': fixture['fixture']['id'],
         'match': f"{home_team} vs {away_team}",
         'league': league_name,
+        'kickoff': fixture['fixture']['date'],
         'prediction': winner,
         'expected_score': f"{home_g} - {away_g}",
         'team_impacts': f"Home: {home_impact:.2f} | Away: {away_impact:.2f}",
@@ -186,10 +434,21 @@ def update_markdown_artifact(results, timestamp):
         out_text += f"### [{r['league']}] {r['match']}\n"
         out_text += f"- **Predicted Outcome:** {r['prediction']}\n"
         out_text += f"- **Expected Score:** {r['expected_score']}\n"
-        out_text += f"- **Team Strengths (Aggregated Impact):** {r['team_impacts']}\n"
-        out_text += f"- **Match Stats:** Corners ({r['corners']}) | Fouls ({r['fouls']}) | Cards ({r['cards']})\n"
-        out_text += "- **Top Impact Players (Home):** " + ", ".join([f"{p['name']} ({p['impact']})" for p in r['home_players']]) + "\n"
-        out_text += "- **Top Impact Players (Away):** " + ", ".join([f"{p['name']} ({p['impact']})" for p in r['away_players']]) + "\n\n"
+        
+        team_impacts = r.get('team_impacts', 'N/A')
+        corners = r.get('corners', 'N/A')
+        fouls = r.get('fouls', 'N/A')
+        cards = r.get('cards', 'N/A')
+        
+        out_text += f"- **Team Strengths (Aggregated Impact):** {team_impacts}\n"
+        out_text += f"- **Match Stats:** Corners ({corners}) | Fouls ({fouls}) | Cards ({cards})\n"
+        
+        h_players = r.get('home_players', [])
+        a_players = r.get('away_players', [])
+        if h_players:
+            out_text += "- **Top Impact Players (Home):** " + ", ".join([f"{p['name']} ({p['impact']})" for p in h_players]) + "\n"
+        if a_players:
+            out_text += "- **Top Impact Players (Away):** " + ", ".join([f"{p['name']} ({p['impact']})" for p in a_players]) + "\n\n"
         out_text += "---\n\n"
         
     # Write to artifact dir directly if possible, or data dir
@@ -515,7 +774,7 @@ def settle_open_bets():
 
 def update_dashboard_json(fixtures, results_cache):
     dashboard_data = []
-    res_map = {r['fixture_id']: r for r in results_cache if 'fixture_id' in r}
+    res_map = load_predictions_from_db()
     
     settings = load_settings()
     min_ev_threshold = settings.get("min_ev_threshold", 0.05)
@@ -607,7 +866,7 @@ def update_dashboard_json(fixtures, results_cache):
             'league': league,
             'kickoff': match_time,
             'status_code': status,
-            'has_lineup': fid in res_map,
+            'has_lineup': prediction['has_lineup'] if prediction else False,
             'prediction': prediction,
             'prematch_markets': prematch_markets
         }
@@ -621,9 +880,7 @@ def run_daemon():
     player_model = joblib.load('models/player_impact_model.pkl')
     match_model = joblib.load('models/bottom_up_match_model.pkl')
     df = load_player_database()
-    
-    processed_fixtures = set()
-    results_cache = []
+    initialize_caches(df)
     
     # Run initial settlement on startup
     settle_open_bets()
@@ -641,19 +898,55 @@ def run_daemon():
         # 2. Run post-match settlement
         settle_open_bets()
         
+        # Load existing predictions from DB
+        db_preds = load_predictions_from_db()
+        
         now_utc = datetime.datetime.now(datetime.timezone.utc)
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Scanning fixtures for upcoming kickoffs (T-45m window)...")
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Scanning fixtures for predictions...")
         fixtures = get_todays_fixtures()
         new_lineup_found = False
         
+        # Identify fixtures that need lineup checks
+        fixtures_to_check = []
         for f in fixtures:
             fid = f['fixture']['id']
-            if fid in processed_fixtures:
-                continue # Already predicted this match
+            status = f['fixture']['status']['short']
+            if status in ['FT', 'AET', 'PEN', 'PST', 'CANC', 'ABD', '1H', '2H', 'HT']:
+                continue
+            if fid in db_preds and db_preds[fid].get('has_lineup', False):
+                continue
                 
+            match_time_str = f['fixture']['date']
+            try:
+                kickoff_time = datetime.datetime.fromisoformat(match_time_str.replace('Z', '+00:00'))
+                time_to_kickoff = (kickoff_time - now_utc).total_seconds() / 60.0
+            except Exception:
+                time_to_kickoff = 999
+                
+            if 0 < time_to_kickoff <= 45:
+                fixtures_to_check.append(f)
+                
+        # Fetch lineups in batch
+        batch_lineups = {}
+        if fixtures_to_check:
+            fids = [f['fixture']['id'] for f in fixtures_to_check]
+            print(f"[*] Fetching lineups in batch for {len(fids)} matches near kickoff...")
+            try:
+                from free_scraper_module import get_fixture_lineups_batch
+                batch_lineups = get_fixture_lineups_batch(fids)
+            except Exception as e:
+                print("Failed to run batch lineup fetcher:", e)
+        
+        # Predict fixtures
+        for f in fixtures:
+            fid = f['fixture']['id']
             status = f['fixture']['status']['short']
             if status in ['FT', 'AET', 'PEN', 'PST', 'CANC', 'ABD', '1H', '2H', 'HT']:
                 continue # Match is already running, over, or cancelled
+                
+            # If we already have a finalized prediction with official lineups, skip
+            if fid in db_preds and db_preds[fid].get('has_lineup', False):
+                continue
                 
             # Check Match Time
             match_time_str = f['fixture']['date']
@@ -663,30 +956,48 @@ def run_daemon():
             except Exception:
                 time_to_kickoff = 999
                 
-            # SMART LOGIC: Only query lineups if we are between 0 and 45 minutes before kickoff
+            # Lineups window check
             if 0 < time_to_kickoff <= 45:
-                print(f"[~] {f['teams']['home']['name']} vs {f['teams']['away']['name']} kicks off in {int(time_to_kickoff)} mins. Checking for lineups...")
-                lineups = get_fixture_lineups(fid)
-                
+                lineups = batch_lineups.get(fid, [])
                 if len(lineups) == 2 and len(lineups[0].get('startXI', [])) == 11:
                     print(f"[!] Official lineup confirmed for: {f['teams']['home']['name']} vs {f['teams']['away']['name']}!")
                     res = predict_match(f, lineups, player_model, match_model, df)
-                    results_cache.append(res)
-                    processed_fixtures.add(fid)
+                    log_prediction_to_db(res, has_lineup=True)
                     new_lineup_found = True
                 else:
-                    print(f"    -> Lineups not officially posted yet. Will retry soon.")
+                    # Lineups not posted or error
+                    # Fallback to estimated prediction if not already in DB
+                    if fid not in db_preds:
+                        print(f"    -> Generating estimated prediction for T-45m match: {f['teams']['home']['name']} vs {f['teams']['away']['name']}")
+                        home_xi = get_predicted_lineup(f['teams']['home']['name'], df)
+                        away_xi = get_predicted_lineup(f['teams']['away']['name'], df)
+                        est_lineups = [{'startXI': home_xi}, {'startXI': away_xi}]
+                        res = predict_match(f, est_lineups, player_model, match_model, df)
+                        log_prediction_to_db(res, has_lineup=False)
+            elif time_to_kickoff > 45:
+                # Kickoff is further away, generate estimated prediction if not already in DB
+                if fid not in db_preds:
+                    print(f"    -> Generating estimated prediction for upcoming match: {f['teams']['home']['name']} vs {f['teams']['away']['name']}")
+                    home_xi = get_predicted_lineup(f['teams']['home']['name'], df)
+                    away_xi = get_predicted_lineup(f['teams']['away']['name'], df)
+                    est_lineups = [{'startXI': home_xi}, {'startXI': away_xi}]
+                    res = predict_match(f, est_lineups, player_model, match_model, df)
+                    log_prediction_to_db(res, has_lineup=False)
             
         # Always update dashboard JSON to keep odds and recommendations fresh!
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if new_lineup_found:
-            update_markdown_artifact(results_cache, timestamp)
+            db_preds = load_predictions_from_db()
+            official_results = [p for p in db_preds.values() if p['has_lineup']]
+            update_markdown_artifact(official_results, timestamp)
             print(f"[+] Artifact updated with latest confirmed lineups.")
             
-        update_dashboard_json(fixtures, results_cache)
+        update_dashboard_json(fixtures, [])
+        print(f"[*] Sweep complete. Dashboard state updated. Sleeping for 3 minutes...")
         
         # Wait 3 minutes (180s) before the next sweep
         time.sleep(180)
+
 
 
 if __name__ == "__main__":

@@ -78,3 +78,27 @@ def get_fixture_lineups_free(fixture_id):
         except Exception as e:
             # Most likely 404 meaning lineups not released yet
             return []
+
+def get_fixture_lineups_batch(fixture_ids):
+    if not fixture_ids:
+        return {}
+    results = {}
+    with SB(uc=True, headless=True) as sb:
+        for fid in fixture_ids:
+            url = f'https://api.sofascore.com/api/v1/event/{fid}/lineups'
+            try:
+                sb.open(url)
+                time.sleep(1)
+                content = sb.execute_script('return document.body.innerText;')
+                data = json.loads(content)
+                if 'home' in data and 'away' in data:
+                    home_xi = [{'player': {'name': p['player']['name']}} for p in data['home'].get('players', []) if p.get('substitute') == False]
+                    away_xi = [{'player': {'name': p['player']['name']}} for p in data['away'].get('players', []) if p.get('substitute') == False]
+                    results[fid] = [
+                        {'startXI': home_xi},
+                        {'startXI': away_xi}
+                    ]
+            except Exception:
+                pass
+    return results
+
