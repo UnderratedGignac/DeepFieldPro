@@ -1,4 +1,13 @@
-```
+*.csv
+*.db
+*.pkl
+*.bak
+artifacts/
+models/*.pkl
+data/*.csv
+data/*.db
+data/*.json
+data/*.md
+data/*.txt
 __pycache__/
-*.pyc
-```
+*.log

@@ -335,14 +335,8 @@ if __name__ == '__main__':
     preds = run_predictions()
 
     if not preds.empty:
-        # Step 2: Identify bets (with sample odds — replace with real sportsbook data)
-        manual_lines = [
-            {'player': 'Dušan Vlahović', 'market': 'Goals',  'line': 0.5, 'over_odds': 2.40, 'under_odds': 1.55},
-            {'player': 'Dušan Vlahović', 'market': 'Shots',  'line': 1.5, 'over_odds': 1.80, 'under_odds': 2.00},
-            {'player': 'Dušan Vlahović', 'market': 'SoT',    'line': 0.5, 'over_odds': 1.65, 'under_odds': 2.15},
-            {'player': 'Dominik Szoboszlai', 'market': 'Shots', 'line': 1.5, 'over_odds': 1.90, 'under_odds': 1.90},
-        ]
-        bets = run_betting_engine(preds, manual_lines)
+        # Step 2: Identify bets using BetArabia odds (odds_stream.db)
+        bets = run_betting_engine(preds)
 
         # Step 3: Size stakes
         if not bets.empty:

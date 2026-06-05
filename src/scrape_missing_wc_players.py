@@ -1,268 +1,216 @@
 """
-DeepFieldPro - Direct FBref Player Match Log Scraper
-Scrapes match logs directly from individual FBref player pages.
-Bypasses soccerdata league restrictions entirely.
+DeepFieldPro - Missing Leagues Scraper
+Scrapes the 6 valid FBref leagues that were NOT in the original global scrape:
+  - ARG-Primera Division
+  - BEL-Pro League
+  - BRA-Brasileirao
+  - ENG-Championship
+  - KSA-Saudi Pro League
+  - USA-MLS
 
-Strategy:
-1. Search FBref for each missing WC player by name
-2. Find their player page URL
-3. Scrape their 2025-26 match logs
-4. Append to global CSV
+Appends all WC players found to world_cup_players_match_logs_global.csv
 """
-import requests
-from bs4 import BeautifulSoup
+import soccerdata as sd
 import pandas as pd
-import time
+import unicodedata
 import re
 import os
-import io
 import sys
-import json
-import unicodedata
-from datetime import datetime
+import io
+import time
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-DATA_DIR    = os.path.join(os.path.dirname(__file__), '../data')
-GLOBAL_CSV  = os.path.join(DATA_DIR, 'world_cup_players_match_logs_global.csv')
+DATA_DIR   = os.path.join(os.path.dirname(__file__), '../data')
+GLOBAL_CSV = os.path.join(DATA_DIR, 'world_cup_players_match_logs_global.csv')
 MISSING_CSV = os.path.join(DATA_DIR, 'wc_player_name_mapping.csv')
-PROGRESS_FILE = os.path.join(DATA_DIR, 'fbref_direct_scrape_progress.json')
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Referer': 'https://fbref.com/',
+# Leagues with their correct season format:
+# - European winter leagues use '2526' (Aug 2025 - May 2026)
+# - Calendar-year leagues use '2025'
+LEAGUE_SEASONS = {
+    'USA-MLS':              '2025',  # Messi, Busquets, Shaqiri
+    'KSA-Saudi Pro League': '2025',  # Al Dawsari + Saudi squad
+    'BRA-Brasileirao':      '2025',  # Brazilian domestic players
+    'ARG-Primera Division': '2025',  # Argentine domestic players
+    'BEL-Pro League':       '2526',  # Belgian WC players
+    'ENG-Championship':     '2526',  # English 2nd tier WC players
 }
 
-SEASON_ID = "2025-2026"  # URL format
-
-print("=" * 65)
-print("DeepFieldPro - Direct FBref Player Scraper")
-print("=" * 65)
-
-# ── 1. LOAD MISSING PLAYERS ──────────────────────────────────────────────────
-mapping = pd.read_csv(MISSING_CSV)
-missing = mapping[mapping['fbref_name'].isna()]['legal_name'].tolist()
-print(f"\nTargeting {len(missing)} missing WC players")
-
-# Load progress to allow resuming
-scraped_done = {}
-if os.path.exists(PROGRESS_FILE):
-    with open(PROGRESS_FILE) as f:
-        scraped_done = json.load(f)
-    print(f"Resuming from previous run ({len(scraped_done)} already done)")
-
-# Load existing data
-existing_df = pd.read_csv(GLOBAL_CSV)
-print(f"Existing rows: {len(existing_df):,}")
-
+# ── HELPERS ──────────────────────────────────────────────────────────────────
 def normalize_name(name):
     if not isinstance(name, str): return ''
-    n = name.lower().strip()
-    n = unicodedata.normalize('NFKD', n)
-    n = ''.join(c for c in n if not unicodedata.combining(c))
-    n = re.sub(r'[^a-z\s]', '', n)
-    return re.sub(r'\s+', ' ', n).strip()
+    name = name.lower().strip()
+    name = unicodedata.normalize('NFKD', name)
+    name = ''.join(c for c in name if not unicodedata.combining(c))
+    name = re.sub(r'[^a-z\s]', '', name)
+    return re.sub(r'\s+', ' ', name).strip()
 
-def search_fbref_player(name):
-    """Search FBref for a player and return their player page URL."""
-    # FBref search URL
-    search_url = "https://fbref.com/search/search.fcgi"
-    params = {"search": name, "pid": "search"}
+print("=" * 65)
+print("DeepFieldPro - Missing 6 Leagues Scraper")
+print("=" * 65)
+
+# Load missing WC players (legal names)
+mapping = pd.read_csv(MISSING_CSV)
+missing_legal = mapping[mapping['fbref_name'].isna()]['legal_name'].tolist()
+missing_norm  = set(normalize_name(n) for n in missing_legal)
+missing_tokens_list = [set(normalize_name(n).split()) for n in missing_legal]
+print(f"\nTargeting {len(missing_legal)} missing WC players")
+print(f"Leagues to scrape: {MISSING_LEAGUES}")
+
+def is_wc_player(name):
+    """Multi-strategy WC player check (optimized)."""
+    norm = normalize_name(name)
+    if not norm: return False
+    # Exact
+    if norm in missing_norm: return True
+    tokens = set(norm.split())
+    if not tokens: return False
+    for wc_toks in missing_tokens_list:
+        if not wc_toks: continue
+        # FBref name subset of legal name (e.g. "Lionel Messi" in "Lionel Andres Messi Cuccittini")
+        if len(tokens) >= 2 and tokens.issubset(wc_toks): return True
+        # Legal name subset of FBref name
+        if len(wc_toks) >= 2 and wc_toks.issubset(tokens): return True
+        # 2+ token overlap
+        if len(tokens & wc_toks) >= 2: return True
+    return False
+
+# Load existing data (only player column to save memory)
+print(f"\nLoading existing player list...")
+existing_players_df = pd.read_csv(GLOBAL_CSV, usecols=['player_'])
+existing_players = set(existing_players_df['player_'].dropna().str.strip().unique())
+print(f"  Existing unique players: {len(existing_players):,}")
+del existing_players_df  # Free memory
+
+# Load existing game IDs for deduplication (load separately)
+print(f"  Loading existing game IDs...")
+existing_ids_df = pd.read_csv(GLOBAL_CSV, usecols=['game_id_'])
+existing_game_ids = set(existing_ids_df['game_id_'].dropna().unique())
+print(f"  Existing game IDs: {len(existing_game_ids):,}")
+del existing_ids_df
+
+all_new_frames = []
+found_wc_players = {}  # player_name -> league
+
+# ── SCRAPE EACH LEAGUE ───────────────────────────────────────────────────────
+for league, season in LEAGUE_SEASONS.items():
+    print(f"\n{'-'*65}")
+    print(f"  Scraping: {league}")
     
     try:
-        r = requests.get(search_url, params=params, headers=HEADERS, timeout=20)
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, 'lxml')
+        print(f"  Season format: {season}")
+        fbref = sd.FBref(leagues=league, seasons=season)
+        stats = fbref.read_player_match_stats(stat_type='summary')
         
-        # Check for direct redirect to player page
-        if '/players/' in r.url and r.url != search_url:
-            return r.url
-        
-        # Look for search results
-        results = soup.find_all('div', {'class': 'search-item-name'})
-        for result in results:
-            link = result.find('a', href=True)
-            if link and '/players/' in link['href']:
-                return "https://fbref.com" + link['href']
-        
-        # Try parsing strong links
-        for a in soup.find_all('a', href=True):
-            if '/players/' in a['href'] and re.match(r'/en/players/[a-f0-9]{8}/', a['href']):
-                return "https://fbref.com" + a['href']
-                
-        return None
-    except Exception as e:
-        print(f"    Search error: {e}")
-        return None
-
-def get_match_logs_url(player_url):
-    """Get the match logs page URL for a player."""
-    # Convert player page URL to match logs URL
-    # e.g.: /en/players/d70ce98e/Lionel-Messi
-    # Match logs: /en/players/d70ce98e/matchlogs/2025-2026/summary/Lionel-Messi-Match-Logs
-    
-    # Extract player ID and name slug from URL
-    match = re.search(r'/players/([a-f0-9]{8})/([^/]+)$', player_url.rstrip('/'))
-    if not match:
-        return None
-    
-    player_id = match.group(1)
-    name_slug = match.group(2)
-    
-    return f"https://fbref.com/en/players/{player_id}/matchlogs/{SEASON_ID}/summary/{name_slug}-Match-Logs"
-
-def scrape_match_log_page(logs_url, player_name):
-    """Scrape the match log table from FBref player page."""
-    try:
-        r = requests.get(logs_url, headers=HEADERS, timeout=30)
-        
-        if r.status_code == 429:
-            return None, "rate_limited"
-        if r.status_code == 404:
-            return None, "not_found"
-        r.raise_for_status()
-        
-        soup = BeautifulSoup(r.text, 'lxml')
-        
-        # Find the match log table
-        table = soup.find('table', {'id': re.compile(r'matchlogs_')})
-        if not table:
-            # Try any table with stats
-            tables = soup.find_all('table')
-            if not tables:
-                return None, "no_table"
-            table = tables[0]
-        
-        # Parse with pandas
-        dfs = pd.read_html(str(table))
-        if not dfs:
-            return None, "no_data"
-        
-        df = dfs[0]
+        if stats is None or len(stats) == 0:
+            print(f"  [EMPTY] No data returned")
+            continue
         
         # Flatten MultiIndex columns
-        if hasattr(df.columns, 'levels'):
-            df.columns = ['_'.join(filter(None, map(str, col))).strip('_') 
-                         for col in df.columns]
+        stats = stats.reset_index()
+        if hasattr(stats.columns, 'levels'):
+            stats.columns = ['_'.join(filter(None, map(str, col))).strip('_') 
+                             for col in stats.columns]
         
-        # Add player name
-        df['player_'] = player_name
+        print(f"  Raw rows: {len(stats):,} | Cols: {len(stats.columns)}")
         
-        # Remove rows that are sub-headers (FBref repeats headers)
-        if 'Date' in df.columns:
-            df = df[df['Date'].notna()]
-            df = df[~df['Date'].str.contains('Date', na=True)]
-            df = df[~df['Date'].str.contains('Matches', na=True)]
+        # Find player column
+        player_col = next((c for c in ['player', 'Player', 'player_'] if c in stats.columns), None)
+        if not player_col:
+            print(f"  [WARN] No player column. Cols: {stats.columns.tolist()[:8]}")
+            continue
         
-        # Filter to 2025-26 season
-        if 'Date' in df.columns:
-            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-            df = df[df['Date'] >= '2025-07-01']
-            df = df[df['Date'].notna()]
+        # Print sample players to verify
+        sample = stats[player_col].dropna().unique()[:5]
+        print(f"  Sample players: {list(sample)}")
         
-        return df, "ok"
+        # Filter to WC players only
+        stats['_is_wc'] = stats[player_col].apply(is_wc_player)
+        wc_rows = stats[stats['_is_wc']].copy()
+        
+        if len(wc_rows) == 0:
+            print(f"  No WC players matched")
+            # Show what players ARE in this league
+            all_p = stats[player_col].dropna().unique()
+            print(f"  Total players in league: {len(all_p)}")
+            # Check if any match loosely
+            for p in all_p:
+                norm = normalize_name(p)
+                for wc_toks in missing_tokens_list:
+                    if len(set(norm.split()) & wc_toks) >= 1:
+                        print(f"    Possible partial match: {p}")
+                        break
+            continue
+        
+        wc_rows = wc_rows.drop(columns=['_is_wc'], errors='ignore')
+        
+        # Remove already-seen game IDs
+        if 'game_id_' in wc_rows.columns:
+            new_mask = ~wc_rows['game_id_'].isin(existing_game_ids)
+            wc_rows = wc_rows[new_mask]
+        
+        if len(wc_rows) == 0:
+            wc_found = stats[stats['_is_wc']][player_col].unique()
+            print(f"  Already have all data for: {list(wc_found)}")
+            continue
+        
+        # Tag with league
+        wc_rows['league_'] = league
+        
+        # Record found players
+        for p in wc_rows[player_col].unique():
+            found_wc_players[p] = league
+        
+        all_new_frames.append(wc_rows)
+        print(f"  [SUCCESS] Found {wc_rows[player_col].nunique()} WC players | {len(wc_rows):,} new rows")
+        for p in wc_rows[player_col].unique():
+            print(f"    + {p}")
+        
+        time.sleep(6)  # FBref rate limit
         
     except Exception as e:
-        return None, str(e)[:80]
-
-# ── 2. SCRAPE EACH MISSING PLAYER ────────────────────────────────────────────
-all_new_frames = []
-found_players = []
-failed_players = []
-
-for i, player_name in enumerate(missing):
-    if player_name in scraped_done:
-        status = scraped_done[player_name]
-        if status == "found":
-            print(f"  [{i+1}/{len(missing)}] {player_name[:40]:40s} [already found]")
+        print(f"  [ERROR] {league}: {e}")
+        time.sleep(5)
         continue
-    
-    print(f"\n  [{i+1}/{len(missing)}] Searching: {player_name[:50]}")
-    
-    # Step 1: Search for player
-    player_url = search_fbref_player(player_name)
-    time.sleep(4)  # Rate limit
-    
-    if not player_url:
-        # Try with just the last 2 words of the name
-        name_parts = player_name.split()
-        short_name = ' '.join(name_parts[-2:]) if len(name_parts) >= 2 else player_name
-        print(f"    Retrying with short name: {short_name}")
-        player_url = search_fbref_player(short_name)
-        time.sleep(4)
-    
-    if not player_url:
-        print(f"    [NOT FOUND] Could not find player page")
-        scraped_done[player_name] = "not_found"
-        failed_players.append(player_name)
-        continue
-    
-    print(f"    Found: {player_url}")
-    
-    # Step 2: Get match logs URL
-    logs_url = get_match_logs_url(player_url)
-    if not logs_url:
-        print(f"    [ERROR] Could not construct match logs URL")
-        scraped_done[player_name] = "url_error"
-        failed_players.append(player_name)
-        continue
-    
-    print(f"    Match logs: {logs_url}")
-    
-    # Step 3: Scrape match logs
-    df, status = scrape_match_log_page(logs_url, player_name)
-    time.sleep(5)  # Rate limit between player pages
-    
-    if status == "rate_limited":
-        print(f"    [RATE LIMITED] Sleeping 60s...")
-        time.sleep(60)
-        df, status = scrape_match_log_page(logs_url, player_name)
-    
-    if df is None or len(df) == 0:
-        print(f"    [NO DATA] Status: {status}")
-        scraped_done[player_name] = f"no_data:{status}"
-        failed_players.append(player_name)
-    else:
-        print(f"    [SUCCESS] {len(df)} match log rows")
-        df['Nation'] = "WC"
-        df['league_'] = "Direct-Scrape"
-        all_new_frames.append(df)
-        found_players.append(player_name)
-        scraped_done[player_name] = "found"
-    
-    # Save progress after each player
-    with open(PROGRESS_FILE, 'w') as f:
-        json.dump(scraped_done, f, indent=2)
 
-# ── 3. APPEND TO GLOBAL CSV ─────────────────────────────────────────────────
+# ── APPEND TO GLOBAL CSV ─────────────────────────────────────────────────────
 print(f"\n{'='*65}")
-print(f"SCRAPE COMPLETE")
-print(f"  Players found: {len(found_players)}")
-print(f"  Players failed/not found: {len(failed_players)}")
+print("SCRAPE RESULTS")
+print(f"  WC players newly found: {len(found_wc_players)}")
 
 if all_new_frames:
     new_data = pd.concat(all_new_frames, ignore_index=True)
-    print(f"  New rows: {len(new_data):,}")
+    print(f"  New rows total: {len(new_data):,}")
     
-    # Harmonize columns - use only columns in existing
-    common_cols = [c for c in existing_df.columns if c in new_data.columns]
-    new_data_trimmed = new_data[common_cols].copy()
+    # Load existing full CSV now for appending
+    print("\n  Loading existing CSV for merge...")
+    existing_full = pd.read_csv(GLOBAL_CSV)
     
-    combined = pd.concat([existing_df, new_data_trimmed], ignore_index=True)
+    # Align columns
+    for col in existing_full.columns:
+        if col not in new_data.columns:
+            new_data[col] = None
+    new_data = new_data[[c for c in existing_full.columns if c in new_data.columns]]
+    
+    combined = pd.concat([existing_full, new_data], ignore_index=True)
+    
+    # Dedup on game_id + player
+    if 'game_id_' in combined.columns and 'player_' in combined.columns:
+        before = len(combined)
+        combined = combined.drop_duplicates(subset=['game_id_', 'player_'], keep='first')
+        print(f"  Deduped: {before - len(combined)} duplicates removed")
+    
     combined.to_csv(GLOBAL_CSV, index=False)
+    print(f"\n  UPDATED: {GLOBAL_CSV}")
+    print(f"  Total rows: {len(combined):,} (was {len(existing_full):,})")
     
-    print(f"\n  Updated: {GLOBAL_CSV}")
-    print(f"  Total rows: {len(combined):,}")
-    
-    print(f"\nFound players:")
-    for p in found_players:
-        print(f"  + {p}")
-
-print(f"\nFailed/Not on FBref:")
-for p in failed_players[:20]:
-    print(f"  - {p}")
+    print(f"\nNewly added WC players:")
+    for p, lg in sorted(found_wc_players.items()):
+        print(f"  + [{lg}] {p}")
+else:
+    print("\n  No new WC player data found.")
+    print("  These players may play in leagues FBref doesn't cover")
+    print("  (Iranian, Croatian, Danish, Tunisian, J-League, K-League, etc.)")
 
 print("\nDone!")

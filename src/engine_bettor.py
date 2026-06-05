@@ -18,12 +18,14 @@ import requests
 import os
 import sys
 import io
+import sqlite3
 from datetime import date
 
 # stdout encoding set by caller
 
 ROOT     = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 DATA_DIR = os.path.join(ROOT, 'data')
+ODDS_DB  = os.path.join(DATA_DIR, 'odds_stream.db')
 
 API_KEY     = '4ae9f07e1ae1f775050015c50037a71d'
 API_HEADERS = {'x-apisports-key': API_KEY}
@@ -123,6 +125,84 @@ def fetch_bookmaker_odds(fixture_ids: list[int]) -> dict:
             print(f'  Odds fetch error for fixture {fid}: {e}')
 
     return all_odds
+
+
+# ─── Local Odds DB Loading ─────────────────────────────────────────────────────
+def load_local_db_odds() -> list[dict]:
+    """
+    Read scraped odds from odds_stream.db and convert to manual_lines format.
+    Handles 'Over 1.5 - Player Name' and 'Yes - Player Name' formats.
+    """
+    if not os.path.exists(ODDS_DB):
+        return []
+    
+    conn = sqlite3.connect(ODDS_DB)
+    c = conn.cursor()
+    # Group by market_type and selection_name to get latest prices
+    # We'll just fetch all and process them in Python for simplicity
+    try:
+        c.execute('SELECT market_type, selection_name, price FROM odds_feed ORDER BY id DESC')
+        rows = c.fetchall()
+    except Exception as e:
+        print(f"Error reading odds_stream.db: {e}")
+        return []
+    conn.close()
+
+    parsed_lines = {}
+    for market_type, selection, price in rows:
+        # Expected formats:
+        # "Over 1.5 - Chris Wood"
+        # "Yes - Luka Modric" (for goals anytime)
+        
+        parts = selection.split(' - ')
+        if len(parts) < 2:
+            continue
+            
+        side_line = parts[0].strip()  # e.g., "Over 1.5" or "Yes"
+        player = parts[1].strip()
+        
+        # Map market_type to our internal names
+        # e.g. shots_total -> Shots, goals_anytime -> Goals, sot_total -> SoT
+        market = None
+        if 'shots' in market_type: market = 'Shots'
+        elif 'sot' in market_type: market = 'SoT'
+        elif 'goals_anytime' in market_type: market = 'Goals'
+        elif 'cards' in market_type: market = 'Cards'
+        elif 'passes' in market_type: market = 'Passes'
+        else: continue
+            
+        line = 0.5
+        side = None
+        
+        if side_line.lower() == 'yes':
+            side = 'over'
+            line = 0.5
+        elif side_line.lower() == 'no':
+            side = 'under'
+            line = 0.5
+        elif side_line.lower().startswith('over'):
+            side = 'over'
+            try: line = float(side_line.split()[1])
+            except: continue
+        elif side_line.lower().startswith('under'):
+            side = 'under'
+            try: line = float(side_line.split()[1])
+            except: continue
+            
+        if not side: continue
+            
+        key = (player, market, line)
+        if key not in parsed_lines:
+            parsed_lines[key] = {'player': player, 'market': market, 'line': line, 'over_odds': 0.0, 'under_odds': 0.0}
+            
+        # Only keep the latest price (first encountered due to ORDER BY id DESC)
+        if side == 'over' and parsed_lines[key]['over_odds'] == 0.0:
+            parsed_lines[key]['over_odds'] = price
+        elif side == 'under' and parsed_lines[key]['under_odds'] == 0.0:
+            parsed_lines[key]['under_odds'] = price
+
+    valid_lines = [v for v in parsed_lines.values() if v['over_odds'] > 1.0 or v['under_odds'] > 1.0]
+    return valid_lines
 
 
 # ─── Bet Identifier ────────────────────────────────────────────────────────────
@@ -274,7 +354,13 @@ def run_betting_engine(predictions_df: pd.DataFrame,
         print(f'\n[1] Fetching live odds for {len(fixture_ids)} fixtures...')
         bookmaker_odds = fetch_bookmaker_odds([int(f) for f in fixture_ids])
 
-    print(f'\n[2] Evaluating value bets...')
+    # Try local odds DB if no manual lines provided
+    if manual_lines is None:
+        print(f'\n[2] Reading odds from local DB (odds_stream.db)...')
+        manual_lines = load_local_db_odds()
+        print(f'    Found {len(manual_lines)} player props in local DB')
+
+    print(f'\n[3] Evaluating value bets...')
     value_df = identify_value_bets(predictions_df, bookmaker_odds, manual_lines)
 
     if value_df.empty:
@@ -299,16 +385,9 @@ if __name__ == '__main__':
     preds = run_predictions()
 
     if not preds.empty:
-        # Example manual lines — replace with actual sportsbook odds
-        manual_lines = [
-            {'player': 'Dušan Vlahović', 'market': 'Goals',  'line': 0.5, 'over_odds': 2.40, 'under_odds': 1.55},
-            {'player': 'Dušan Vlahović', 'market': 'Shots',  'line': 1.5, 'over_odds': 1.80, 'under_odds': 2.00},
-            {'player': 'Dušan Vlahović', 'market': 'SoT',    'line': 0.5, 'over_odds': 1.65, 'under_odds': 2.15},
-            {'player': 'Santiago Sandoval', 'market': 'Shots', 'line': 1.5, 'over_odds': 1.85, 'under_odds': 1.95},
-            {'player': 'Dominik Szoboszlai', 'market': 'Shots', 'line': 1.5, 'over_odds': 1.90, 'under_odds': 1.90},
-            {'player': 'Dominik Szoboszlai', 'market': 'Goals', 'line': 0.5, 'over_odds': 4.50, 'under_odds': 1.20},
-        ]
-        bets = run_betting_engine(preds, manual_lines)
+        # Don't use manual lines, let it read from odds_stream.db
+        bets = run_betting_engine(preds)
+        bets = run_betting_engine(preds)
         if not bets.empty:
             out = os.path.join(DATA_DIR, f'value_bets_{date.today()}.csv')
             bets.to_csv(out, index=False)
