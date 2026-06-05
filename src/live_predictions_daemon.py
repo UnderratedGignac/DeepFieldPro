@@ -175,7 +175,8 @@ def log_prediction_to_db(pred_res, has_lineup):
             'fouls': pred_res.get('fouls', ''),
             'cards': pred_res.get('cards', ''),
             'home_players': pred_res.get('home_players', []),
-            'away_players': pred_res.get('away_players', [])
+            'away_players': pred_res.get('away_players', []),
+            'detailed_prediction': pred_res.get('detailed_prediction', {})
         }
         extra_json = json.dumps(extra_data)
             
