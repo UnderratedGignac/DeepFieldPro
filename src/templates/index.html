@@ -545,6 +545,9 @@
             <a class="nav-item" onclick="switchView('performance-view', this)">
                 <i class="fa-solid fa-chart-line"></i> Performance (AI vs User)
             </a>
+            <a class="nav-item" onclick="switchView('comparison-view', this)">
+                <i class="fa-solid fa-scale-balanced"></i> AI vs Reality
+            </a>
             <a class="nav-item" onclick="switchView('settings-view', this)">
                 <i class="fa-solid fa-microchip"></i> Engine Settings
             </a>
@@ -794,6 +797,29 @@
             </div>
         </div>
 
+        <!-- MATCH COMPARISON VIEW -->
+        <div id="comparison-view" class="view-section">
+            <div style="display: grid; grid-template-columns: 300px 1fr; gap: 24px; min-height: 500px;">
+                <!-- Left panel: Matches list -->
+                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 20px; max-height: 700px; overflow-y: auto;">
+                    <h3 style="color: var(--primary); margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-list"></i> Select Match
+                    </h3>
+                    <div id="comparison-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading matches...</div>
+                    </div>
+                </div>
+                
+                <!-- Right panel: Comparison details -->
+                <div id="comparison-detail-panel" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; display: flex; flex-direction: column; gap: 20px; min-height:600px; overflow-y:auto;">
+                    <div style="text-align: center; padding: 100px 20px; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                        <i class="fa-solid fa-scale-balanced" style="font-size: 3.5rem; color: var(--primary); opacity: 0.5;"></i>
+                        <div>Select a match from the left menu to view the AI vs Reality comparison.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script>
@@ -810,7 +836,8 @@
                 'bankroll-view': 'Capital Overview',
                 'tracker-view': 'Execution Ledger',
                 'settings-view': 'Engine Configuration',
-                'performance-view': 'User vs AI Performance'
+                'performance-view': 'User vs AI Performance',
+                'comparison-view': 'AI vs Reality Comparisons'
             };
             document.getElementById('page-title').innerText = titles[viewId];
             
@@ -819,7 +846,8 @@
                 'bankroll-view': '/bankroll',
                 'tracker-view': '/tracker',
                 'settings-view': '/settings',
-                'performance-view': '/performance'
+                'performance-view': '/performance',
+                'comparison-view': '/comparison'
             };
             if(window.location.pathname !== paths[viewId]) {
                 history.pushState(null, '', paths[viewId]);
@@ -831,6 +859,8 @@
                 loadTracker();
             } else if(viewId === 'bankroll-view') {
                 loadBankroll();
+            } else if(viewId === 'comparison-view') {
+                loadComparisonList();
             }
         }
 
@@ -1291,7 +1321,9 @@
             } else if (path === '/bankroll') {
                 switchView('bankroll-view', navItems[1]);
             } else if (path === '/settings') {
-                switchView('settings-view', navItems[4]);
+                switchView('settings-view', navItems[5]);
+            } else if (path === '/comparison') {
+                switchView('comparison-view', navItems[4]);
             } else {
                 switchView('live-view', navItems[0]);
                 fetchState();
@@ -1414,6 +1446,397 @@
             
             document.querySelectorAll('.modal-tab').forEach(el => el.classList.remove('active'));
             btn.classList.add('active');
+        }
+
+        }
+
+        async function loadComparisonList() {
+            const listContainer = document.getElementById('comparison-list');
+            listContainer.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading...</div>';
+            
+            try {
+                const res = await fetch('/api/comparisons');
+                if (!res.ok) throw new Error("Failed to load");
+                const matches = await res.json();
+                
+                if (matches.length === 0) {
+                    listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No predicted matches available today.</div>';
+                    return;
+                }
+                
+                listContainer.innerHTML = '';
+                matches.forEach(m => {
+                    const btn = document.createElement('div');
+                    btn.className = 'comparison-item-btn';
+                    btn.style.cssText = `
+                        padding: 12px 15px;
+                        background: rgba(255,255,255,0.03);
+                        border: 1px solid var(--border-color);
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 5px;
+                        margin-bottom: 8px;
+                    `;
+                    
+                    const isKarlstad = m.fixture_id === 15458376;
+                    if (isKarlstad) {
+                        btn.style.borderColor = 'var(--primary)';
+                        btn.style.background = 'rgba(229,193,88,0.04)';
+                    }
+                    
+                    const statusText = m.status_code === 'FT' ? 'Finished' : (m.status_code === 'NS' ? 'Upcoming' : 'Live');
+                    const statusColor = m.status_code === 'FT' ? '#00ff88' : (m.status_code === 'NS' ? '#a0a0a0' : '#ffaa00');
+                    
+                    btn.innerHTML = `
+                        <div style="font-size: 0.72rem; color: var(--primary); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between;">
+                            <span>${m.league}</span>
+                            <span style="color: ${statusColor}">${statusText}</span>
+                        </div>
+                        <div style="font-weight: 700; color: var(--text-main); font-size: 0.88rem; margin: 3px 0;">${m.match}</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">Kickoff: ${new Date(m.kickoff).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    `;
+                    
+                    btn.addEventListener('mouseenter', () => {
+                        btn.style.background = 'rgba(255,255,255,0.08)';
+                    });
+                    btn.addEventListener('mouseleave', () => {
+                        btn.style.background = isKarlstad ? 'rgba(229,193,88,0.04)' : 'rgba(255,255,255,0.03)';
+                    });
+                    
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.comparison-item-btn').forEach(el => {
+                            el.style.background = 'rgba(255,255,255,0.03)';
+                            el.style.fontWeight = 'normal';
+                        });
+                        btn.style.background = 'rgba(229,193,88,0.12)';
+                        btn.style.fontWeight = 'bold';
+                        loadComparisonDetail(m.fixture_id, false);
+                    });
+                    
+                    listContainer.appendChild(btn);
+                });
+                
+                const karlstadMatch = matches.find(m => m.fixture_id === 15458376);
+                if (karlstadMatch) {
+                    loadComparisonDetail(15458376, false);
+                } else if (matches.length > 0) {
+                    loadComparisonDetail(matches[0].fixture_id, false);
+                }
+                
+            } catch(e) {
+                listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #ff4d4d;">Error loading matches.</div>';
+            }
+        }
+
+        async function loadComparisonDetail(fixtureId, isDemo) {
+            const detailPanel = document.getElementById('comparison-detail-panel');
+            detailPanel.innerHTML = '<div style="text-align: center; padding: 100px 20px;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i> Loading comparison...</div>';
+            
+            try {
+                const url = `/api/comparison/${fixtureId}` + (isDemo ? '?demo=true' : '');
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Failed to load");
+                const data = await res.json();
+                
+                const pred = data.prediction;
+                const act = data.actuals;
+                const dp = pred.detailed_prediction || {};
+                
+                if (!act) {
+                    detailPanel.innerHTML = '<div style="text-align: center; padding: 100px 20px; color: var(--text-muted);">No reality data available for this match yet.</div>';
+                    return;
+                }
+                
+                const homeTeam = pred.match.split(' vs ')[0].trim();
+                const awayTeam = pred.match.split(' vs ')[1].trim();
+                
+                const isHomeWin = act.home_score > act.away_score;
+                const isAwayWin = act.away_score > act.home_score;
+                const isDraw = act.home_score === act.away_score;
+                
+                const actualWinner = isHomeWin ? `${homeTeam} WIN` : (isAwayWin ? `${awayTeam} WIN` : 'DRAW');
+                const predWinner = pred.prediction;
+                
+                const winnerCorrect = predWinner.trim() === actualWinner.trim();
+                
+                const checkWin = (type, val) => {
+                    if (!val) return false;
+                    const val_lower = val.toLowerCase();
+                    const totalGoals = act.home_score + act.away_score;
+                    
+                    if (type === 'best_result') {
+                        return val.trim() === actualWinner.trim();
+                    }
+                    if (type === 'best_goals') {
+                        if (val_lower.includes('over 1.5')) return totalGoals > 1.5;
+                        if (val_lower.includes('over 2.5')) return totalGoals > 2.5;
+                        if (val_lower.includes('under 2.5')) return totalGoals < 2.5;
+                    }
+                    if (type === 'best_cards') {
+                        const totalCards = act.cards_yellow_total;
+                        if (val_lower.includes('over 3.5')) return totalCards > 3.5;
+                        if (val_lower.includes('under 4.5')) return totalCards < 4.5;
+                        if (val_lower.includes('over 4.5')) return totalCards > 4.5;
+                    }
+                    if (type === 'best_corners') {
+                        const totalCorners = act.corners_total;
+                        if (val_lower.includes('over 8.5')) return totalCorners > 8.5;
+                        if (val_lower.includes('over 9.5')) return totalCorners > 9.5;
+                        if (val_lower.includes('under 10.5')) return totalCorners < 10.5;
+                    }
+                    if (type === 'safest') {
+                        if (val_lower.includes('1x') || val_lower.includes('double chance (1x)')) return act.home_score >= act.away_score;
+                        if (val_lower.includes('x2') || val_lower.includes('double chance (x2)')) return act.away_score >= act.home_score;
+                    }
+                    if (type === 'high_risk_reward') {
+                        const btts = act.home_score > 0 && act.away_score > 0;
+                        const matchWin = val.trim().startsWith(actualWinner.trim());
+                        return matchWin && btts;
+                    }
+                    if (type === 'best_player_prop') {
+                        const pl = act.player_stats.find(p => val_lower.includes(p.name.toLowerCase()));
+                        if (pl) {
+                            if (val_lower.includes('over 1.5 shots')) return pl.shots > 1.5;
+                            if (val_lower.includes('over 0.5 shots')) return pl.shots > 0.5;
+                        }
+                    }
+                    return false;
+                };
+
+                let demoBtnHTML = '';
+                if (fixtureId === 15458376) {
+                    demoBtnHTML = `
+                        <button onclick="loadComparisonDetail(15458376, ${!isDemo})" class="btn" style="background:${isDemo ? '#ff4d4d' : 'var(--primary)'}; color:var(--bg-color); font-weight:700; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">
+                            ${isDemo ? '<i class="fa-solid fa-satellite-dish"></i> Exit Demo Mode' : '<i class="fa-solid fa-gamepad"></i> Activate Simulated Demo'}
+                        </button>
+                    `;
+                }
+
+                let headerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:15px; margin-bottom:10px;">
+                        <div>
+                            <span style="background:rgba(229,193,88,0.15); color:var(--primary); padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem; text-transform:uppercase;">${pred.league}</span>
+                            <h2 style="color:var(--text-main); margin-top:5px; font-size:1.4rem;">${pred.match}</h2>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:15px;">
+                            ${demoBtnHTML}
+                            <span style="font-weight:700; font-size:1.1rem; color:${act.is_simulated ? '#ffaa00' : '#00ff88'}">${act.status}</span>
+                        </div>
+                    </div>
+                `;
+
+                let kpiHTML = `
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:15px;">
+                        <div class="kpi-card" style="border-left:4px solid ${winnerCorrect ? '#00ff88' : '#ff4d4d'}; padding:15px; background:rgba(255,255,255,0.01);">
+                            <div class="kpi-title">Winner Prediction</div>
+                            <div class="kpi-value" style="font-size:1.1rem; margin-top:5px; color:${winnerCorrect ? '#00ff88' : '#ff4d4d'}">
+                                ${winnerCorrect ? '<i class="fa-solid fa-circle-check"></i> CORRECT' : '<i class="fa-solid fa-circle-xmark"></i> INCORRECT'}
+                            </div>
+                            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">AI: ${predWinner} | Actual: ${actualWinner}</div>
+                        </div>
+                        <div class="kpi-card" style="border-left:4px solid var(--primary); padding:15px; background:rgba(255,255,255,0.01);">
+                            <div class="kpi-title">Final Score</div>
+                            <div class="kpi-value" style="font-size:1.4rem; margin-top:5px; color:var(--text-main);">${act.score}</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">AI Expected Score: ${pred.expected_score}</div>
+                        </div>
+                        <div class="kpi-card" style="border-left:4px solid var(--secondary); padding:15px; background:rgba(255,255,255,0.01);">
+                            <div class="kpi-title">AI Engine Edge</div>
+                            <div class="kpi-value" style="font-size:1.2rem; margin-top:5px; color:var(--secondary);">Confidence: ${dp.confidence || 7}/10</div>
+                            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">Predicted at kickoff with lineups</div>
+                        </div>
+                    </div>
+                `;
+
+                let valueBetsHTML = '';
+                if (dp.value_analysis) {
+                    const va = dp.value_analysis;
+                    valueBetsHTML = `
+                        <div style="background:var(--surface-color); border:1px solid var(--border-color); border-radius:12px; padding:20px; margin-top:10px;">
+                            <h3 style="color:var(--primary); margin-bottom:15px; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-sack-dollar"></i> AI Value Picks Evaluation
+                            </h3>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Value Market</th>
+                                        <th>AI Pick Recommendation</th>
+                                        <th>Actual Reality Result</th>
+                                        <th>Bet Outcome</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Best Match Result</strong></td>
+                                        <td><span class="value-badge">${va.best_result}</span></td>
+                                        <td>${actualWinner}</td>
+                                        <td>${checkWin('best_result', va.best_result) ? '<span style="background:rgba(0,255,100,0.12); color:#00ff88; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">WIN</span>' : '<span style="background:rgba(255,77,77,0.12); color:#ff4d4d; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">LOSS</span>'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Best Goals Market</strong></td>
+                                        <td><span class="value-badge">${va.best_goals}</span></td>
+                                        <td>${act.score} (${act.home_score + act.away_score} Goals)</td>
+                                        <td>${checkWin('best_goals', va.best_goals) ? '<span style="background:rgba(0,255,100,0.12); color:#00ff88; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">WIN</span>' : '<span style="background:rgba(255,77,77,0.12); color:#ff4d4d; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">LOSS</span>'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Best Cards Market</strong></td>
+                                        <td><span class="value-badge">${va.best_cards}</span></td>
+                                        <td>${act.cards_yellow_total} Cards</td>
+                                        <td>${checkWin('best_cards', va.best_cards) ? '<span style="background:rgba(0,255,100,0.12); color:#00ff88; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">WIN</span>' : '<span style="background:rgba(255,77,77,0.12); color:#ff4d4d; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">LOSS</span>'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Best Corners Market</strong></td>
+                                        <td><span class="value-badge">${va.best_corners}</span></td>
+                                        <td>${act.corners_total} Corners</td>
+                                        <td>${checkWin('best_corners', va.best_corners) ? '<span style="background:rgba(0,255,100,0.12); color:#00ff88; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">WIN</span>' : '<span style="background:rgba(255,77,77,0.12); color:#ff4d4d; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">LOSS</span>'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Safest Recommendation</strong></td>
+                                        <td><span class="value-badge" style="background:rgba(0,255,100,0.1); color:#00ff88;">${va.safest}</span></td>
+                                        <td>${act.score}</td>
+                                        <td>${checkWin('safest', va.safest) ? '<span style="background:rgba(0,255,100,0.12); color:#00ff88; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">WIN</span>' : '<span style="background:rgba(255,77,77,0.12); color:#ff4d4d; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">LOSS</span>'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Highest Risk/Reward</strong></td>
+                                        <td><span class="value-badge" style="background:rgba(255,77,77,0.1); color:#ff4d4d;">${va.high_risk_reward}</span></td>
+                                        <td>Winner: ${actualWinner} & BTTS: ${act.home_score > 0 && act.away_score > 0 ? 'Yes' : 'No'}</td>
+                                        <td>${checkWin('high_risk_reward', va.high_risk_reward) ? '<span style="background:rgba(0,255,100,0.12); color:#00ff88; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">WIN</span>' : '<span style="background:rgba(255,77,77,0.12); color:#ff4d4d; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">LOSS</span>'}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                let statsTableHTML = `
+                    <div style="background:var(--surface-color); border:1px solid var(--border-color); border-radius:12px; padding:20px; margin-top:10px;">
+                        <h3 style="color:var(--primary); margin-bottom:15px; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-chart-simple"></i> Core Team Match Stats: Predicted vs Actual
+                        </h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Match Statistic</th>
+                                    <th>AI Expected Prediction</th>
+                                    <th>Actual Reality Outcome</th>
+                                    <th>Difference / Match</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Possession % (Home/Away)</strong></td>
+                                    <td>${dp.possession_home}% / ${dp.possession_away}%</td>
+                                    <td>${act.possession_home}% / ${act.possession_away}%</td>
+                                    <td>${Math.abs(dp.possession_home - act.possession_home)}% Diff</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Match Corners</strong></td>
+                                    <td>${dp.corners_total} (H: ${dp.corners_home} | A: ${dp.corners_away})</td>
+                                    <td>${act.corners_total} (H: ${act.corners_home} | A: ${act.corners_away})</td>
+                                    <td>${act.corners_total >= dp.corners_total ? '+' : ''}${act.corners_total - dp.corners_total} Corners</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Fouls Committed</strong></td>
+                                    <td>Home: ${dp.fouls_home} | Away: ${dp.fouls_away}</td>
+                                    <td>Home: ${act.fouls_home} | Away: ${act.fouls_away}</td>
+                                    <td>H: ${act.fouls_home - dp.fouls_home} | A: ${act.fouls_away - dp.fouls_away}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Yellow Cards (Home/Away)</strong></td>
+                                    <td>H: ${dp.cards_yellow_home} | A: ${dp.cards_yellow_away}</td>
+                                    <td>H: ${act.cards_yellow_home} | A: ${act.cards_yellow_away}</td>
+                                    <td>Total: ${act.cards_yellow_total} vs Predicted: ${dp.cards_yellow_total}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Expected Goals (xG) vs Goals</strong></td>
+                                    <td>H xG: ${dp.home_xg} | A xG: ${dp.away_xg}</td>
+                                    <td>H Goals: ${act.home_score} | A Goals: ${act.away_score}</td>
+                                    <td>H: ${act.home_score - dp.home_xg > 0 ? '+' : ''}${(act.home_score - dp.home_xg).toFixed(1)} | A: ${act.away_score - dp.away_xg > 0 ? '+' : ''}${(act.away_score - dp.away_xg).toFixed(1)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                let actualGoalsListHTML = '';
+                if (act.goals && act.goals.length > 0) {
+                    actualGoalsListHTML = act.goals.map(g => `
+                        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:8px; padding:10px 15px; display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <i class="fa-solid fa-soccer-ball" style="color:#00ff88;"></i>
+                                <span><strong>${g.player}</strong> (${g.team})</span>
+                            </div>
+                            <div style="color:var(--primary); font-weight:700; font-size:0.9rem;">${g.minute}'</div>
+                        </div>
+                    `).join('');
+                } else {
+                    actualGoalsListHTML = '<div style="color:var(--text-muted); font-size:0.9rem; text-align:center; padding:10px;">No goals scored in this match.</div>';
+                }
+
+                let playerGoalsHTML = `
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:10px;">
+                        <div style="background:var(--surface-color); border:1px solid var(--border-color); border-radius:12px; padding:20px;">
+                            <h3 style="color:var(--primary); margin-bottom:15px; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Real Match Goal Events
+                            </h3>
+                            <div style="display:flex; flex-direction:column; gap:5px;">
+                                ${actualGoalsListHTML}
+                            </div>
+                        </div>
+                        
+                        <div style="background:var(--surface-color); border:1px solid var(--border-color); border-radius:12px; padding:20px;">
+                            <h3 style="color:var(--primary); margin-bottom:15px; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-bullseye"></i> AI Goalscorer Probabilities
+                            </h3>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Player (Team)</th>
+                                        <th>Anytime Prob</th>
+                                        <th>Scored?</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${dp.goalscorers ? dp.goalscorers.slice(0, 4).map(pl => {
+                                        const scored = act.goals ? act.goals.some(g => g.player.toLowerCase().includes(pl.name.toLowerCase()) || pl.name.toLowerCase().includes(g.player.toLowerCase())) : false;
+                                        return `
+                                            <tr>
+                                                <td><strong>${pl.name}</strong> (${pl.team})</td>
+                                                <td>${pl.anytime_goal_prob}%</td>
+                                                <td>${scored ? '<span style="background:rgba(0,255,100,0.12); color:#00ff88; padding:3px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">YES</span>' : '<span style="color:var(--text-muted);">NO</span>'}</td>
+                                            </tr>
+                                        `;
+                                    }).join('') : '<tr><td colspan="3">No goalscorer props predicted.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                let tacticalHTML = `
+                    <div style="background:rgba(229,193,88,0.05); border:1px dashed var(--primary); border-radius:12px; padding:20px; margin-top:10px;">
+                        <h4 style="color:var(--primary); margin-bottom:10px; font-size:1rem; display:flex; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-brain"></i> AI Pre-Match Tactical Summary
+                        </h4>
+                        <div style="font-size:0.9rem; line-height:1.5; color:var(--text-main); font-style:italic;">"${dp.tactical_summary}"</div>
+                    </div>
+                `;
+
+                detailPanel.innerHTML = `
+                    ${headerHTML}
+                    ${kpiHTML}
+                    ${tacticalHTML}
+                    ${valueBetsHTML}
+                    ${statsTableHTML}
+                    ${playerGoalsHTML}
+                `;
+
+            } catch (e) {
+                console.error(e);
+                detailPanel.innerHTML = `<div style="text-align: center; padding: 100px 20px; color:#ff4d4d;"><i class="fa-solid fa-circle-xmark"></i> Failed to load match comparison. ${e.message}</div>`;
+            }
         }
 
         handleRouting();

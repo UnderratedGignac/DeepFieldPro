@@ -230,6 +230,215 @@ def trigger_recalibration():
     print("[DAEMON] Initiating Platt Scaler Recalibration from UI...")
     return jsonify({"status": "Recalibration Started"})
 
+@app.route('/api/comparisons')
+def get_comparisons_list():
+    state_path = os.path.join(DATA_DIR, 'todays_dashboard_state.json')
+    completed_path = os.path.join(DATA_DIR, 'completed_comparisons.json')
+    
+    completed = {}
+    if os.path.exists(completed_path):
+        try:
+            with open(completed_path, 'r', encoding='utf-8') as f:
+                completed = json.load(f)
+        except Exception:
+            pass
+            
+    matches_list = []
+    if os.path.exists(state_path):
+        try:
+            with open(state_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            for m in data:
+                if m.get('prediction') is not None:
+                    fid_str = str(m['fixture_id'])
+                    has_actuals = fid_str in completed or fid_str == "15458376"
+                    matches_list.append({
+                        "fixture_id": m['fixture_id'],
+                        "match": m['match'],
+                        "league": m['league'],
+                        "kickoff": m['kickoff'],
+                        "status_code": m['status_code'],
+                        "has_actuals": has_actuals
+                    })
+        except Exception as e:
+            print("Error parsing state JSON:", e)
+            
+    return jsonify(matches_list)
+
+@app.route('/api/comparison/<fixture_id>')
+def get_comparison(fixture_id):
+    demo = request.args.get('demo') == 'true'
+    
+    db_path = os.path.join(DATA_DIR, 'bet_log.db')
+    prediction = None
+    if os.path.exists(db_path):
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM predictions WHERE fixture_id = ?", (str(fixture_id),))
+            row = cur.fetchone()
+            if row:
+                extra = {}
+                if row['extra_json']:
+                    try:
+                        extra = json.loads(row['extra_json'])
+                    except Exception:
+                        pass
+                prediction = {
+                    'fixture_id': int(row['fixture_id']),
+                    'match': row['match_name'],
+                    'league': row['league'],
+                    'kickoff': row['kickoff'],
+                    'prediction': row['prediction'],
+                    'expected_score': row['expected_score'],
+                    'has_lineup': bool(row['has_lineup']),
+                    'team_impacts': extra.get('team_impacts', ''),
+                    'corners': extra.get('corners', ''),
+                    'fouls': extra.get('fouls', ''),
+                    'cards': extra.get('cards', ''),
+                    'home_players': extra.get('home_players', []),
+                    'away_players': extra.get('away_players', []),
+                    'detailed_prediction': extra.get('detailed_prediction', {}),
+                    'markets': {
+                        '1X2': [
+                            {'selection': 'Home (1)', 'prob': row['home_prob']},
+                            {'selection': 'Draw (X)', 'prob': row['draw_prob']},
+                            {'selection': 'Away (2)', 'prob': row['away_prob']}
+                        ],
+                        'Over/Under 2.5': [
+                            {'selection': 'Over 2.5', 'prob': row['over_prob']},
+                            {'selection': 'Under 2.5', 'prob': row['under_prob']}
+                        ],
+                        'BTTS': [
+                            {'selection': 'Yes', 'prob': row['btts_yes_prob']},
+                            {'selection': 'No', 'prob': row['btts_no_prob']}
+                        ]
+                    }
+                }
+            conn.close()
+        except Exception as e:
+            print("Error loading prediction for comparison:", e)
+
+    if not prediction:
+        state_path = os.path.join(DATA_DIR, 'todays_dashboard_state.json')
+        if os.path.exists(state_path):
+            try:
+                with open(state_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                for m in data:
+                    if str(m['fixture_id']) == str(fixture_id):
+                        prediction = m.get('prediction')
+                        break
+            except Exception:
+                pass
+
+    if not prediction:
+        return jsonify({"error": "Prediction not found"}), 404
+
+    actuals = None
+    completed_path = os.path.join(DATA_DIR, 'completed_comparisons.json')
+    if os.path.exists(completed_path):
+        try:
+            with open(completed_path, 'r', encoding='utf-8') as f:
+                completed = json.load(f)
+            if str(fixture_id) in completed:
+                actuals = completed[str(fixture_id)]
+        except Exception:
+            pass
+
+    if str(fixture_id) == "15458376":
+        if demo or actuals is None:
+            actuals = {
+                "fixture_id": 15458376,
+                "match": "FBK Karlstad vs IF Karlstad Fotboll",
+                "league": "Ettan, Norra",
+                "status": "FT (Simulated Demo)",
+                "is_simulated": True,
+                "score": "2 - 1",
+                "home_score": 2,
+                "away_score": 1,
+                "winner": "FBK Karlstad WIN",
+                "goals": [
+                    {"player": "Renan Correa Faustini", "team": "FBK Karlstad", "minute": 32},
+                    {"player": "Nfansu Dibba", "team": "IF Karlstad Fotboll", "minute": 48},
+                    {"player": "Granit Hana", "team": "FBK Karlstad", "minute": 78}
+                ],
+                "possession_home": 55,
+                "possession_away": 45,
+                "corners_home": 6,
+                "corners_away": 4,
+                "corners_total": 10,
+                "fouls_home": 11,
+                "fouls_away": 9,
+                "cards_yellow_home": 2,
+                "cards_yellow_away": 2,
+                "cards_yellow_total": 4,
+                "cards_red_total": 0,
+                "shots_home": 14,
+                "shots_away": 10,
+                "shots_on_target_home": 7,
+                "shots_on_target_away": 4,
+                "player_stats": [
+                    {"name": "Renan Correa Faustini", "team": "FBK Karlstad", "goals": 1, "shots": 4, "shots_on_target": 2},
+                    {"name": "Nfansu Dibba", "team": "IF Karlstad Fotboll", "goals": 1, "shots": 3, "shots_on_target": 1},
+                    {"name": "Granit Hana", "team": "FBK Karlstad", "goals": 1, "shots": 2, "shots_on_target": 2}
+                ]
+            }
+
+    if not actuals:
+        state_path = os.path.join(DATA_DIR, 'todays_dashboard_state.json')
+        if os.path.exists(state_path):
+            try:
+                with open(state_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                for m in data:
+                    if str(m['fixture_id']) == str(fixture_id):
+                        home_s = m['fixture'].get('home_score')
+                        away_s = m['fixture'].get('away_score')
+                        score_str = f"{home_s} - {away_s}" if home_s is not None else "0 - 0"
+                        
+                        winner_str = "DRAW"
+                        if home_s is not None and away_s is not None:
+                            if home_s > away_s: winner_str = f"{m['match'].split(' vs ')[0]} WIN"
+                            elif away_s > home_s: winner_str = f"{m['match'].split(' vs ')[1]} WIN"
+                        
+                        actuals = {
+                            "fixture_id": int(fixture_id),
+                            "match": m['match'],
+                            "league": m['league'],
+                            "status": m['status_code'],
+                            "score": score_str,
+                            "home_score": home_s or 0,
+                            "away_score": away_s or 0,
+                            "winner": winner_str,
+                            "goals": [],
+                            "possession_home": 50,
+                            "possession_away": 50,
+                            "corners_home": 0,
+                            "corners_away": 0,
+                            "corners_total": 0,
+                            "fouls_home": 0,
+                            "fouls_away": 0,
+                            "cards_yellow_home": 0,
+                            "cards_yellow_away": 0,
+                            "cards_yellow_total": 0,
+                            "cards_red_total": 0,
+                            "shots_home": 0,
+                            "shots_away": 0,
+                            "shots_on_target_home": 0,
+                            "shots_on_target_away": 0,
+                            "player_stats": []
+                        }
+                        break
+            except Exception:
+                pass
+
+    return jsonify({
+        "prediction": prediction,
+        "actuals": actuals
+    })
+
 if __name__ == '__main__':
     print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5000")
     app.run(host='127.0.0.1', port=5000, debug=False)
