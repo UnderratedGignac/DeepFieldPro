@@ -478,27 +478,65 @@ def load_settings():
             "auto_place_bets": False
         }
 
+def get_match_score(name1, name2):
+    if not name1 or not name2:
+        return 0.0
+    if not isinstance(name1, str) or not isinstance(name2, str):
+        return 0.0
+        
+    def get_tokens(name):
+        n = name.lower()
+        n = "".join(c for c in unicodedata.normalize('NFD', n) if unicodedata.category(c) != 'Mn')
+        n = re.sub(r'[^a-z0-9\s]', ' ', n)
+        noise = {'fc', 'cf', 'sc', 'u23', 'pr', 'ii', 'u20', 'united', 'city', 'town', 'athletic', 'club', 'de', 'fk', 'afc', 'sv', 'sp'}
+        return [w for w in n.split() if w and w not in noise]
+        
+    t1 = get_tokens(name1)
+    t2 = get_tokens(name2)
+    
+    if not t1 or not t2:
+        return 0.0
+    if t1 == t2:
+        return 1.0
+        
+    s1, s2 = set(t1), set(t2)
+    if s1 == s2:
+        return 0.95
+    if s1.issubset(s2) or s2.issubset(s1):
+        return 0.8 + 0.1 * (min(len(s1), len(s2)) / max(len(s1), len(s2)))
+        
+    intersection = s1.intersection(s2)
+    union = s1.union(s2)
+    if intersection:
+        jaccard = len(intersection) / len(union)
+        return 0.5 + 0.3 * jaccard
+        
+    if len(s1) == 1 and len(s2) == 1:
+        w1 = list(s1)[0]
+        w2 = list(s2)[0]
+        if w1 in w2 or w2 in w1:
+            return 0.6 * (min(len(w1), len(w2)) / max(len(w1), len(w2)))
+            
+    # Substring word matches
+    sub_matches = 0
+    for w1 in s1:
+        for w2 in s2:
+            if len(w1) > 3 and len(w2) > 3:
+                if w1 in w2 or w2 in w1:
+                    sub_matches += 1
+    if sub_matches:
+        return 0.3 + 0.2 * (sub_matches / max(len(s1), len(s2)))
+        
+    return 0.0
+
+def fuzzy_match_teams(name1, name2):
+    return get_match_score(name1, name2) >= 0.5
+
 def find_betarabia_odds(home_team, away_team):
     """
     Looks up a match in odds_stream.db fixture table and grabs odds from market table.
     Returns a dict with market keys and selection odds.
     """
-    def clean_name(name):
-        if not name:
-            return ""
-        n = name.lower()
-        # Remove accents
-        n = "".join(c for c in unicodedata.normalize('NFD', n) if unicodedata.category(c) != 'Mn')
-        # Remove punctuation
-        n = re.sub(r'[^a-z0-9\s]', '', n)
-        # Remove common suffixes
-        suffixes = ['fc', 'cf', 'sc', 'u23', 'pr', 'ii', 'u20', 'united', 'city']
-        words = [w for w in n.split() if w not in suffixes]
-        return "".join(words)
-
-    clean_h = clean_name(home_team)
-    clean_a = clean_name(away_team)
-
     db_path = 'data/odds_stream.db'
     if not os.path.exists(db_path):
         return None
@@ -511,26 +549,30 @@ def find_betarabia_odds(home_team, away_team):
         cur.execute("SELECT fixture_id, home_team, away_team FROM fixture")
         fixtures = cur.fetchall()
         
-        matched_fid = None
-        matched_home = None
-        matched_away = None
+        best_fid = None
+        best_home = None
+        best_away = None
+        best_score = 0.0
         
         for fid, h, a in fixtures:
-            ch = clean_name(h)
-            ca = clean_name(a)
-            # Match if they overlap
-            if (clean_h and ch and (clean_h in ch or ch in clean_h)) and (clean_a and ca and (clean_a in ca or ca in clean_a)):
-                matched_fid = fid
-                matched_home = h
-                matched_away = a
-                break
-                
-        if not matched_fid:
+            h_score = get_match_score(home_team, h)
+            a_score = get_match_score(away_team, a)
+            
+            # Must both be reasonable matches
+            if h_score >= 0.5 and a_score >= 0.5:
+                total_score = h_score + a_score
+                if total_score > best_score:
+                    best_score = total_score
+                    best_fid = fid
+                    best_home = h
+                    best_away = a
+                    
+        if not best_fid:
             conn.close()
             return None
             
         # Query markets
-        cur.execute("SELECT market_name, selection_name, raw_odds FROM market WHERE fixture_id = ?", (matched_fid,))
+        cur.execute("SELECT market_name, selection_name, raw_odds FROM market WHERE fixture_id = ?", (best_fid,))
         rows = cur.fetchall()
         conn.close()
         
@@ -549,12 +591,11 @@ def find_betarabia_odds(home_team, away_team):
                 if sname_lower == "x" or "draw" in sname_lower:
                     odds_dict['1X2']['Draw'] = price
                 else:
-                    cs = clean_name(sname)
-                    ch_matched = clean_name(matched_home)
-                    ca_matched = clean_name(matched_away)
-                    if cs in ch_matched or ch_matched in cs:
+                    h_score = get_match_score(sname, best_home)
+                    a_score = get_match_score(sname, best_away)
+                    if h_score >= 0.5 and h_score > a_score:
                         odds_dict['1X2']['Home'] = price
-                    elif cs in ca_matched or ca_matched in cs:
+                    elif a_score >= 0.5 and a_score > h_score:
                         odds_dict['1X2']['Away'] = price
                         
             # Over/Under 2.5
@@ -703,19 +744,33 @@ def settle_open_bets():
             sel_lower = selection.lower()
             
             # Find score
+            try:
+                parts = match_name.split(" vs ")
+                bet_home = parts[0].strip()
+                bet_away = parts[1].strip()
+            except Exception:
+                continue
+            
+            best_score = 0.0
             matched_score = None
-            bet_home_clean = clean_name(match_name.split(" vs ")[0])
-            bet_away_clean = clean_name(match_name.split(" vs ")[1])
             
             for finished_name, score in finished_matches.items():
-                fin_home_clean = clean_name(finished_name.split(" vs ")[0])
-                fin_away_clean = clean_name(finished_name.split(" vs ")[1])
+                try:
+                    f_parts = finished_name.split(" vs ")
+                    fin_home = f_parts[0].strip()
+                    fin_away = f_parts[1].strip()
+                except Exception:
+                    continue
                 
-                if (bet_home_clean and fin_home_clean and (bet_home_clean in fin_home_clean or fin_home_clean in bet_home_clean)) and \
-                   (bet_away_clean and fin_away_clean and (bet_away_clean in fin_away_clean or fin_away_clean in bet_away_clean)):
-                    matched_score = score
-                    break
-                    
+                h_score = get_match_score(bet_home, fin_home)
+                a_score = get_match_score(bet_away, fin_away)
+                
+                if h_score >= 0.5 and a_score >= 0.5:
+                    total_score = h_score + a_score
+                    if total_score > best_score:
+                        best_score = total_score
+                        matched_score = score
+                        
             if matched_score is None:
                 continue
                 

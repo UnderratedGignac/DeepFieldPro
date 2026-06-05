@@ -168,82 +168,10 @@ def get_performance():
 
 @app.route('/api/settle_bet', methods=['POST'])
 def settle_bet():
-    try:
-        data = request.json
-        bet_id = data.get('bet_id')
-        outcome = data.get('outcome')  # 'W', 'L', 'VOID', or 'OPEN'
-        
-        if not bet_id or outcome not in ['W', 'L', 'VOID', 'OPEN']:
-            return jsonify({"error": "Invalid bet_id or outcome"}), 400
-            
-        db_path = os.path.join(DATA_DIR, 'bet_log.db')
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        
-        # Get bet info
-        cur.execute("SELECT bet_id, entry_odds, stake, bet_source, result FROM bet_log WHERE bet_id = ?", (bet_id,))
-        bet = cur.fetchone()
-        
-        if not bet:
-            conn.close()
-            return jsonify({"error": "Bet not found"}), 404
-            
-        old_result = bet['result']
-        entry_odds = bet['entry_odds']
-        stake = bet['stake']
-        bet_source = bet['bet_source']
-        
-        # Revert old bankroll effect if it was previously settled and is USER
-        br_path = os.path.join(DATA_DIR, 'bankroll.db')
-        if bet_source == 'USER' and old_result != 'OPEN':
-            conn_br = sqlite3.connect(br_path)
-            cur_br = conn_br.cursor()
-            if old_result == 'W':
-                old_pnl = stake * (entry_odds - 1)
-                old_payout = stake * entry_odds
-                cur_br.execute("UPDATE bankroll SET current_balance = current_balance - ?, daily_pnl = daily_pnl - ? WHERE id = (SELECT MAX(id) FROM bankroll)", (old_payout, old_pnl))
-            elif old_result == 'L':
-                old_pnl = -stake
-                cur_br.execute("UPDATE bankroll SET daily_pnl = daily_pnl - ? WHERE id = (SELECT MAX(id) FROM bankroll)", (old_pnl,))
-            elif old_result == 'VOID':
-                cur_br.execute("UPDATE bankroll SET current_balance = current_balance - ? WHERE id = (SELECT MAX(id) FROM bankroll)", (stake,))
-            conn_br.commit()
-            conn_br.close()
-            
-        # Compute new PNL
-        if outcome == 'W':
-            pnl = stake * (entry_odds - 1)
-        elif outcome == 'L':
-            pnl = -stake
-        elif outcome == 'VOID':
-            pnl = 0.0
-        else: # OPEN
-            pnl = 0.0
-            
-        # Update bet_log
-        cur.execute("UPDATE bet_log SET result = ?, pnl = ? WHERE bet_id = ?", (outcome, pnl, bet_id))
-        conn.commit()
-        conn.close()
-        
-        # Apply new bankroll effect if USER
-        if bet_source == 'USER' and outcome != 'OPEN':
-            conn_br = sqlite3.connect(br_path)
-            cur_br = conn_br.cursor()
-            if outcome == 'W':
-                payout = stake * entry_odds
-                cur_br.execute("UPDATE bankroll SET current_balance = current_balance + ?, daily_pnl = daily_pnl + ? WHERE id = (SELECT MAX(id) FROM bankroll)", (payout, pnl))
-            elif outcome == 'L':
-                cur_br.execute("UPDATE bankroll SET daily_pnl = daily_pnl + ? WHERE id = (SELECT MAX(id) FROM bankroll)", (pnl,))
-            elif outcome == 'VOID':
-                cur_br.execute("UPDATE bankroll SET current_balance = current_balance + ? WHERE id = (SELECT MAX(id) FROM bankroll)", (stake,))
-            conn_br.commit()
-            conn_br.close()
-            
-        return jsonify({"status": "success", "bet_id": bet_id, "outcome": outcome, "pnl": round(pnl, 2)})
-    except Exception as e:
-        print("Settle Bet Error:", e)
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "status": "error",
+        "error": "Manual bet settlement is disabled. All bets are automatically settled by the background daemon."
+    }), 400
 
 
 @app.route('/api/place_bet', methods=['POST'])

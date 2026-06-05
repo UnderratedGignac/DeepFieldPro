@@ -855,24 +855,6 @@
             }
         }
 
-        async function settleBet(betId, outcome) {
-            if(confirm(`Are you sure you want to settle this bet manually as ${outcome}?`)) {
-                try {
-                    const res = await fetch('/api/settle_bet', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({bet_id: betId, outcome: outcome})
-                    });
-                    if(!res.ok) throw new Error("Settlement failed");
-                    alert("Bet Settled Successfully!");
-                    loadPerformance();
-                    loadBankroll();
-                    loadTracker();
-                } catch(e) {
-                    alert("Failed to settle bet manually.");
-                }
-            }
-        }
 
         async function loadPerformance() {
             try {
@@ -906,13 +888,7 @@
                         else if (b.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
                         else if (b.result === 'VOID') tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1); color:#aaa;">VOID</span>`;
                         else {
-                            actionButtons = `
-                                <div style="display:flex; gap:4px; margin-top:5px;">
-                                    <button onclick="settleBet('${b.bet_id}', 'W')" style="background:#00ff88; color:#0A1910; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Win">W</button>
-                                    <button onclick="settleBet('${b.bet_id}', 'L')" style="background:#ff4d4d; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Loss">L</button>
-                                    <button onclick="settleBet('${b.bet_id}', 'VOID')" style="background:#aaa; color:#0A1910; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Void">V</button>
-                                </div>
-                            `;
+                            actionButtons = '';
                         }
                         let pnlVal = b.pnl ? (b.pnl >= 0 ? `+$${b.pnl.toFixed(2)}` : `-$${Math.abs(b.pnl).toFixed(2)}`) : '-';
                         return `<tr>
@@ -936,13 +912,7 @@
                         else if (b.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
                         else if (b.result === 'VOID') tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1); color:#aaa;">VOID</span>`;
                         else {
-                            actionButtons = `
-                                <div style="display:flex; gap:4px; margin-top:5px;">
-                                    <button onclick="settleBet('${b.bet_id}', 'W')" style="background:#00ff88; color:#0A1910; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Win">W</button>
-                                    <button onclick="settleBet('${b.bet_id}', 'L')" style="background:#ff4d4d; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Loss">L</button>
-                                    <button onclick="settleBet('${b.bet_id}', 'VOID')" style="background:#aaa; color:#0A1910; border:none; padding:2px 6px; border-radius:3px; font-size:0.7rem; font-weight:700; cursor:pointer;" title="Settle Void">V</button>
-                                </div>
-                            `;
+                            actionButtons = '';
                         }
                         let pnlVal = b.pnl ? (b.pnl >= 0 ? `+$${b.pnl.toFixed(2)}` : `-$${Math.abs(b.pnl).toFixed(2)}`) : '-';
                         let followTag = b.is_recommended ? `<span style="background:rgba(229,193,88,0.15); color:var(--primary); font-size:0.65rem; padding:1px 4px; border-radius:3px; font-weight:600; margin-left:5px; border: 1px solid rgba(229,193,88,0.3)">AI RECOMMENDED</span>` : `<span style="background:rgba(255,77,77,0.1); color:#ff4d4d; font-size:0.65rem; padding:1px 4px; border-radius:3px; font-weight:600; margin-left:5px; border: 1px solid rgba(255,77,77,0.2)">MY CHOICE</span>`;
