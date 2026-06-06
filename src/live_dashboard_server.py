@@ -52,6 +52,7 @@ def query_db(db_name, query, args=(), one=False):
 @app.route('/tracker')
 @app.route('/performance')
 @app.route('/settings')
+@app.route('/comparison')
 def index():
     return render_template('index.html')
 
