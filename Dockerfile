@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y \
     libasound2t64 \
     libnss3 \
     libnspr4 \
+    libgomp1 \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 

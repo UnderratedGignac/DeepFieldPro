@@ -96,16 +96,16 @@ class ReplayClock:
         """Pause the replay clock."""
         if not self._paused:
             self._paused = True
-            self._pause_start = datetime.utcnow()
+            self._pause_start = datetime.timezone.utcnow()
             logger.info(f"Replay clock paused at {self.current_time}")
 
     def resume(self) -> None:
         """Resume the replay clock."""
         if self._paused and self._pause_start:
-            pause_duration = datetime.utcnow() - self._pause_start
+            pause_duration = datetime.timezone.utcnow() - self._pause_start
             if self.mode == ReplayMode.REAL_TIME:
                 self._real_start = (
-                    self._real_start or datetime.utcnow()
+                    self._real_start or datetime.timezone.utcnow()
                 ) + pause_duration
             self._paused = False
             self._pause_start = None
@@ -131,9 +131,9 @@ class ReplayClock:
 
         # Real-time or accelerated mode
         if self._real_start is None:
-            self._real_start = datetime.utcnow()
+            self._real_start = datetime.timezone.utcnow()
 
-        elapsed_real = datetime.utcnow() - self._real_start
+        elapsed_real = datetime.timezone.utcnow() - self._real_start
         elapsed_replay = elapsed_real * self.speed_multiplier
         self.current_time = min(self.start_time + elapsed_replay, self.end_time)
 
@@ -553,7 +553,7 @@ class MarketSimulator:
         key = f"{market_id}:{sportsbook_id}"
 
         if key in self._suspensions:
-            if datetime.utcnow() < self._suspensions[key]:
+            if datetime.timezone.utcnow() < self._suspensions[key]:
                 return False
             del self._suspensions[key]
 

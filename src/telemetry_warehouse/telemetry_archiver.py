@@ -34,7 +34,7 @@ class TelemetryArchiver:
                 return
 
             # Partitioning by date
-            today_str = datetime.utcnow().strftime("%Y-%m-%d")
+            today_str = datetime.timezone.utcnow().strftime("%Y-%m-%d")
             out_file = os.path.join(
                 self.warehouse_dir, f"executions_{today_str}.parquet"
             )

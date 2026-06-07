@@ -21,6 +21,30 @@ DeepFieldPro is a **fully integrated, institutional-grade quantitative sports be
 ✅ **Research Governance** - Experiment registry, strategy lifecycle, promotion/rejection engine  
 ✅ **Live Operations** - Execution telemetry, account health monitoring, edge decay detection  
 
+✅ **Live Operations** - Execution telemetry, account health monitoring, edge decay detection  
+
+---
+
+## 🚀 How to Start the Project (For Users)
+
+You have two easy ways to launch the system:
+
+**Option 1: One-Click Local Launcher (Windows)**
+Simply double-click the `LAUNCH_DEEPFIELD.bat` file in the root directory. It will automatically start the background AI daemon, launch the web server, and open your browser to `http://127.0.0.1:5000`.
+
+**Option 2: Docker Setup (Any OS / VPS)**
+Ensure Docker and Docker Compose are installed. Run:
+```bash
+docker-compose up -d --build
+```
+Then visit `http://localhost:5000` in your browser.
+
+---
+
+## 🤖 Extending the Project (For AI Agents)
+
+**IMPORTANT:** If you are an AI assistant tasked with modifying this codebase, please read the [AI_SYSTEM_GUIDE.md](AI_SYSTEM_GUIDE.md) first! It contains the exact current architecture, database schemas, and routing logic you need to know before writing any code.
+
 ---
 
 ## 📂 System Architecture

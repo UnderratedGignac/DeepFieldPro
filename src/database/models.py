@@ -47,8 +47,8 @@ class Fixture(Base):
     home_score = Column(Integer, nullable=True)
     away_score = Column(Integer, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.timezone.utcnow)
+    updated_at = Column(DateTime, default=datetime.timezone.utcnow, onupdate=datetime.timezone.utcnow)
 
     # Relationships
     odds_ticks = relationship("OddsTick", back_populates="fixture", lazy="dynamic")
@@ -100,7 +100,7 @@ class OddsTick(Base):
 
     # Timestamps
     timestamp = Column(DateTime, nullable=False, index=True)
-    ingested_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    ingested_at = Column(DateTime, default=datetime.timezone.utcnow, nullable=False)
 
     # Additional metadata (renamed from 'metadata' which is reserved)\n    extra_data = Column(JSON, nullable=True)
 
@@ -144,7 +144,7 @@ class OddsSnapshot(Base):
     source_count = Column(Integer, default=0)  # Number of sportsbooks captured
     market_count = Column(Integer, default=0)  # Number of markets captured
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.timezone.utcnow)
 
     # Relationships
     fixture = relationship("Fixture", back_populates="odds_snapshots")
@@ -191,7 +191,7 @@ class LineMovement(Base):
     # Classification
     movement_type = Column(String)  # 'sharp_move', 'gradual', 'correction', etc.
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.timezone.utcnow)
 
     __table_args__ = (
         Index("idx_movement_time", "fixture_id", "start_time"),
@@ -230,7 +230,7 @@ class WebSocketEvent(Base):
     # Metrics snapshot
     metrics = Column(JSON, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.timezone.utcnow)
 
     __table_args__ = (Index("idx_session_time", "session_id", "occurred_at"),)
 
@@ -272,7 +272,7 @@ class SessionLog(Base):
     # Timing
     occurred_at = Column(DateTime, nullable=False, index=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.timezone.utcnow)
 
     __table_args__ = (
         Index("idx_session_event_time", "session_id", "event_type", "occurred_at"),
@@ -307,7 +307,7 @@ class BrowserHealth(Base):
     metrics = Column(JSON, nullable=True)
 
     recorded_at = Column(DateTime, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.timezone.utcnow)
 
     __table_args__ = (Index("idx_browser_time", "browser_id", "recorded_at"),)
 
@@ -349,7 +349,7 @@ class IngestionMetrics(Base):
     websocket_uptime_pct = Column(Float, nullable=True)
     reconnect_count = Column(Integer, default=0)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.timezone.utcnow)
 
     __table_args__ = (Index("idx_bucket_sportsbook", "bucket_start", "sportsbook"),)
 
@@ -374,7 +374,7 @@ class Odds(Base):
     odds_data = Column(JSON, nullable=False)
 
     # Snapshot timestamp
-    collected_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    collected_at = Column(DateTime, default=datetime.timezone.utcnow, nullable=False)
 
     # Relationships
     fixture = relationship("Fixture", back_populates="odds")
@@ -411,7 +411,7 @@ class Prediction(Base):
     fair_odds = Column(Float)
     kelly_stake = Column(Float)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.timezone.utcnow)
 
     # Relationships
     fixture = relationship("Fixture", back_populates="predictions")
@@ -442,7 +442,7 @@ class Bet(Base):
     status = Column(String, default="pending")  # pending, won, lost, void, cashed_out
     result = Column(Float, nullable=True)  # Actual return amount
 
-    placed_at = Column(DateTime, default=datetime.utcnow)
+    placed_at = Column(DateTime, default=datetime.timezone.utcnow)
     settled_at = Column(DateTime, nullable=True)
 
     # Relationships
@@ -472,7 +472,7 @@ class BankrollSnapshot(Base):
     winning_bets = Column(Integer, default=0)
     losing_bets = Column(Integer, default=0)
 
-    recorded_at = Column(DateTime, default=datetime.utcnow)
+    recorded_at = Column(DateTime, default=datetime.timezone.utcnow)
 
     __table_args__ = (Index("idx_recorded_at", "recorded_at"),)
 

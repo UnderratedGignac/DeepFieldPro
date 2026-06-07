@@ -13,7 +13,7 @@ class PolicyDecisionEvent(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     trace_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=datetime.timezone.utcnow)
     fixture_id: str
     market_type: str
     player_name: str
@@ -33,7 +33,7 @@ class ExecutionOutcomeEvent(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     trace_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=datetime.timezone.utcnow)
     fill_status: str  # "FILLED", "REJECTED_LATENCY", "REJECTED_ODDS", "SKIPPED"
     actual_latency_ms: float
     actual_fill_odds: Optional[float] = None
@@ -49,6 +49,6 @@ class MarketSnapshotEvent(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     trace_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=datetime.timezone.utcnow)
     closing_odds: float
     market_status: str  # "SETTLED", "VOIDED"

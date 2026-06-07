@@ -35,3 +35,5 @@ pytest-postgresql
 black==25.11.0
 ruff==0.15.15
 mypy
+Flask
+joblib

@@ -65,7 +65,7 @@ def update_health(
             acceptance_rate,
             int(limits_applied),
             int(restriction_flag),
-            datetime.datetime.now(datetime.UTC).isoformat(),
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
         ),
     )
     conn.commit()

@@ -26,7 +26,7 @@ def fire_alert(
     In production, this hooks into Slack/email/PagerDuty.
     """
     alert = {
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "severity": severity,
         "source": source,
         "title": title,
