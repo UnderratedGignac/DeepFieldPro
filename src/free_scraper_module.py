@@ -80,19 +80,19 @@ def get_fixture_lineups_free(fixture_id):
             # Map Sofascore lineups back to API-Football format
             home_xi = []
             for p in data['home'].get('players', []):
-                if p.get('substitute') == False:
+                if not p.get('substitute'):
                     home_xi.append({'player': {'name': p['player']['name']}})
                     
             away_xi = []
             for p in data['away'].get('players', []):
-                if p.get('substitute') == False:
+                if not p.get('substitute'):
                     away_xi.append({'player': {'name': p['player']['name']}})
                     
             return [
                 {'startXI': home_xi},
                 {'startXI': away_xi}
             ]
-        except Exception as e:
+        except Exception:
             # Most likely 404 meaning lineups not released yet
             return []
 
@@ -109,8 +109,8 @@ def get_fixture_lineups_batch(fixture_ids):
                 content = sb.execute_script('return document.body.innerText;')
                 data = json.loads(content)
                 if 'home' in data and 'away' in data:
-                    home_xi = [{'player': {'name': p['player']['name']}} for p in data['home'].get('players', []) if p.get('substitute') == False]
-                    away_xi = [{'player': {'name': p['player']['name']}} for p in data['away'].get('players', []) if p.get('substitute') == False]
+                    home_xi = [{'player': {'name': p['player']['name']}} for p in data['home'].get('players', []) if not p.get('substitute')]
+                    away_xi = [{'player': {'name': p['player']['name']}} for p in data['away'].get('players', []) if not p.get('substitute')]
                     results[fid] = [
                         {'startXI': home_xi},
                         {'startXI': away_xi}

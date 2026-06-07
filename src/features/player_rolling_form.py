@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 def calculate_player_rolling_form(df: pd.DataFrame) -> pd.DataFrame:
     """

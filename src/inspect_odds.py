@@ -1,4 +1,4 @@
-import requests, json
+import requests
 
 API_KEY = '4ae9f07e1ae1f775050015c50037a71d'
 HEADERS = {'x-apisports-key': API_KEY}

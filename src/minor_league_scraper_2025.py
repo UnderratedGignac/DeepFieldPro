@@ -40,7 +40,7 @@ def extract_json(sb, url):
         time.sleep(2)
         text = sb.execute_script('return document.body.innerText;')
         return json.loads(text)
-    except Exception as e:
+    except Exception:
         print(f"    [!] Failed to parse JSON from {url}")
         return None
 
@@ -132,7 +132,7 @@ def main():
             # 1. Get 2025 Season ID
             season_id = get_2025_season_id(sb, tourney_id)
             if not season_id:
-                print(f"    [-] Could not find season ID. Skipping.")
+                print("    [-] Could not find season ID. Skipping.")
                 continue
             print(f"    [+] Found 2025 Season ID: {season_id}")
             

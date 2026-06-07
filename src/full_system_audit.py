@@ -3,7 +3,6 @@ DeepFieldPro - Full System Audit
 Checks: dataset integrity, WC player coverage, model readiness, hardcoded values, best practices.
 """
 import pandas as pd
-import numpy as np
 import os
 import sys
 import io

@@ -3,9 +3,7 @@ DeepFieldPro - Final Deliverables Generator
 Compiles datasets and generates team projections, risk analysis, and final recommendations.
 """
 import pandas as pd
-import numpy as np
 import os
-import json
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../data')
 ARTIFACT_DIR = os.path.join(os.path.dirname(__file__), '../artifacts')

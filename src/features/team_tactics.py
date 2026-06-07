@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 def calculate_team_tactics(df: pd.DataFrame) -> pd.DataFrame:
     """

@@ -11,7 +11,6 @@ import unicodedata
 import re
 import sys
 import io
-import json
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
@@ -105,14 +104,14 @@ results_df = pd.DataFrame(results)
 matched = results_df[results_df['fbref_name'].notna()]
 unmatched = results_df[results_df['fbref_name'].isna()]
 
-print(f"\n=== ADVANCED MATCHING RESULTS ===")
+print("\n=== ADVANCED MATCHING RESULTS ===")
 print(f"  Total WC players:  {len(results_df)}")
 print(f"  Matched:           {len(matched)} ({round(len(matched)/len(results_df)*100,1)}%)")
 print(f"  Unmatched:         {len(unmatched)}")
 
 # Save the name mapping file (key reference for all downstream scripts)
 results_df.to_csv('data/wc_player_name_mapping.csv', index=False, encoding='utf-8')
-print(f"\nSaved mapping to: data/wc_player_name_mapping.csv")
+print("\nSaved mapping to: data/wc_player_name_mapping.csv")
 
 print(f"\nStill genuinely unmatched ({len(unmatched)}):")
 for _, r in unmatched.head(40).iterrows():

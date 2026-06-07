@@ -18,11 +18,9 @@ import numpy as np
 import lightgbm as lgb
 import requests
 import os
-import sys
-import io
 import unicodedata
 import re
-from datetime import datetime, date
+from datetime import date
 
 # stdout encoding is set by the calling script or terminal
 
@@ -57,8 +55,7 @@ TEAM_TO_NATION = {
     'Nigeria': 'NGA', 'Cameroon': 'CMR', 'Tunisia': 'TUN', 'Algeria': 'ALG',
     'Saudi Arabia': 'KSA', 'Iran': 'IRN', 'Ukraine': 'UKR', 'Peru': 'PER',
     'Paraguay': 'PAR', 'Venezuela': 'VEN', 'Mali': 'MLI',
-    'Ivory Coast': "CIV", "Côte d'Ivoire": 'CIV',
-    'South Korea': 'KOR', 'Korea Republic': 'KOR',
+    'Ivory Coast': "CIV", "Côte d'Ivoire": 'CIV', 'Korea Republic': 'KOR',
 }
 
 

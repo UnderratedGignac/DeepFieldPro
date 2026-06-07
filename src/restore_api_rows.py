@@ -4,7 +4,10 @@ These are season-aggregate rows from the scrape_api_football.py run.
 We assign them a synthetic game_ date of '2024-07-01 SeasonAggregate'
 so they parse correctly and can be used as a season baseline.
 """
-import pandas as pd, sys, io, os
+import pandas as pd
+import sys
+import io
+import os
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 

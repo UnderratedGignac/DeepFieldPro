@@ -121,7 +121,7 @@ def get_stair_balance():
                 "available": wallet.get('availableBalance', 0),
                 "locked": wallet.get('lockedBalance', 0)
             })
-    except Exception as e:
+    except Exception:
         pass
     return jsonify({"available": 0, "locked": 0})
 

@@ -3,7 +3,6 @@ import numpy as np
 import joblib
 import requests
 import datetime
-import os
 
 API_KEY = "4ae9f07e1ae1f775050015c50037a71d"
 HEADERS = {

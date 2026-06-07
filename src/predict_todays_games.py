@@ -17,7 +17,6 @@ import sys
 import io
 import unicodedata
 import re
-import json
 from datetime import datetime
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
@@ -115,7 +114,7 @@ TEAM_TO_NATION = {
     'South Korea': 'KOR', 'Australia': 'AUS', 'Ecuador': 'ECU', 'USA': 'USA',
     'Canada': 'CAN', 'Wales': 'WAL', 'Scotland': 'SCO', 'Ghana': 'GHA',
     'Nigeria': 'NGA', 'Cameroon': 'CMR', 'Tunisia': 'TUN', 'Algeria': 'ALG',
-    'Saudi Arabia': 'KSA', 'Iran': 'IRN', 'Japan': 'JPN', 'Ukraine': 'UKR',
+    'Saudi Arabia': 'KSA', 'Iran': 'IRN', 'Ukraine': 'UKR',
 }
 
 # Filter for matches with at least one nation in DB
@@ -214,7 +213,7 @@ for fix in playable_fixtures:
     })
 
 # ── STEP 5: GENERATE REPORT ───────────────────────────────────────────────────
-print(f"\n[6] Generating report...")
+print("\n[6] Generating report...")
 
 def ev_analysis(prob, odds_decimal):
     """Calculate Expected Value for a bet."""
@@ -223,9 +222,9 @@ def ev_analysis(prob, odds_decimal):
 
 report_path = os.path.join(ARTIFACT_DIR, f'predictions_{TODAY}.md')
 md = [f"# DeepFieldPro Match Predictions — {TODAY}\n"]
-md.append(f"**Data source:** FBref match logs (2025/26 season) via soccerdata")
+md.append("**Data source:** FBref match logs (2025/26 season) via soccerdata")
 md.append(f"**Players with data:** {len(latest_df):,}")
-md.append(f"**Models:** LightGBM (3-Fold CV validated, no look-ahead bias)")
+md.append("**Models:** LightGBM (3-Fold CV validated, no look-ahead bias)")
 md.append(f"**Simulations:** {N_SIMS:,} Monte Carlo per player")
 md.append(f"**Timestamp:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 md.append("> **Disclaimer:** Predictions are probabilistic estimates. Past performance does not guarantee future results. Never claim guaranteed profits.\n")
@@ -240,7 +239,7 @@ else:
         h_res = match['home_results']
         a_res = match['away_results']
         
-        md.append(f"\n---\n")
+        md.append("\n---\n")
         md.append(f"## {fix['home']} vs {fix['away']}")
         md.append(f"**League:** {fix['league']}  |  **Kickoff:** {fix['time'][11:16]} (Beirut)")
         

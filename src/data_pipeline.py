@@ -17,7 +17,6 @@ Set API_FOOTBALL_KEY in .env to enable API-Football source.
 """
 
 import os
-import sys
 import json
 import time
 import sqlite3
@@ -25,8 +24,6 @@ import logging
 import datetime
 import requests
 import pandas as pd
-import numpy as np
-from pathlib import Path
 
 # Load .env
 try:
@@ -395,7 +392,7 @@ def fetch_api_football(conn: sqlite3.Connection) -> int:
     teams_data = _apif_cached_get(
         "teams",
         {"league": WC_LEAGUE_ID, "season": WC_SEASON},
-        f"wc2026_teams"
+        "wc2026_teams"
     )
 
     teams = teams_data.get("response", [])
@@ -507,7 +504,7 @@ def enrich_from_thesportsdb(conn: sqlite3.Connection, max_players: int = 100) ->
                 data = json.load(f)
         else:
             try:
-                url = f"https://www.thesportsdb.com/api/v1/json/3/searchplayers.php"
+                url = "https://www.thesportsdb.com/api/v1/json/3/searchplayers.php"
                 resp = requests.get(url, params={"p": player_name}, timeout=10)
                 data = resp.json() if resp.status_code == 200 else {}
                 with open(cache_file, "w") as f:
@@ -522,7 +519,7 @@ def enrich_from_thesportsdb(conn: sqlite3.Connection, max_players: int = 100) ->
             continue
 
         player_info = players_list[0]
-        birth_year = str(player_info.get("strBirthLocation", "") or "")
+        str(player_info.get("strBirthLocation", "") or "")
         dob = player_info.get("dateBorn", "")
         try:
             age = 2026 - int(str(dob)[:4]) if dob else 0
@@ -687,7 +684,7 @@ def run_pipeline():
     print("="*60)
     print(f"  Total players in DB : {total_players}")
     print(f"  Total teams in DB   : {total_teams}")
-    print(f"\n  Breakdown by source:")
+    print("\n  Breakdown by source:")
     for src, cnt in by_source:
         print(f"    {src:<30} {cnt} players")
     print(f"\n  CSV saved to: {CSV_PATH}")

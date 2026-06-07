@@ -1,8 +1,7 @@
 import pandas as pd
-import numpy as np
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report, mean_squared_error
+from sklearn.metrics import accuracy_score, mean_squared_error
 import joblib
 import os
 
@@ -85,13 +84,10 @@ def reconstruct_matches(df):
             # Outcome for Team A
             if team_a['goals'] > team_b['goals']:
                 outcome_a = 1 # Win
-                outcome_b = 0 # Loss
             elif team_a['goals'] < team_b['goals']:
                 outcome_a = 0
-                outcome_b = 1
             else:
                 outcome_a = 2 # Draw
-                outcome_b = 2
                 
             matches.append({
                 'event_id': eid,

@@ -77,14 +77,14 @@ def is_wc_player(name):
     return False
 
 # Load existing data (only player column to save memory)
-print(f"\nLoading existing player list...")
+print("\nLoading existing player list...")
 existing_players_df = pd.read_csv(GLOBAL_CSV, usecols=['player_'])
 existing_players = set(existing_players_df['player_'].dropna().str.strip().unique())
 print(f"  Existing unique players: {len(existing_players):,}")
 del existing_players_df  # Free memory
 
 # Load existing game IDs for deduplication (load separately)
-print(f"  Loading existing game IDs...")
+print("  Loading existing game IDs...")
 existing_ids_df = pd.read_csv(GLOBAL_CSV, usecols=['game_id_'])
 existing_game_ids = set(existing_ids_df['game_id_'].dropna().unique())
 print(f"  Existing game IDs: {len(existing_game_ids):,}")
@@ -104,7 +104,7 @@ for league, season in LEAGUE_SEASONS.items():
         stats = fbref.read_player_match_stats(stat_type='summary')
         
         if stats is None or len(stats) == 0:
-            print(f"  [EMPTY] No data returned")
+            print("  [EMPTY] No data returned")
             continue
         
         # Flatten MultiIndex columns
@@ -130,7 +130,7 @@ for league, season in LEAGUE_SEASONS.items():
         wc_rows = stats[stats['_is_wc']].copy()
         
         if len(wc_rows) == 0:
-            print(f"  No WC players matched")
+            print("  No WC players matched")
             # Show what players ARE in this league
             all_p = stats[player_col].dropna().unique()
             print(f"  Total players in league: {len(all_p)}")
@@ -205,7 +205,7 @@ if all_new_frames:
     print(f"\n  UPDATED: {GLOBAL_CSV}")
     print(f"  Total rows: {len(combined):,} (was {len(existing_full):,})")
     
-    print(f"\nNewly added WC players:")
+    print("\nNewly added WC players:")
     for p, lg in sorted(found_wc_players.items()):
         print(f"  + [{lg}] {p}")
 else:

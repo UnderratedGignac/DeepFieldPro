@@ -10,7 +10,7 @@ def scrape_advanced_tables(leagues: list, seasons: list) -> pd.DataFrame:
     and ideally cached heavily.
     """
     
-    print(f"Initializing soccerdata for advanced tables...")
+    print("Initializing soccerdata for advanced tables...")
     fb = sd.FBref(leagues=leagues, seasons=seasons)
     
     # We will fetch multiple stat_types and merge them on Match_ID and Player

@@ -20,12 +20,11 @@ No hardcoded bankroll values in logic. Bankroll is read from DB or passed in.
 """
 
 import pandas as pd
-import numpy as np
 import sqlite3
 import os
 import sys
 import io
-from datetime import date, datetime
+from datetime import date
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 

@@ -1,7 +1,7 @@
 import pandas as pd
 import lightgbm as lgb
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import mean_poisson_deviance, mean_squared_error
+from sklearn.metrics import mean_squared_error
 import numpy as np
 
 def build_unified_feature_store(df_base, opponent_df, rolling_df, venue_df, tactics_df, market_df, fatigue_df):

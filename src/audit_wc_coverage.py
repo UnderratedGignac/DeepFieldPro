@@ -56,7 +56,7 @@ for orig, norm in wc_norm:
     else:
         exact_missing.append((orig, norm))
 
-print(f"\n=== EXACT MATCH (after normalization) ===")
+print("\n=== EXACT MATCH (after normalization) ===")
 print(f"  Matched: {len(exact_matched)} ({round(len(exact_matched)/len(wc_norm)*100,1)}%)")
 print(f"  Missing: {len(exact_missing)}")
 
@@ -80,11 +80,11 @@ for orig, norm in exact_missing:
     if not found:
         still_missing.append(orig)
 
-print(f"\n=== FUZZY TOKEN MATCH (additional) ===")
+print("\n=== FUZZY TOKEN MATCH (additional) ===")
 print(f"  Additional fuzzy matched: {len(fuzzy_matched)}")
 
 total_matched = len(exact_matched) + len(fuzzy_matched)
-print(f"\n=== FINAL COVERAGE ===")
+print("\n=== FINAL COVERAGE ===")
 print(f"  Total WC players: {len(wc_norm)}")
 print(f"  Total matched: {total_matched} ({round(total_matched/len(wc_norm)*100,1)}%)")
 print(f"  Genuinely missing: {len(still_missing)}")
@@ -100,4 +100,4 @@ if still_missing:
     with open('data/genuinely_missing_wc_players.txt', 'w', encoding='utf-8') as f:
         for p in still_missing:
             f.write(p + '\n')
-    print(f"\nFull missing list saved to: data/genuinely_missing_wc_players.txt")
+    print("\nFull missing list saved to: data/genuinely_missing_wc_players.txt")

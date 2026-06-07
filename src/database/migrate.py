@@ -47,7 +47,7 @@ def run_migrations():
         try:
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            print("✓ Database connection successful")
+            print("[OK] Database connection successful")
         except Exception as e:
             print(f"✗ Database connection failed: {e}")
             sys.exit(1)
@@ -55,7 +55,7 @@ def run_migrations():
     # Create all tables
     print("Creating database tables...")
     Base.metadata.create_all(engine)
-    print("✓ All tables created successfully")
+    print("[OK] All tables created successfully")
 
     # Verify tables were created
     from sqlalchemy import inspect
@@ -66,7 +66,7 @@ def run_migrations():
     for table in sorted(tables):
         print(f"  - {table}")
 
-    print("\n✓ Migration completed successfully!")
+    print("\n[OK] Migration completed successfully!")
 
 
 if __name__ == "__main__":

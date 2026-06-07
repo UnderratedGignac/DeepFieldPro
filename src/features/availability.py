@@ -48,7 +48,7 @@ def calculate_availability_features(df: pd.DataFrame, key_players_dict: dict = N
         key_player_matches['key_player_active'] = 1
         
         for squad, alphas in key_players_dict.items():
-            squad_matches = df[df['Squad'] == squad].copy()
+            df[df['Squad'] == squad].copy()
             
             # For each match this squad played, did the alpha play?
             for alpha in alphas:

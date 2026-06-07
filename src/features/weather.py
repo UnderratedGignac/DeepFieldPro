@@ -1,6 +1,5 @@
 import pandas as pd
 import requests
-from datetime import datetime
 
 def fetch_weather_data(lat: float, lon: float, match_date: str) -> dict:
     """

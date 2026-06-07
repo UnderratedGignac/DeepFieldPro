@@ -1,4 +1,5 @@
 # mypy: ignore-errors
+from __future__ import annotations
 """
 simulation.py — DeepFieldPro World Cup Simulation
 Runs a complete paper-trade simulation for today's international matches.

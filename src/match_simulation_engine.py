@@ -70,7 +70,8 @@ def get_team_players(team_name: str, latest_df: pd.DataFrame, mapping: pd.DataFr
       1. First filter the dataset using the nation_ field (e.g., 'FRA', 'ENG', 'ARG').
       2. Then further filter to only players on the WC roster (via mapping.fbref_name).
     """
-    import unicodedata, re
+    import unicodedata
+    import re
 
     def normalize(s):
         if not isinstance(s, str): return ''

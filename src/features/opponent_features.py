@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 def calculate_opponent_features(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -68,8 +67,6 @@ def calculate_opponent_features(df: pd.DataFrame) -> pd.DataFrame:
     
     # ELO calculation
     # We implement a fast chronological Elo updater
-    elo_dict = {}
-    elo_values = []
     
     # We need to calculate Elo based on the result. Assuming 'Result' is in df, or we approximate from Gls and GA.
     # We'll use Gls (Goals Scored) and GA (Goals Allowed) to determine the match result from the perspective of the defending team.

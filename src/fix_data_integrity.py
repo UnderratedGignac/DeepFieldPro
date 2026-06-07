@@ -3,7 +3,9 @@ DeepFieldPro - Data Integrity Fix
 Fixes unparseable date rows in the global CSV.
 """
 import pandas as pd
-import sys, io, os
+import sys
+import io
+import os
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
 

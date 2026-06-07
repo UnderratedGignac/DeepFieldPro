@@ -1,8 +1,8 @@
 """Test model end-to-end prediction."""
 import lightgbm as lgb
-import numpy as np
 import pandas as pd
-import sys, io
+import sys
+import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 print("=== Model Prediction Test ===")

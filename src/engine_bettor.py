@@ -13,11 +13,8 @@ If no bookmaker odds are available, it will clearly report that.
 """
 
 import pandas as pd
-import numpy as np
 import requests
 import os
-import sys
-import io
 import sqlite3
 from datetime import date
 
@@ -106,7 +103,7 @@ def fetch_bookmaker_odds(fixture_ids: list[int]) -> dict:
 
             fixture_odds = {}
             for bk in bookmakers:
-                bk_name = bk.get('bookmakers', [{}])[0].get('name', 'Unknown') if bk.get('bookmakers') else 'Unknown'
+                bk.get('bookmakers', [{}])[0].get('name', 'Unknown') if bk.get('bookmakers') else 'Unknown'
                 for bk_data in bk.get('bookmakers', []):
                     for bet in bk_data.get('bets', []):
                         market = bet.get('name', '')
@@ -356,11 +353,11 @@ def run_betting_engine(predictions_df: pd.DataFrame,
 
     # Try local odds DB if no manual lines provided
     if manual_lines is None:
-        print(f'\n[2] Reading odds from local DB (odds_stream.db)...')
+        print('\n[2] Reading odds from local DB (odds_stream.db)...')
         manual_lines = load_local_db_odds()
         print(f'    Found {len(manual_lines)} player props in local DB')
 
-    print(f'\n[3] Evaluating value bets...')
+    print('\n[3] Evaluating value bets...')
     value_df = identify_value_bets(predictions_df, bookmaker_odds, manual_lines)
 
     if value_df.empty:

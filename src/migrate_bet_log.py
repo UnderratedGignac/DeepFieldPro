@@ -1,5 +1,4 @@
 import sqlite3
-import os
 
 db_path = "data/bet_log.db"
 conn = sqlite3.connect(db_path)

@@ -87,7 +87,7 @@ def scrape_league(league):
                 traceback.print_exc()
                 # If it's a structural error (e.g., league not found for season), just return empty to move on
                 if 'Expected a redirect' in err_msg:
-                    print(f"  [429 RATE LIMIT] Got redirect block. Sleeping 120s...")
+                    print("  [429 RATE LIMIT] Got redirect block. Sleeping 120s...")
                     time.sleep(120)
                 else:
                     return None

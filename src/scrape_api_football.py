@@ -45,7 +45,7 @@ if os.path.exists(WC_PLAYERS_JSON):
         wc_api_players = json.load(f)
     print(f"[1] Loaded {len(wc_api_players)} WC players from cache.")
 else:
-    print(f"[1] Downloading WC 2022 players (42 pages, takes ~4 mins)...")
+    print("[1] Downloading WC 2022 players (42 pages, takes ~4 mins)...")
     for page in range(1, 43):
         print(f"  Fetching page {page}/42...")
         r = requests.get(f'{API_BASE}/players', headers=HEADERS, 
@@ -178,7 +178,7 @@ for legal_name, api_id in matched_ids.items():
             print(f"    ✓ Found {len(player_rows)} stat rows")
         else:
             done_stats[legal_name] = {'status': 'no_stats'}
-            print(f"    ✗ No stats in 2024")
+            print("    ✗ No stats in 2024")
     else:
         print(f"    ERROR: API returned {r.status_code}")
         done_stats[legal_name] = {'status': 'error', 'code': r.status_code}
@@ -190,7 +190,7 @@ for legal_name, api_id in matched_ids.items():
 
 # ── 4. APPEND TO GLOBAL CSV ──────────────────────────────────────────────────
 print(f"\n{'='*65}")
-print(f"SCRAPE COMPLETE")
+print("SCRAPE COMPLETE")
 print(f"  New stat rows: {len(all_new_rows)}")
 
 if all_new_rows:
