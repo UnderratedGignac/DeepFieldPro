@@ -109,19 +109,17 @@ Then visit `http://localhost:5000` in your browser.
 
 ### 2. Data Persistence & Storage
 
-| Table | Retention | Purpose |
+| Table/File | Retention | Purpose |
 |-------|-----------|---------|
-| `odds_ticks` | Infinite | Every single odds change (timestamped) |
-| `odds_snapshots` | 2 years | Periodic full market state |
-| `line_movements` | Infinite | Aggregated delta events |
-| `websocket_events` | 90 days | Connection logs, disconnect reasons |
-| `session_logs` | 1 year | Browser lifecycle, authentication events |
-| `browser_health` | 30 days | Memory usage, CPU, FPS metrics |
+| `bankroll.db` | Infinite | Stores capital, maximum exposure, and ledger of daily PnL |
+| `bet_log.db` | Infinite | Logs AI predictions and formally placed bets with calculated edges |
+| `todays_dashboard_state.json` | 1 day | Live-updating state of the world to power the web dashboard |
+| `odds_stream.db` | 90 days | Stores scraped fixture markets and raw lines |
 
 **Technology Stack:**
-- **Primary DB:** PostgreSQL 15 + TimescaleDB (hypertables)
-- **Cache:** Redis 7 (Pub/Sub for real-time streams)
-- **Feature Store:** Redis-backed with TTL management
+- **Primary DB:** SQLite3 (Local, serverless, file-based for rapid local deployment)
+- **State Transfer:** JSON flat files for high-speed dashboard telemetry
+- **Data Scraping:** Direct Playwright HTML ingestion & JSON API interception
 
 ---
 
@@ -162,20 +160,14 @@ RESEARCH → VALIDATION → SHADOW → LIMITED_CAPITAL → PRODUCTION → DEGRAD
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **Shadow Orchestrator** | `src/live_operations/shadow_deployment_orchestrator.py` | Continuous paper trading, signal → simulated fill → CLV tracking |
-| **Execution Telemetry** | `src/live_operations/execution_telemetry.py` | Nanosecond latency tracking, Execution Quality Score (EQS) |
-| **Edge Decay Live** | `src/live_operations/edge_decay_live.py` | Real-time EV snapshots at T₀, T+1s, T+5s, T_exec, T_close |
-| **Sportsbook Monitor** | `src/live_operations/sportsbook_behavior_monitor.py` | Rejection patterns, line shading, dynamic profiles |
-| **Account Health** | `src/live_operations/account_health_engine.py` | Trust Score (0-100), restriction probability prediction |
-| **Market Adaptation** | `src/live_operations/market_adaptation_detector.py` | Alpha decay detection, structural break analysis |
-| **Live Regime Monitor** | `src/live_operations/live_regime_monitor.py` | Real-time classification (High Vol, Low Liq, Sharp Money) |
-| **Operational Risk** | `src/live_operations/operational_risk_monitor.py` | Infrastructure health, circuit breakers, kill-switches |
-| **Live CLV Tracker** | `src/live_operations/live_clv_tracker.py` | Rolling weighted CLV by book/market/latency |
-| **Alerting System** | `src/live_operations/alerting_system.py` | Multi-channel alerts, incident timelines |
+| **Live Prediction Daemon** | `src/live_predictions_daemon.py` | Continuous background polling of fixtures, evaluating AI probability vs live bookmaker odds |
+| **Strict Lineup Validator** | `src/live_predictions_daemon.py` | Halts execution if a 11-man confirmed starting lineup is not available (zero-tolerance for estimated lineups in live betting) |
+| **Expanded Prop Engine** | `src/live_predictions_daemon.py` | Calculates and places bets on **Corners (Over 8.5)**, **Player Shots (Over 1.5)**, and **Anytime Goalscorer** |
+| **Live Dashboard Server** | `src/live_dashboard_server.py` | Flask server streaming instantaneous predictions, bankroll changes, and real-time EV via JSON payloads |
 
-**Shadow Bet Lifecycle:**
+**Live Bet Lifecycle:**
 ```
-SIGNAL_GENERATED → EXECUTION_SIMULATED → CLV_TRACKED → SETTLED
+ODDS_INGESTION → LINEUP_VERIFICATION → PROBABILITY_CALCULATION → EV_THRESHOLD_CHECK → KELLY_SIZING → CAPITAL_DEDUCTION → LOGGED
 ```
 
 ---
@@ -195,10 +187,10 @@ where: b = decimal odds - 1, p = win probability, q = 1 - p
 ```
 
 **Risk Limits:**
-- Single bet max: 2% bankroll
-- Total exposure cap: 20% bankroll
-- Daily loss limit: 5% bankroll
-- Correlated exposure: 10% bankroll
+- Single bet max: Bounded dynamically by Fractional Kelly (e.g. 5%)
+- Total exposure cap: Up to 100% of daily bankroll, enabling aggressive scaling on high-EV slates
+- Daily loss limit: 100% bankroll (Hard stop if ruined)
+- Strict Execution: `register_bet()` physically blocks executions exceeding liquid balance.
 
 ---
 
@@ -285,27 +277,28 @@ graph LR
     E -->|Fail| G[Strategy Graveyard]
 ```
 
-### Phase 2: Shadow Deployment (Live Validation)
+### Phase 2: Live Inference Loop
 ```mermaid
 graph LR
-    A[Live Signal] --> B[Theoretical Fill]
-    B --> C[Track CLV]
-    C --> D{N Bets Reached?}
-    D -->|No| A
-    D -->|Yes| E{CLV > Threshold?}
-    E -->|Yes| F[Promote to Production]
-    E -->|No| G[Retire Strategy]
+    A[Scrape Betarabia] --> B[Fetch Upcoming Fixtures]
+    B --> C{Lineups Confirmed?}
+    C -->|No| D[Skip Betting / Gen Estimates]
+    C -->|Yes| E[LightGBM Predict]
+    E --> F{EV > Threshold?}
+    F -->|No| G[Discard Bet]
+    F -->|Yes| H[Log Recommended Bet]
 ```
 
-### Phase 3: Production (Capital Deployment)
+### Phase 3: Capital Execution
 ```mermaid
 graph LR
-    A[Capital Approval] --> B[Risk Sizing]
-    B --> C[Exposure Assignment]
-    C --> D[Live Monitoring]
-    D --> E{Kill-Switch Triggered?}
-    E -->|No| D
-    E -->|Yes| F[Halt & Analyze]
+    A[Recommend Bet] --> B[Calc Kelly Fractional]
+    B --> C[Check Bankroll Liquidity]
+    C --> D{Stake <= Balance?}
+    D -->|No| E[Block Bet]
+    D -->|Yes| F[Deduct Stake]
+    F --> G[Insert to bet_log.db]
+    G --> H[Stream to UI]
 ```
 
 ---
