@@ -35,11 +35,13 @@ All state is stored in simple SQLite databases in the `/data` folder. If you eve
 
 #### B. Changing the Bankroll Logic
 Look at `src/bankroll_tracker.py`. 
-*Note:* The UI currently assumes `STARTING_BANKROLL` is 100$. If you change the DB schema, you must manually run `python src/bankroll_tracker.py` to recreate the table.
+*Note:* The UI currently assumes `STARTING_BANKROLL` is 100$. The system strictly enforces capital preservation: `log_ai_bet` directly invokes `register_bet()` to deduct stakes from the liquid balance. If the balance reaches 0, further bets are physically blocked. If you change the DB schema, you must manually run `python src/bankroll_tracker.py` to recreate the table.
 
 #### C. Modifying the Betting Strategy
 Look at `src/live_predictions_daemon.py`. 
-- The function `log_ai_bet` handles bet sizing (Kelly Criterion) and logs to `bet_log.db`.
+- The system enforces a strict lineup validation rule (`has_lineup`). It completely skips prediction execution and betting for games lacking confirmed 11-man lineups.
+- The `predict_match` function explicitly generates and exposes probabilities for **Corners (Over 8.5)**, **Player Shots (Over 1.5)**, and **Anytime Goalscorer** markets, in addition to standard 1X2 / Over-Under.
+- The function `log_ai_bet` handles bet sizing (Kelly Criterion) and logs to `bet_log.db`, deducting the stake via `bankroll_tracker`.
 - The function `find_betarabia_odds` calculates EV based on market prices vs AI probabilities.
 
 ### 4. Running the System
