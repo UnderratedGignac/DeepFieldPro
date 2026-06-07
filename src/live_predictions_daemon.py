@@ -27,11 +27,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # Import new DeepFieldPro modules - only the specific classes/functions we actually use
 from free_scraper_module import get_todays_fixtures_free as get_todays_fixtures  # noqa: E402
-from models.expected_minutes import get_xmin_for_player  # noqa: E402
 from models.calibration_engine import ProbabilityCalibrator  # noqa: E402
 from risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
 from telemetry_warehouse.clv_tracker import create_clv_tracker  # noqa: E402
-from kelly_calculator import get_recommended_stake  # noqa: E402
 
 PLAYER_STATS_CACHE = {}
 TEAM_PLAYERS_CACHE = {}
