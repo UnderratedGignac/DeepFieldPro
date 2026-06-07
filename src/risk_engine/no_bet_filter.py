@@ -269,6 +269,6 @@ if __name__ == "__main__":
     }
     
     approved, reason = filter_instance.evaluate_bet(test_bet)
-    print(f"\nTest Bet Evaluation:")
+    print("\\nTest Bet Evaluation:")
     print(f"  Approved: {approved}")
     print(f"  Reason: {reason or 'All checks passed'}")

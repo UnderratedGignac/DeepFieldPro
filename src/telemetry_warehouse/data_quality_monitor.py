@@ -12,8 +12,7 @@ import os
 import sys
 import sqlite3
 import datetime
-from typing import Dict, List, Optional, Any
-import json
+from typing import Dict, List, Any
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -485,7 +484,7 @@ if __name__ == "__main__":
     
     # Get dashboard data
     dashboard = monitor.get_dashboard_data()
-    print(f"\nDashboard Data:")
+    print("\nDashboard Data:")
     print(f"  Health Score: {dashboard['health_score']:.1f}")
     print(f"  Stale Markets: {dashboard['stale_markets_count']}")
     print(f"  Missing Lineups: {dashboard['missing_lineups_count']}")

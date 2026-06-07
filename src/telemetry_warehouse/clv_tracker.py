@@ -15,8 +15,7 @@ import time
 import threading
 import datetime
 import sqlite3
-import asyncio
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 import json
 
 # Add parent directory to path
