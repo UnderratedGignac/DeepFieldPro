@@ -117,48 +117,48 @@ def predict_expected_minutes(model, features, inference_df: pd.DataFrame):
     """
     X_inf = inference_df[features]
     preds = model.predict(X_inf)
-    
+
     # Calculate uncertainty spread using quantile regression forests approach
     # We simulate variance based on historical residuals
     base_preds = np.clip(preds, 0, 100)
-    
+
     # Estimate uncertainty based on player consistency (placeholder)
     # In production, this would come from quantile models
     uncertainty = np.where(
         inference_df.get("minutes_last_5", 0) > 60,
         10,  # Consistent players have lower uncertainty
-        20   # Inconsistent players have higher uncertainty
+        20,  # Inconsistent players have higher uncertainty
     )
-    
+
     results = {}
     for idx, row in inference_df.iterrows():
         player_key = row.get("player_name", f"player_{idx}")
         base = base_preds[idx]
         unc = uncertainty[idx] if isinstance(uncertainty, np.ndarray) else uncertainty
-        
+
         results[player_key] = {
             "p10": max(0, base - 1.28 * unc),
             "p50": base,
-            "p90": min(100, base + 1.28 * unc)
+            "p90": min(100, base + 1.28 * unc),
         }
-    
+
     return results
 
 
 def get_xmin_for_player(model, features, player_data: dict) -> dict:
     """
     Get Expected Minutes for a single player with P10/P50/P90 outputs.
-    
+
     Input: Player historical usage, days of rest, manager substitution history
     Output: {"p10": 45, "p50": 78, "p90": 95}
     """
     df = pd.DataFrame([player_data])
     df = prepare_minutes_features(df)
-    
+
     X_inf = df[features]
     pred = model.predict(X_inf)[0]
     base = np.clip(pred, 0, 100)
-    
+
     # Calculate uncertainty based on data quality
     minutes_history = player_data.get("minutes_last_5", 45)
     if minutes_history > 60:
@@ -167,11 +167,11 @@ def get_xmin_for_player(model, features, player_data: dict) -> dict:
         unc = 15
     else:
         unc = 25
-    
+
     return {
         "p10": int(max(0, base - 1.28 * unc)),
         "p50": int(base),
-        "p90": int(min(100, base + 1.28 * unc))
+        "p90": int(min(100, base + 1.28 * unc)),
     }
 
 
