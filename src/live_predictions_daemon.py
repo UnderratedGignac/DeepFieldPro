@@ -24,12 +24,71 @@ def print(*args, **kwargs):
 
 
 sys.path.insert(0, os.path.dirname(__file__))
-from free_scraper_module import (  # noqa: E402
-    get_todays_fixtures_free as get_todays_fixtures,
-)
+
+# Import new DeepFieldPro modules - only the specific classes/functions we actually use
+from free_scraper_module import get_todays_fixtures_free as get_todays_fixtures  # noqa: E402
+from models.expected_minutes import get_xmin_for_player  # noqa: E402
+from models.calibration_engine import ProbabilityCalibrator  # noqa: E402
+from risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
+from telemetry_warehouse.clv_tracker import create_clv_tracker  # noqa: E402
+from kelly_calculator import get_recommended_stake  # noqa: E402
 
 PLAYER_STATS_CACHE = {}
 TEAM_PLAYERS_CACHE = {}
+
+# Global instances for new modules
+_xmin_model = None
+_xmin_features = None
+_probability_calibrator = None
+_no_bet_filter = None
+_clv_tracker = None
+
+
+def initialize_deepfield_modules():
+    """Initialize all new DeepFieldPro institutional modules."""
+    global _xmin_model, _xmin_features, _probability_calibrator, _no_bet_filter, _clv_tracker
+
+    print("[*] Initializing DeepFieldPro institutional modules...")
+
+    try:
+        # Load Expected Minutes model
+        xmin_model_path = os.path.join(
+            os.path.dirname(__file__), "..", "models", "lgbm_minutes_v1.pkl"
+        )
+        if os.path.exists(xmin_model_path):
+            _xmin_model = joblib.load(xmin_model_path)
+            _xmin_features = [
+                "started_last_match",
+                "started_last_3",
+                "minutes_last_5",
+                "Pos",
+                "Comp",
+                "days_rest",
+            ]
+            print("[+] Expected Minutes model loaded")
+        else:
+            print("[!] Expected Minutes model not found, will use fallback")
+
+        # Initialize Probability Calibrator
+        _probability_calibrator = ProbabilityCalibrator(method="isotonic", cv=5)
+        calibrator_path = os.path.join(
+            os.path.dirname(__file__), "..", "models", "platt_scaler_sot.pkl"
+        )
+        if os.path.exists(calibrator_path):
+            _probability_calibrator.load(calibrator_path)
+            print("[+] Probability Calibrator loaded")
+
+        # Initialize No-Bet Filter
+        _no_bet_filter = create_no_bet_filter()
+        print("[+] No-Bet Filter initialized")
+
+        # Initialize CLV Tracker
+        _clv_tracker = create_clv_tracker()
+        print("[+] CLV Tracker initialized")
+
+        print("[+] All DeepFieldPro modules initialized successfully")
+    except Exception as e:
+        print(f"[!] Error initializing modules: {e}")
 
 
 def clean_name(name):
@@ -147,8 +206,7 @@ def log_prediction_to_db(pred_res, has_lineup):
         cur = conn.cursor()
 
         # Check if predictions table exists, create if not
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS predictions (
                 fixture_id TEXT PRIMARY KEY,
                 match_name TEXT,
@@ -166,8 +224,7 @@ def log_prediction_to_db(pred_res, has_lineup):
                 has_lineup INTEGER,
                 predicted_at TIMESTAMP
             )
-        """
-        )
+        """)
 
         # Check if column extra_json exists
         cur.execute("PRAGMA table_info(predictions)")
@@ -745,14 +802,28 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                 {"selection": "No", "prob": round(prob_btts_no * 100, 1)},
             ],
             "Corners": [
-                {"selection": "Over 8.5 Corners", "prob": round((1.0 - math.exp(-(home_corners + away_corners) / 5.0)) * 100, 1)}
+                {
+                    "selection": "Over 8.5 Corners",
+                    "prob": round(
+                        (1.0 - math.exp(-(home_corners + away_corners) / 5.0)) * 100, 1
+                    ),
+                }
             ],
             "Goalscorer": [
-                {"selection": f"{p['name']} Anytime Goal", "prob": round(p["anytime_goal_prob"] * 100, 1)} for p in goalscorers_sorted[:3]
+                {
+                    "selection": f"{p['name']} Anytime Goal",
+                    "prob": round(p["anytime_goal_prob"] * 100, 1),
+                }
+                for p in goalscorers_sorted[:3]
             ],
             "Player Shots": [
-                {"selection": f"{p['name']} Over 1.5 Shots", "prob": min(95.0, round(p["exp_shots"] * 30, 1))} for p in shots_sorted[:3] if p["exp_shots"] > 1.5
-            ]
+                {
+                    "selection": f"{p['name']} Over 1.5 Shots",
+                    "prob": min(95.0, round(p["exp_shots"] * 30, 1)),
+                }
+                for p in shots_sorted[:3]
+                if p["exp_shots"] > 1.5
+            ],
         },
     }
 
@@ -1053,11 +1124,12 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
                 stake = 1.0
             if stake > balance:
                 stake = balance
-            
+
             if stake <= 0:
                 return
-                
+
             from src.bankroll_tracker import register_bet
+
             if not register_bet(stake):
                 print(f"[!] Bankroll tracker blocked bet {bet_id} for ${stake:.2f}")
                 return
@@ -1089,7 +1161,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
             print(
                 f"[AI BET LOGGER] Automatically logged recommended AI bet: {match} ({selection}) @ {odds} stake {stake}"
             )
-            
+
             # Commit and close DB before making synchronous network request
             conn.commit()
             conn.close()
@@ -1421,13 +1493,18 @@ def update_dashboard_json(fixtures, results_cache):
                                 key = "No"
 
                         odds = None
-                        if odds_dict and m_type in odds_dict and key in odds_dict[m_type]:
+                        if (
+                            odds_dict
+                            and m_type in odds_dict
+                            and key in odds_dict[m_type]
+                        ):
                             odds = odds_dict[m_type][key]
 
                         if odds is not None:
                             ev = (prob / 100.0) * odds - 1.0
-                            is_recommended = ev >= min_ev_threshold or prob >= settings.get(
-                                "min_confidence_pct", 55
+                            is_recommended = (
+                                ev >= min_ev_threshold
+                                or prob >= settings.get("min_confidence_pct", 55)
                             )
                             sel["odds"] = odds
                             sel["ev"] = round(ev * 100, 1)
@@ -1435,13 +1512,22 @@ def update_dashboard_json(fixtures, results_cache):
 
                             if is_recommended:
                                 log_ai_bet(
-                                    f"{home} vs {away}", m_type, sel_name, odds, prob, ev
+                                    f"{home} vs {away}",
+                                    m_type,
+                                    sel_name,
+                                    odds,
+                                    prob,
+                                    ev,
                                 )
                         else:
-                            est_odds = round(0.95 * (100.0 / prob), 2) if prob > 0 else 1.0
+                            est_odds = (
+                                round(0.95 * (100.0 / prob), 2) if prob > 0 else 1.0
+                            )
                             sel["odds"] = est_odds
                             sel["ev"] = -5.0
-                            is_recommended = prob >= settings.get("min_confidence_pct", 55)
+                            is_recommended = prob >= settings.get(
+                                "min_confidence_pct", 55
+                            )
                             sel["recommended"] = is_recommended
 
                             if is_recommended:
@@ -1522,6 +1608,10 @@ def init_stair_ai_agent():
 def run_daemon():
     print("[*] Starting Smart Live Predictions Daemon...")
     init_stair_ai_agent()
+
+    # Initialize new DeepFieldPro institutional modules
+    initialize_deepfield_modules()
+
     player_model = joblib.load("models/player_impact_model.pkl")
     match_model = joblib.load("models/bottom_up_match_model.pkl")
     df = load_player_database()
@@ -1537,7 +1627,9 @@ def run_daemon():
             import subprocess
             import sys
 
-            subprocess.Popen([sys.executable, "src/betarabia_scraper.py"], close_fds=True)
+            subprocess.Popen(
+                [sys.executable, "src/betarabia_scraper.py"], close_fds=True
+            )
         except Exception as e:
             print("Failed to start background scraper:", e)
 
