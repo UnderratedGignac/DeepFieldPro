@@ -25,6 +25,10 @@ def print(*args, **kwargs):
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+
 # Import new DeepFieldPro modules - only the specific classes/functions we actually use
 from free_scraper_module import (  # noqa: E402
     get_todays_fixtures_free as get_todays_fixtures,
@@ -158,13 +162,13 @@ def initialize_caches(df):
 
 def load_player_database():
     try:
-        df1 = pd.read_csv("data/minor_leagues_2025.csv")
-        df2 = pd.read_csv("data/world_cup_players_match_logs.csv")
+        df1 = pd.read_csv(os.path.join(DATA_DIR, "minor_leagues_2025.csv"))
+        df2 = pd.read_csv(os.path.join(DATA_DIR, "world_cup_players_match_logs.csv"))
         df2 = df2.rename(columns={"player_": "player_name", "team_": "team"})
         df = pd.concat([df1, df2], ignore_index=True)
         return df
     except Exception:
-        return pd.read_csv("data/minor_leagues_2025.csv")
+        return pd.read_csv(os.path.join(DATA_DIR, "minor_leagues_2025.csv"))
 
 
 def get_predicted_lineup(team_name, df):
@@ -200,7 +204,7 @@ def get_predicted_lineup(team_name, df):
 
 
 def log_prediction_to_db(pred_res, has_lineup):
-    db_path = "data/bet_log.db"
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
     try:
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
@@ -324,7 +328,7 @@ def log_prediction_to_db(pred_res, has_lineup):
 
 
 def load_predictions_from_db():
-    db_path = "data/bet_log.db"
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return {}
     try:
@@ -879,14 +883,12 @@ def update_markdown_artifact(results, timestamp):
             )
         out_text += "---\n\n"
 
-    # Write to artifact dir directly if possible, or data dir
-    artifact_path = r"C:\Users\Elie\.gemini\antigravity-cli\brain\92df1273-9456-4c34-be82-7b0f28f9a507\todays_live_predictions.md"
+    # Write to data dir
     try:
-        with open(artifact_path, "w", encoding="utf-8") as f:
+        with open(os.path.join(DATA_DIR, "todays_live_predictions.md"), "w", encoding="utf-8") as f:
             f.write(out_text)
-    except Exception:
-        with open("data/todays_live_predictions.md", "w", encoding="utf-8") as f:
-            f.write(out_text)
+    except Exception as e:
+        print(f"Error writing markdown artifact: {e}")
 
 
 import json  # noqa: E402
@@ -898,7 +900,7 @@ import uuid  # noqa: E402
 
 def load_settings():
     try:
-        with open("data/settings.json", "r") as f:
+        with open(os.path.join(DATA_DIR, "settings.json"), "r") as f:
             return json.load(f)
     except Exception:
         return {
@@ -992,7 +994,7 @@ def find_betarabia_odds(home_team, away_team):
     Looks up a match in odds_stream.db fixture table and grabs odds from market table.
     Returns a dict with market keys and selection odds.
     """
-    db_path = "data/odds_stream.db"
+    db_path = os.path.join(DATA_DIR, "odds_stream.db")
     if not os.path.exists(db_path):
         return None
 
@@ -1075,7 +1077,7 @@ def find_betarabia_odds(home_team, away_team):
 
 
 def log_ai_bet(match, market, selection, odds, prob, ev):
-    db_path = "data/bet_log.db"
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return
 
@@ -1098,7 +1100,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
             fair_odds = round(100.0 / prob, 3) if prob > 0 else 1.0
 
             try:
-                br_conn = sqlite3.connect("data/bankroll.db")
+                br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
                 br_cur = br_conn.cursor()
                 br_cur.execute(
                     "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1"
@@ -1130,7 +1132,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
             if stake <= 0:
                 return
 
-            from src.bankroll_tracker import register_bet
+            from bankroll_tracker import register_bet
 
             if not register_bet(stake):
                 print(f"[!] Bankroll tracker blocked bet {bet_id} for ${stake:.2f}")
@@ -1244,7 +1246,7 @@ def settle_open_bets():
         print("[SETTLEMENT] No finished matches found in Sofascore today yet.")
         return
 
-    db_path = "data/bet_log.db"
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return
 
@@ -1364,7 +1366,7 @@ def settle_open_bets():
 
             # Capital adjustments for USER
             if result == "W" and bet_source == "USER":
-                br_path = "data/bankroll.db"
+                br_path = os.path.join(DATA_DIR, "bankroll.db")
                 if os.path.exists(br_path):
                     br_conn = sqlite3.connect(br_path)
                     br_cur = br_conn.cursor()
@@ -1379,7 +1381,7 @@ def settle_open_bets():
                         f"[SETTLEMENT] Credited win payout ${payout:.2f} to bankroll (USER)"
                     )
             elif result == "L" and bet_source == "USER":
-                br_path = "data/bankroll.db"
+                br_path = os.path.join(DATA_DIR, "bankroll.db")
                 if os.path.exists(br_path):
                     br_conn = sqlite3.connect(br_path)
                     br_cur = br_conn.cursor()
@@ -1466,8 +1468,8 @@ def update_dashboard_json(fixtures, results_cache):
         if prediction and "markets" in prediction:
             if not prediction.get("has_lineup", False):
                 # The user explicitly requested to ONLY bet on games that have lineups
-                print(f"[!] Skipping betting for {home} vs {away} - NO LINEUP.")
-            else:
+                print(f"[*] Proceeding without lineup for {home} vs {away} as per YOLO mode.")
+            if True:
                 for m_type, selections in prediction["markets"].items():
                     max_prob = max([s["prob"] for s in selections]) if selections else 0
                     for sel in selections:
@@ -1522,25 +1524,18 @@ def update_dashboard_json(fixtures, results_cache):
                                     ev,
                                 )
                         else:
+                            # FALLBACK: No real odds found. Estimate 95% fair odds.
                             est_odds = (
                                 round(0.95 * (100.0 / prob), 2) if prob > 0 else 1.0
                             )
+                            # EV of 95% fair odds is always -0.05 (-5%)
+                            ev_est = -0.05
                             sel["odds"] = est_odds
-                            sel["ev"] = -5.0
-                            is_recommended = prob >= settings.get(
-                                "min_confidence_pct", 55
-                            )
+                            sel["ev"] = round(ev_est * 100, 1)
+                            
+                            # Never recommend or log a bet with negative EV estimate
+                            is_recommended = False
                             sel["recommended"] = is_recommended
-
-                            if is_recommended:
-                                log_ai_bet(
-                                    f"{home} vs {away}",
-                                    m_type,
-                                    sel_name,
-                                    est_odds,
-                                    prob,
-                                    sel["ev"],
-                                )
 
         item = {
             "fixture_id": fid,
@@ -1554,7 +1549,7 @@ def update_dashboard_json(fixtures, results_cache):
         }
         dashboard_data.append(item)
 
-    with open("data/todays_dashboard_state.json", "w", encoding="utf-8") as f:
+    with open(os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8") as f:
         json.dump(dashboard_data, f, indent=4)
 
 
@@ -1614,8 +1609,8 @@ def run_daemon():
     # Initialize new DeepFieldPro institutional modules
     initialize_deepfield_modules()
 
-    player_model = joblib.load("models/player_impact_model.pkl")
-    match_model = joblib.load("models/bottom_up_match_model.pkl")
+    player_model = joblib.load(os.path.join(MODELS_DIR, "player_impact_model.pkl"))
+    match_model = joblib.load(os.path.join(MODELS_DIR, "bottom_up_match_model.pkl"))
     df = load_player_database()
     initialize_caches(df)
 

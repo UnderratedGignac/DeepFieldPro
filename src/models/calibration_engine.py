@@ -135,14 +135,25 @@ class ProbabilityCalibrator:
         if not os.path.exists(filepath):
             return False
 
-        with open(filepath, "rb") as f:
-            data = pickle.load(f)
+        try:
+            with open(filepath, "rb") as f:
+                data = pickle.load(f)
 
-        self.calibrators = data.get("calibrators", {})
-        self.isotonic_regressors = data.get("isotonic_regressors", {})
-        self.method = data.get("method", "isotonic")
-        self._is_fitted = len(self.isotonic_regressors) > 0 or len(self.calibrators) > 0
-        return True
+            if isinstance(data, dict):
+                self.calibrators = data.get("calibrators", {})
+                self.isotonic_regressors = data.get("isotonic_regressors", {})
+                self.method = data.get("method", "isotonic")
+            else:
+                # If it's a direct model, wrap it in our structure
+                # We'll assume it's for the 'default' market
+                self.calibrators = {"default": data}
+                self.isotonic_regressors = {}
+                
+            self._is_fitted = len(self.isotonic_regressors) > 0 or len(self.calibrators) > 0
+            return True
+        except Exception as e:
+            print(f"Error loading calibrator from {filepath}: {e}")
+            return False
 
 
 def create_calibration_pipeline(

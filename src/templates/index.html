@@ -625,8 +625,10 @@
                     <table class="data-table" id="tracker-table">
                         <thead>
                             <tr>
+                                <th>Source</th>
                                 <th>Player / Market</th>
                                 <th>Entry Odds</th>
+                                <th>Stake</th>
                                 <th>Closing Odds</th>
                                 <th>CLV (Edge)</th>
                                 <th>PNL</th>
@@ -1287,12 +1289,18 @@
                             pnlColor = '#ff4d4d';
                         }
                     }
+                    let edgeStr = `<span style="color: ${b.edge_pct > 0 ? '#00ff88' : 'inherit'}">${b.edge_pct > 0 ? '+' : ''}${b.edge_pct}%</span>`;
+                    if (b.edge_pct <= -500.0) {
+                        edgeStr = `<span style="color: var(--text-muted); font-size: 0.85rem;">N/A (Unlisted)</span>`;
+                    }
                     
                     return `<tr>
+                        <td><span style="font-size:0.8rem; padding: 2px 6px; border-radius: 4px; background: ${b.bet_source === 'AI' ? '#00ff8822' : '#ffffff22'}; color: ${b.bet_source === 'AI' ? '#00ff88' : '#fff'};">${b.bet_source || 'AI'}</span></td>
                         <td><strong>${b.player_id}</strong><br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
                         <td>${b.entry_odds}</td>
+                        <td>$${(b.stake || 0).toFixed(2)}</td>
                         <td>${b.closing_odds || '-'}</td>
-                        <td><span style="color: ${b.edge_pct > 0 ? '#00ff88' : 'inherit'}">${b.edge_pct > 0 ? '+' : ''}${b.edge_pct}%</span></td>
+                        <td>${edgeStr}</td>
                         <td style="color: ${pnlColor}">${pnlStr}</td>
                         <td>${statusTag}</td>
                     </tr>`;
