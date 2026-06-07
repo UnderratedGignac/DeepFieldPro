@@ -621,70 +621,6 @@ def get_comparison(fixture_id):
         except Exception:
             pass
 
-    if str(fixture_id) == "15458376":
-        if demo or actuals is None:
-            actuals = {
-                "fixture_id": 15458376,
-                "match": "FBK Karlstad vs IF Karlstad Fotboll",
-                "league": "Ettan, Norra",
-                "status": "FT (Simulated Demo)",
-                "is_simulated": True,
-                "score": "2 - 1",
-                "home_score": 2,
-                "away_score": 1,
-                "winner": "FBK Karlstad WIN",
-                "goals": [
-                    {
-                        "player": "Renan Correa Faustini",
-                        "team": "FBK Karlstad",
-                        "minute": 32,
-                    },
-                    {
-                        "player": "Nfansu Dibba",
-                        "team": "IF Karlstad Fotboll",
-                        "minute": 48,
-                    },
-                    {"player": "Granit Hana", "team": "FBK Karlstad", "minute": 78},
-                ],
-                "possession_home": 55,
-                "possession_away": 45,
-                "corners_home": 6,
-                "corners_away": 4,
-                "corners_total": 10,
-                "fouls_home": 11,
-                "fouls_away": 9,
-                "cards_yellow_home": 2,
-                "cards_yellow_away": 2,
-                "cards_yellow_total": 4,
-                "cards_red_total": 0,
-                "shots_home": 14,
-                "shots_away": 10,
-                "shots_on_target_home": 7,
-                "shots_on_target_away": 4,
-                "player_stats": [
-                    {
-                        "name": "Renan Correa Faustini",
-                        "team": "FBK Karlstad",
-                        "goals": 1,
-                        "shots": 4,
-                        "shots_on_target": 2,
-                    },
-                    {
-                        "name": "Nfansu Dibba",
-                        "team": "IF Karlstad Fotboll",
-                        "goals": 1,
-                        "shots": 3,
-                        "shots_on_target": 1,
-                    },
-                    {
-                        "name": "Granit Hana",
-                        "team": "FBK Karlstad",
-                        "goals": 1,
-                        "shots": 2,
-                        "shots_on_target": 2,
-                    },
-                ],
-            }
 
     if not actuals:
         state_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
@@ -755,5 +691,5 @@ def start_background_prediction_worker():
 
 if __name__ == "__main__":
     start_background_prediction_worker()
-    print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5000")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5050")
+    app.run(host="0.0.0.0", port=5050, debug=False)

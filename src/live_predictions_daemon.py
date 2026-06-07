@@ -744,6 +744,15 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                 {"selection": "Yes", "prob": round(prob_btts_yes * 100, 1)},
                 {"selection": "No", "prob": round(prob_btts_no * 100, 1)},
             ],
+            "Corners": [
+                {"selection": "Over 8.5 Corners", "prob": round((1.0 - math.exp(-(home_corners + away_corners) / 5.0)) * 100, 1)}
+            ],
+            "Goalscorer": [
+                {"selection": f"{p['name']} Anytime Goal", "prob": round(p["anytime_goal_prob"] * 100, 1)} for p in goalscorers_sorted[:3]
+            ],
+            "Player Shots": [
+                {"selection": f"{p['name']} Over 1.5 Shots", "prob": min(95.0, round(p["exp_shots"] * 30, 1))} for p in shots_sorted[:3] if p["exp_shots"] > 1.5
+            ]
         },
     }
 
@@ -1040,8 +1049,18 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
                 kelly_f = 0.01
 
             stake = round(balance * kelly_f, 2)
-            if stake < 10.0:
-                stake = 10.0
+            if stake < 1.0:
+                stake = 1.0
+            if stake > balance:
+                stake = balance
+            
+            if stake <= 0:
+                return
+                
+            from src.bankroll_tracker import register_bet
+            if not register_bet(stake):
+                print(f"[!] Bankroll tracker blocked bet {bet_id} for ${stake:.2f}")
+                return
 
             cur.execute(
                 """
@@ -1070,6 +1089,10 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
             print(
                 f"[AI BET LOGGER] Automatically logged recommended AI bet: {match} ({selection}) @ {odds} stake {stake}"
             )
+            
+            # Commit and close DB before making synchronous network request
+            conn.commit()
+            conn.close()
 
             # STAIR-AI INTEGRATION
             team_code = str(selection)
@@ -1109,8 +1132,9 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
             except Exception as se:
                 print(f"[STAIR AI] Error placing bet: {se}")
 
-        conn.commit()
-        conn.close()
+        else:
+            conn.close()
+
     except Exception as e:
         print("Error in log_ai_bet:", e)
 
@@ -1366,65 +1390,69 @@ def update_dashboard_json(fixtures, results_cache):
                     )
 
         if prediction and "markets" in prediction:
-            for m_type, selections in prediction["markets"].items():
-                max_prob = max([s["prob"] for s in selections]) if selections else 0
-                for sel in selections:
-                    sel_name = sel["selection"]
-                    prob = sel["prob"]
-                    sel["is_top_pick"] = prob == max_prob
+            if not prediction.get("has_lineup", False):
+                # The user explicitly requested to ONLY bet on games that have lineups
+                print(f"[!] Skipping betting for {home} vs {away} - NO LINEUP.")
+            else:
+                for m_type, selections in prediction["markets"].items():
+                    max_prob = max([s["prob"] for s in selections]) if selections else 0
+                    for sel in selections:
+                        sel_name = sel["selection"]
+                        prob = sel["prob"]
+                        sel["is_top_pick"] = prob == max_prob
 
-                    key = None
-                    if m_type == "1X2":
-                        if "Home" in sel_name or "1" in sel_name:
-                            key = "Home"
-                        elif "Draw" in sel_name or "X" in sel_name:
-                            key = "Draw"
-                        elif "Away" in sel_name or "2" in sel_name:
-                            key = "Away"
-                    elif m_type == "Over/Under 2.5":
-                        if "Over" in sel_name:
-                            key = "Over"
-                        elif "Under" in sel_name:
-                            key = "Under"
-                    elif m_type == "BTTS":
-                        if "Yes" in sel_name:
-                            key = "Yes"
-                        elif "No" in sel_name:
-                            key = "No"
+                        key = None
+                        if m_type == "1X2":
+                            if "Home" in sel_name or "1" in sel_name:
+                                key = "Home"
+                            elif "Draw" in sel_name or "X" in sel_name:
+                                key = "Draw"
+                            elif "Away" in sel_name or "2" in sel_name:
+                                key = "Away"
+                        elif m_type == "Over/Under 2.5":
+                            if "Over" in sel_name:
+                                key = "Over"
+                            elif "Under" in sel_name:
+                                key = "Under"
+                        elif m_type == "BTTS":
+                            if "Yes" in sel_name:
+                                key = "Yes"
+                            elif "No" in sel_name:
+                                key = "No"
 
-                    odds = None
-                    if odds_dict and m_type in odds_dict and key in odds_dict[m_type]:
-                        odds = odds_dict[m_type][key]
+                        odds = None
+                        if odds_dict and m_type in odds_dict and key in odds_dict[m_type]:
+                            odds = odds_dict[m_type][key]
 
-                    if odds is not None:
-                        ev = (prob / 100.0) * odds - 1.0
-                        is_recommended = ev >= min_ev_threshold or prob >= settings.get(
-                            "min_confidence_pct", 55
-                        )
-                        sel["odds"] = odds
-                        sel["ev"] = round(ev * 100, 1)
-                        sel["recommended"] = is_recommended
-
-                        if is_recommended:
-                            log_ai_bet(
-                                f"{home} vs {away}", m_type, sel_name, odds, prob, ev
+                        if odds is not None:
+                            ev = (prob / 100.0) * odds - 1.0
+                            is_recommended = ev >= min_ev_threshold or prob >= settings.get(
+                                "min_confidence_pct", 55
                             )
-                    else:
-                        est_odds = round(0.95 * (100.0 / prob), 2) if prob > 0 else 1.0
-                        sel["odds"] = est_odds
-                        sel["ev"] = -5.0
-                        is_recommended = prob >= settings.get("min_confidence_pct", 55)
-                        sel["recommended"] = is_recommended
+                            sel["odds"] = odds
+                            sel["ev"] = round(ev * 100, 1)
+                            sel["recommended"] = is_recommended
 
-                        if is_recommended:
-                            log_ai_bet(
-                                f"{home} vs {away}",
-                                m_type,
-                                sel_name,
-                                est_odds,
-                                prob,
-                                sel["ev"],
-                            )
+                            if is_recommended:
+                                log_ai_bet(
+                                    f"{home} vs {away}", m_type, sel_name, odds, prob, ev
+                                )
+                        else:
+                            est_odds = round(0.95 * (100.0 / prob), 2) if prob > 0 else 1.0
+                            sel["odds"] = est_odds
+                            sel["ev"] = -5.0
+                            is_recommended = prob >= settings.get("min_confidence_pct", 55)
+                            sel["recommended"] = is_recommended
+
+                            if is_recommended:
+                                log_ai_bet(
+                                    f"{home} vs {away}",
+                                    m_type,
+                                    sel_name,
+                                    est_odds,
+                                    prob,
+                                    sel["ev"],
+                                )
 
         item = {
             "fixture_id": fid,
@@ -1509,7 +1537,7 @@ def run_daemon():
             import subprocess
             import sys
 
-            subprocess.Popen([sys.executable, "src/betarabia_scraper.py"])
+            subprocess.Popen([sys.executable, "src/betarabia_scraper.py"], close_fds=True)
         except Exception as e:
             print("Failed to start background scraper:", e)
 
