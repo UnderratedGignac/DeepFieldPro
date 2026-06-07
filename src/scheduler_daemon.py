@@ -3,6 +3,7 @@ import sys
 import logging
 from datetime import timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 import asyncio
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
