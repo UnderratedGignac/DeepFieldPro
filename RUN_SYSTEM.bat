@@ -30,8 +30,8 @@ echo [!] DO NOT CLOSE THIS WINDOW
 echo =======================================================
 echo.
 
-:: Open the browser after a short delay
-start "" "http://127.0.0.1:5050"
+:: Open the browser in a background task after a 5-second delay to allow the server to boot up
+start /B cmd /c "timeout /t 5 /nobreak > nul && start http://127.0.0.1:5050"
 
 :: Start the unified server/daemon process
 python src\live_dashboard_server.py

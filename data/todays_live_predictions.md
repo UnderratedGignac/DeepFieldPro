@@ -1,136 +1,136 @@
 ===========================================
  LIVE BOTTOM-UP MATCH PREDICTIONS
- Last Updated: 2026-06-07 14:45:49
+ Last Updated: 2026-06-07 22:53:40
  *Only matches with official starting lineups shown*
 ===========================================
 
-### [K-League 2] Cheonan City FC vs Suwon FC
+### [Int. Friendly Games] Denmark vs Ukraine
 - **Predicted Outcome:** DRAW
 - **Expected Score:** 1 - 1
-- **Team Strengths (Aggregated Impact):** Home: 2.60 | Away: 2.69
-- **Match Stats:** Corners (Home: 5 | Away: 6) | Fouls (Home: 18 | Away: 15) | Cards (Home Yellows: 1 | Away Yellows: 3)
-- **Top Impact Players (Home):** Lee Seung-Gyu (0.25), Chang-woo Park (0.21), Kyu-baek Choi (0.26)
-- **Top Impact Players (Away):** Han-been Yang (0.28), Shi-yeong Lee (0.27), Hyeon-yong Lee (0.18)
+- **Team Strengths (Aggregated Impact):** Home: 2.05 | Away: 2.41
+- **Match Stats:** Corners (Home: 2 | Away: 8) | Fouls (Home: 11 | Away: 10) | Cards (Home Yellows: 2 | Away Yellows: 0)
+- **Top Impact Players (Home):** Mads Hermansen (0.17), Alexander Bah (0.24), Joachim Andersen (0.17)
+- **Top Impact Players (Away):** Anatoliy Trubin (0.23), Ilya Zabarnyi (0.28), Eduard Sarapii (0.23)
 
 ---
 
-### [K-League 2] Gimpo FC vs Jeonnam Dragons
-- **Predicted Outcome:** DRAW
-- **Expected Score:** 2 - 2
-- **Team Strengths (Aggregated Impact):** Home: 2.69 | Away: 2.63
-- **Match Stats:** Corners (Home: 7 | Away: 11) | Fouls (Home: 12 | Away: 15) | Cards (Home Yellows: 0 | Away Yellows: 3)
-- **Top Impact Players (Home):** Bo-sang Yun (0.26), Dong-min Kim (0.24), Connor Chapman (0.25)
-- **Top Impact Players (Away):** Bong-jin Choi (0.25), Ju-yeob Kim (0.24), Yoo Ji-Ha (0.24)
-
----
-
-### [K-League 2] Seoul E-Land FC vs Cheongju FC
+### [Int. Friendly Games] Ecuador vs Guatemala
 - **Predicted Outcome:** DRAW
 - **Expected Score:** 0 - 0
-- **Team Strengths (Aggregated Impact):** Home: 2.48 | Away: 2.61
-- **Match Stats:** Corners (Home: 2 | Away: 8) | Fouls (Home: 7 | Away: 8) | Cards (Home Yellows: 0 | Away Yellows: 2)
-- **Top Impact Players (Home):** Seong-jun Min (0.24), Park Jin-Young (0.24), Oh-kyu Kim (0.16)
-- **Top Impact Players (Away):** Sung-hoon Cho (0.23), Rafael Bandeira (0.26), Chang-hoon Lee (0.23)
+- **Team Strengths (Aggregated Impact):** Home: 2.53 | Away: 2.59
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 15 | Away: 11) | Cards (Home Yellows: 5 | Away Yellows: 3)
+- **Top Impact Players (Home):** Hernán Galíndez (0.24), Alan Franco (0.24), Félix Torres (0.25)
+- **Top Impact Players (Away):** Nicholas Hagen (0.25), Aaron Herrera (0.25), Marcelo Hernández (0.24)
 
 ---
 
-### [Ettan, Norra] Piteå IF vs Enköpings SK
-- **Predicted Outcome:** DRAW
-- **Expected Score:** 2 - 2
-- **Team Strengths (Aggregated Impact):** Home: 2.67 | Away: 2.70
-- **Match Stats:** Corners (Home: 3 | Away: 4) | Fouls (Home: 10 | Away: 13) | Cards (Home Yellows: 4 | Away Yellows: 2)
-- **Top Impact Players (Home):** Filip Eriksson (0.28), Isac Wikström (0.24), Adam Ingemarson (0.26)
-- **Top Impact Players (Away):** Victor Astor (0.25), Mohammed Belouchi (0.23), Filiph Ededal (0.24)
-
----
-
-### [Ettan, Sodra] AFC Malmo vs Eskilsminne IF
-- **Predicted Outcome:** DRAW
-- **Expected Score:** 2 - 2
-- **Team Strengths (Aggregated Impact):** Home: 2.70 | Away: 2.63
-- **Match Stats:** Corners (Home: 5 | Away: 7) | Fouls (Home: 11 | Away: 11) | Cards (Home Yellows: 3 | Away Yellows: 2)
-- **Top Impact Players (Home):** Philip Martensson (0.25), Lucas Larsen (0.25), Albin Sjostrand Bjurnemark (0.24)
-- **Top Impact Players (Away):** Ian Pettersson (0.25), Leo Frigell Jansson (0.26), Egon Kurtulus (0.23)
-
----
-
-### [Ettan, Sodra] Kristianstad FC vs Lunds BK
-- **Predicted Outcome:** DRAW
-- **Expected Score:** 1 - 1
-- **Team Strengths (Aggregated Impact):** Home: 2.53 | Away: 2.52
-- **Match Stats:** Corners (Home: 3 | Away: 3) | Fouls (Home: 13 | Away: 17) | Cards (Home Yellows: 3 | Away Yellows: 1)
-- **Top Impact Players (Home):** Otto Larsson Wågert (0.24), Linus Svensson (0.2), Viktor Agardius (0.18)
-- **Top Impact Players (Away):** Andreas Alexandersson (0.18), Ludvig Nicklasson (0.25), Bozidar Velickovic (0.25)
-
----
-
-### [V-League 1] Becamex Ho Chi Minh City FC vs Hoàng Anh Gia Lai
-- **Predicted Outcome:** DRAW
-- **Expected Score:** 1 - 1
-- **Team Strengths (Aggregated Impact):** Home: 2.52 | Away: 2.58
-- **Match Stats:** Corners (Home: 11 | Away: 2) | Fouls (Home: 14 | Away: 7) | Cards (Home Yellows: 2 | Away Yellows: 3)
-- **Top Impact Players (Home):** Minh Toan Tran (0.25), Tung Quoc Ngo (0.25), Thanh Kien Nguyen (0.26)
-- **Top Impact Players (Away):** Trần Trung Kiên (0.25), Phước Bảo Võ (0.24), Quang Kiet Dinh (0.26)
-
----
-
-### [V-League 1] Hà Nội vs Công An Hồ Chí Minh City
-- **Predicted Outcome:** DRAW
-- **Expected Score:** 1 - 1
-- **Team Strengths (Aggregated Impact):** Home: 2.67 | Away: 2.55
-- **Match Stats:** Corners (Home: 3 | Away: 5) | Fouls (Home: 5 | Away: 14) | Cards (Home Yellows: 1 | Away Yellows: 3)
-- **Top Impact Players (Home):** Quan Văn Chuẩn (0.26), Phạm Xuân Mạnh (0.24), Anh Tiep Nguyen (0.28)
-- **Top Impact Players (Away):** Patrik Lê Giang (0.23), Manh Cuong Tran (0.25), Vu Tin Nguyen (0.18)
-
----
-
-### [V-League 1] Hải Phòng vs Thép Xanh Nam Định
-- **Predicted Outcome:** DRAW
-- **Expected Score:** 1 - 1
-- **Team Strengths (Aggregated Impact):** Home: 2.56 | Away: 2.57
-- **Match Stats:** Corners (Home: 7 | Away: 4) | Fouls (Home: 14 | Away: 8) | Cards (Home Yellows: 0 | Away Yellows: 2)
-- **Top Impact Players (Home):** Phạm  Thành Long (0.21), Đàm Tiến Dũng (0.21), Nguyễn Hữu Thái Bảo (0.25)
-- **Top Impact Players (Away):** Le Vu Phong (0.25), Trần Văn Kiên (0.25), Van Toi Dang (0.17)
-
----
-
-### [V-League 1] Ninh Bình FC vs Hồng Lĩnh Hà Tĩnh
-- **Predicted Outcome:** Ninh Bình FC WIN
-- **Expected Score:** 3 - 0
-- **Team Strengths (Aggregated Impact):** Home: 2.56 | Away: 2.67
-- **Match Stats:** Corners (Home: 4 | Away: 5) | Fouls (Home: 12 | Away: 11) | Cards (Home Yellows: 1 | Away Yellows: 5)
-- **Top Impact Players (Home):** Đặng Văn Lâm (0.23), Trương Tiến Anh (0.26), Nguyễn Đức Chiến (0.25)
-- **Top Impact Players (Away):** Thanh Tung Nguyen (0.26), Duy Thuong Bui (0.26), Viet Trieu Vu (0.25)
-
----
-
-### [V-League 1] SHB Đà Nẵng vs Đông Á Thanh Hóa
+### [Primera B Nacional] Godoy Cruz vs CA Mitre
 - **Predicted Outcome:** DRAW
 - **Expected Score:** 0 - 0
-- **Team Strengths (Aggregated Impact):** Home: 2.62 | Away: 2.73
-- **Match Stats:** Corners (Home: 1 | Away: 8) | Fouls (Home: 9 | Away: 15) | Cards (Home Yellows: 3 | Away Yellows: 3)
-- **Top Impact Players (Home):** Nguyễn Văn Toản (0.22), Hong Phuc Nguyen (0.24), Đỗ Phi Long (0.23)
-- **Top Impact Players (Away):** Y Eli Nie (0.24), Truong Thanh Nam (0.23), Ngoc Ha Doan (0.25)
+- **Team Strengths (Aggregated Impact):** Home: 2.61 | Away: 2.60
+- **Match Stats:** Corners (Home: 6 | Away: 7) | Fouls (Home: 16 | Away: 17) | Cards (Home Yellows: 3 | Away Yellows: 3)
+- **Top Impact Players (Home):** Roberto Ramírez (0.23), Lucas Arce (0.25), Tomas Daniel Rossi (0.28)
+- **Top Impact Players (Away):** Joaquín Ledesma (0.24), Brian Mieres (0.24), Pablo Minissale (0.26)
 
 ---
 
-### [V-League 1] Sông Lam Nghệ An vs PVF-Công An Nhân Dân
+### [Primera B Nacional] Club Atletico Colón vs Ciudad de Bolivar
 - **Predicted Outcome:** DRAW
-- **Expected Score:** 2 - 2
-- **Team Strengths (Aggregated Impact):** Home: 2.52 | Away: 2.65
-- **Match Stats:** Corners (Home: 4 | Away: 5) | Fouls (Home: 13 | Away: 11) | Cards (Home Yellows: 7 | Away Yellows: 1)
-- **Top Impact Players (Home):** Huu Hau Nguyen (0.24), Lê Nguyên Hoàng (0.23), Van Thanh Phan (0.22)
-- **Top Impact Players (Away):** Đỗ Sỹ Huy (0.23), Anh Quan Vo (0.23), Pham Ly Duc (0.24)
+- **Expected Score:** 0 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.60 | Away: 2.63
+- **Match Stats:** Corners (Home: 3 | Away: 1) | Fouls (Home: 15 | Away: 8) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Matias Budino (0.24), Mauro Peinipil (0.25), Pier Barrios (0.24)
+- **Top Impact Players (Away):** Agustín Rufinetti (0.23), Agustín Paredes (0.23), Ezequiel Navarro (0.25)
 
 ---
 
-### [V-League 1] Thể Công - Viettel vs Công An Hà Nội
+### [Liga de Ascenso] Club Deportes Antofagasta vs Deportes Magallanes
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 1 - 1
+- **Team Strengths (Aggregated Impact):** Home: 2.56 | Away: 2.54
+- **Match Stats:** Corners (Home: 2 | Away: 3) | Fouls (Home: 6 | Away: 14) | Cards (Home Yellows: 0 | Away Yellows: 2)
+- **Top Impact Players (Home):** Fernando Hurtado (0.18), Mathías Suárez (0.24), Bastián Tapia (0.2)
+- **Top Impact Players (Away):** Joaquín Muñoz (0.23), Alonso Walters (0.25), Matías Vásquez (0.25)
+
+---
+
+### [Copa de la Liga, Group D] Deportes La Serena vs Unión La Calera
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 0 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.63 | Away: 2.76
+- **Match Stats:** Corners (Home: 5 | Away: 2) | Fouls (Home: 7 | Away: 8) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Federico Lanzillotta (0.23), Bruno Gutiérrez (0.25), Francis Mac Allister (0.25)
+- **Top Impact Players (Away):** Nicolás Avellaneda (0.24), Christopher Díaz (0.27), Cristián Gutiérrez (0.24)
+
+---
+
+### [Copa de la Liga, Group D] Universidad de Chile vs Audax Italiano
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 0 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.58 | Away: 2.63
+- **Match Stats:** Corners (Home: 3 | Away: 11) | Fouls (Home: 11 | Away: 16) | Cards (Home Yellows: 3 | Away Yellows: 1)
+- **Top Impact Players (Home):** Gabriel Castellón (0.23), Nicolás Fernández (0.23), Franco Calderón (0.2)
+- **Top Impact Players (Away):** Tomás Ahumada (0.24), Raimundo Rebolledo (0.2), Enzo Ferrario (0.2)
+
+---
+
+### [U17 European Championship, Knockout stage] Belgium U17 vs Italy U17
+- **Predicted Outcome:** Italy U17 WIN
+- **Expected Score:** 0 - 1
+- **Team Strengths (Aggregated Impact):** Home: 2.70 | Away: 2.72
+- **Match Stats:** Corners (Home: 6 | Away: 3) | Fouls (Home: 6 | Away: 15) | Cards (Home Yellows: 0 | Away Yellows: 2)
+- **Top Impact Players (Home):** Mattis Seghers (0.23), Tinus Moorthamer (0.25), Elie Mbavu (0.26)
+- **Top Impact Players (Away):** Christian Lupo (0.28), Giampaolo Bonifazi (0.25), Djibril Diallo (0.23)
+
+---
+
+### [1st Division] Ranheim IL vs Strømmen IF
 - **Predicted Outcome:** DRAW
 - **Expected Score:** 2 - 2
-- **Team Strengths (Aggregated Impact):** Home: 2.59 | Away: 2.60
-- **Match Stats:** Corners (Home: 4 | Away: 1) | Fouls (Home: 15 | Away: 18) | Cards (Home Yellows: 0 | Away Yellows: 1)
-- **Top Impact Players (Home):** Nguyễn Văn Việt (0.25), Tuan Tai Phan (0.24), Damian Vu Thanh (0.17)
-- **Top Impact Players (Away):** Nguyễn Filip (0.24), Trần Đình Trọng (0.25), Stefan Mauk (0.23)
+- **Team Strengths (Aggregated Impact):** Home: 2.41 | Away: 2.67
+- **Match Stats:** Corners (Home: 4 | Away: 1) | Fouls (Home: 18 | Away: 9) | Cards (Home Yellows: 4 | Away Yellows: 1)
+- **Top Impact Players (Home):** Jacob Storevik (0.24), Tage Bjordal Haukeberg (0.25), Jonas Pereira (0.18)
+- **Top Impact Players (Away):** Knut Andre Skjaerstein (0.21), Thomas Lillo (0.24), Maximilian Mortensen Balatoni (0.24)
+
+---
+
+### [Ettan, Norra] FC Arlanda vs Assyriska FF
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 2 - 2
+- **Team Strengths (Aggregated Impact):** Home: 2.68 | Away: 2.63
+- **Match Stats:** Corners (Home: 7 | Away: 8) | Fouls (Home: 14 | Away: 11) | Cards (Home Yellows: 4 | Away Yellows: 2)
+- **Top Impact Players (Home):** Adam Smedberg Lagh (0.26), Leonard Kleist (0.25), Erik Johansson Olsson (0.23)
+- **Top Impact Players (Away):** Kingdom Osayi (0.26), Alfredo Martiatu Nordeman (0.24), Elias Ländin Sjöblom (0.24)
+
+---
+
+### [Ettan, Sodra] Trelleborgs FF vs Skövde AIK
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 3 - 3
+- **Team Strengths (Aggregated Impact):** Home: 2.65 | Away: 2.68
+- **Match Stats:** Corners (Home: 7 | Away: 3) | Fouls (Home: 23 | Away: 10) | Cards (Home Yellows: 5 | Away Yellows: 0)
+- **Top Impact Players (Home):** Malte Pahlsson (0.25), Johan Brannefalk (0.25), Oskar Sverrisson (0.27)
+- **Top Impact Players (Away):** Amar Ibrahimovic (0.28), Samuel Sorman (0.22), Hannes Forsgård (0.26)
+
+---
+
+### [Ettan, Sodra] Åtvidabergs FF vs Tvååkers IF
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 1 - 1
+- **Team Strengths (Aggregated Impact):** Home: 2.66 | Away: 2.60
+- **Match Stats:** Corners (Home: 8 | Away: 4) | Fouls (Home: 11 | Away: 11) | Cards (Home Yellows: 2 | Away Yellows: 1)
+- **Top Impact Players (Home):** Hugo Claesson (0.24), Ali Kachmar (0.26), Tufve Östlund (0.24)
+- **Top Impact Players (Away):** Alexander Nielsen (0.16), Viggo Gustavsson (0.24), Gabriel Gustavsson (0.25)
+
+---
+
+### [Tournoi Maurice Revello, Group A] China U22 vs Tunisia U20
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 0 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.66 | Away: 2.70
+- **Match Stats:** Corners (Home: 3 | Away: 5) | Fouls (Home: 12 | Away: 13) | Cards (Home Yellows: 0 | Away Yellows: 0)
+- **Top Impact Players (Home):** Zhicheng An (0.25), Gengrui Wang (0.25), Wuyue Guo (0.24)
+- **Top Impact Players (Away):** Anas Khardani (0.24), Josef Taieb (0.25), Mohamed Amine Allela (0.23)
 
 ---
 

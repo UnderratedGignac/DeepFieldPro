@@ -1,4 +1,4 @@
-from app_config import config
+from src.app_config import config
 
 # mypy: ignore-errors
 import lightgbm as lgb
@@ -220,7 +220,7 @@ for market, y in [("shots", df["shots_per_90"]), ("sot", df["sot_per_90"])]:
         m = lgb.LGBMRegressor(**params)
         m.fit(X, y, sample_weight=weights)
         m.booster_.save_model(
-            os.path.join(config.MODEL_DIR, "{market}_p{int(q*100)}.txt")
+            os.path.join(config.MODEL_DIR, f"{market}_p{int(q*100)}.txt")
         )
         print(f"  Trained {market} q={q}")
 
@@ -241,7 +241,7 @@ for market, y in [
     }
     m = lgb.LGBMRegressor(**params)
     m.fit(X, y, sample_weight=weights)
-    m.booster_.save_model(os.path.join(config.MODEL_DIR, "{market}_mean.txt"))
+    m.booster_.save_model(os.path.join(config.MODEL_DIR, f"{market}_mean.txt"))
     print(
         f"  Trained {market} Mean Model. Avg prediction rate: {m.predict(X.head(1))[0]:.3f} per 90"
     )

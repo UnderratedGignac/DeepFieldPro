@@ -10,13 +10,13 @@ echo [1/3] Starting the AI Engine Daemon...
 start "DeepFieldPro Daemon" cmd /k "python src\live_predictions_daemon.py"
 
 echo [2/3] Starting the Web Dashboard...
-start "DeepFieldPro Web Dashboard Server" cmd /k "python src\live_dashboard_server.py"
+start "DeepFieldPro Web Dashboard Server" cmd /k "set DEEPFIELD_DISABLE_DAEMON=1&&python src\live_dashboard_server.py"
 
 echo [3/3] Waiting for the server to spin up...
-timeout /t 3 /nobreak > nul
+timeout /t 5 /nobreak > nul
 
 echo Opening the dashboard in your default browser...
-start http://127.0.0.1:5000/
+start http://127.0.0.1:5050/
 
 echo.
 echo =======================================================

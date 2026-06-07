@@ -25,7 +25,7 @@ def test_1_poisson_variance():
     print("\n--- TEST 1: Poisson lambda variance ---")
     try:
         models = load_models()
-        players = ["Chris Wood", "Christian Eriksen", "Robert Lewandowski", "Ademola Lookman", "Cody Gakpo"]
+        players = ["Olivier Giroud", "Ousmane Dembele", "Marcelo Brozovic", "Antoine Griezmann", "Luka Modric"]
         probs = []
         for p in players:
             stats = get_player_historical_stats(p, "FW", "International")
@@ -60,7 +60,7 @@ def test_2_competition_routing():
 
 def test_3_missing_fallback():
     print("\n--- TEST 3: Missing player fallback ---")
-    stats = get_player_historical_stats("Neil Etheridge", FallbackPosition_P="FW", FallbackLeague_P="ENG-Premier League")
+    stats = get_player_historical_stats("Neil Etheridge", FallbackPosition_P="Forward", FallbackLeague_P="World Cup 2022")
     passed = False
     if stats is not None and stats.get('is_fallback') == True:
         passed = True
@@ -68,7 +68,7 @@ def test_3_missing_fallback():
     log_path = os.path.join(BASE_DIR, 'data', 'missing_players.log')
     logged = False
     if os.path.exists(log_path):
-        with open(log_path, 'r') as f:
+        with open(log_path, 'r', encoding="utf-8", errors="replace") as f:
             if "Neil Etheridge" in f.read():
                 logged = True
                 

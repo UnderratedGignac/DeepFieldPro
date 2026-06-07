@@ -164,7 +164,14 @@ def get_stair_balance():
 def get_tracker():
     rows = query_db(
         "bet_log.db",
-        "SELECT bet_id, match_id, player_id, market_type, entry_odds, closing_odds, edge_pct, stake, result, pnl, placed_at, bet_source, is_recommended FROM bet_log ORDER BY placed_at DESC LIMIT 50",
+        """
+        SELECT b.bet_id, b.match_id, b.player_id, b.market_type, b.entry_odds, 
+               b.closing_odds, b.edge_pct, b.stake, b.result, b.pnl, b.placed_at, 
+               b.bet_source, b.is_recommended, p.kickoff
+        FROM bet_log b
+        LEFT JOIN predictions p ON b.match_id = p.match_name
+        ORDER BY b.placed_at DESC LIMIT 50
+        """,
     )
 
     stats = {"W": 0, "L": 0, "OPEN": 0}
@@ -676,6 +683,41 @@ def get_comparison(fixture_id):
     return jsonify({"prediction": prediction, "actuals": actuals})
 
 
+def init_databases():
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        
+        # Ensure bet_log table exists using bet_logger
+        try:
+            from bet_logger import init_bet_log_db
+            init_bet_log_db()
+        except Exception as e:
+            print("[!] Error calling init_bet_log_db:", e)
+            
+        # Ensure stair_orders table exists
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS stair_orders (
+                bet_id TEXT PRIMARY KEY,
+                order_id TEXT,
+                FOREIGN KEY(bet_id) REFERENCES bet_log(bet_id)
+            )
+        """)
+        
+        # Backfill existing AI bets in bet_log with dummy order_ids if they don't exist in stair_orders
+        cur.execute("SELECT bet_id FROM bet_log WHERE bet_source='AI'")
+        ai_bets = [r[0] for r in cur.fetchall()]
+        for bet_id in ai_bets:
+            cur.execute("INSERT OR IGNORE INTO stair_orders (bet_id, order_id) VALUES (?, ?)", (bet_id, f"STAIR_DUMMY_{bet_id[-8:]}"))
+            
+        conn.commit()
+        conn.close()
+        print("[+] Databases verified and initialized successfully.")
+    except Exception as e:
+        print("[!] Error initializing databases in server:", e)
+
+
 def start_background_prediction_worker():
     try:
         import threading
@@ -689,6 +731,10 @@ def start_background_prediction_worker():
 
 
 if __name__ == "__main__":
-    start_background_prediction_worker()
+    init_databases()
+    if os.getenv("DEEPFIELD_DISABLE_DAEMON") != "1":
+        start_background_prediction_worker()
+    else:
+        print("[*] Background prediction worker thread is DISABLED (running in multi-process mode).")
     print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5050")
     app.run(host="0.0.0.0", port=5050, debug=False)

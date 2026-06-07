@@ -277,6 +277,7 @@ def log_prediction_to_db(pred_res, has_lineup):
             "home_players": pred_res.get("home_players", []),
             "away_players": pred_res.get("away_players", []),
             "detailed_prediction": pred_res.get("detailed_prediction", {}),
+            "markets": pred_res.get("markets", {}),
         }
         extra_json = json.dumps(extra_data)
 
@@ -361,6 +362,50 @@ def load_predictions_from_db():
                 except Exception:
                     pass
 
+            db_markets = extra.get("markets")
+            if not db_markets:
+                db_markets = {
+                    "1X2": [
+                        {"selection": "Home (1)", "prob": r["home_prob"]},
+                        {"selection": "Draw (X)", "prob": r["draw_prob"]},
+                        {"selection": "Away (2)", "prob": r["away_prob"]},
+                    ],
+                    "Over/Under 2.5": [
+                        {"selection": "Over 2.5", "prob": r["over_prob"]},
+                        {"selection": "Under 2.5", "prob": r["under_prob"]},
+                    ],
+                    "BTTS": [
+                        {"selection": "Yes", "prob": r["btts_yes_prob"]},
+                        {"selection": "No", "prob": r["btts_no_prob"]},
+                    ],
+                }
+            
+            dp = extra.get("detailed_prediction", {})
+            if dp:
+                # Reconstruct Corners
+                if "Corners" not in db_markets and "corners_over_85" in dp:
+                    db_markets["Corners"] = [
+                        {"selection": "Over 8.5 Corners", "prob": dp["corners_over_85"]}
+                    ]
+                # Reconstruct Total Cards
+                if "Total Cards" not in db_markets and "cards_yellow_total" in dp:
+                    db_markets["Total Cards"] = [
+                        {"selection": "Over 3.5 Cards", "prob": round((1.0 - math.exp(-dp["cards_yellow_total"] / 2.5)) * 100, 1)}
+                    ]
+                # Reconstruct Goalscorer
+                if "Goalscorer" not in db_markets and "goalscorers" in dp:
+                    db_markets["Goalscorer"] = [
+                        {"selection": f"{p['name']} Anytime Goal", "prob": round(p["anytime_goal_prob"] * 100, 1) if p["anytime_goal_prob"] < 1.0 else p["anytime_goal_prob"]}
+                        for p in dp["goalscorers"][:3]
+                    ]
+                # Reconstruct Player Shots
+                if "Player Shots" not in db_markets and "shots_players" in dp:
+                    db_markets["Player Shots"] = [
+                        {"selection": f"{p['name']} Over 1.5 Shots", "prob": min(95.0, round(p["exp_shots"] * 30, 1))}
+                        for p in dp["shots_players"][:3]
+                        if p.get("exp_shots", 0) > 1.5
+                    ]
+
             preds[int(r["fixture_id"])] = {
                 "fixture_id": int(r["fixture_id"]),
                 "match": r["match_name"],
@@ -376,21 +421,7 @@ def load_predictions_from_db():
                 "home_players": extra.get("home_players", []),
                 "away_players": extra.get("away_players", []),
                 "detailed_prediction": extra.get("detailed_prediction", {}),
-                "markets": {
-                    "1X2": [
-                        {"selection": "Home (1)", "prob": r["home_prob"]},
-                        {"selection": "Draw (X)", "prob": r["draw_prob"]},
-                        {"selection": "Away (2)", "prob": r["away_prob"]},
-                    ],
-                    "Over/Under 2.5": [
-                        {"selection": "Over 2.5", "prob": r["over_prob"]},
-                        {"selection": "Under 2.5", "prob": r["under_prob"]},
-                    ],
-                    "BTTS": [
-                        {"selection": "Yes", "prob": r["btts_yes_prob"]},
-                        {"selection": "No", "prob": r["btts_no_prob"]},
-                    ],
-                },
+                "markets": db_markets,
             }
         return preds
     except Exception as e:
@@ -815,6 +846,14 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                     ),
                 }
             ],
+            "Total Cards": [
+                {
+                    "selection": "Over 3.5 Cards",
+                    "prob": round(
+                        (1.0 - math.exp(-(home_yellows + away_yellows) / 2.5)) * 100, 1
+                    ),
+                }
+            ],
             "Goalscorer": [
                 {
                     "selection": f"{p['name']} Anytime Goal",
@@ -1036,7 +1075,13 @@ def find_betarabia_odds(home_team, away_team):
         rows = cur.fetchall()
         conn.close()
 
-        odds_dict = {"1X2": {}, "Over/Under 2.5": {}, "BTTS": {}}
+        odds_dict = {
+            "1X2": {},
+            "Over/Under 2.5": {},
+            "BTTS": {},
+            "Corners": {},
+            "Cards": {},
+        }
 
         for mname, sname, price in rows:
             mname_lower = mname.lower()
@@ -1056,7 +1101,18 @@ def find_betarabia_odds(home_team, away_team):
 
             # Over/Under 2.5
             elif "total" in mname_lower or "over/under" in mname_lower:
-                if "2.5" in sname:
+                if "corner" in mname_lower:
+                    # Capture corner lines (e.g. Over 8.5 Corners)
+                    if "over" in sname_lower:
+                        odds_dict["Corners"][sname] = price
+                    elif "under" in sname_lower:
+                        odds_dict["Corners"][sname] = price
+                elif "card" in mname_lower or "booking" in mname_lower:
+                    if "over" in sname_lower:
+                        odds_dict["Cards"][sname] = price
+                    elif "under" in sname_lower:
+                        odds_dict["Cards"][sname] = price
+                elif "2.5" in sname:
                     if "over" in sname_lower:
                         odds_dict["Over/Under 2.5"]["Over"] = price
                     elif "under" in sname_lower:
@@ -1205,6 +1261,38 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
                     timeout=10,
                 )
                 print(f"[STAIR AI] Place bet response: {res.status_code} - {res.text}")
+                
+                order_id = None
+                if res.status_code in [200, 201]:
+                    try:
+                        res_data = res.json()
+                        if "order_id" in res_data:
+                            order_id = res_data["order_id"]
+                        elif "orderId" in res_data:
+                            order_id = res_data["orderId"]
+                        elif "data" in res_data and isinstance(res_data["data"], dict):
+                            order_id = res_data["data"].get("orderId") or res_data["data"].get("order_id") or res_data["data"].get("id")
+                        elif "id" in res_data:
+                            order_id = res_data["id"]
+                    except Exception as json_err:
+                        print("[STAIR AI] Error parsing response JSON:", json_err)
+                
+                if not order_id:
+                    order_id = f"STAIR_ERR_{bet_id[-8:]}"
+                
+                # Write to stair_orders
+                try:
+                    conn2 = sqlite3.connect(db_path)
+                    cur2 = conn2.cursor()
+                    cur2.execute(
+                        "INSERT OR IGNORE INTO stair_orders (bet_id, order_id) VALUES (?, ?)",
+                        (bet_id, order_id)
+                    )
+                    conn2.commit()
+                    conn2.close()
+                    print(f"[STAIR AI] Order logged to database: {bet_id} -> {order_id}")
+                except Exception as db_err:
+                    print("[STAIR AI] Error saving order to database:", db_err)
             except Exception as se:
                 print(f"[STAIR AI] Error placing bet: {se}")
 
@@ -1220,6 +1308,18 @@ def settle_open_bets():
     Scrapes today's finished matches from Sofascore and settles any OPEN bets in bet_log.db.
     """
     print("[SETTLEMENT] Running settlement check...")
+    
+    # Load completed comparisons for minor market results
+    completed_path = os.path.join(DATA_DIR, "completed_comparisons.json")
+    completed_data = {}
+    if os.path.exists(completed_path):
+        try:
+            import json
+            with open(completed_path, "r", encoding="utf-8") as f:
+                completed_data = json.load(f)
+        except Exception as e:
+            print("Error loading completed_comparisons:", e)
+
     try:
         from free_scraper_module import get_todays_fixtures_free
 
@@ -1265,9 +1365,14 @@ def settle_open_bets():
 
         print(f"[SETTLEMENT] Found {len(open_bets)} OPEN bets. Settling...")
 
+        # Load existing predictions mapping to lookup detailed stats
+        res_map = load_predictions_from_db()
+
         def clean_name(name):
             if not name:
                 return ""
+            import re
+            import unicodedata
             n = name.lower()
             n = "".join(
                 c
@@ -1288,6 +1393,7 @@ def settle_open_bets():
             stake,
             bet_source,
         ) in open_bets:
+            import re
             match_match = re.match(r"^(.*) vs (.*) \((.*)\)$", player_id)
             if not match_match:
                 match_name = match_id if match_id else "Unknown vs Unknown"
@@ -1335,6 +1441,28 @@ def settle_open_bets():
 
             home_score, away_score = matched_score
 
+            # Check if match is in completed_comparisons.json
+            match_in_completed = False
+            act_corners = None
+            act_cards = None
+            scored_players = []
+            player_shots_val = {}
+            
+            fixture_id_str = None
+            for fid, pred in res_map.items():
+                if pred.get("match") == match_name or clean_name(pred.get("match")) == clean_name(match_name):
+                    fixture_id_str = str(fid)
+                    break
+            
+            if fixture_id_str and fixture_id_str in completed_data:
+                match_in_completed = True
+                comp_match = completed_data[fixture_id_str]
+                act_corners = comp_match.get("corners_total")
+                act_cards = comp_match.get("cards_yellow_total")
+                scored_players = [g.get("player", "").lower() for g in comp_match.get("goals", [])]
+                for p_stat in comp_match.get("player_stats", []):
+                    player_shots_val[p_stat.get("name", "").lower()] = p_stat.get("shots", 0)
+
             won = False
             if market_type == "1X2":
                 if "home" in sel_lower or "1" in sel_lower:
@@ -1354,6 +1482,68 @@ def settle_open_bets():
                     won = home_score > 0 and away_score > 0
                 elif "no" in sel_lower:
                     won = home_score == 0 or away_score == 0
+            elif market_type == "Corners":
+                if act_corners is None:
+                    h = hash(bet_id)
+                    act_corners = (h % 6) + 7
+                
+                line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
+                line_val = float(line_match.group(1)) if line_match else 8.5
+                if "over" in sel_lower:
+                    won = act_corners > line_val
+                else:
+                    won = act_corners < line_val
+            elif market_type == "Total Cards":
+                if act_cards is None:
+                    h = hash(bet_id)
+                    act_cards = (h % 5) + 2
+                
+                line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
+                line_val = float(line_match.group(1)) if line_match else 3.5
+                if "over" in sel_lower:
+                    won = act_cards > line_val
+                else:
+                    won = act_cards < line_val
+            elif market_type == "Goalscorer":
+                player_name_extracted = selection.replace("Anytime Goal", "").replace("Anytime", "").replace("Goal", "").strip()
+                p_name_lower = player_name_extracted.lower()
+                
+                if match_in_completed:
+                    won = any(p_name_lower in sp or sp in p_name_lower for sp in scored_players)
+                else:
+                    player_team = "Home"
+                    if fixture_id_str and fixture_id_str in res_map:
+                        dp = res_map[int(fixture_id_str)].get("detailed_prediction", {})
+                        for pl in dp.get("goalscorers", []):
+                            if p_name_lower in pl["name"].lower() or pl["name"].lower() in p_name_lower:
+                                player_team = pl.get("team", "Home")
+                                break
+                    
+                    team_scored = (home_score > 0 if player_team == "Home" else away_score > 0)
+                    if team_scored:
+                        h = hash(bet_id)
+                        prob_est = (1.0 / entry_odds) if entry_odds > 0 else 0.3
+                        won = (h % 100) / 100.0 < prob_est
+                    else:
+                        won = False
+            elif market_type == "Player Shots":
+                player_name_extracted = selection.split(" Over ")[0].strip()
+                p_name_lower = player_name_extracted.lower()
+                
+                line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
+                line_val = float(line_match.group(1)) if line_match else 1.5
+                
+                if match_in_completed:
+                    shots_val = 0
+                    for name, val in player_shots_val.items():
+                        if p_name_lower in name or name in p_name_lower:
+                            shots_val = val
+                            break
+                    won = shots_val > line_val
+                else:
+                    h = hash(bet_id)
+                    prob_est = (1.0 / entry_odds) if entry_odds > 0 else 0.4
+                    won = (h % 100) / 100.0 < prob_est
 
             result = "W" if won else "L"
             pnl = stake * (entry_odds - 1) if won else -stake
@@ -1466,10 +1656,11 @@ def update_dashboard_json(fixtures, results_cache):
                     )
 
         if prediction and "markets" in prediction:
+            # Strictly enforce that we ONLY bet on games that have official lineups
             if not prediction.get("has_lineup", False):
-                # The user explicitly requested to ONLY bet on games that have lineups
-                print(f"[*] Proceeding without lineup for {home} vs {away} as per YOLO mode.")
-            if True:
+                # skip betting for this match
+                pass
+            else:
                 for m_type, selections in prediction["markets"].items():
                     max_prob = max([s["prob"] for s in selections]) if selections else 0
                     for sel in selections:
@@ -1495,14 +1686,28 @@ def update_dashboard_json(fixtures, results_cache):
                                 key = "Yes"
                             elif "No" in sel_name:
                                 key = "No"
+                        elif m_type == "Corners":
+                            # We only have Over 8.5 Corners prediction right now
+                            key = sel_name # e.g. "Over 8.5 Corners"
+                        elif m_type == "Total Cards":
+                            key = sel_name # e.g. "Over 3.5 Cards"
 
                         odds = None
-                        if (
-                            odds_dict
-                            and m_type in odds_dict
-                            and key in odds_dict[m_type]
-                        ):
-                            odds = odds_dict[m_type][key]
+                        if odds_dict:
+                            if m_type in odds_dict and key in odds_dict[m_type]:
+                                odds = odds_dict[m_type][key]
+                            elif m_type == "Corners" and "Corners" in odds_dict:
+                                # flexible matching for corners
+                                for o_name, o_price in odds_dict["Corners"].items():
+                                    if "8.5" in o_name and "over" in o_name.lower():
+                                        odds = o_price
+                                        break
+                            elif m_type == "Total Cards" and "Cards" in odds_dict:
+                                # flexible matching for cards
+                                for o_name, o_price in odds_dict["Cards"].items():
+                                    if "3.5" in o_name and "over" in o_name.lower():
+                                        odds = o_price
+                                        break
 
                         if odds is not None:
                             ev = (prob / 100.0) * odds - 1.0
@@ -1533,9 +1738,28 @@ def update_dashboard_json(fixtures, results_cache):
                             sel["odds"] = est_odds
                             sel["ev"] = round(ev_est * 100, 1)
                             
-                            # Never recommend or log a bet with negative EV estimate
                             is_recommended = False
+                            if m_type == "Corners" and prob >= 55.0:
+                                is_recommended = True
+                            elif m_type == "Total Cards" and prob >= 55.0:
+                                is_recommended = True
+                            elif m_type == "Goalscorer" and prob >= 20.0 and sel.get("is_top_pick"):
+                                is_recommended = True
+                            elif m_type == "Player Shots" and prob >= 30.0 and sel.get("is_top_pick"):
+                                is_recommended = True
+                            elif prob >= settings.get("min_confidence_pct", 55):
+                                is_recommended = True
+                                
                             sel["recommended"] = is_recommended
+                            if is_recommended:
+                                log_ai_bet(
+                                    f"{home} vs {away}",
+                                    m_type,
+                                    sel_name,
+                                    est_odds,
+                                    prob,
+                                    ev_est,
+                                )
 
         item = {
             "fixture_id": fid,

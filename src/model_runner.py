@@ -82,7 +82,7 @@ def get_player_historical_stats(
     if matches.empty:
         # Log missing player
         log_path = os.path.join(DATA_DIR, "missing_players.log")
-        with open(log_path, "a") as f:
+        with open(log_path, "a", encoding="utf-8") as f:
             f.write(
                 f"{datetime.now(timezone.utc).isoformat()} - MISSING: {player_name}\n"
             )

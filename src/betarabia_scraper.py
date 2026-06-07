@@ -55,6 +55,12 @@ ODD_CODE_MAP = {
     "ODD_FTB_DC_1X": "Double Chance",
     "ODD_FTB_DC_X2": "Double Chance",
     "ODD_FTB_DC_12": "Double Chance",
+    "ODD_CORNER_TTL_OVR": "Total Corners",
+    "ODD_CORNER_TTL_UND": "Total Corners",
+    "ODD_CARD_TTL_OVR": "Total Cards",
+    "ODD_CARD_TTL_UND": "Total Cards",
+    "ODD_YEL_TTL_OVR": "Total Yellow Cards",
+    "ODD_YEL_TTL_UND": "Total Yellow Cards",
 }
 
 
@@ -172,14 +178,21 @@ def is_player_prop(MarketName_P: str) -> bool:
         "shots",
         "passes",
         "tackles",
-        "cards",
-        "goals",
         "assists",
         "to score",
         "shots on target",
         "pass attempts",
+        "goalscorer",
+        "offsides",
     ]
-    return any(K_V in MarketName_P.lower() for K_V in Keywords_V)
+    name = MarketName_P.lower()
+    # Check for player prop keywords
+    if any(K_V in name for K_V in Keywords_V):
+        return True
+    # 'cards' and 'goals' are player props ONLY if they involve a specific player name or 'player' label
+    if ("cards" in name or "goals" in name or "goal" in name) and ("player" in name or "anytime" in name):
+        return True
+    return False
 
 
 def parse_player_prop(SelectionName_P: str, MarketName_P: str):
@@ -459,17 +472,14 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                     if "both teams" in NameLower_V:
                         MarketName_V = "Both teams to score"
                     elif "over" in NameLower_V or "under" in NameLower_V:
-                        MarketName_V = "Total Goals"
+                        if "corner" in NameLower_V:
+                            MarketName_V = "Total Corners"
+                        elif "booking" in NameLower_V or "card" in NameLower_V:
+                            MarketName_V = "Total Cards"
+                        else:
+                            MarketName_V = "Total Goals"
                     else:
                         MarketName_V = "Match Result"
-
-                CodeLower_V = OddCode_V.lower()
-                NameLower_V = SelectionName_V.lower()
-                if any(
-                    Skip_V in CodeLower_V or Skip_V in NameLower_V
-                    for Skip_V in ["corner", "offside", "freeKick", "booking"]
-                ):
-                    continue
 
                 AdditionalValue_V = Odd_V.get("additionalValue", "")
                 try:
@@ -503,8 +513,146 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                         }
                     )
 
-    return MarketsByEvent_V
+        # Option C: single-pre-event.json (Deep Markets)
+        if "single-pre-event.json" in Url_V:
+            # logger.info(f"[PARSER] Found deep market file: {Url_V[:100]}")
+            EventData_V = Data_V.get("data")
+            if not isinstance(EventData_V, dict):
+                EventData_V = Data_V # Fallback if 'data' wrapper is missing
+            
+            Groups_V = EventData_V.get("groups", [])
+            Info_V = EventData_V.get("info", {})
+            EventId_V = str(Info_V.get("id") or Data_V.get("id", ""))
+            
+            if not EventId_V and "lb/" in Url_V:
+                import re
+                match = re.search(r'lb/(\d+)/', Url_V)
+                if match:
+                    EventId_V = match.group(1)
 
+            # Ensure EventId_V is a string for lookup
+            EventId_V = str(EventId_V) if EventId_V else ""
+
+            if EventId_V and EventId_V in MarketsByEvent_V:
+                found_deep = 0
+                
+                # C.1: Try groups structure
+                for Group_V in Groups_V:
+                    for Mkt_V in Group_V.get("markets", []):
+                        MarketId_V = str(Mkt_V.get("id"))
+                        MarketName_V = Mkt_V.get("name", "")
+                        for Selection_V in Mkt_V.get("odds", []):
+                            UniqueOddId_V = f"{EventId_V}_{Selection_V.get('id')}"
+                            if not any(m["market_id"] == UniqueOddId_V for m in MarketsByEvent_V[EventId_V]):
+                                # Reuse market name mapping logic
+                                MName_V = ODD_CODE_MAP.get(Selection_V.get("oddCode"), "")
+                                if not MName_V:
+                                    MName_V = MarketName_V
+                                
+                                SelectionNorm_V = _normalize_selection(
+                                    Selection_V.get("name", ""),
+                                    Selection_V.get("oddCode", ""),
+                                    EventsById_P.get(EventId_V, {}),
+                                    Selection_V.get("additionalValue"),
+                                )
+                                MarketsByEvent_V[EventId_V].append({
+                                    "market_id": UniqueOddId_V,
+                                    "market_name": MName_V,
+                                    "selection_name": SelectionNorm_V,
+                                    "raw_odds": float(Selection_V.get("value", 0)),
+                                    "odd_code": Selection_V.get("oddCode", "")
+                                })
+                                found_deep += 1
+
+                # C.2: Try direct odds structure
+                DeepOdds_V = EventData_V.get("odds", {})
+                if isinstance(DeepOdds_V, dict) and len(DeepOdds_V) > 0:
+                    logger.info(f"[PARSER] Event {EventId_V} has {len(DeepOdds_V)} odds in deep file.")
+                    for OddId_V, Odd_V in DeepOdds_V.items():
+                        if not isinstance(Odd_V, dict): continue
+                        
+                        # Support both camelCase and snake_case keys
+                        OddValue_V = Odd_V.get("oddValue") or Odd_V.get("odd_value")
+                        try:
+                            OddValue_V = float(OddValue_V)
+                        except (TypeError, ValueError): continue
+
+                        SelectionName_V = Odd_V.get("name") or Odd_V.get("team_name") or ""
+                        OddCode_V = Odd_V.get("oddCode") or Odd_V.get("odd_code") or ""
+                        AdditionalValue_V = Odd_V.get("additionalValue") or Odd_V.get("additional_value") or Odd_V.get("additional_value_raw")
+
+                        MName_V = ODD_CODE_MAP.get(OddCode_V, "")
+                        if not MName_V:
+                            # Map by prefix of odd_code for player props
+                            code_upper = OddCode_V.upper()
+                            if code_upper.startswith("ODD_PLR_SHOTSONTARGET"):
+                                MName_V = "Player Shots on Target"
+                            elif code_upper.startswith("ODD_PLR_SHOTS"):
+                                MName_V = "Player Shots"
+                            elif code_upper.startswith("ODD_SPLR_GOALASSIST"):
+                                MName_V = "Player Assists"
+                            elif code_upper.startswith("ODD_SPLR_SCORES"):
+                                MName_V = "Player Anytime Goalscorer"
+                            elif code_upper.startswith("ODD_SPLR_CARDED") or code_upper.startswith("ODD_SPLR_YELLOWCARDED"):
+                                MName_V = "Player Cards"
+                            elif code_upper.startswith("ODD_PLR_OFFSIDES"):
+                                MName_V = "Player Offsides"
+                            else:
+                                NameLower_V = SelectionName_V.lower()
+                                MarketLabel_V = (Odd_V.get("marketName") or Odd_V.get("market_name") or "").lower()
+                                if "both teams" in NameLower_V or "both teams" in MarketLabel_V:
+                                    MName_V = "Both teams to score"
+                                elif "corner" in NameLower_V or "corner" in MarketLabel_V:
+                                    MName_V = "Total Corners"
+                                elif "booking" in NameLower_V or "card" in NameLower_V or "booking" in MarketLabel_V or "card" in MarketLabel_V:
+                                    MName_V = "Total Cards"
+                                elif "over" in NameLower_V or "under" in NameLower_V:
+                                    MName_V = "Total Goals"
+                                else:
+                                    MName_V = "Match Result"
+
+                        # If this is a player prop and we have team_player_1_name, format the selection name correctly
+                        PlayerName_V = None
+                        if isinstance(Odd_V.get("team_player_1_name"), dict):
+                            PlayerName_V = Odd_V["team_player_1_name"].get("en")
+                        
+                        if PlayerName_V and any(kw in MName_V.lower() for kw in ["shots", "assists", "goalscorer", "cards", "offsides"]):
+                            # Determine over/under and line
+                            # E.g. default line is 0.5 for binary props, or use AdditionalValue_V
+                            try:
+                                LineVal_V = float(AdditionalValue_V) if AdditionalValue_V is not None else 0.5
+                            except (ValueError, TypeError):
+                                LineVal_V = 0.5
+                            
+                            # Casing check for "over" or "under"
+                            is_under = "under" in SelectionName_V.lower() or "und" in OddCode_V.lower() or "under" in str(Odd_V.get("ttl", "")).lower()
+                            dir_str = "Under" if is_under else "Over"
+                            SelectionNorm_V = f"{PlayerName_V} {dir_str} {LineVal_V}"
+                        else:
+                            SelectionNorm_V = _normalize_selection(
+                                SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), AdditionalValue_V
+                            )
+
+                        UniqueOddId_V = f"{EventId_V}_{OddId_V}"
+                        if not any(m["market_id"] == UniqueOddId_V for m in MarketsByEvent_V[EventId_V]):
+                            MarketsByEvent_V[EventId_V].append({
+                                "market_id": UniqueOddId_V,
+                                "market_name": MName_V,
+                                "selection_name": SelectionNorm_V,
+                                "raw_odds": OddValue_V,
+                                "odd_code": OddCode_V
+                            })
+                            found_deep += 1
+                else:
+                    logger.warning(f"[PARSER] Event {EventId_V} has NO 'odds' dict in deep file. Type: {type(DeepOdds_V)}")
+                
+                if found_deep > 0:
+                    logger.info(f"[PARSER] Extracted {found_deep} deep markets for Event {EventId_V}. Total now: {len(MarketsByEvent_V[EventId_V])}")
+
+    # Final summary log
+    total_m = sum(len(v) for v in MarketsByEvent_V.values())
+    logger.info(f"[PARSER] Finished parsing. Total markets across all events: {total_m}")
+    return MarketsByEvent_V
 
 def _normalize_selection(
     SelectionName_P: str,
@@ -775,7 +923,6 @@ async def run_scraper():
                 pass
 
             # ── Step 2: Navigate to today's football section ─────────────────
-            # Also hit the pre-built fixtures endpoint for today
             logger.info("Navigating to today's prematch football view ...")
             try:
                 await page.goto(
@@ -788,6 +935,22 @@ async def run_scraper():
                 logger.warning(
                     "today sub-path not available, continuing with main page data"
                 )
+
+            # ── Step 2.5: Visit individual event pages for FULL markets ──────
+            # This captures corners, cards, and player props
+            temp_events = parse_kickertech_events(ApiResponses_V)
+            today_event_ids = list(filter_todays_fixtures(temp_events, DAYS_AHEAD).keys())
+            
+            logger.info(f"Found {len(today_event_ids)} events for today. Fetching full markets for top 50...")
+            # Limiting to 50 for performance
+            for eid in today_event_ids[:50]:
+                try:
+                    event_url = f"https://www.betarabia.com/en/sports/kickertech/football/event/{eid}"
+                    logger.info(f"Scouting full markets: {event_url}")
+                    await page.goto(event_url, wait_until="domcontentloaded", timeout=20000)
+                    await asyncio.sleep(3) # Wait for detailed odds API
+                except Exception as e:
+                    logger.warning(f"Failed to fetch event {eid}: {e}")
 
             # Save all captured API responses for debugging
             with open(API_RESPONSES_PATH, "w") as F_V:

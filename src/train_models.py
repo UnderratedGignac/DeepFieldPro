@@ -406,7 +406,7 @@ def run_sanity_check():
         model_path = os.path.join(MODEL_DIR, model_file)
 
         if not os.path.exists(model_path):
-            print(f"✗ {model_name}: Model file not found")
+            print(f"[FAIL] {model_name}: Model file not found")
             AllPassed_V = False
             continue
 
@@ -445,10 +445,10 @@ def run_sanity_check():
             if unique_preds == n_samples:
                 print(f"[OK] {model_name}: PASS (unique predictions: {unique_preds})")
             else:
-                print(f"✗ {model_name}: FAIL (duplicate predictions)")
+                print(f"[FAIL] {model_name}: FAIL (duplicate predictions)")
                 AllPassed_V = False
         else:
-            print(f"✗ {model_name}: FAIL (duplicate probs or out of range)")
+            print(f"[FAIL] {model_name}: FAIL (duplicate probs or out of range)")
             AllPassed_V = False
 
     return AllPassed_V
@@ -491,7 +491,7 @@ def main():
     if SanityPassed_V:
         print("\n[OK] All sanity checks PASSED")
     else:
-        print("\n✗ Some sanity checks FAILED - review models before deployment")
+        print("\n[FAIL] Some sanity checks FAILED - review models before deployment")
 
     print("\nNext steps:")
     print("  1. Run: python tests/test_imports.py")

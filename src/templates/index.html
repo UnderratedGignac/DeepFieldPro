@@ -302,10 +302,37 @@
             border: 1px solid var(--border-color);
         }
         .impact-players strong { display: block; color: var(--primary); margin-bottom: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
-        .player-row { margin-bottom: 6px; }
-
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(229, 193, 88, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(229, 193, 88, 0); } 100% { box-shadow: 0 0 0 0 rgba(229, 193, 88, 0); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .filter-bar {
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .filter-pill {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .filter-pill:hover {
+            color: var(--text-main);
+            background: var(--surface-hover);
+            border-color: var(--primary);
+        }
+        .filter-pill.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--bg-color);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(229, 193, 88, 0.15);
+        }
 
         #loader { text-align: center; font-size: 1rem; color: var(--primary); padding: 40px; width: 100%;}
         
@@ -576,6 +603,12 @@
 
         <!-- LIVE PREDICTIONS VIEW -->
         <div id="live-view" class="view-section active">
+            <div class="filter-bar">
+                <button class="filter-pill active" onclick="setMatchFilter('all', this)"><i class="fa-solid fa-border-all"></i> All Games</button>
+                <button class="filter-pill" onclick="setMatchFilter('live', this)"><i class="fa-solid fa-satellite-dish"></i> Live Now</button>
+                <button class="filter-pill" onclick="setMatchFilter('upcoming', this)"><i class="fa-solid fa-hourglass-half"></i> Upcoming</button>
+                <button class="filter-pill" onclick="setMatchFilter('finished', this)"><i class="fa-solid fa-circle-check"></i> Finished</button>
+            </div>
             <div id="loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Synchronizing with Live Data Feed...</div>
             <div id="dashboard" class="dashboard"></div>
         </div>
@@ -629,14 +662,14 @@
                                 <th>Player / Market</th>
                                 <th>Entry Odds</th>
                                 <th>Stake</th>
-                                <th>Closing Odds</th>
                                 <th>CLV (Edge)</th>
                                 <th>PNL</th>
+                                <th>Time Remaining</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="6" style="text-align: center;">Loading Ledger...</td></tr>
+                            <tr><td colspan="8" style="text-align: center;">Loading Ledger...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -649,7 +682,7 @@
                 <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-robot"></i> Stair AI Automated API Bets</h3>
                 <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">This ledger displays all betting orders autonomously transmitted and successfully executed by the Capital Engine via the Stair AI production API.</p>
                 <div class="table-container" style="overflow-x: auto;">
-                    <table>
+                    <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Placed At</th>
@@ -874,9 +907,10 @@
                 'tracker-view': 'Execution Ledger',
                 'settings-view': 'Engine Configuration',
                 'performance-view': 'User vs AI Performance',
-                'comparison-view': 'AI vs Reality Comparisons'
+                'comparison-view': 'AI vs Reality Comparisons',
+                'stair-view': 'Stair AI API Bets'
             };
-            document.getElementById('page-title').innerText = titles[viewId];
+            document.getElementById('page-title').innerText = titles[viewId] || 'DeepFieldPro';
             
             const paths = {
                 'live-view': '/',
@@ -884,9 +918,10 @@
                 'tracker-view': '/tracker',
                 'settings-view': '/settings',
                 'performance-view': '/performance',
-                'comparison-view': '/comparison'
+                'comparison-view': '/comparison',
+                'stair-view': '/stair'
             };
-            if(window.location.pathname !== paths[viewId]) {
+            if(paths[viewId] && window.location.pathname !== paths[viewId]) {
                 history.pushState(null, '', paths[viewId]);
             }
             
@@ -908,21 +943,38 @@
         const loader = document.getElementById('loader');
         const countdownEl = document.getElementById('countdown');
         let refreshTimer = 30;
+        let currentMatchFilter = 'all';
+        let cachedMatches = [];
 
         async function fetchState() {
             try {
                 const res = await fetch('/api/state');
                 if (!res.ok) throw new Error("State not found");
                 const data = await res.json();
-                
+                cachedMatches = data;
                 loader.style.display = 'none';
-                renderDashboard(data);
+                renderDashboard(cachedMatches);
             } catch (err) {
                 console.error(err);
                 if(dashboard.innerHTML === '') {
                     loader.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Awaiting Daemon Initialization...';
                 }
             }
+        }
+
+        function setMatchFilter(filterType, element) {
+            currentMatchFilter = filterType;
+            document.querySelectorAll('.filter-pill').forEach(el => el.classList.remove('active'));
+            if (element) {
+                element.classList.add('active');
+            } else {
+                const buttons = document.querySelectorAll('.filter-pill');
+                if (filterType === 'all' && buttons.length > 0) buttons[0].classList.add('active');
+                else if (filterType === 'live' && buttons.length > 1) buttons[1].classList.add('active');
+                else if (filterType === 'upcoming' && buttons.length > 2) buttons[2].classList.add('active');
+                else if (filterType === 'finished' && buttons.length > 3) buttons[3].classList.add('active');
+            }
+            renderDashboard(cachedMatches);
         }
 
         function formatTime(isoStr) {
@@ -933,7 +985,36 @@
         function renderDashboard(matches) {
             dashboard.innerHTML = '';
             
-            matches.sort((a, b) => {
+            let filteredMatches = matches;
+            if (currentMatchFilter === 'live') {
+                filteredMatches = matches.filter(m => {
+                    const status = (m.status_code || '').toLowerCase();
+                    return ['1h', '2h', 'ht', 'live', 'inprogress', 'in_progress', 'live-now'].includes(status) || status.includes('progress');
+                });
+            } else if (currentMatchFilter === 'upcoming') {
+                filteredMatches = matches.filter(m => {
+                    const status = (m.status_code || '').toLowerCase();
+                    return ['ns', 'upcoming', 'not_started', 'not started'].includes(status) || status.includes('upcoming') || status.includes('start');
+                });
+            } else if (currentMatchFilter === 'finished') {
+                filteredMatches = matches.filter(m => {
+                    const status = (m.status_code || '').toLowerCase();
+                    return ['ft', 'finished', 'completed'].includes(status) || status.includes('finish') || status.includes('complete');
+                });
+            }
+
+            if (filteredMatches.length === 0) {
+                dashboard.innerHTML = `
+                    <div class="placeholder-box" style="grid-column: 1 / -1; width: 100%; box-sizing: border-box; animation: fadeIn 0.4s ease-out;">
+                        <i class="fa-solid fa-gamepad" style="font-size: 3rem; color: var(--border-color); margin-bottom: 20px;"></i>
+                        <h3 style="color: var(--text-main); font-size: 1.5rem; margin-bottom: 10px;">No Matches Found</h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">There are no games matching the "${currentMatchFilter}" filter at the moment.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredMatches.sort((a, b) => {
                 const aHasLineup = a.has_lineup ? 1 : 0;
                 const bHasLineup = b.has_lineup ? 1 : 0;
                 if (aHasLineup !== bHasLineup) return bHasLineup - aHasLineup;
@@ -945,7 +1026,7 @@
                 return new Date(a.kickoff) - new Date(b.kickoff);
             });
 
-            matches.forEach((match, index) => {
+            filteredMatches.forEach((match, index) => {
                 const card = document.createElement('div');
                 card.className = 'match-card';
                 card.style.animationDelay = `${index * 0.03}s`;
@@ -1269,7 +1350,7 @@
                 }
 
                 if(data.bets.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No bets recorded in SQLite yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No bets recorded in SQLite yet.</td></tr>';
                     return;
                 }
                 tbody.innerHTML = data.bets.map(b => {
@@ -1294,14 +1375,30 @@
                         edgeStr = `<span style="color: var(--text-muted); font-size: 0.85rem;">N/A (Unlisted)</span>`;
                     }
                     
+                    let timeRemaining = '-';
+                    if (b.result === 'OPEN' && b.kickoff) {
+                        const now = new Date();
+                        const kickoff = new Date(b.kickoff);
+                        const diffMs = kickoff - now;
+                        if (diffMs > 0) {
+                            const diffHrs = Math.floor(diffMs / 3600000);
+                            const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                            timeRemaining = `<span style="color:var(--primary); font-weight:600;"><i class="fa-solid fa-clock"></i> ${diffHrs}h ${diffMins}m</span>`;
+                        } else {
+                            timeRemaining = `<span style="color:#00ff88; font-weight:600;"><i class="fa-solid fa-bolt"></i> LIVE / SETTLING</span>`;
+                        }
+                    } else if (b.result !== 'OPEN') {
+                        timeRemaining = `<span style="color:var(--text-muted);">Resolved</span>`;
+                    }
+
                     return `<tr>
                         <td><span style="font-size:0.8rem; padding: 2px 6px; border-radius: 4px; background: ${b.bet_source === 'AI' ? '#00ff8822' : '#ffffff22'}; color: ${b.bet_source === 'AI' ? '#00ff88' : '#fff'};">${b.bet_source || 'AI'}</span></td>
                         <td><strong>${b.player_id}</strong><br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
                         <td>${b.entry_odds}</td>
                         <td>$${(b.stake || 0).toFixed(2)}</td>
-                        <td>${b.closing_odds || '-'}</td>
                         <td>${edgeStr}</td>
                         <td style="color: ${pnlColor}">${pnlStr}</td>
+                        <td>${timeRemaining}</td>
                         <td>${statusTag}</td>
                     </tr>`;
                 }).join('');
@@ -1411,9 +1508,11 @@
             } else if (path === '/bankroll') {
                 switchView('bankroll-view', navItems[1]);
             } else if (path === '/settings') {
-                switchView('settings-view', navItems[5]);
+                switchView('settings-view', navItems[6]);
             } else if (path === '/comparison') {
                 switchView('comparison-view', navItems[4]);
+            } else if (path === '/stair') {
+                switchView('stair-view', navItems[5]);
             } else {
                 switchView('live-view', navItems[0]);
                 fetchState();

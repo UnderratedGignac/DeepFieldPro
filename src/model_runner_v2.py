@@ -101,7 +101,7 @@ def get_player_historical_stats(player_name, competition_type=0):
 def log_missing_player(player_name):
     """Log missing player to missing_players.log."""
     timestamp = datetime.now(timezone.utc).isoformat()
-    with open(MISSING_PLAYERS_LOG, "a") as f:
+    with open(MISSING_PLAYERS_LOG, "a", encoding="utf-8") as f:
         f.write(f"{timestamp} | {player_name}\n")
     print(f"[MISSING] Player '{player_name}' logged to missing_players.log")
 
