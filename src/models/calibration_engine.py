@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.isotonic import IsotonicRegression
-from typing import Dict, Tuple, Optional, Union
+from typing import Dict, Tuple
 import pickle
 import os
 
@@ -81,7 +81,6 @@ class ProbabilityCalibrator:
         if market_type in self.calibrators:
             # For wrapped models, we need to simulate prediction
             # This is a simplified approach - in production use proper pipeline
-            cal = self.calibrators[market_type]
             # Clip to valid range
             raw_prob = np.clip(raw_prob, 0, 1)
             # Use isotonic regressor if available, otherwise return raw
@@ -190,7 +189,6 @@ def get_calibrated_ev(calibrated_prob: float, decimal_odds: float) -> float:
     Returns:
         EV percentage (e.g., 0.05 = 5% edge)
     """
-    implied_prob = 1.0 / decimal_odds
     ev = (calibrated_prob * (decimal_odds - 1)) - (1 - calibrated_prob)
     return ev
 

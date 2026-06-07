@@ -396,7 +396,7 @@ def get_comparisons_list():
 
 @app.route("/api/comparison/<fixture_id>")
 def get_comparison(fixture_id):
-    demo = request.args.get("demo") == "true"
+    request.args.get("demo")  # noqa: F841
 
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     prediction = None
