@@ -31,7 +31,9 @@ def init_bet_log_db():
         result TEXT,
         pnl DECIMAL(10,2),
         regime TEXT,
-        role_shift_flag BOOLEAN
+        role_shift_flag BOOLEAN,
+        bet_source TEXT DEFAULT 'AI',
+        is_recommended INTEGER DEFAULT 0
     )
     """
     )
@@ -54,6 +56,8 @@ def log_bet(
     latency_ms,
     regime,
     role_shift_flag,
+    bet_source="AI",
+    is_recommended=0,
 ):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -65,8 +69,8 @@ def log_bet(
         """
         INSERT INTO bet_log (
             bet_id, match_id, player_id, market_type, line, side, entry_odds, fair_odds, edge_pct, 
-            stake, book, placed_at, lineup_drop_at, latency_ms, regime, role_shift_flag
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            stake, book, placed_at, lineup_drop_at, latency_ms, regime, role_shift_flag, bet_source, is_recommended
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             bet_id,
@@ -85,6 +89,8 @@ def log_bet(
             latency_ms,
             regime,
             role_shift_flag,
+            bet_source,
+            is_recommended,
         ),
     )
 

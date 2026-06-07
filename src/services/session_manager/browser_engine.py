@@ -215,7 +215,7 @@ class BrowserEngine:
 
             # Save metadata
             metadata = self._context_metadata.get(context_id, {})
-            metadata["last_saved"] = datetime.utcnow().isoformat()
+            metadata["last_saved"] = datetime.timezone.utcnow().isoformat()
             with open(state_dir / "metadata.json", "w") as f:
                 json.dump(metadata, f, indent=2)
 
@@ -286,7 +286,7 @@ class BrowserEngine:
         context = await self._browser.new_context(**context_options)
         self._contexts[context_id] = context
         self._context_metadata[context_id] = {
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.timezone.utcnow().isoformat(),
             "fingerprint_index": fingerprint_index,
             "proxy": effective_proxy,
             "restored_from": state_path,

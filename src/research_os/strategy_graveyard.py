@@ -66,7 +66,7 @@ def bury(
             total_bets,
             capital_at_risk,
             highest_state_reached,
-            datetime.datetime.now(datetime.UTC).isoformat(),
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
         ),
     )
     conn.commit()

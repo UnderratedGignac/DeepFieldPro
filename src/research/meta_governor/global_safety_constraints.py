@@ -16,10 +16,10 @@ class GlobalSafetyConstraints:
         self.daily_drift_tracker = {"min_ev": 0.0, "p_fill": 0.0}
         # BUG FIX: Track which calendar date the drift budget is valid for.
         # Without this, the drift budget NEVER resets and blocks ALL updates after day 1.
-        self._drift_date: str = datetime.utcnow().strftime("%Y-%m-%d")
+        self._drift_date: str = datetime.timezone.utcnow().strftime("%Y-%m-%d")
 
     def _maybe_reset_daily_budget(self):
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.timezone.utcnow().strftime("%Y-%m-%d")
         if today != self._drift_date:
             self.daily_drift_tracker = {"min_ev": 0.0, "p_fill": 0.0}
             self._drift_date = today

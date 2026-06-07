@@ -131,7 +131,7 @@ class MarketIntelligenceEngine:
 
         Returns complete market intelligence report.
         """
-        end_time = datetime.utcnow()
+        end_time = datetime.timezone.utcnow()
         start_time = end_time - timedelta(hours=lookback_hours)
 
         # Get all odds ticks for this market
@@ -225,7 +225,7 @@ class MarketIntelligenceEngine:
                 opening_odds=None,
             )
 
-        now = datetime.utcnow()
+        now = datetime.timezone.utcnow()
         hour_ago = now - timedelta(hours=1)
         six_hours_ago = now - timedelta(hours=6)
         twenty_four_hours_ago = now - timedelta(hours=24)
@@ -440,7 +440,7 @@ class MarketIntelligenceEngine:
         return CrossBookDisagreement(
             market_id=market_id,
             outcome=outcome,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.timezone.utcnow(),
             best_odds=Decimal(str(best)),
             worst_odds=Decimal(str(worst)),
             avg_odds=Decimal(str(avg)),

@@ -62,7 +62,7 @@ def init_db():
 
 def register_strategy(strategy_id, name):
     init_db()
-    now = datetime.datetime.now(datetime.UTC).isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
         "INSERT OR IGNORE INTO strategies (strategy_id, name, created_at, last_transition) VALUES (?,?,?,?)",
@@ -103,7 +103,7 @@ def evaluate_promotion(strategy_id, clv_avg, roi=0, sharpe=0, total_bets=0):
     next_state = (
         STATES[STATES.index(current) + 1] if current in STATES[:-1] else current
     )
-    now = datetime.datetime.now(datetime.UTC).isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
         """

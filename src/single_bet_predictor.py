@@ -8,6 +8,9 @@ import logging
 import pandas as pd
 import pickle
 
+# Today's date in UTC — used to filter only today's fixtures
+TODAY_UTC = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, "src"))
@@ -73,22 +76,35 @@ def implied_fair_probs(DbPath_P, FixtureId_P, HomeTeam_P, AwayTeam_P):
     Derive vig-free fair probabilities from scraped 1X2 odds for a given fixture.
     Returns (fair_home, fair_draw, fair_away, home_lam, away_lam).
     Falls back to league-average priors when no 1X2 odds are present.
+
+    Handles both old scraper (selection=team name/'draw') and
+    new Kickertech API (selection=team name/'X') formats.
     """
     conn = sqlite3.connect(DbPath_P)
     rows = conn.execute(
-        "SELECT selection_name, raw_odds FROM market WHERE fixture_id = ? AND market_name = 'Match Result'",
+        """SELECT selection_name, raw_odds FROM market
+           WHERE fixture_id = ?
+             AND (market_name = 'Match Result' OR market_name LIKE '%1X2%')""",
         (FixtureId_P,),
     ).fetchall()
     conn.close()
+
+    HomeNameLower_V = HomeTeam_P.strip().lower()
+    AwayNameLower_V = AwayTeam_P.strip().lower()
 
     home_odds, draw_odds, away_odds = [], [], []
     for sel, odd in rows:
         s = sel.strip().lower()
         if s in ("x", "draw"):
             draw_odds.append(odd)
-        elif s == HomeTeam_P.strip().lower():
+        elif s == HomeNameLower_V:
             home_odds.append(odd)
-        elif s == AwayTeam_P.strip().lower():
+        elif s == AwayNameLower_V:
+            away_odds.append(odd)
+        # Fuzzy: partial team name match for abbreviated names
+        elif HomeNameLower_V[:6] and HomeNameLower_V[:6] in s:
+            home_odds.append(odd)
+        elif AwayNameLower_V[:6] and AwayNameLower_V[:6] in s:
             away_odds.append(odd)
 
     if home_odds and draw_odds and away_odds:
@@ -119,17 +135,48 @@ def run_single_bet_predictor(BankrollSize_P: float):
 
     Conn_V = sqlite3.connect(DbPath_V)
     Cursor_V = Conn_V.cursor()
-    Cursor_V.execute(
-        """
-        SELECT m.market_id, m.fixture_id, m.market_name, m.selection_name,
-               m.raw_odds, m.prop_player, m.prop_type, m.prop_line,
-               f.home_team, f.away_team, f.kickoff_time, f.league_id
-        FROM market m
-        JOIN fixture f ON m.fixture_id = f.fixture_id
-    """
-    )
+
+    # Determine which columns exist on the fixture table
+    Cursor_V.execute("PRAGMA table_info(fixture)")
+    Cols_V = {row[1] for row in Cursor_V.fetchall()}
+    HasKickoffDate_V = "kickoff_date" in Cols_V
+
+    if HasKickoffDate_V:
+        # Primary filter: only today's fixtures via kickoff_date
+        # Fallback: fixtures without kickoff_date but scraped today
+        Cursor_V.execute(
+            """
+            SELECT m.market_id, m.fixture_id, m.market_name, m.selection_name,
+                   m.raw_odds, m.prop_player, m.prop_type, m.prop_line,
+                   f.home_team, f.away_team, f.kickoff_time,
+                   COALESCE(f.league_id, f.tournament_name, 'FOOTBALL') as league_id
+            FROM market m
+            JOIN fixture f ON m.fixture_id = f.fixture_id
+            WHERE (
+                f.kickoff_date = ?
+                OR (f.kickoff_date IS NULL AND date(f.scraped_at) = ?)
+            )
+            """,
+            (TODAY_UTC, TODAY_UTC),
+        )
+    else:
+        # Legacy schema: filter by scraped_at date
+        Cursor_V.execute(
+            """
+            SELECT m.market_id, m.fixture_id, m.market_name, m.selection_name,
+                   m.raw_odds, m.prop_player, m.prop_type, m.prop_line,
+                   f.home_team, f.away_team, f.kickoff_time, f.league_id
+            FROM market m
+            JOIN fixture f ON m.fixture_id = f.fixture_id
+            WHERE date(f.scraped_at) = ?
+            """,
+            (TODAY_UTC,),
+        )
+
     Rows_V = Cursor_V.fetchall()
     Conn_V.close()
+
+    logger.info(f"[Predictor] Evaluating {len(Rows_V)} market rows for {TODAY_UTC}")
 
     Models_V = load_models_international()
 
@@ -269,18 +316,29 @@ def run_single_bet_predictor(BankrollSize_P: float):
                 FairProb_V = FairDrawP_V
             elif SelectionLower_V == AwayTeam_V.strip().lower():
                 FairProb_V = FairAwayP_V
-            elif "both teams to score - yes" in SelectionLower_V:
+            elif "both teams to score" in SelectionLower_V and "yes" in SelectionLower_V:
                 FairProb_V = (1 - math.exp(-HomeGoalLam_V)) * (
                     1 - math.exp(-AwayGoalLam_V)
                 )
-            elif "both teams to score - no" in SelectionLower_V:
+            elif "both teams to score" in SelectionLower_V and "no" in SelectionLower_V:
                 FairProb_V = 1.0 - (1 - math.exp(-HomeGoalLam_V)) * (
                     1 - math.exp(-AwayGoalLam_V)
                 )
             elif "total over" in SelectionLower_V:
-                FairProb_V = poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, 3)
+                # Extract line from selection e.g. "Total OVER 2.5" → 2.5
+                try:
+                    TotalLine_V = float(SelectionLower_V.replace("total over", "").strip())
+                except ValueError:
+                    TotalLine_V = 2.5
+                GoalThreshold_V = int(TotalLine_V) + 1  # P(goals >= threshold)
+                FairProb_V = poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, GoalThreshold_V)
             elif "total under" in SelectionLower_V:
-                FairProb_V = 1.0 - poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, 3)
+                try:
+                    TotalLine_V = float(SelectionLower_V.replace("total under", "").strip())
+                except ValueError:
+                    TotalLine_V = 2.5
+                GoalThreshold_V = int(TotalLine_V) + 1
+                FairProb_V = 1.0 - poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, GoalThreshold_V)
             else:
                 FairProb_V = 0.50  # Unknown market, neutral prior
 
@@ -334,7 +392,7 @@ def run_single_bet_predictor(BankrollSize_P: float):
         B_V["rank"] = Idx_V + 1
 
     OutputData_V = {
-        "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "bankroll": BankrollSize_P,
         "bets": Bets_V,
     }

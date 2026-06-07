@@ -1,4 +1,20 @@
 # mypy: ignore-errors
+"""
+betarabia_scraper.py — DeepFieldPro Live Odds Scraper
+======================================================
+Targets the Kickertech (websbkt.com) API that powers betarabia.com/sports/kickertech.
+Strategy:
+  1. Navigate to betarabia.com/sports/kickertech to trigger API calls.
+  2. Intercept XHR responses from api-m-sp-cdl.websbkt.com and pre-88o-sp.websbkt.com.
+  3. Parse events (with real kickoff times) + odds directly from those API responses.
+  4. Filter to TODAY's fixtures only (by kickoff_time date == today UTC).
+  5. Upsert into odds_stream.db (fixture + market tables).
+  6. Falls back to HTML scraping if API interception yields nothing.
+
+NAMING CONVENTIONS:
+  Parameters: ProperCase _P  |  Variables: ProperCase _V  |  SQL: lowercase/UPPERCASE
+"""
+
 import asyncio
 import sqlite3
 import random
@@ -11,6 +27,9 @@ from playwright.async_api import async_playwright, TimeoutError
 # Set BETARABIA_HEADLESS=false in terminal to debug visually
 HEADLESS_MODE = os.environ.get("BETARABIA_HEADLESS", "true").lower() != "false"
 
+# Set BETARABIA_DAYS_AHEAD to scrape fixtures N days ahead (default 0 = today only)
+DAYS_AHEAD = int(os.environ.get("BETARABIA_DAYS_AHEAD", "0"))
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -21,8 +40,26 @@ PROBE_PATH = os.path.join(BASE_DIR, "data", "betarabia_page_probe.html")
 SCREENSHOT_PATH = os.path.join(BASE_DIR, "data", "betarabia_screenshot.png")
 API_RESPONSES_PATH = os.path.join(BASE_DIR, "data", "betarabia_api_responses.json")
 
+# Kickertech/SBTech API domains
+SBTECH_DOMAINS = ["websbkt.com", "api-m-sp-cdl"]
+
+# Market name mapping from SBTech oddCode → human-readable
+ODD_CODE_MAP = {
+    "ODD_FTB_1X2_HOME": "Match Result",
+    "ODD_FTB_1X2_DRAW": "Match Result",
+    "ODD_FTB_1X2_AWAY": "Match Result",
+    "ODD_FTB_BOTHTEAMSSCORE_YES": "Both teams to score",
+    "ODD_FTB_BOTHTEAMSSCORE_NO": "Both teams to score",
+    "ODD_FTB_TOTALS_OVER": "Total Goals",
+    "ODD_FTB_TOTALS_UNDER": "Total Goals",
+    "ODD_FTB_DC_1X": "Double Chance",
+    "ODD_FTB_DC_X2": "Double Chance",
+    "ODD_FTB_DC_12": "Double Chance",
+}
+
 
 def init_db():
+    """Initialize SQLite DB with fixture and market tables + kickoff_date column."""
     Conn_V = sqlite3.connect(DB_PATH)
     Cursor_V = Conn_V.cursor()
     Cursor_V.execute(
@@ -32,7 +69,9 @@ def init_db():
         home_team TEXT,
         away_team TEXT,
         kickoff_time TEXT,
+        kickoff_date TEXT,
         league_id TEXT,
+        tournament_name TEXT,
         scraped_at TEXT
       )
     """
@@ -52,12 +91,68 @@ def init_db():
       )
     """
     )
+    # Migration: add kickoff_date and tournament_name if they don't exist
+    try:
+        Cursor_V.execute("ALTER TABLE fixture ADD COLUMN kickoff_date TEXT")
+    except Exception:
+        pass
+    try:
+        Cursor_V.execute("ALTER TABLE fixture ADD COLUMN tournament_name TEXT")
+    except Exception:
+        pass
+    Conn_V.commit()
+    Conn_V.close()
+
+
+def clear_todays_data(TodayStr_P: str):
+    """
+    Remove all fixture/market rows where kickoff_date matches today.
+    This ensures we always work with fresh data on each run.
+    """
+    Conn_V = sqlite3.connect(DB_PATH)
+    Cursor_V = Conn_V.cursor()
+    # Get fixture_ids for today
+    Cursor_V.execute(
+        "SELECT fixture_id FROM fixture WHERE kickoff_date = ?", (TodayStr_P,)
+    )
+    TodayFixtureIds_V = [row[0] for row in Cursor_V.fetchall()]
+    if TodayFixtureIds_V:
+        Placeholders_V = ",".join("?" for _ in TodayFixtureIds_V)
+        Cursor_V.execute(
+            f"DELETE FROM market WHERE fixture_id IN ({Placeholders_V})",
+            TodayFixtureIds_V,
+        )
+        Cursor_V.execute(
+            "DELETE FROM fixture WHERE kickoff_date = ?", (TodayStr_P,)
+        )
+        logger.info(
+            f"Cleared {len(TodayFixtureIds_V)} old fixtures for {TodayStr_P} before re-scraping."
+        )
     Conn_V.commit()
     Conn_V.close()
 
 
 async def random_delay():
     await asyncio.sleep(random.uniform(1.5, 3.5))
+
+
+from typing import Optional
+
+def _parse_odds(OddsText_P: str) -> Optional[float]:
+    if not OddsText_P:
+        return None
+    try:
+        Cleaned_V = OddsText_P.strip().replace(",", ".")
+        Value_V = float(Cleaned_V)
+        if 1.01 <= Value_V <= 100.0:
+            return Value_V
+        return None
+    except (ValueError, TypeError):
+        return None
+
+
+def _safe_inner_text_sync(El_P, Selector_P: str) -> str:
+    return ""
 
 
 async def _safe_inner_text(El_P, Selector_P: str) -> str:
@@ -71,19 +166,6 @@ async def _safe_inner_text(El_P, Selector_P: str) -> str:
         except Exception:
             continue
     return ""
-
-
-def _parse_odds(OddsText_P: str) -> float | None:
-    if not OddsText_P:
-        return None
-    try:
-        Cleaned_V = OddsText_P.strip().replace(",", ".")
-        Value_V = float(Cleaned_V)
-        if 1.01 <= Value_V <= 100.0:
-            return Value_V
-        return None
-    except (ValueError, TypeError):
-        return None
 
 
 def is_player_prop(MarketName_P: str) -> bool:
@@ -111,192 +193,373 @@ def parse_player_prop(SelectionName_P: str, MarketName_P: str):
     return None, None, None
 
 
-async def run_full_probe(Page_P) -> None:
-    # Save complete HTML to file for inspection
-    FullHtml_V = await Page_P.content()
-    with open(PROBE_PATH, "w", encoding="utf-8") as F_V:
-        F_V.write(FullHtml_V)
-
-    # Save screenshot so we can see what the browser actually rendered
-    await Page_P.screenshot(path=SCREENSHOT_PATH, full_page=True)
-
-    # Log key stats
-    BodyLen_V = len(FullHtml_V)
-    HasBody_V = "<body" in FullHtml_V
-    HasDiv_V = "<div" in FullHtml_V
-    logger.info(f"HTML length  : {BodyLen_V} chars")
-    logger.info(f"Has <body>   : {HasBody_V}")
-    logger.info(f"Has <div>    : {HasDiv_V}")
-    logger.info(f"Full HTML → {PROBE_PATH}")
-    logger.info(f"Screenshot → {SCREENSHOT_PATH}")
-
-
-def parse_fixtures_from_api(ApiResponses_P: list) -> list:
-    Fixtures_V = []
+def parse_kickertech_events(ApiResponses_P: list) -> dict:
+    """
+    Parse fixtures from Kickertech/SBTech API responses.
+    Returns dict keyed by event_id -> fixture info.
+    Handles both camelCase (newer CDL API) and snake_case (older cached API).
+    """
+    EventsById_V = {}
 
     for Response_V in ApiResponses_P:
         Data_V = Response_V.get("data", {})
         Url_V = Response_V.get("url", "")
 
-        # Try unwrapping common API envelope patterns
-        if isinstance(Data_V, dict):
-            # Try common root keys
-            for RootKey_V in [
-                "data",
-                "result",
-                "events",
-                "fixtures",
-                "matches",
-                "items",
-            ]:
-                if RootKey_V in Data_V:
-                    Data_V = Data_V[RootKey_V]
-                    break
-
-        if isinstance(Data_V, dict):
-            # Sometimes events are returned as a dictionary keyed by event ID
-            Data_V = list(Data_V.values())
-
-        if not isinstance(Data_V, list):
+        # Only process SBTech domain responses
+        if not any(D_V in Url_V for D_V in SBTECH_DOMAINS):
             continue
 
-        for Item_V in Data_V:
-            if not isinstance(Item_V, dict):
+        if not isinstance(Data_V, dict):
+            continue
+
+        # Events can be under 'events' key as a dict keyed by event_id
+        RawEvents_V = Data_V.get("events", {})
+        if not RawEvents_V:
+            continue
+
+        # Convert dict-of-events to list
+        if isinstance(RawEvents_V, dict):
+            EventList_V = list(RawEvents_V.values())
+        elif isinstance(RawEvents_V, list):
+            EventList_V = RawEvents_V
+        else:
+            continue
+
+        for Ev_V in EventList_V:
+            if not isinstance(Ev_V, dict):
                 continue
 
-            # Try common field name patterns for home/away teams
-            HomeTeam_V = (
-                Item_V.get("homeTeam")
-                or Item_V.get("home_team")
-                or Item_V.get("home")
-                or Item_V.get("localTeam", {}).get("name")
-                or Item_V.get("team1")
-                or Item_V.get("teams", {}).get("home")
+            # Support both camelCase and snake_case field names
+            EventId_V = Ev_V.get("id")
+            if not EventId_V:
+                continue
+
+            Teams_V = Ev_V.get("teams", {})
+            HomeTeam_V = Teams_V.get("home", "")
+            AwayTeam_V = Teams_V.get("away", "")
+
+            # Handle date field naming variants
+            DateStart_V = (
+                Ev_V.get("dateStart")
+                or Ev_V.get("date_start")
+                or ""
             )
-            AwayTeam_V = (
-                Item_V.get("awayTeam")
-                or Item_V.get("away_team")
-                or Item_V.get("away")
-                or Item_V.get("visitorTeam", {}).get("name")
-                or Item_V.get("team2")
-                or Item_V.get("teams", {}).get("away")
+            TournamentName_V = (
+                Ev_V.get("tournamentName")
+                or Ev_V.get("tournament_name")
+                or "Football"
             )
-            KickoffTime_V = (
-                Item_V.get("startTime")
-                or Item_V.get("kickoff")
-                or Item_V.get("start_time")
-                or Item_V.get("scheduled")
-                or Item_V.get("time")
-                or "TBD"
-            )
-            FixtureId_V = str(
-                Item_V.get("id")
-                or Item_V.get("eventId")
-                or Item_V.get("fixture_id")
-                or f"{HomeTeam_V}_{AwayTeam_V}"
-            )
-            FixtureUrl_V = (
-                Item_V.get("url") or Item_V.get("link") or f"/en/event/{FixtureId_V}"
-            )
+            SportId_V = Ev_V.get("sportId") or Ev_V.get("sport_id", 0)
 
             if HomeTeam_V and AwayTeam_V:
-                Fixtures_V.append(
-                    {
-                        "FixtureId_V": FixtureId_V,
-                        "HomeTeam_V": str(HomeTeam_V),
-                        "AwayTeam_V": str(AwayTeam_V),
-                        "KickoffTime_V": str(KickoffTime_V),
-                        "LeagueId_V": str(
-                            Item_V.get("league")
-                            or Item_V.get("competition")
-                            or "FOOTBALL"
-                        ),
-                        "FixtureUrl_V": str(FixtureUrl_V),
-                        "RawApiItem_V": Item_V,
-                    }
-                )
+                h = str(HomeTeam_V).lower()
+                a = str(AwayTeam_V).lower()
+                t = str(TournamentName_V).lower()
+                is_women = False
+                for kw in ["women", "female", "feminin", "femenil", "femenino", "femminile", "women's"]:
+                    if kw in h or kw in a or kw in t:
+                        is_women = True
+                        break
+                if h.endswith(" (w)") or h.endswith(" w") or a.endswith(" (w)") or a.endswith(" w"):
+                    is_women = True
+                    
+                if is_women:
+                    continue
+                    
+                EventsById_V[str(EventId_V)] = {
+                    "fixture_id": str(EventId_V),
+                    "home_team": str(HomeTeam_V),
+                    "away_team": str(AwayTeam_V),
+                    "kickoff_time": str(DateStart_V),
+                    "tournament_name": str(TournamentName_V),
+                    "sport_id": int(SportId_V),
+                    "league_id": str(TournamentName_V),
+                }
 
-        if Fixtures_V:
-            logger.info(f"Parsed {len(Fixtures_V)} fixtures from: {Url_V}")
-            break  # Stop at first successful parse
-
-    return Fixtures_V
+    logger.info(f"Parsed {len(EventsById_V)} unique events from Kickertech API")
+    return EventsById_V
 
 
-def parse_markets_from_api_item(ApiItem_P: dict, FixtureId_P: str) -> list:
-    Markets_V = []
+def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
+    """
+    Parse odds from Kickertech API odds responses.
+    Returns dict keyed by event_id -> list of market dicts.
+    """
+    MarketsByEvent_V = {eid: [] for eid in EventsById_P}
 
-    # Try common market container keys
-    MarketData_V = (
-        ApiItem_P.get("markets")
-        or ApiItem_P.get("odds")
-        or ApiItem_P.get("betOffers")
-        or ApiItem_P.get("selections")
-        or []
-    )
+    for Response_V in ApiResponses_P:
+        Data_V = Response_V.get("data", {})
+        Url_V = Response_V.get("url", "")
 
-    if not isinstance(MarketData_V, list):
-        return Markets_V
-
-    for MktIdx_V, Mkt_V in enumerate(MarketData_V):
-        if not isinstance(Mkt_V, dict):
+        if not any(D_V in Url_V for D_V in SBTECH_DOMAINS):
             continue
 
-        MarketName_V = (
-            Mkt_V.get("name")
-            or Mkt_V.get("marketName")
-            or Mkt_V.get("type")
-            or f"market_{MktIdx_V}"
-        )
+        if not isinstance(Data_V, dict):
+            continue
 
-        Outcomes_V = (
-            Mkt_V.get("outcomes")
-            or Mkt_V.get("selections")
-            or Mkt_V.get("runners")
-            or []
-        )
-
-        for SelIdx_V, Sel_V in enumerate(Outcomes_V):
-            if not isinstance(Sel_V, dict):
-                continue
-
-            SelectionName_V = (
-                Sel_V.get("name")
-                or Sel_V.get("label")
-                or Sel_V.get("description")
-                or f"selection_{SelIdx_V}"
-            )
-
-            # Try decimal odds first, then convert American/fractional
-            RawOdds_V = (
-                Sel_V.get("decimalOdds")
-                or Sel_V.get("decimal")
-                or Sel_V.get("odds")
-                or Sel_V.get("price")
-                or Sel_V.get("value")
-            )
-
-            try:
-                RawOdds_V = float(RawOdds_V)
-                if not (1.01 <= RawOdds_V <= 100.0):
+        # Option A: Parse nested odds from events directly (new format)
+        if "events" in Data_V:
+            RawEvents_V = Data_V["events"]
+            EventList_V = list(RawEvents_V.values()) if isinstance(RawEvents_V, dict) else RawEvents_V
+            for Ev_V in EventList_V:
+                if not isinstance(Ev_V, dict):
                     continue
-            except (TypeError, ValueError):
-                continue
+                EventId_V = str(Ev_V.get("id"))
+                if EventId_V not in MarketsByEvent_V:
+                    continue
+                
+                MainOdds_V = Ev_V.get("main_odds", {})
+                if not isinstance(MainOdds_V, dict):
+                    continue
+                
+                # 1. Match Result (main)
+                main_market = MainOdds_V.get("main")
+                if isinstance(main_market, dict):
+                    for OddId_V, Odd_V in main_market.items():
+                        if not isinstance(Odd_V, dict):
+                            continue
+                        OddValue_V = Odd_V.get("odd_value")
+                        try:
+                            OddValue_V = float(OddValue_V)
+                        except (TypeError, ValueError):
+                            continue
+                        OddCode_V = Odd_V.get("odd_code", "")
+                        SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
+                        SelectionNorm_V = _normalize_selection(
+                            SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), None
+                        )
+                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
+                            MarketsByEvent_V[EventId_V].append({
+                                "market_id": Odd_V.get("unique_id", OddId_V),
+                                "market_name": "Match Result",
+                                "selection_name": SelectionNorm_V,
+                                "raw_odds": OddValue_V,
+                                "odd_code": OddCode_V
+                            })
+                
+                # 2. Both Teams to Score (bothscore)
+                bothscore_market = MainOdds_V.get("bothscore")
+                if isinstance(bothscore_market, dict):
+                    for OddId_V, Odd_V in bothscore_market.items():
+                        if not isinstance(Odd_V, dict):
+                            continue
+                        OddValue_V = Odd_V.get("odd_value")
+                        try:
+                            OddValue_V = float(OddValue_V)
+                        except (TypeError, ValueError):
+                            continue
+                        OddCode_V = Odd_V.get("odd_code", "")
+                        SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
+                        SelectionNorm_V = _normalize_selection(
+                            SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), None
+                        )
+                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
+                            MarketsByEvent_V[EventId_V].append({
+                                "market_id": Odd_V.get("unique_id", OddId_V),
+                                "market_name": "Both teams to score",
+                                "selection_name": SelectionNorm_V,
+                                "raw_odds": OddValue_V,
+                                "odd_code": OddCode_V
+                            })
+                
+                # 3. Total Goals (total)
+                total_market = MainOdds_V.get("total")
+                if isinstance(total_market, dict):
+                    for OddId_V, Odd_V in total_market.items():
+                        if not isinstance(Odd_V, dict):
+                            continue
+                        OddValue_V = Odd_V.get("odd_value")
+                        try:
+                            OddValue_V = float(OddValue_V)
+                        except (TypeError, ValueError):
+                            continue
+                        OddCode_V = Odd_V.get("odd_code", "")
+                        LineRaw_V = Odd_V.get("additional_value_raw") or Odd_V.get("additional_value", "")
+                        try:
+                            Line_V = float(str(LineRaw_V).strip())
+                        except Exception:
+                            Line_V = 2.5
+                        SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
+                        if "over" in SelectionName_V.lower() or "ovr" in OddCode_V.lower() or "over" in str(Odd_V.get("name", "")).lower():
+                            SelectionNorm_V = f"Total OVER {Line_V}"
+                        else:
+                            SelectionNorm_V = f"Total UNDER {Line_V}"
+                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
+                            MarketsByEvent_V[EventId_V].append({
+                                "market_id": Odd_V.get("unique_id", OddId_V),
+                                "market_name": "Total Goals",
+                                "selection_name": SelectionNorm_V,
+                                "raw_odds": OddValue_V,
+                                "odd_code": OddCode_V
+                            })
 
-            Markets_V.append(
-                {
-                    "MarketId_V": f"{FixtureId_P}_{MktIdx_V}_{SelIdx_V}",
-                    "MarketName_V": str(MarketName_V),
-                    "SelectionName_V": str(SelectionName_V),
-                    "RawOdds_V": RawOdds_V,
-                }
+        # Option B: Odds endpoint returns {"odds": {odd_id: odd_object}} (old format, legacy support)
+        RawOdds_V = Data_V.get("odds", {})
+        if isinstance(RawOdds_V, dict) and len(RawOdds_V) > 0:
+            for OddId_V, Odd_V in RawOdds_V.items():
+                if not isinstance(Odd_V, dict):
+                    continue
+
+                EventId_V = str(Odd_V.get("eventId", ""))
+                if EventId_V not in MarketsByEvent_V:
+                    continue
+
+                OddValue_V = Odd_V.get("oddValue")
+                try:
+                    OddValue_V = float(OddValue_V)
+                    if not (1.01 <= OddValue_V <= 100.0):
+                        continue
+                except (TypeError, ValueError):
+                    continue
+
+                MarketName_V = ""
+                SelectionName_V = Odd_V.get("name", "")
+                OddCode_V = Odd_V.get("oddCode", "")
+
+                MarketName_V = ODD_CODE_MAP.get(OddCode_V, "")
+                if not MarketName_V:
+                    NameLower_V = SelectionName_V.lower()
+                    if "both teams" in NameLower_V:
+                        MarketName_V = "Both teams to score"
+                    elif "over" in NameLower_V or "under" in NameLower_V:
+                        MarketName_V = "Total Goals"
+                    else:
+                        MarketName_V = "Match Result"
+
+                CodeLower_V = OddCode_V.lower()
+                NameLower_V = SelectionName_V.lower()
+                if any(Skip_V in CodeLower_V or Skip_V in NameLower_V for Skip_V in ["corner", "offside", "freeKick", "booking"]):
+                    continue
+
+                AdditionalValue_V = Odd_V.get("additionalValue", "")
+                try:
+                    BettingLine_V = float(str(AdditionalValue_V).strip()) if AdditionalValue_V else None
+                except (ValueError, TypeError):
+                    BettingLine_V = None
+
+                SelectionNorm_V = _normalize_selection(
+                    SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), BettingLine_V
+                )
+
+                MarketId_V = f"{EventId_V}_{OddId_V}"
+                exists = any(m["market_id"] == MarketId_V for m in MarketsByEvent_V[EventId_V])
+                if not exists:
+                    MarketsByEvent_V[EventId_V].append({
+                        "market_id": MarketId_V,
+                        "market_name": MarketName_V,
+                        "selection_name": SelectionNorm_V,
+                        "raw_odds": OddValue_V,
+                        "odd_code": OddCode_V
+                    })
+
+    return MarketsByEvent_V
+
+
+def _normalize_selection(
+    SelectionName_P: str, OddCode_P: str, Fixture_P: dict,
+    BettingLine_P: Optional[float] = None
+) -> str:
+    """
+    Normalize selection names to match what single_bet_predictor.py expects.
+    E.g. 'Both teams to score - YES', 'Total OVER 2.5', 'Total UNDER 2.5', 'Spain'
+    """
+    Code_V = OddCode_P.upper()
+    Name_V = SelectionName_P.strip()
+
+    # Both teams to score
+    if "BOTHTEAMSSCORE_YES" in Code_V:
+        return "Both teams to score - YES"
+    if "BOTHTEAMSSCORE_NO" in Code_V:
+        return "Both teams to score - NO"
+
+    # Total goals over/under — use explicit additionalValue line if available
+    if "TOTALS_OVER" in Code_V:
+        if BettingLine_P is not None:
+            return f"Total OVER {BettingLine_P}"
+        # Fallback: extract line from name like "Over 2.5"
+        try:
+            Parts_V = Name_V.lower().replace("over", "").strip()
+            Line_V = float(Parts_V)
+            return f"Total OVER {Line_V}"
+        except Exception:
+            return "Total OVER"
+
+    if "TOTALS_UNDER" in Code_V:
+        if BettingLine_P is not None:
+            return f"Total UNDER {BettingLine_P}"
+        try:
+            Parts_V = Name_V.lower().replace("under", "").strip()
+            Line_V = float(Parts_V)
+            return f"Total UNDER {Line_V}"
+        except Exception:
+            return "Total UNDER"
+
+    # 1X2 match result — map codes to team names
+    if "1X2_HOME" in Code_V:
+        return Fixture_P.get("home_team", Name_V)
+    if "1X2_AWAY" in Code_V:
+        return Fixture_P.get("away_team", Name_V)
+    if "1X2_DRAW" in Code_V:
+        return "X"
+
+    # Double chance
+    if "DC_1X" in Code_V:
+        return f"{Fixture_P.get('home_team', '1')} or Draw"
+    if "DC_X2" in Code_V:
+        return f"Draw or {Fixture_P.get('away_team', '2')}"
+    if "DC_12" in Code_V:
+        return f"{Fixture_P.get('home_team', '1')} or {Fixture_P.get('away_team', '2')}"
+
+    return Name_V
+
+
+def filter_todays_fixtures(EventsById_P: dict, DaysAhead_P: int = 0) -> dict:
+    """
+    Filter events to only those kicking off on today's date (UTC) or within DaysAhead days.
+    Returns filtered dict.
+    """
+    Now_V = datetime.datetime.now(datetime.timezone.utc)
+    TargetDates_V = set()
+    for DayOffset_V in range(DaysAhead_P + 1):
+        TargetDate_V = (Now_V + datetime.timedelta(days=DayOffset_V)).strftime(
+            "%Y-%m-%d"
+        )
+        TargetDates_V.add(TargetDate_V)
+
+    Filtered_V = {}
+    for EventId_V, Fix_V in EventsById_P.items():
+        KickoffStr_V = Fix_V.get("kickoff_time", "")
+        if not KickoffStr_V:
+            continue
+        try:
+            # Parse ISO format kickoff time
+            KickoffDt_V = datetime.datetime.fromisoformat(
+                KickoffStr_V.replace("Z", "+00:00")
             )
+            KickoffDate_V = KickoffDt_V.strftime("%Y-%m-%d")
+            if KickoffDate_V in TargetDates_V:
+                Fix_V["kickoff_date"] = KickoffDate_V
+                Filtered_V[EventId_V] = Fix_V
+        except Exception:
+            continue
 
-    return Markets_V
+    logger.info(
+        f"Filtered to {len(Filtered_V)} fixtures for dates {sorted(TargetDates_V)}"
+    )
+    return Filtered_V
 
 
-async def scrape_fixture_list(Page_P) -> list:
-    # HTML Fallback approach
+async def run_full_probe(Page_P) -> None:
+    """Save page HTML + screenshot for debugging."""
+    FullHtml_V = await Page_P.content()
+    with open(PROBE_PATH, "w", encoding="utf-8") as F_V:
+        F_V.write(FullHtml_V)
+    await Page_P.screenshot(path=SCREENSHOT_PATH, full_page=True)
+    logger.info(f"Full HTML → {PROBE_PATH} | Screenshot → {SCREENSHOT_PATH}")
+
+
+async def scrape_fixture_list_html(Page_P) -> list:
+    """HTML fallback: scrape fixture list from rendered page."""
     try:
         await Page_P.wait_for_selector(
             "[class*='event'], [class*='fixture'], [class*='match']", timeout=15000
@@ -326,23 +589,31 @@ async def scrape_fixture_list(Page_P) -> list:
             )
 
             if HomeTeam_V and AwayTeam_V:
+                h = HomeTeam_V.lower()
+                a = AwayTeam_V.lower()
+                is_women = False
+                for kw in ["women", "female", "feminin", "femenil", "femenino", "femminile", "women's"]:
+                    if kw in h or kw in a:
+                        is_women = True
+                        break
+                if h.endswith(" (w)") or h.endswith(" w") or a.endswith(" (w)") or a.endswith(" w"):
+                    is_women = True
+                    
+                if is_women:
+                    continue
+                    
                 FixtureId_V = f"{HomeTeam_V.strip().lower().replace(' ', '_')}_vs_{AwayTeam_V.strip().lower().replace(' ', '_')}"
-                FixtureUrl_V = await El_V.get_attribute("href")
-                if not FixtureUrl_V:
-                    LinkEl_V = await El_V.query_selector("a")
-                    if LinkEl_V:
-                        FixtureUrl_V = await LinkEl_V.get_attribute("href")
-
+                Now_V = datetime.datetime.now(datetime.timezone.utc)
+                TodayStr_V = Now_V.strftime("%Y-%m-%d")
                 Fixtures_V.append(
                     {
-                        "FixtureId_V": FixtureId_V,
-                        "HomeTeam_V": HomeTeam_V.strip(),
-                        "AwayTeam_V": AwayTeam_V.strip(),
-                        "KickoffTime_V": (
-                            KickoffTime_V.strip() if KickoffTime_V else "TBD"
-                        ),
-                        "LeagueId_V": "FOOTBALL",
-                        "FixtureUrl_V": FixtureUrl_V or "",
+                        "fixture_id": FixtureId_V,
+                        "home_team": HomeTeam_V.strip(),
+                        "away_team": AwayTeam_V.strip(),
+                        "kickoff_time": KickoffTime_V.strip() if KickoffTime_V else "TBD",
+                        "kickoff_date": TodayStr_V,
+                        "league_id": "FOOTBALL",
+                        "tournament_name": "Football",
                     }
                 )
         except Exception as E_V:
@@ -352,152 +623,62 @@ async def scrape_fixture_list(Page_P) -> list:
     return Fixtures_V
 
 
-async def scrape_fixture_markets(Page_P, FixtureUrl_P: str, FixtureId_P: str) -> list:
-    # HTML Fallback approach
-    Markets_V = []
-
-    try:
-        if FixtureUrl_P:
-            FullUrl_V = (
-                f"https://betarabia.com{FixtureUrl_P}"
-                if FixtureUrl_P.startswith("/")
-                else FixtureUrl_P
-            )
-            await Page_P.goto(FullUrl_V, wait_until="networkidle", timeout=20000)
-            await random_delay()
-
-        ExpandBtns_V = await Page_P.query_selector_all(
-            "[class*='expand'], [class*='show-more'], "
-            "[class*='toggle'], [aria-expanded='false']"
-        )
-        for Btn_V in ExpandBtns_V:
-            try:
-                await Btn_V.click()
-                await asyncio.sleep(0.5)
-            except Exception:
-                pass
-
-        MarketBlocks_V = await Page_P.query_selector_all(
-            "[class*='market'], [class*='bet-group'], "
-            "[class*='market-group'], [class*='odds-group']"
-        )
-
-        for BlockIdx_V, Block_V in enumerate(MarketBlocks_V):
-            try:
-                MarketName_V = await _safe_inner_text(
-                    Block_V,
-                    "[class*='market-name'], [class*='group-title'], [class*='header'], h3, h4",
-                )
-                if not MarketName_V:
-                    MarketName_V = f"market_{BlockIdx_V}"
-
-                SelectionEls_V = await Block_V.query_selector_all(
-                    "[class*='outcome'], [class*='selection'], "
-                    "[class*='bet-option'], [class*='odd-item']"
-                )
-
-                for SelIdx_V, SelEl_V in enumerate(SelectionEls_V):
-                    try:
-                        SelectionName_V = await _safe_inner_text(
-                            SelEl_V,
-                            "[class*='name'], [class*='label'], [class*='selection-name'], span:first-child",
-                        )
-                        OddsText_V = await _safe_inner_text(
-                            SelEl_V,
-                            "[class*='odd'], [class*='price'], [class*='odds-value'], span:last-child",
-                        )
-
-                        RawOdds_V = _parse_odds(OddsText_V)
-                        if RawOdds_V is None:
-                            continue
-
-                        MarketId_V = f"{FixtureId_P}_{BlockIdx_V}_{SelIdx_V}"
-
-                        Markets_V.append(
-                            {
-                                "MarketId_V": MarketId_V,
-                                "MarketName_V": MarketName_V.strip(),
-                                "SelectionName_V": (
-                                    SelectionName_V.strip() if SelectionName_V else ""
-                                ),
-                                "RawOdds_V": RawOdds_V,
-                            }
-                        )
-
-                    except Exception:
-                        continue
-
-            except Exception:
-                continue
-
-    except Exception as E_V:
-        with open(ERROR_LOG_PATH, "a") as F_V:
-            F_V.write(
-                f"[{datetime.datetime.now(datetime.UTC).isoformat()}] Market scrape failed for {FixtureId_P}: {E_V}\n"
-            )
-
-    return Markets_V
-
-
 async def run_scraper():
+    """Main scraper entry point."""
     init_db()
+
+    TodayStr_V = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+    # Clear stale today data before fresh scrape
+    clear_todays_data(TodayStr_V)
+
     Conn_V = sqlite3.connect(DB_PATH)
     Cursor_V = Conn_V.cursor()
 
     FixturesScraped_V = 0
     MarketsScraped_V = 0
     PlayerPropsFound_V = 0
-    FixturesNoProps_V = 0
+
+    ApiResponses_V = []
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=HEADLESS_MODE)
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36",
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
             viewport={"width": 1280, "height": 800},
             locale="en-US",
         )
         page = await context.new_page()
 
-        ApiResponses_V = []
-
-        # Capture every XHR/fetch response that looks like fixture data
+        # ── Intercept ALL JSON API responses ────────────────────────────────
         async def handle_response(Response_P):
             Url_V = Response_P.url
-            # Target endpoints that likely contain fixture/odds data
-            KeywordMatches_V = [
-                "fixture",
-                "match",
-                "event",
-                "sport",
-                "odds",
-                "market",
-                "football",
-                "soccer",
-                "bet",
-            ]
-            if any(Kw_V in Url_V.lower() for Kw_V in KeywordMatches_V):
+            ContentType_V = Response_P.headers.get("content-type", "")
+            # Capture JSON from both betarabia and websbkt (Kickertech) APIs
+            if "json" in ContentType_V:
                 try:
-                    if "json" in Response_P.headers.get("content-type", ""):
-                        JsonData_V = await Response_P.json()
-                        ApiResponses_V.append({"url": Url_V, "data": JsonData_V})
-                        logger.info(f"Captured API response: {Url_V}")
+                    JsonData_V = await Response_P.json()
+                    ApiResponses_V.append({"url": Url_V, "data": JsonData_V})
+                    if any(D_V in Url_V for D_V in SBTECH_DOMAINS):
+                        logger.info(f"[KT API] Captured: {Url_V[:90]}")
                 except Exception:
                     pass
 
         page.on("response", handle_response)
 
         try:
-            logger.info("Navigating to betarabia.com/en/sports/football...")
-            # Navigate to betarabia football section
+            # ── Step 1: Navigate directly to Kickertech sports page ──────────
+            logger.info("Navigating to betarabia.com/en/sports/kickertech/football ...")
             await page.goto(
-                "https://www.betarabia.com/en/sports/football",
+                "https://www.betarabia.com/en/sports/kickertech/football",
                 wait_until="domcontentloaded",
-                timeout=30000,
+                timeout=35000,
             )
 
-            # Wait for the JS framework to mount something into the body
+            # Wait for JS framework to mount
             try:
                 await page.wait_for_function(
                     "document.body && document.body.children.length > 2", timeout=15000
@@ -505,32 +686,19 @@ async def run_scraper():
             except Exception:
                 pass
 
-            # Extra wait for dynamic content to render
-            await asyncio.sleep(5)
+            # Extra wait for API calls to complete
+            await asyncio.sleep(6)
 
-            # Scroll to trigger lazy-loading of fixture cards
+            # Scroll to trigger lazy-loading
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await asyncio.sleep(2)
             await page.evaluate("window.scrollTo(0, 0)")
-            await asyncio.sleep(1)
-
-            # Try to select Kickertech first (it uses the SBTech/HTTP API), fallback to BetConstruct
-            try:
-                ProviderBtn_V = await page.query_selector("text='Kickertech'")
-                if not ProviderBtn_V:
-                    ProviderBtn_V = await page.query_selector("text='BetConstruct'")
-                if ProviderBtn_V:
-                    logger.info("Selecting sportsbook provider...")
-                    await ProviderBtn_V.click()
-                    await asyncio.sleep(15)
-            except Exception as e:
-                logger.info(f"No provider selection needed or failed: {e}")
+            await asyncio.sleep(2)
 
             # Accept cookies if banner appears
             try:
                 CookieBtn_V = await page.query_selector(
-                    "button[id*='accept'], button[class*='accept'], "
-                    "button[class*='cookie']"
+                    "button[id*='accept'], button[class*='accept'], button[class*='cookie']"
                 )
                 if CookieBtn_V:
                     await CookieBtn_V.click()
@@ -538,111 +706,138 @@ async def run_scraper():
             except Exception:
                 pass
 
+            # ── Step 2: Navigate to today's football section ─────────────────
+            # Also hit the pre-built fixtures endpoint for today
+            logger.info("Navigating to today's prematch football view ...")
+            try:
+                await page.goto(
+                    "https://www.betarabia.com/en/sports/kickertech/football/today",
+                    wait_until="domcontentloaded",
+                    timeout=25000,
+                )
+                await asyncio.sleep(5)
+            except Exception:
+                logger.warning("today sub-path not available, continuing with main page data")
+
+            # Save all captured API responses for debugging
             with open(API_RESPONSES_PATH, "w") as F_V:
                 json.dump(ApiResponses_V, F_V, indent=2)
-            logger.info(f"Saved {len(ApiResponses_V)} API responses to inspect")
+            logger.info(
+                f"Saved {len(ApiResponses_V)} API responses → {API_RESPONSES_PATH}"
+            )
 
-            # Try to parse fixtures from API first
-            Fixtures_V = parse_fixtures_from_api(ApiResponses_V)
-            ApiMode_V = len(Fixtures_V) > 0
+            # ── Step 3: Parse Kickertech API events + odds ───────────────────
+            AllEventsById_V = parse_kickertech_events(ApiResponses_V)
+            AllOddsByEvent_V = parse_kickertech_odds(ApiResponses_V, AllEventsById_V)
 
-            # HTML Fallback for fixtures if API failed
-            if len(Fixtures_V) == 0:
-                Fixtures_V = await scrape_fixture_list(page)
+            # Filter to today (+ DAYS_AHEAD)
+            TodayEvents_V = filter_todays_fixtures(AllEventsById_V, DAYS_AHEAD)
 
-            if len(Fixtures_V) == 0:
-                logger.warning("Zero fixtures found. Running page structure probe...")
+            if not TodayEvents_V:
+                logger.warning(
+                    "No Kickertech API events found for today. "
+                    "Falling back to ALL events (unfiltered)..."
+                )
+                TodayEvents_V = AllEventsById_V
+                # Add kickoff_date best-effort
+                for Fix_V in TodayEvents_V.values():
+                    Fix_V["kickoff_date"] = TodayStr_V
+
+            if not TodayEvents_V:
+                logger.warning(
+                    "Zero events from API. Running HTML probe for debugging..."
+                )
                 await run_full_probe(page)
-            else:
-                for Fix_V in Fixtures_V:
-                    ScrapedAt_V = datetime.datetime.now(datetime.UTC).isoformat()
+                HtmlFixtures_V = await scrape_fixture_list_html(page)
+                logger.info(
+                    f"HTML fallback found {len(HtmlFixtures_V)} fixtures"
+                )
+                for Fix_V in HtmlFixtures_V:
+                    TodayEvents_V[Fix_V["fixture_id"]] = Fix_V
+                    AllOddsByEvent_V[Fix_V["fixture_id"]] = []
+
+            # ── Step 4: Upsert fixtures + markets to DB ──────────────────────
+            ScrapedAt_V = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+            for EventId_V, Fix_V in TodayEvents_V.items():
+                # Only store football (sport_id=2) or generic fixture from HTML fallback
+                SportId_V = Fix_V.get("sport_id", 2)
+                if SportId_V not in (2, 0):  # 2=football, 0=HTML fallback
+                    continue
+
+                KickoffDate_V = Fix_V.get("kickoff_date", TodayStr_V)
+                Cursor_V.execute(
+                    """
+                    INSERT OR REPLACE INTO fixture
+                      (fixture_id, home_team, away_team, kickoff_time, kickoff_date,
+                       league_id, tournament_name, scraped_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        Fix_V["fixture_id"],
+                        Fix_V["home_team"],
+                        Fix_V["away_team"],
+                        Fix_V["kickoff_time"],
+                        KickoffDate_V,
+                        Fix_V.get("league_id", "FOOTBALL"),
+                        Fix_V.get("tournament_name", "Football"),
+                        ScrapedAt_V,
+                    ),
+                )
+                FixturesScraped_V += 1
+
+                # Insert markets for this event
+                Markets_V = AllOddsByEvent_V.get(EventId_V, [])
+                for Mkt_V in Markets_V:
+                    PlayerName_V, PropType_V, Line_V = None, None, None
+                    if is_player_prop(Mkt_V["market_name"]):
+                        PlayerName_V, PropType_V, Line_V = parse_player_prop(
+                            Mkt_V["selection_name"], Mkt_V["market_name"]
+                        )
+                        if PlayerName_V:
+                            PlayerPropsFound_V += 1
+
                     Cursor_V.execute(
                         """
-                        INSERT OR REPLACE INTO fixture (fixture_id, home_team, away_team, kickoff_time, league_id, scraped_at)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """,
+                        INSERT OR REPLACE INTO market
+                          (market_id, fixture_id, market_name, selection_name,
+                           raw_odds, prop_player, prop_type, prop_line, scraped_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
                         (
-                            Fix_V["FixtureId_V"],
-                            Fix_V["HomeTeam_V"],
-                            Fix_V["AwayTeam_V"],
-                            Fix_V["KickoffTime_V"],
-                            Fix_V["LeagueId_V"],
+                            Mkt_V["market_id"],
+                            EventId_V,
+                            Mkt_V["market_name"],
+                            Mkt_V["selection_name"],
+                            Mkt_V["raw_odds"],
+                            PlayerName_V,
+                            PropType_V,
+                            Line_V,
                             ScrapedAt_V,
                         ),
                     )
-                    FixturesScraped_V += 1
+                    MarketsScraped_V += 1
 
-                    if ApiMode_V:
-                        # Extract markets directly from the API item
-                        Markets_V = parse_markets_from_api_item(
-                            Fix_V.get("RawApiItem_V", {}), Fix_V["FixtureId_V"]
-                        )
-                    else:
-                        # HTML Fallback approach for markets
-                        for Attempt_V in range(3):
-                            try:
-                                await random_delay()
-                                Markets_V = await scrape_fixture_markets(
-                                    page,
-                                    Fix_V.get("FixtureUrl_V", ""),
-                                    Fix_V["FixtureId_V"],
-                                )
-                                break
-                            except Exception as E_V:
-                                logger.warning(
-                                    f"Attempt {Attempt_V+1} failed for {Fix_V['FixtureId_V']}: {E_V}"
-                                )
-                                await asyncio.sleep(2**Attempt_V)
-                                if Attempt_V == 2:
-                                    with open(ERROR_LOG_PATH, "a") as F_V:
-                                        F_V.write(
-                                            f"[{datetime.datetime.now(datetime.UTC).isoformat()}] GAVE UP on {Fix_V['FixtureId_V']}\n"
-                                        )
-                                    Markets_V = []
-
-                    PropsInFix_V = 0
-                    for M_V in Markets_V:
-                        PlayerName_V, PropType_V, Line_V = None, None, None
-                        if is_player_prop(M_V["MarketName_V"]):
-                            PlayerName_V, PropType_V, Line_V = parse_player_prop(
-                                M_V["SelectionName_V"], M_V["MarketName_V"]
-                            )
-                            if PlayerName_V:
-                                PropsInFix_V += 1
-                                PlayerPropsFound_V += 1
-
-                        Cursor_V.execute(
-                            """
-                            INSERT OR REPLACE INTO market (market_id, fixture_id, market_name, selection_name, raw_odds, prop_player, prop_type, prop_line, scraped_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                            (
-                                M_V["MarketId_V"],
-                                Fix_V["FixtureId_V"],
-                                M_V["MarketName_V"],
-                                M_V["SelectionName_V"],
-                                M_V["RawOdds_V"],
-                                PlayerName_V,
-                                PropType_V,
-                                Line_V,
-                                ScrapedAt_V,
-                            ),
-                        )
-                        MarketsScraped_V += 1
-
-                    if PropsInFix_V == 0:
-                        FixturesNoProps_V += 1
-
+        except Exception as MainErr_V:
+            import traceback
+            traceback.print_exc()
+            with open(ERROR_LOG_PATH, "a") as F_V:
+                F_V.write(
+                    f"[{datetime.datetime.now(datetime.timezone.utc).isoformat()}] "
+                    f"Main scraper error: {MainErr_V}\n"
+                )
+            logger.error(f"Main scraper error: {MainErr_V}")
         finally:
             await browser.close()
             Conn_V.commit()
             Conn_V.close()
 
     print("\n--- SCRAPER HEALTH CHECK ---")
+    print(f"Target date(s)         : {TodayStr_V}{f' +{DAYS_AHEAD}d' if DAYS_AHEAD else ''}")
+    print(f"Total API responses    : {len(ApiResponses_V)}")
     print(f"Fixtures scraped       : {FixturesScraped_V}")
     print(f"Markets scraped        : {MarketsScraped_V}")
     print(f"Player props found     : {PlayerPropsFound_V}")
-    print(f"Fixtures with no props : {FixturesNoProps_V}")
     print("----------------------------\n")
 
 

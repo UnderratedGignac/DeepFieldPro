@@ -1,0 +1,38 @@
+================================================================
+DEEPFIELDPRO — TODAY'S PREDICTIONS
+Date       : 2026-06-04
+Bankroll   : $100.00
+Generated  : 2026-06-04T13:01:16.567558+00:00
+================================================================
+
+── SINGLE BETS (BATCH — place these) ───────────────────────────
+
+#2 | France vs Cote d'Ivoire — 2026-06-04T19:10:00.000Z
+   Market    : Match Result
+   Selection : Total UNDER
+   Odds      : 2.30
+   Fair Prob : 53.1% (model estimate)
+   EV        : +22.1%
+   Stake     : $4.26 (4.26% of bankroll)
+   Confidence: HIGH
+
+── MONITOR LIST (close to threshold — watch only) ───────────────
+
+   No bets in monitor list.
+
+── PARLAYS (BATCH — place these) ────────────────────────────────
+
+   No valid BATCH parlays today.
+
+── PORTFOLIO SUMMARY ────────────────────────────────────────────
+   Total BATCH bets    : 1
+   Total BATCH parlays : 0
+   Total stake today   : $4.26 (4.26% of bankroll)
+   Expected return     : $0.94
+   Stop-loss remaining : $115.00 before DRAWDOWN_PAUSE triggers
+
+================================================================
+RISK DISCLAIMER: This is a model output. All predictions carry
+uncertainty. Never bet more than you can afford to lose.
+Paper trade first. Verify odds before placing any bet.
+================================================================

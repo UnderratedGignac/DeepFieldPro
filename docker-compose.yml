@@ -1,98 +1,30 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: deepfield_db
-    environment:
-      POSTGRES_DB: deepfield
-      POSTGRES_USER: deepfield
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-deepfield_secret}
+  daemon:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: deepfield_daemon
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./db:/docker-entrypoint-initdb.d
+      - ./data:/app/data
+      - ./models:/app/models
+    command: python src/live_predictions_daemon.py
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  dashboard:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: deepfield_dashboard
     ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U deepfield"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  odds_collector:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: deepfield_odds_collector
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      - DATABASE_URL=postgresql://deepfield:${DB_PASSWORD:-deepfield_secret}@db:5432/deepfield
-      - API_FOOTBALL_KEY=${API_FOOTBALL_KEY}
-      - BETFAIR_APP_KEY=${BETFAIR_APP_KEY}
-      - BETFAIR_USERNAME=${BETFAIR_USERNAME}
-      - BETFAIR_PASSWORD=${BETFAIR_PASSWORD}
-      - BROWSER_HEADLESS=true
+      - "5000:5000"
     volumes:
       - ./data:/app/data
-      - ./logs:/app/logs
       - ./models:/app/models
-    command: python -m src.services.odds_acquisition.collector
+    command: python src/live_dashboard_server.py
     restart: unless-stopped
-
-  session_manager:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: deepfield_session_manager
-    depends_on:
-      - db
     environment:
-      - DATABASE_URL=postgresql://deepfield:${DB_PASSWORD:-deepfield_secret}@db:5432/deepfield
-      - MAX_CONCURRENT_SESSIONS=5
-      - BROWSER_HEADLESS=true
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    command: python -m src.services.session_manager.service
-    restart: unless-stopped
-
-  normalizer:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: deepfield_normalizer
-    depends_on:
-      - db
-    environment:
-      - DATABASE_URL=postgresql://deepfield:${DB_PASSWORD:-deepfield_secret}@db:5432/deepfield
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    command: python -m src.services.normalizer.engine
-    restart: unless-stopped
-
-  predictor:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: deepfield_predictor
-    depends_on:
-      - db
-    environment:
-      - DATABASE_URL=postgresql://deepfield:${DB_PASSWORD:-deepfield_secret}@db:5432/deepfield
-      - MODEL_DIR=/app/models
-    volumes:
-      - ./models:/app/models
-      - ./data:/app/data
-      - ./logs:/app/logs
-    command: python -m src.generate_predictions
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-
-networks:
-  default:
-    name: deepfield_network
+      - PYTHONUNBUFFERED=1

@@ -75,7 +75,7 @@ def record_snapshot(
             t_exec_ev,
             t_close_ev,
             half_life,
-            datetime.datetime.now(datetime.UTC).isoformat(),
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
         ),
     )
     conn.commit()

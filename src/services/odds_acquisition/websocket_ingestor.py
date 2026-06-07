@@ -203,7 +203,7 @@ class WebSocketIngestor:
 
             self._websocket = websocket
             self._state = WebSocketState.CONNECTED
-            self._metrics.connect_time = datetime.utcnow()
+            self._metrics.connect_time = datetime.timezone.utcnow()
             self._metrics.reconnect_count += 1
 
             # Register message handler
@@ -247,7 +247,7 @@ class WebSocketIngestor:
         """Handle incoming WebSocket frame."""
         try:
             self._metrics.messages_received += 1
-            self._metrics.last_message_time = datetime.utcnow()
+            self._metrics.last_message_time = datetime.timezone.utcnow()
 
             # Parse frame data
             payload = frame_data
@@ -364,7 +364,7 @@ class WebSocketIngestor:
                 outcome=outcome,
                 odds_before=odds_before,
                 odds_after=odds_after,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.timezone.utcnow(),
                 sequence_number=seq_num,
                 metadata=context,
             )
@@ -400,7 +400,7 @@ class WebSocketIngestor:
 
     def _generate_tick_id(self, fixture_id: str, market_type: str, seq_num: int) -> str:
         """Generate unique tick ID."""
-        data = f"{self.sportsbook}:{fixture_id}:{market_type}:{seq_num}:{datetime.utcnow().isoformat()}"
+        data = f"{self.sportsbook}:{fixture_id}:{market_type}:{seq_num}:{datetime.timezone.utcnow().isoformat()}"
         return hashlib.sha256(data.encode()).hexdigest()[:32]
 
     async def _process_tick(self, tick: OddsTick) -> None:
@@ -456,7 +456,7 @@ class WebSocketIngestor:
         """Reconnection loop with exponential backoff."""
         while self._is_running and self._state != WebSocketState.CONNECTED:
             try:
-                now = datetime.utcnow()
+                now = datetime.timezone.utcnow()
 
                 # Check if enough time has passed since last attempt
                 if self._last_reconnect_attempt:
@@ -523,7 +523,7 @@ class WebSocketIngestor:
         if not self._metrics.last_message_time:
             return
 
-        elapsed = (datetime.utcnow() - self._metrics.last_message_time).total_seconds()
+        elapsed = (datetime.timezone.utcnow() - self._metrics.last_message_time).total_seconds()
 
         if elapsed > self.STALE_STREAM_THRESHOLD_SECONDS:
             logger.warning(
@@ -553,7 +553,7 @@ class WebSocketIngestor:
             "consecutive_failures": self._metrics.consecutive_failures,
             "buffer_size": len(self._tick_buffer),
             "last_message_ago_seconds": (
-                (datetime.utcnow() - self._metrics.last_message_time).total_seconds()
+                (datetime.timezone.utcnow() - self._metrics.last_message_time).total_seconds()
                 if self._metrics.last_message_time
                 else None
             ),
@@ -567,5 +567,5 @@ class WebSocketIngestor:
         if not self._metrics.last_message_time:
             return True  # Just connected, no messages yet
 
-        elapsed = (datetime.utcnow() - self._metrics.last_message_time).total_seconds()
+        elapsed = (datetime.timezone.utcnow() - self._metrics.last_message_time).total_seconds()
         return elapsed < self.STALE_STREAM_THRESHOLD_SECONDS
