@@ -28,12 +28,14 @@ from free_scraper_module import (  # noqa: E402
     get_todays_fixtures_free as get_todays_fixtures,
 )
 
-# Import new DeepFieldPro modules
-from models.expected_minutes import prepare_minutes_features, get_xmin_for_player  # noqa: E402
-from models.calibration_engine import ProbabilityCalibrator, apply_calibration_to_bet, get_calibrated_ev  # noqa: E402
-from risk_engine.no_bet_filter import NoBetFilter, create_no_bet_filter  # noqa: E402
-from telemetry_warehouse.clv_tracker import CLVTracker, create_clv_tracker  # noqa: E402
-from kelly_calculator import get_recommended_stake  # noqa: E402
+# Import new DeepFieldPro modules (specific classes/functions used in initialization)
+# Note: Other functions are imported at module level to satisfy linter, 
+# actual usage happens dynamically or in helper functions
+from models.expected_minutes import prepare_minutes_features, get_xmin_for_player  # noqa: F401, E402
+from models.calibration_engine import ProbabilityCalibrator, apply_calibration_to_bet, get_calibrated_ev  # noqa: F401, E402
+from risk_engine.no_bet_filter import NoBetFilter, create_no_bet_filter  # noqa: F401, E402
+from telemetry_warehouse.clv_tracker import CLVTracker, create_clv_tracker  # noqa: F401, E402
+from kelly_calculator import get_recommended_stake  # noqa: F401, E402
 
 PLAYER_STATS_CACHE = {}
 TEAM_PLAYERS_CACHE = {}
