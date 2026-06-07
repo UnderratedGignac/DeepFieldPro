@@ -136,7 +136,9 @@ async def random_delay():
     await asyncio.sleep(random.uniform(1.5, 3.5))
 
 
-def _parse_odds(OddsText_P: str) -> float | None:
+from typing import Optional
+
+def _parse_odds(OddsText_P: str) -> Optional[float]:
     if not OddsText_P:
         return None
     try:
@@ -455,7 +457,7 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
 
 def _normalize_selection(
     SelectionName_P: str, OddCode_P: str, Fixture_P: dict,
-    BettingLine_P: float | None = None
+    BettingLine_P: Optional[float] = None
 ) -> str:
     """
     Normalize selection names to match what single_bet_predictor.py expects.

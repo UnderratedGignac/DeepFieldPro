@@ -53,6 +53,7 @@ def query_db(db_name, query, args=(), one=False):
 @app.route('/performance')
 @app.route('/settings')
 @app.route('/comparison')
+@app.route('/stair')
 def index():
     return render_template('index.html')
 
@@ -103,6 +104,26 @@ def get_bankroll():
         "chart_dates": [],
         "chart_balances": []
     })
+
+@app.route('/api/stair_balance')
+def get_stair_balance():
+    try:
+        import requests
+        res = requests.get(
+            "https://staging.stair-ai.com/api/v1/arena/agents/me", 
+            headers={"x-api-key": "zppYmElHFokPQMMhHarWOygViHWDBduLPAuvTXcvCUFlbrdgkQhqnLlefmLzNisn"},
+            timeout=5
+        )
+        if res.status_code == 200:
+            data = res.json()
+            wallet = data.get('data', {}).get('wallet', {})
+            return jsonify({
+                "available": wallet.get('availableBalance', 0),
+                "locked": wallet.get('lockedBalance', 0)
+            })
+    except Exception as e:
+        pass
+    return jsonify({"available": 0, "locked": 0})
 
 @app.route('/api/tracker')
 def get_tracker():
@@ -165,6 +186,13 @@ def get_performance():
         "user_own": user_own_summary,
         "raw_user_bets": [dict(r) for r in (user_bets or [])],
         "raw_ai_bets": [dict(r) for r in (ai_bets or [])]
+    })
+
+@app.route('/api/stair_bets')
+def get_stair_bets():
+    rows = query_db('bet_log.db', "SELECT b.bet_id, b.match_id, b.market_type, b.entry_odds, b.stake, b.result as status, b.pnl, b.placed_at, s.order_id FROM bet_log b JOIN stair_orders s ON b.bet_id = s.bet_id ORDER BY b.placed_at DESC")
+    return jsonify({
+        "stair_bets": [dict(r) for r in (rows or [])]
     })
 
 @app.route('/api/settle_bet', methods=['POST'])

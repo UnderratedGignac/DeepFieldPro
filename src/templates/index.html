@@ -548,6 +548,9 @@
             <a class="nav-item" onclick="switchView('comparison-view', this)">
                 <i class="fa-solid fa-scale-balanced"></i> AI vs Reality
             </a>
+            <a class="nav-item" onclick="switchView('stair-view', this)">
+                <i class="fa-solid fa-robot"></i> Stair AI API Bets
+            </a>
             <a class="nav-item" onclick="switchView('settings-view', this)">
                 <i class="fa-solid fa-microchip"></i> Engine Settings
             </a>
@@ -583,6 +586,11 @@
                 <div class="kpi-card">
                     <div class="kpi-title">Total Capital</div>
                     <div class="kpi-value" id="kpi-capital">Loading...</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Stair AI Vault</div>
+                    <div class="kpi-value" id="kpi-stair-wallet" style="color: #00ff88;">Loading...</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">Locked in Play: <span id="kpi-stair-locked">$0.00</span></div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-title">30-Day ROI</div>
@@ -627,6 +635,33 @@
                         </thead>
                         <tbody>
                             <tr><td colspan="6" style="text-align: center;">Loading Ledger...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- STAIR AI API BETS VIEW -->
+        <div id="stair-view" class="view-section">
+            <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; margin-bottom: 20px;">
+                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-robot"></i> Stair AI Automated API Bets</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">This ledger displays all betting orders autonomously transmitted and successfully executed by the Capital Engine via the Stair AI production API.</p>
+                <div class="table-container" style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Placed At</th>
+                                <th>Match</th>
+                                <th>Market (Selection)</th>
+                                <th>Odds</th>
+                                <th>Stake</th>
+                                <th>Status</th>
+                                <th>Stair Order ID</th>
+                                <th>PNL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stair-table-body">
+                            <!-- Stair Bets populated here -->
                         </tbody>
                     </table>
                 </div>
@@ -861,6 +896,8 @@
                 loadBankroll();
             } else if(viewId === 'comparison-view') {
                 loadComparisonList();
+            } else if(viewId === 'stair-view') {
+                loadStairBets();
             }
         }
 
@@ -971,7 +1008,12 @@
                         for(const [marketName, selections] of Object.entries(p.markets)) {
                             contentHTML += `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; margin-bottom:4px;">${marketName}</div>`;
                             selections.forEach(sel => {
-                                const recBadge = sel.recommended ? `<span style="background:linear-gradient(135deg, var(--primary), var(--secondary)); color:var(--bg-color); font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.65rem; text-transform:uppercase; margin-left:8px;">RECOMMENDED</span>` : '';
+                                let recBadge = '';
+                                if(sel.recommended) {
+                                    recBadge = `<span style="background:linear-gradient(135deg, var(--primary), var(--secondary)); color:var(--bg-color); font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.65rem; text-transform:uppercase; margin-left:8px;">RECOMMENDED</span>`;
+                                } else if (sel.is_top_pick) {
+                                    recBadge = `<span style="background:rgba(255,255,255,0.1); color:var(--text-muted); font-weight:600; padding:2px 6px; border-radius:4px; font-size:0.65rem; text-transform:uppercase; margin-left:8px; border:1px solid rgba(255,255,255,0.2);">AI PICK</span>`;
+                                }
                                 contentHTML += `
                                 <div class="market-row" style="margin-bottom: 6px;">
                                     <button class="market-btn" onclick="placeBet('${p.match}', '${marketName}', '${sel.selection}', ${sel.prob}, ${sel.odds}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center;">
@@ -1143,6 +1185,15 @@
                 document.getElementById('kpi-capital').innerText = `$${data.current.toLocaleString()}`;
                 document.getElementById('kpi-roi').innerText = `${data.roi > 0 ? '+' : ''}${data.roi}%`;
                 document.getElementById('kpi-pnl').innerText = `$${data.pnl.toLocaleString()}`;
+                
+                try {
+                    const stairRes = await fetch('/api/stair_balance');
+                    if (stairRes.ok) {
+                        const sData = await stairRes.json();
+                        document.getElementById('kpi-stair-wallet').innerText = `$${parseFloat(sData.available).toLocaleString()}`;
+                        document.getElementById('kpi-stair-locked').innerText = `$${parseFloat(sData.locked).toLocaleString()}`;
+                    }
+                } catch(e) {}
 
                 // Draw Chart
                 if(data.chart_dates && data.chart_balances) {
@@ -1247,6 +1298,37 @@
                     </tr>`;
                 }).join('');
             } catch(e) {}
+        }
+
+        // Fetch Stair AI Bets
+        async function loadStairBets() {
+            try {
+                const res = await fetch('/api/stair_bets');
+                const data = await res.json();
+                const tbody = document.querySelector('#stair-table-body');
+                tbody.innerHTML = data.stair_bets.map(b => {
+                    let statusColor = 'var(--text-main)';
+                    if(b.status === 'OPEN') statusColor = 'var(--primary)';
+                    if(b.status === 'SETTLED' && b.pnl > 0) statusColor = '#00ff88';
+                    if(b.status === 'SETTLED' && b.pnl < 0) statusColor = '#ff4d4d';
+                    
+                    return `
+                    <tr>
+                        <td>${new Date(b.placed_at).toLocaleString()}</td>
+                        <td style="font-weight:600;">${b.match_id}</td>
+                        <td>${b.market_type}</td>
+                        <td>${b.entry_odds}</td>
+                        <td>$${b.stake.toFixed(2)}</td>
+                        <td style="color:${statusColor}; font-weight:700;">${b.status}</td>
+                        <td style="font-family:monospace;">${b.order_id || 'N/A'}</td>
+                        <td style="color:${b.pnl > 0 ? '#00ff88' : (b.pnl < 0 ? '#ff4d4d' : 'var(--text-main)')}; font-weight:700;">
+                            ${b.pnl > 0 ? '+' : ''}${b.pnl.toFixed(2)}
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch(e) {
+                console.error("Failed to load stair bets", e);
+            }
         }
 
         // Fetch Settings

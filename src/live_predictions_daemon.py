@@ -1067,9 +1067,11 @@ def update_dashboard_json(fixtures, results_cache):
                 
         if prediction and 'markets' in prediction:
             for m_type, selections in prediction['markets'].items():
+                max_prob = max([s['prob'] for s in selections]) if selections else 0
                 for sel in selections:
                     sel_name = sel['selection']
                     prob = sel['prob']
+                    sel['is_top_pick'] = (prob == max_prob)
                     
                     key = None
                     if m_type == '1X2':
@@ -1089,7 +1091,7 @@ def update_dashboard_json(fixtures, results_cache):
                         
                     if odds is not None:
                         ev = (prob / 100.0) * odds - 1.0
-                        is_recommended = ev >= min_ev_threshold
+                        is_recommended = ev >= min_ev_threshold or prob >= settings.get("min_confidence_pct", 55)
                         sel['odds'] = odds
                         sel['ev'] = round(ev * 100, 1)
                         sel['recommended'] = is_recommended
@@ -1100,7 +1102,11 @@ def update_dashboard_json(fixtures, results_cache):
                         est_odds = round(0.95 * (100.0 / prob), 2) if prob > 0 else 1.0
                         sel['odds'] = est_odds
                         sel['ev'] = -5.0
-                        sel['recommended'] = False
+                        is_recommended = prob >= settings.get("min_confidence_pct", 55)
+                        sel['recommended'] = is_recommended
+                        
+                        if is_recommended:
+                            log_ai_bet(f"{home} vs {away}", m_type, sel_name, est_odds, prob, sel['ev'])
         
         item = {
             'fixture_id': fid,
