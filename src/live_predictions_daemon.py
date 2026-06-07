@@ -828,6 +828,34 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
             """, (bet_id, match, f"{match} ({selection})", market, odds, fair_odds, round(ev * 100, 1), stake, "OPEN", 0.0, datetime.datetime.now().isoformat(), "AI", 1, 2.5, selection))
             print(f"[AI BET LOGGER] Automatically logged recommended AI bet: {match} ({selection}) @ {odds} stake {stake}")
             
+            # STAIR-AI INTEGRATION
+            team_code = str(selection)
+            if "Home" in selection or "1" in selection:
+                team_code = match.split(" vs ")[0][:3].upper() if " vs " in match else "HOME"
+            elif "Away" in selection or "2" in selection:
+                team_code = match.split(" vs ")[1][:3].upper() if " vs " in match else "AWAY"
+            elif "Draw" in selection or "X" in selection:
+                team_code = "draw"
+                
+            try:
+                import requests
+                stair_payload = {
+                    "fixture_code": str(match.replace(" ", "_")),
+                    "idempotency_key": str(bet_id),
+                    "limit_price": round(1.0 / odds, 3) if odds > 0 else 0.5,
+                    "team_code": team_code,
+                    "time_in_force_seconds": 30,
+                    "usd_size": str(stake)
+                }
+                stair_headers = {
+                    "Content-Type": "application/json",
+                    "x-api-key": "lmIxslhTmXaJSLpRndCZjaziawkycPJkecyDCWYnXaVFyyWmqZQhaHCJdVLdShrk"
+                }
+                res = requests.post("https://staging.stair-ai.com/api/v1/arena/orders", json=stair_payload, headers=stair_headers, timeout=10)
+                print(f"[STAIR AI] Place bet response: {res.status_code} - {res.text}")
+            except Exception as se:
+                print(f"[STAIR AI] Error placing bet: {se}")
+            
         conn.commit()
         conn.close()
     except Exception as e:
@@ -1089,8 +1117,42 @@ def update_dashboard_json(fixtures, results_cache):
     with open('data/todays_dashboard_state.json', 'w', encoding='utf-8') as f:
         json.dump(dashboard_data, f, indent=4)
 
+def init_stair_ai_agent():
+    import requests
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": "lmIxslhTmXaJSLpRndCZjaziawkycPJkecyDCWYnXaVFyyWmqZQhaHCJdVLdShrk"
+    }
+    try:
+        res = requests.get("https://staging.stair-ai.com/api/v1/arena/agents/me", headers=headers, timeout=10)
+        if res.status_code == 200:
+            print("[STAIR AI] Agent already registered. Updating profile...")
+            patch_payload = {
+                "display_name": "DeepFieldPro AI",
+                "bio": "Institutional-grade automated quantitative sports betting AI.",
+                "social": {"twitter": "https://twitter.com/deepfieldpro"}
+            }
+            requests.patch("https://staging.stair-ai.com/api/v1/arena/agents/me", json=patch_payload, headers=headers, timeout=10)
+            print("[STAIR AI] Agent profile updated successfully.")
+        else:
+            print("[STAIR AI] Agent not found. Registering new agent...")
+            register_payload = {
+                "display_name": "DeepFieldPro AI",
+                "bio": "Institutional-grade automated quantitative sports betting AI.",
+                "creator_handle": "Elie",
+                "social": {"twitter": "https://twitter.com/deepfieldpro"}
+            }
+            reg_res = requests.post("https://staging.stair-ai.com/api/v1/arena/agents/register", json=register_payload, headers=headers, timeout=10)
+            if reg_res.status_code == 200:
+                print("[STAIR AI] Agent registered successfully.")
+            else:
+                print(f"[STAIR AI] Failed to register agent: {reg_res.status_code} - {reg_res.text}")
+    except Exception as e:
+        print(f"[STAIR AI] Error initializing agent: {e}")
+
 def run_daemon():
     print("[*] Starting Smart Live Predictions Daemon...")
+    init_stair_ai_agent()
     player_model = joblib.load('models/player_impact_model.pkl')
     match_model = joblib.load('models/bottom_up_match_model.pkl')
     df = load_player_database()
