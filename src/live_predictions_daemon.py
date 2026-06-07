@@ -28,8 +28,65 @@ from free_scraper_module import (  # noqa: E402
     get_todays_fixtures_free as get_todays_fixtures,
 )
 
+# Import new DeepFieldPro modules
+from models.expected_minutes import prepare_minutes_features, get_xmin_for_player
+from models.calibration_engine import ProbabilityCalibrator, apply_calibration_to_bet, get_calibrated_ev
+from risk_engine.no_bet_filter import NoBetFilter, create_no_bet_filter
+from telemetry_warehouse.clv_tracker import CLVTracker, create_clv_tracker
+from kelly_calculator import get_recommended_stake
+
 PLAYER_STATS_CACHE = {}
 TEAM_PLAYERS_CACHE = {}
+
+# Global instances for new modules
+_xmin_model = None
+_xmin_features = None
+_probability_calibrator = None
+_no_bet_filter = None
+_clv_tracker = None
+
+
+def initialize_deepfield_modules():
+    """Initialize all new DeepFieldPro institutional modules."""
+    global _xmin_model, _xmin_features, _probability_calibrator, _no_bet_filter, _clv_tracker
+    
+    print("[*] Initializing DeepFieldPro institutional modules...")
+    
+    try:
+        # Load Expected Minutes model
+        xmin_model_path = os.path.join(os.path.dirname(__file__), "..", "models", "lgbm_minutes_v1.pkl")
+        if os.path.exists(xmin_model_path):
+            _xmin_model = joblib.load(xmin_model_path)
+            _xmin_features = [
+                "started_last_match",
+                "started_last_3",
+                "minutes_last_5",
+                "Pos",
+                "Comp",
+                "days_rest",
+            ]
+            print("[+] Expected Minutes model loaded")
+        else:
+            print("[!] Expected Minutes model not found, will use fallback")
+        
+        # Initialize Probability Calibrator
+        _probability_calibrator = ProbabilityCalibrator(method="isotonic", cv=5)
+        calibrator_path = os.path.join(os.path.dirname(__file__), "..", "models", "platt_scaler_sot.pkl")
+        if os.path.exists(calibrator_path):
+            _probability_calibrator.load(calibrator_path)
+            print("[+] Probability Calibrator loaded")
+        
+        # Initialize No-Bet Filter
+        _no_bet_filter = create_no_bet_filter()
+        print("[+] No-Bet Filter initialized")
+        
+        # Initialize CLV Tracker
+        _clv_tracker = create_clv_tracker()
+        print("[+] CLV Tracker initialized")
+        
+        print("[+] All DeepFieldPro modules initialized successfully")
+    except Exception as e:
+        print(f"[!] Error initializing modules: {e}")
 
 
 def clean_name(name):
@@ -1522,6 +1579,10 @@ def init_stair_ai_agent():
 def run_daemon():
     print("[*] Starting Smart Live Predictions Daemon...")
     init_stair_ai_agent()
+    
+    # Initialize new DeepFieldPro institutional modules
+    initialize_deepfield_modules()
+    
     player_model = joblib.load("models/player_impact_model.pkl")
     match_model = joblib.load("models/bottom_up_match_model.pkl")
     df = load_player_database()
