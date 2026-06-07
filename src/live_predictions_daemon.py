@@ -26,7 +26,9 @@ def print(*args, **kwargs):
 sys.path.insert(0, os.path.dirname(__file__))
 
 # Import new DeepFieldPro modules - only the specific classes/functions we actually use
-from free_scraper_module import get_todays_fixtures_free as get_todays_fixtures  # noqa: E402
+from free_scraper_module import (
+    get_todays_fixtures_free as get_todays_fixtures,
+)  # noqa: E402
 from models.calibration_engine import ProbabilityCalibrator  # noqa: E402
 from risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
 from telemetry_warehouse.clv_tracker import create_clv_tracker  # noqa: E402
@@ -204,7 +206,8 @@ def log_prediction_to_db(pred_res, has_lineup):
         cur = conn.cursor()
 
         # Check if predictions table exists, create if not
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS predictions (
                 fixture_id TEXT PRIMARY KEY,
                 match_name TEXT,
@@ -222,7 +225,8 @@ def log_prediction_to_db(pred_res, has_lineup):
                 has_lineup INTEGER,
                 predicted_at TIMESTAMP
             )
-        """)
+        """
+        )
 
         # Check if column extra_json exists
         cur.execute("PRAGMA table_info(predictions)")
