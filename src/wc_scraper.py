@@ -7,12 +7,63 @@ print("Initializing Global World Cup 2026 Scraper...")
 
 # The 48 countries qualified for the 2026 World Cup (FBref Nationality Codes)
 WC_NATIONS = [
-    "ARG", "BRA", "FRA", "ENG", "ESP", "GER", "POR", "NED", "ITA", "BEL",
-    "CRO", "URU", "COL", "USA", "MEX", "CAN", "JPN", "KOR", "SEN", "MAR",
-    "CRC", "PAN", "JAM", "HON", "SLV", "GUA", "HAI", "CMR", "GHA", "NGA",
-    "ALG", "TUN", "MLI", "CIV", "BFA", "EGY", "KSA", "IRN", "AUS", "QAT",
-    "ECU", "PER", "CHI", "VEN", "PAR", "BOL", "SRB", "SUI", "DEN", "SWE",
-    "POL", "WAL", "SCO", "UKR", "AUT", "CZE", "HUN"
+    "ARG",
+    "BRA",
+    "FRA",
+    "ENG",
+    "ESP",
+    "GER",
+    "POR",
+    "NED",
+    "ITA",
+    "BEL",
+    "CRO",
+    "URU",
+    "COL",
+    "USA",
+    "MEX",
+    "CAN",
+    "JPN",
+    "KOR",
+    "SEN",
+    "MAR",
+    "CRC",
+    "PAN",
+    "JAM",
+    "HON",
+    "SLV",
+    "GUA",
+    "HAI",
+    "CMR",
+    "GHA",
+    "NGA",
+    "ALG",
+    "TUN",
+    "MLI",
+    "CIV",
+    "BFA",
+    "EGY",
+    "KSA",
+    "IRN",
+    "AUS",
+    "QAT",
+    "ECU",
+    "PER",
+    "CHI",
+    "VEN",
+    "PAR",
+    "BOL",
+    "SRB",
+    "SUI",
+    "DEN",
+    "SWE",
+    "POL",
+    "WAL",
+    "SCO",
+    "UKR",
+    "AUT",
+    "CZE",
+    "HUN",
 ]
 
 LEAGUES_2526 = [
@@ -23,16 +74,13 @@ LEAGUES_2526 = [
     "ENG-Championship",
     "MEX-Liga MX",
     "TUR-Super Lig",
-    "BEL-Pro League"
+    "BEL-Pro League",
 ]
 
-LEAGUES_2025 = [
-    "USA-MLS",
-    "BRA-Brasileirao",
-    "ARG-Primera Division"
-]
+LEAGUES_2025 = ["USA-MLS", "BRA-Brasileirao", "ARG-Primera Division"]
 
 all_wc_logs = []
+
 
 def scrape_and_filter(leagues, season_str):
     print(f"\n--- Scraping {season_str} Season for {len(leagues)} Leagues ---")
@@ -68,12 +116,14 @@ def scrape_and_filter(leagues, season_str):
     else:
         print("Nationality not in match logs, fetching season stats...")
         try:
-            season_stats = fbref.read_player_season_stats(stat_type="standard").reset_index()
+            season_stats = fbref.read_player_season_stats(
+                stat_type="standard"
+            ).reset_index()
             season_stats.columns = [
                 "_".join(col).strip() if isinstance(col, tuple) else col
                 for col in season_stats.columns
             ]
-            
+
             def get_col_name(df, possible_names):
                 for name in possible_names:
                     for c in df.columns:
@@ -87,7 +137,9 @@ def scrape_and_filter(leagues, season_str):
             if player_col and nat_col:
                 nat_map = season_stats.set_index(player_col)[nat_col].to_dict()
                 log_player_col = get_col_name(merged_logs, ["player", "Player"])
-                merged_logs["Nation"] = merged_logs[log_player_col].map(nat_map).apply(extract_nation)
+                merged_logs["Nation"] = (
+                    merged_logs[log_player_col].map(nat_map).apply(extract_nation)
+                )
             else:
                 merged_logs["Nation"] = "UNK"
         except Exception as e:
@@ -98,11 +150,14 @@ def scrape_and_filter(leagues, season_str):
 
     min_col = next((c for c in wc_players_logs.columns if "Min" in c), None)
     if min_col:
-        wc_players_logs[min_col] = pd.to_numeric(wc_players_logs[min_col], errors="coerce")
+        wc_players_logs[min_col] = pd.to_numeric(
+            wc_players_logs[min_col], errors="coerce"
+        )
         wc_players_logs = wc_players_logs[wc_players_logs[min_col] > 0]
-        
+
     print(f"Found {len(wc_players_logs)} match logs for WC players in {season_str}.")
     return wc_players_logs
+
 
 df_2526 = scrape_and_filter(LEAGUES_2526, "2526")
 df_2025 = scrape_and_filter(LEAGUES_2025, "2025")
@@ -116,7 +171,9 @@ out_file = os.path.join(out_dir, "world_cup_players_match_logs_global.csv")
 final_df.to_csv(out_file, index=False)
 
 print("\n" + "=" * 50)
-print(f"SUCCESS: Scraped {len(final_df)} match logs for World Cup players across ALL global leagues.")
+print(
+    f"SUCCESS: Scraped {len(final_df)} match logs for World Cup players across ALL global leagues."
+)
 print(f"Data saved to: {out_file}")
 print("You can now use this match-by-match data to retrain your models accurately!")
 print("=" * 50)

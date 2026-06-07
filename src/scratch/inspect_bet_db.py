@@ -7,10 +7,12 @@ if os.path.exists(db_path):
     cur = conn.cursor()
     cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
     print("Tables:", cur.fetchall())
-    
-    cur.execute("SELECT COUNT(*), bet_source, result FROM bet_log GROUP BY bet_source, result")
+
+    cur.execute(
+        "SELECT COUNT(*), bet_source, result FROM bet_log GROUP BY bet_source, result"
+    )
     print("Bets stats:", cur.fetchall())
-    
+
     cur.execute("SELECT * FROM bet_log ORDER BY placed_at DESC LIMIT 5")
     rows = cur.fetchall()
     print("Latest 5 bets:")

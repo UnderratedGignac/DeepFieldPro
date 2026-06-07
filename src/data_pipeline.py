@@ -28,18 +28,25 @@ import pandas as pd
 # Load .env
 try:
     from dotenv import load_dotenv
-    load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+
+    load_dotenv(
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"
+        )
+    )
 except ImportError:
     pass
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # ── Paths ───────────────────────────────────────────────────────────────────
-BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR   = os.path.join(BASE_DIR, "data")
-DB_PATH    = os.path.join(DATA_DIR, "odds_stream.db")
-CSV_PATH   = os.path.join(DATA_DIR, "worldcup_players.csv")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+DB_PATH = os.path.join(DATA_DIR, "odds_stream.db")
+CSV_PATH = os.path.join(DATA_DIR, "worldcup_players.csv")
 CACHE_APIF = os.path.join(DATA_DIR, "api_football_cache")
 CACHE_TSDB = os.path.join(DATA_DIR, "thesportsdb_cache")
 
@@ -53,21 +60,23 @@ API_FOOTBALL_HEADERS = {"x-apisports-key": API_FOOTBALL_KEY}
 
 # WC 2026 in API-Football: league_id=1, season=2026
 WC_LEAGUE_ID = 1
-WC_SEASON    = 2026
+WC_SEASON = 2026
 
 # ── StatsBomb WC 2022: competition_id=43, season_id=106 ────────────────────
 SB_COMPETITION_ID = 43
-SB_SEASON_ID      = 106  # FIFA World Cup 2022
+SB_SEASON_ID = 106  # FIFA World Cup 2022
 
 
 # ===========================================================================
 # DB SCHEMA
 # ===========================================================================
 
+
 def init_db(conn: sqlite3.Connection):
     """Create team_stats and player_stats tables if they don't exist."""
     c = conn.cursor()
-    c.executescript("""
+    c.executescript(
+        """
     CREATE TABLE IF NOT EXISTS team_stats (
         team_id TEXT PRIMARY KEY,
         team_name TEXT,
@@ -105,13 +114,15 @@ def init_db(conn: sqlite3.Connection):
         data_source TEXT,
         updated_at TEXT
     );
-    """)
+    """
+    )
     conn.commit()
     logger.info("[DB] Schema initialised.")
 
 
 def upsert_player(conn: sqlite3.Connection, p: dict):
-    conn.execute("""
+    conn.execute(
+        """
         INSERT OR REPLACE INTO player_stats (
             player_id, player_name, team_id, nation_code, position, age,
             minutes_played, goals_p90, assists_p90, xg_p90, xa_p90,
@@ -125,15 +136,20 @@ def upsert_player(conn: sqlite3.Connection, p: dict):
             :fouls_committed_p90, :yellow_cards_p90, :red_cards_p90,
             :data_source, :updated_at
         )
-    """, p)
+    """,
+        p,
+    )
 
 
 def upsert_team(conn: sqlite3.Connection, t: dict):
-    conn.execute("""
+    conn.execute(
+        """
         INSERT OR REPLACE INTO team_stats (
             team_id, team_name, nation_code, league, updated_at
         ) VALUES (:team_id, :team_name, :nation_code, :league, :updated_at)
-    """, t)
+    """,
+        t,
+    )
 
 
 def safe_p90(value, total_minutes, default=0.0) -> float:
@@ -152,6 +168,7 @@ def now_str() -> str:
 # ===========================================================================
 # SOURCE 1: StatsBomb Open Data (WC 2022)
 # ===========================================================================
+
 
 def fetch_statsbomb(conn: sqlite3.Connection) -> int:
     """
@@ -180,7 +197,7 @@ def fetch_statsbomb(conn: sqlite3.Connection) -> int:
         match_id = match_row["match_id"]
         try:
             lineups = sb.lineups(match_id=match_id)
-            events  = sb.events(match_id=match_id, split=False, flatten_attrs=True)
+            events = sb.events(match_id=match_id, split=False, flatten_attrs=True)
         except Exception as e:
             logger.debug(f"[StatsBomb] match {match_id} failed: {e}")
             continue
@@ -190,9 +207,13 @@ def fetch_statsbomb(conn: sqlite3.Connection) -> int:
             if not isinstance(lineup_df, pd.DataFrame):
                 continue
             for _, player_row in lineup_df.iterrows():
-                pid   = str(player_row.get("player_id", ""))
+                pid = str(player_row.get("player_id", ""))
                 pname = str(player_row.get("player_name", "")).strip()
-                pos   = str(player_row.get("positions", [{}])[0].get("position", "MID") if player_row.get("positions") else "MID")
+                pos = str(
+                    player_row.get("positions", [{}])[0].get("position", "MID")
+                    if player_row.get("positions")
+                    else "MID"
+                )
 
                 # Map StatsBomb positions to simple 3-letter codes
                 pos = _map_sb_position(pos)
@@ -202,29 +223,61 @@ def fetch_statsbomb(conn: sqlite3.Connection) -> int:
 
                 # Filter player's events
                 try:
-                    p_events = events[events["player_id"] == int(pid)] if "player_id" in events.columns else pd.DataFrame()
+                    p_events = (
+                        events[events["player_id"] == int(pid)]
+                        if "player_id" in events.columns
+                        else pd.DataFrame()
+                    )
                 except Exception:
                     p_events = pd.DataFrame()
 
                 # Calculate minutes (from substitution data or default)
-                mins = _calc_minutes(player_row, events if "player_id" in events.columns else pd.DataFrame(), match_id)
+                mins = _calc_minutes(
+                    player_row,
+                    events if "player_id" in events.columns else pd.DataFrame(),
+                    match_id,
+                )
 
                 if pid not in player_rows:
                     player_rows[pid] = {
-                        "player_id":    f"sb_{pid}",
-                        "player_name":  pname,
-                        "team_id":      f"team_{team_name.lower().replace(' ', '_')}",
-                        "nation_code":  str(player_row.get("country", {}).get("name", "UNK"))[:3].upper() if isinstance(player_row.get("country"), dict) else "UNK",
-                        "position":     pos,
-                        "age":          int(player_row.get("birth_date", "2000-01-01") and
-                                           (2022 - int(str(player_row.get("birth_date", "2000-01-01"))[:4])))
-                                        if player_row.get("birth_date") else 0,
+                        "player_id": f"sb_{pid}",
+                        "player_name": pname,
+                        "team_id": f"team_{team_name.lower().replace(' ', '_')}",
+                        "nation_code": (
+                            str(player_row.get("country", {}).get("name", "UNK"))[
+                                :3
+                            ].upper()
+                            if isinstance(player_row.get("country"), dict)
+                            else "UNK"
+                        ),
+                        "position": pos,
+                        "age": (
+                            int(
+                                player_row.get("birth_date", "2000-01-01")
+                                and (
+                                    2022
+                                    - int(
+                                        str(player_row.get("birth_date", "2000-01-01"))[
+                                            :4
+                                        ]
+                                    )
+                                )
+                            )
+                            if player_row.get("birth_date")
+                            else 0
+                        ),
                         "total_minutes": 0,
-                        "goals":   0, "assists": 0,
-                        "shots":   0, "shots_on_target": 0,
-                        "xg_sum":  0.0, "xa_sum": 0.0,
-                        "passes":  0, "tackles": 0,
-                        "fouls":   0, "yellow_cards": 0, "red_cards": 0,
+                        "goals": 0,
+                        "assists": 0,
+                        "shots": 0,
+                        "shots_on_target": 0,
+                        "xg_sum": 0.0,
+                        "xa_sum": 0.0,
+                        "passes": 0,
+                        "tackles": 0,
+                        "fouls": 0,
+                        "yellow_cards": 0,
+                        "red_cards": 0,
                     }
 
                 row = player_rows[pid]
@@ -232,30 +285,74 @@ def fetch_statsbomb(conn: sqlite3.Connection) -> int:
 
                 if not p_events.empty:
                     # Goals
-                    row["goals"]   += int(len(p_events[
-                        (p_events.get("type_name", pd.Series(dtype=str)) == "Shot") &
-                        (p_events.get("shot_outcome_name", pd.Series(dtype=str)) == "Goal")
-                    ])) if "shot_outcome_name" in p_events.columns else 0
+                    row["goals"] += (
+                        int(
+                            len(
+                                p_events[
+                                    (
+                                        p_events.get("type_name", pd.Series(dtype=str))
+                                        == "Shot"
+                                    )
+                                    & (
+                                        p_events.get(
+                                            "shot_outcome_name", pd.Series(dtype=str)
+                                        )
+                                        == "Goal"
+                                    )
+                                ]
+                            )
+                        )
+                        if "shot_outcome_name" in p_events.columns
+                        else 0
+                    )
 
                     # Shots
-                    row["shots"]   += int(len(p_events[p_events.get("type_name", pd.Series(dtype=str)) == "Shot"])) if "type_name" in p_events.columns else 0
+                    row["shots"] += (
+                        int(
+                            len(
+                                p_events[
+                                    p_events.get("type_name", pd.Series(dtype=str))
+                                    == "Shot"
+                                ]
+                            )
+                        )
+                        if "type_name" in p_events.columns
+                        else 0
+                    )
 
                     # xG
                     if "shot_statsbomb_xg" in p_events.columns:
-                        row["xg_sum"] += float(p_events["shot_statsbomb_xg"].fillna(0).sum())
+                        row["xg_sum"] += float(
+                            p_events["shot_statsbomb_xg"].fillna(0).sum()
+                        )
 
                     # Assists (key_pass leading to goal)
                     if "pass_goal_assist" in p_events.columns:
-                        row["assists"] += int(p_events["pass_goal_assist"].fillna(False).sum())
+                        row["assists"] += int(
+                            p_events["pass_goal_assist"].fillna(False).sum()
+                        )
 
                     # Passes
-                    row["passes"] += int(len(p_events[p_events.get("type_name", pd.Series(dtype=str)) == "Pass"])) if "type_name" in p_events.columns else 0
+                    row["passes"] += (
+                        int(
+                            len(
+                                p_events[
+                                    p_events.get("type_name", pd.Series(dtype=str))
+                                    == "Pass"
+                                ]
+                            )
+                        )
+                        if "type_name" in p_events.columns
+                        else 0
+                    )
 
                     # Yellow/Red cards
                     if "foul_committed_card_name" in p_events.columns:
                         cards = p_events["foul_committed_card_name"].fillna("")
                         row["yellow_cards"] += int((cards == "Yellow Card").sum())
-                        row["red_cards"]    += int((cards.isin(["Red Card", "Second Yellow"])).sum())
+                        row["red_cards"] += int(
+                            (cards.isin(["Red Card", "Second Yellow"])).sum()
+                        )
 
         # Small delay to be polite
         time.sleep(0.2)
@@ -265,37 +362,43 @@ def fetch_statsbomb(conn: sqlite3.Connection) -> int:
     for pid, row in player_rows.items():
         mins = max(row["total_minutes"], 1)
         p = {
-            "player_id":    row["player_id"],
-            "player_name":  row["player_name"],
-            "team_id":      row["team_id"],
-            "nation_code":  row["nation_code"],
-            "position":     row["position"],
-            "age":          row["age"],
+            "player_id": row["player_id"],
+            "player_name": row["player_name"],
+            "team_id": row["team_id"],
+            "nation_code": row["nation_code"],
+            "position": row["position"],
+            "age": row["age"],
             "minutes_played": int(mins),
-            "goals_p90":    safe_p90(row["goals"],         mins),
-            "assists_p90":  safe_p90(row["assists"],       mins),
-            "xg_p90":       safe_p90(row["xg_sum"],        mins),
-            "xa_p90":       0.0,
-            "shots_p90":    safe_p90(row["shots"],         mins),
-            "sot_p90":      safe_p90(row["shots_on_target"], mins),
-            "passes_p90":   safe_p90(row["passes"],        mins),
-            "tackles_p90":  safe_p90(row["tackles"],       mins),
+            "goals_p90": safe_p90(row["goals"], mins),
+            "assists_p90": safe_p90(row["assists"], mins),
+            "xg_p90": safe_p90(row["xg_sum"], mins),
+            "xa_p90": 0.0,
+            "shots_p90": safe_p90(row["shots"], mins),
+            "sot_p90": safe_p90(row["shots_on_target"], mins),
+            "passes_p90": safe_p90(row["passes"], mins),
+            "tackles_p90": safe_p90(row["tackles"], mins),
             "fouls_committed_p90": safe_p90(row["fouls"], mins),
-            "yellow_cards_p90":    safe_p90(row["yellow_cards"], mins),
-            "red_cards_p90":       safe_p90(row["red_cards"],    mins),
-            "data_source":  "statsbomb_wc2022",
-            "updated_at":   now_str(),
+            "yellow_cards_p90": safe_p90(row["yellow_cards"], mins),
+            "red_cards_p90": safe_p90(row["red_cards"], mins),
+            "data_source": "statsbomb_wc2022",
+            "updated_at": now_str(),
         }
         try:
             upsert_player(conn, p)
             # Also upsert team record
-            upsert_team(conn, {
-                "team_id":    row["team_id"],
-                "team_name":  row["team_id"].replace("team_", "").replace("_", " ").title(),
-                "nation_code": row["nation_code"],
-                "league":     "FIFA World Cup 2022",
-                "updated_at": now_str(),
-            })
+            upsert_team(
+                conn,
+                {
+                    "team_id": row["team_id"],
+                    "team_name": row["team_id"]
+                    .replace("team_", "")
+                    .replace("_", " ")
+                    .title(),
+                    "nation_code": row["nation_code"],
+                    "league": "FIFA World Cup 2022",
+                    "updated_at": now_str(),
+                },
+            )
             count += 1
         except Exception as e:
             logger.debug(f"[StatsBomb] Insert failed for {row['player_name']}: {e}")
@@ -328,9 +431,12 @@ def _calc_minutes(player_row, events_df, match_id, default=90) -> int:
 
         # Check if player was subbed off
         sub_off = events_df[
-            (events_df.get("substitution_replacement_id", pd.Series(dtype=object)) == pid) |
-            (events_df.get("type_name", pd.Series(dtype=str)) == "Substitution") &
-            (events_df.get("player_id", pd.Series(dtype=object)) == pid)
+            (
+                events_df.get("substitution_replacement_id", pd.Series(dtype=object))
+                == pid
+            )
+            | (events_df.get("type_name", pd.Series(dtype=str)) == "Substitution")
+            & (events_df.get("player_id", pd.Series(dtype=object)) == pid)
         ]
         if not sub_off.empty and "minute" in sub_off.columns:
             return int(sub_off["minute"].min())
@@ -342,6 +448,7 @@ def _calc_minutes(player_row, events_df, match_id, default=90) -> int:
 # ===========================================================================
 # SOURCE 2: API-Football (WC 2026 live squads)
 # ===========================================================================
+
 
 def _apif_cached_get(endpoint: str, params: dict, cache_key: str) -> dict:
     """
@@ -359,7 +466,9 @@ def _apif_cached_get(endpoint: str, params: dict, cache_key: str) -> dict:
 
     url = f"{API_FOOTBALL_BASE}/{endpoint}"
     try:
-        resp = requests.get(url, headers=API_FOOTBALL_HEADERS, params=params, timeout=15)
+        resp = requests.get(
+            url, headers=API_FOOTBALL_HEADERS, params=params, timeout=15
+        )
         if resp.status_code == 200:
             data = resp.json()
             with open(cache_file, "w") as f:
@@ -368,7 +477,9 @@ def _apif_cached_get(endpoint: str, params: dict, cache_key: str) -> dict:
             time.sleep(0.5)  # polite rate limiting
             return data
         else:
-            logger.warning(f"[API-Football] {resp.status_code} for {endpoint}: {resp.text[:200]}")
+            logger.warning(
+                f"[API-Football] {resp.status_code} for {endpoint}: {resp.text[:200]}"
+            )
             return {}
     except Exception as e:
         logger.error(f"[API-Football] Request error for {endpoint}: {e}")
@@ -383,21 +494,23 @@ def fetch_api_football(conn: sqlite3.Connection) -> int:
     Returns number of players inserted.
     """
     if not API_FOOTBALL_KEY or API_FOOTBALL_KEY in ("your_api_key_here", ""):
-        logger.warning("[API-Football] No valid API key found. Skipping. Add API_FOOTBALL_KEY to .env")
+        logger.warning(
+            "[API-Football] No valid API key found. Skipping. Add API_FOOTBALL_KEY to .env"
+        )
         return 0
 
     logger.info("[API-Football] Fetching WC 2026 teams...")
 
     # Step 1: Get all teams in WC 2026
     teams_data = _apif_cached_get(
-        "teams",
-        {"league": WC_LEAGUE_ID, "season": WC_SEASON},
-        "wc2026_teams"
+        "teams", {"league": WC_LEAGUE_ID, "season": WC_SEASON}, "wc2026_teams"
     )
 
     teams = teams_data.get("response", [])
     if not teams:
-        logger.warning("[API-Football] No teams found for WC 2026. Check league ID or season.")
+        logger.warning(
+            "[API-Football] No teams found for WC 2026. Check league ID or season."
+        )
         return 0
 
     logger.info(f"[API-Football] Found {len(teams)} teams in WC 2026.")
@@ -405,32 +518,33 @@ def fetch_api_football(conn: sqlite3.Connection) -> int:
 
     for team_entry in teams:
         team_info = team_entry.get("team", {})
-        team_id   = str(team_info.get("id", ""))
+        team_id = str(team_info.get("id", ""))
         team_name = team_info.get("name", "Unknown")
 
         # Upsert team
-        upsert_team(conn, {
-            "team_id":    f"apif_{team_id}",
-            "team_name":  team_name,
-            "nation_code": team_name[:3].upper(),
-            "league":     "FIFA World Cup 2026",
-            "updated_at": now_str(),
-        })
+        upsert_team(
+            conn,
+            {
+                "team_id": f"apif_{team_id}",
+                "team_name": team_name,
+                "nation_code": team_name[:3].upper(),
+                "league": "FIFA World Cup 2026",
+                "updated_at": now_str(),
+            },
+        )
 
         # Step 2: Get squad for this team
         squad_data = _apif_cached_get(
-            "players/squads",
-            {"team": team_id},
-            f"squad_{team_id}"
+            "players/squads", {"team": team_id}, f"squad_{team_id}"
         )
 
         players = squad_data.get("response", [{}])
         for squad_entry in players:
             for player in squad_entry.get("players", []):
-                pid      = str(player.get("id", ""))
-                pname    = player.get("name", "").strip()
-                pos      = _map_apif_position(player.get("position", "Midfielder"))
-                age      = int(player.get("age", 0))
+                pid = str(player.get("id", ""))
+                pname = player.get("name", "").strip()
+                pos = _map_apif_position(player.get("position", "Midfielder"))
+                age = int(player.get("age", 0))
 
                 if not pid or not pname:
                     continue
@@ -438,22 +552,26 @@ def fetch_api_football(conn: sqlite3.Connection) -> int:
                 # For WC 2026 squads we might not have per-90 stats directly,
                 # so we default to 0 and enrich later with statsbomb historical data
                 p = {
-                    "player_id":    f"apif_{pid}",
-                    "player_name":  pname,
-                    "team_id":      f"apif_{team_id}",
-                    "nation_code":  team_name[:3].upper(),
-                    "position":     pos,
-                    "age":          age,
+                    "player_id": f"apif_{pid}",
+                    "player_name": pname,
+                    "team_id": f"apif_{team_id}",
+                    "nation_code": team_name[:3].upper(),
+                    "position": pos,
+                    "age": age,
                     "minutes_played": 0,
-                    "goals_p90":   0.0, "assists_p90":  0.0,
-                    "xg_p90":      0.0, "xa_p90":       0.0,
-                    "shots_p90":   0.0, "sot_p90":      0.0,
-                    "passes_p90":  0.0, "tackles_p90":  0.0,
+                    "goals_p90": 0.0,
+                    "assists_p90": 0.0,
+                    "xg_p90": 0.0,
+                    "xa_p90": 0.0,
+                    "shots_p90": 0.0,
+                    "sot_p90": 0.0,
+                    "passes_p90": 0.0,
+                    "tackles_p90": 0.0,
                     "fouls_committed_p90": 0.0,
                     "yellow_cards_p90": 0.0,
-                    "red_cards_p90":    0.0,
-                    "data_source":  "api_football_wc2026",
-                    "updated_at":   now_str(),
+                    "red_cards_p90": 0.0,
+                    "data_source": "api_football_wc2026",
+                    "updated_at": now_str(),
                 }
                 try:
                     upsert_player(conn, p)
@@ -468,16 +586,21 @@ def fetch_api_football(conn: sqlite3.Connection) -> int:
 
 def _map_apif_position(pos: str) -> str:
     pos_lower = pos.lower()
-    if "goalkeeper" in pos_lower: return "GK"
-    if "defender"   in pos_lower: return "DEF"
-    if "midfielder" in pos_lower: return "MID"
-    if "attacker"   in pos_lower or "forward" in pos_lower: return "FWD"
+    if "goalkeeper" in pos_lower:
+        return "GK"
+    if "defender" in pos_lower:
+        return "DEF"
+    if "midfielder" in pos_lower:
+        return "MID"
+    if "attacker" in pos_lower or "forward" in pos_lower:
+        return "FWD"
     return "MID"
 
 
 # ===========================================================================
 # SOURCE 3: TheSportsDB (player age/position enrichment)
 # ===========================================================================
+
 
 def enrich_from_thesportsdb(conn: sqlite3.Connection, max_players: int = 100) -> int:
     """
@@ -487,7 +610,10 @@ def enrich_from_thesportsdb(conn: sqlite3.Connection, max_players: int = 100) ->
     """
     logger.info("[TheSportsDB] Starting player enrichment...")
     c = conn.cursor()
-    c.execute("SELECT player_id, player_name FROM player_stats WHERE age = 0 LIMIT ?", (max_players,))
+    c.execute(
+        "SELECT player_id, player_name FROM player_stats WHERE age = 0 LIMIT ?",
+        (max_players,),
+    )
     players_to_enrich = c.fetchall()
 
     if not players_to_enrich:
@@ -541,7 +667,10 @@ def enrich_from_thesportsdb(conn: sqlite3.Connection, max_players: int = 100) ->
                 vals.append(pos)
             if updates:
                 vals.append(player_id)
-                conn.execute(f"UPDATE player_stats SET {', '.join(updates)} WHERE player_id = ?", vals)
+                conn.execute(
+                    f"UPDATE player_stats SET {', '.join(updates)} WHERE player_id = ?",
+                    vals,
+                )
                 enriched += 1
 
     conn.commit()
@@ -551,16 +680,21 @@ def enrich_from_thesportsdb(conn: sqlite3.Connection, max_players: int = 100) ->
 
 def _map_tsdb_position(pos: str) -> str:
     pos_lower = str(pos).lower()
-    if "goalkeeper" in pos_lower or "keeper" in pos_lower: return "GK"
-    if "defender" in pos_lower or "back" in pos_lower:     return "DEF"
-    if "midfielder" in pos_lower or "midfield" in pos_lower: return "MID"
-    if "forward" in pos_lower or "striker" in pos_lower or "winger" in pos_lower: return "FWD"
+    if "goalkeeper" in pos_lower or "keeper" in pos_lower:
+        return "GK"
+    if "defender" in pos_lower or "back" in pos_lower:
+        return "DEF"
+    if "midfielder" in pos_lower or "midfield" in pos_lower:
+        return "MID"
+    if "forward" in pos_lower or "striker" in pos_lower or "winger" in pos_lower:
+        return "FWD"
     return ""
 
 
 # ===========================================================================
 # SOURCE 4: StatsBomb GitHub Direct (fallback if statsbombpy fails)
 # ===========================================================================
+
 
 def fetch_statsbomb_github_fallback(conn: sqlite3.Connection) -> int:
     """
@@ -591,30 +725,36 @@ def fetch_statsbomb_github_fallback(conn: sqlite3.Connection) -> int:
     for m in matches:
         for side in ("home_team", "away_team"):
             team = m.get(side, {})
-            tid  = str(team.get("home_team_id") or team.get("away_team_id", ""))
+            tid = str(team.get("home_team_id") or team.get("away_team_id", ""))
             tname = team.get("home_team_name") or team.get("away_team_name", "")
             if tid and tid not in teams_seen:
                 try:
-                    upsert_team(conn, {
-                        "team_id":    f"sb_{tid}",
-                        "team_name":  tname,
-                        "nation_code": tname[:3].upper(),
-                        "league":     "FIFA World Cup 2022",
-                        "updated_at": now_str(),
-                    })
+                    upsert_team(
+                        conn,
+                        {
+                            "team_id": f"sb_{tid}",
+                            "team_name": tname,
+                            "nation_code": tname[:3].upper(),
+                            "league": "FIFA World Cup 2022",
+                            "updated_at": now_str(),
+                        },
+                    )
                     teams_seen.add(tid)
                     count += 1
                 except Exception:
                     pass
 
     conn.commit()
-    logger.info(f"[StatsBomb-GitHub] ✅ Inserted {count} team records from GitHub fallback.")
+    logger.info(
+        f"[StatsBomb-GitHub] ✅ Inserted {count} team records from GitHub fallback."
+    )
     return count
 
 
 # ===========================================================================
 # EXPORT TO CSV
 # ===========================================================================
+
 
 def export_to_csv(conn: sqlite3.Connection) -> str:
     """Export full player_stats table to CSV."""
@@ -628,11 +768,12 @@ def export_to_csv(conn: sqlite3.Connection) -> str:
 # MAIN
 # ===========================================================================
 
+
 def run_pipeline():
     """Run all data sources in order, report final counts."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  DeepFieldPro World Cup Data Pipeline")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     conn = sqlite3.connect(DB_PATH)
     init_db(conn)
@@ -679,16 +820,16 @@ def run_pipeline():
     by_source = c.fetchall()
     conn.close()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  PIPELINE COMPLETE")
-    print("="*60)
+    print("=" * 60)
     print(f"  Total players in DB : {total_players}")
     print(f"  Total teams in DB   : {total_teams}")
     print("\n  Breakdown by source:")
     for src, cnt in by_source:
         print(f"    {src:<30} {cnt} players")
     print(f"\n  CSV saved to: {CSV_PATH}")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
 
 if __name__ == "__main__":

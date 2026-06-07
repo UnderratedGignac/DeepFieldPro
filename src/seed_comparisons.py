@@ -8,7 +8,8 @@ conn = sqlite3.connect(db_path)
 cur = conn.cursor()
 
 # Ensure predictions table exists
-cur.execute("""
+cur.execute(
+    """
     CREATE TABLE IF NOT EXISTS predictions (
         fixture_id TEXT PRIMARY KEY,
         match_name TEXT,
@@ -27,7 +28,8 @@ cur.execute("""
         predicted_at TIMESTAMP,
         extra_json TEXT
     )
-""")
+"""
+)
 
 # 1. Seed Sweden U21 vs Finland U21 Prediction
 sweden_pred_extra = {
@@ -37,11 +39,11 @@ sweden_pred_extra = {
     "cards": "Home Yellows: 2 | Away Yellows: 2",
     "home_players": [
         {"name": "Hugo Larsson", "rating": 7.2},
-        {"name": "Roony Bardghji", "rating": 7.4}
+        {"name": "Roony Bardghji", "rating": 7.4},
     ],
     "away_players": [
         {"name": "Matias Siltanen", "rating": 6.8},
-        {"name": "Juho Talvitie", "rating": 6.9}
+        {"name": "Juho Talvitie", "rating": 6.9},
     ],
     "detailed_prediction": {
         "home_prob": 45.0,
@@ -79,18 +81,65 @@ sweden_pred_extra = {
         "cards_yellow_total": 4,
         "cards_red_total": 0,
         "goalscorers": [
-            {"name": "Roony Bardghji", "team": "Sweden U21", "anytime_goal_prob": 25.0, "first_goal_prob": 10.0, "rating": 7.4},
-            {"name": "Hugo Larsson", "team": "Sweden U21", "anytime_goal_prob": 22.5, "first_goal_prob": 9.5, "rating": 7.2},
-            {"name": "Juho Talvitie", "team": "Finland U21", "anytime_goal_prob": 18.0, "first_goal_prob": 7.5, "rating": 6.9},
-            {"name": "Matias Siltanen", "team": "Finland U21", "anytime_goal_prob": 15.0, "first_goal_prob": 6.0, "rating": 6.8}
+            {
+                "name": "Roony Bardghji",
+                "team": "Sweden U21",
+                "anytime_goal_prob": 25.0,
+                "first_goal_prob": 10.0,
+                "rating": 7.4,
+            },
+            {
+                "name": "Hugo Larsson",
+                "team": "Sweden U21",
+                "anytime_goal_prob": 22.5,
+                "first_goal_prob": 9.5,
+                "rating": 7.2,
+            },
+            {
+                "name": "Juho Talvitie",
+                "team": "Finland U21",
+                "anytime_goal_prob": 18.0,
+                "first_goal_prob": 7.5,
+                "rating": 6.9,
+            },
+            {
+                "name": "Matias Siltanen",
+                "team": "Finland U21",
+                "anytime_goal_prob": 15.0,
+                "first_goal_prob": 6.0,
+                "rating": 6.8,
+            },
         ],
         "shots_players": [
-            {"name": "Roony Bardghji", "team": "Sweden U21", "exp_shots": 2.5, "exp_sot": 1.2, "rating": 7.4},
-            {"name": "Hugo Larsson", "team": "Sweden U21", "exp_shots": 2.2, "exp_sot": 0.8, "rating": 7.2},
-            {"name": "Matias Siltanen", "team": "Finland U21", "exp_shots": 1.5, "exp_sot": 0.5, "rating": 6.8}
+            {
+                "name": "Roony Bardghji",
+                "team": "Sweden U21",
+                "exp_shots": 2.5,
+                "exp_sot": 1.2,
+                "rating": 7.4,
+            },
+            {
+                "name": "Hugo Larsson",
+                "team": "Sweden U21",
+                "exp_shots": 2.2,
+                "exp_sot": 0.8,
+                "rating": 7.2,
+            },
+            {
+                "name": "Matias Siltanen",
+                "team": "Finland U21",
+                "exp_shots": 1.5,
+                "exp_sot": 0.5,
+                "rating": 6.8,
+            },
         ],
         "cards_players": [
-            {"name": "Hugo Larsson", "team": "Sweden U21", "yellow_prob": 15.0, "red_prob": 1.0}
+            {
+                "name": "Hugo Larsson",
+                "team": "Sweden U21",
+                "yellow_prob": 15.0,
+                "red_prob": 1.0,
+            }
         ],
         "value_analysis": {
             "best_result": "Sweden U21 WIN",
@@ -99,24 +148,40 @@ sweden_pred_extra = {
             "best_corners": "Over 9.5 Corners",
             "best_player_prop": "Hugo Larsson Over 1.5 Shots",
             "safest": "Sweden U21 Double Chance (1X)",
-            "high_risk_reward": "Sweden U21 WIN & BTTS (Yes)"
+            "high_risk_reward": "Sweden U21 WIN & BTTS (Yes)",
         },
-        "tactical_summary": "Sweden U21 will look to dominate possession using their strong midfield core anchored by Hugo Larsson, while Finland U21 will seek to counter-attack through Siltanen."
-    }
+        "tactical_summary": "Sweden U21 will look to dominate possession using their strong midfield core anchored by Hugo Larsson, while Finland U21 will seek to counter-attack through Siltanen.",
+    },
 }
 
-cur.execute("""
+cur.execute(
+    """
     INSERT INTO predictions (
         fixture_id, match_name, league, kickoff, prediction, expected_score,
         home_prob, draw_prob, away_prob, over_prob, under_prob, btts_yes_prob, btts_no_prob,
         has_lineup, predicted_at, extra_json
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(fixture_id) DO UPDATE SET extra_json=excluded.extra_json
-""", (
-    "16260283", "Sweden U21 vs Finland U21", "International Friendly", "2026-06-05T16:00:00+00:00",
-    "Sweden U21 WIN", "2 - 1", 45.0, 25.0, 30.0, 55.0, 45.0, 60.0, 40.0,
-    1, datetime.datetime.now().isoformat(), json.dumps(sweden_pred_extra)
-))
+""",
+    (
+        "16260283",
+        "Sweden U21 vs Finland U21",
+        "International Friendly",
+        "2026-06-05T16:00:00+00:00",
+        "Sweden U21 WIN",
+        "2 - 1",
+        45.0,
+        25.0,
+        30.0,
+        55.0,
+        45.0,
+        60.0,
+        40.0,
+        1,
+        datetime.datetime.now().isoformat(),
+        json.dumps(sweden_pred_extra),
+    ),
+)
 
 # 2. Seed AFC Eskilstuna vs Karlbergs BK Prediction
 eskilstuna_pred_extra = {
@@ -162,11 +227,29 @@ eskilstuna_pred_extra = {
         "cards_yellow_total": 5,
         "cards_red_total": 0,
         "goalscorers": [
-            {"name": "Love Bjornson", "team": "AFC Eskilstuna", "anytime_goal_prob": 20.0, "first_goal_prob": 8.0, "rating": 6.8},
-            {"name": "Kamil Dudek", "team": "Karlbergs BK", "anytime_goal_prob": 18.0, "first_goal_prob": 7.0, "rating": 6.5}
+            {
+                "name": "Love Bjornson",
+                "team": "AFC Eskilstuna",
+                "anytime_goal_prob": 20.0,
+                "first_goal_prob": 8.0,
+                "rating": 6.8,
+            },
+            {
+                "name": "Kamil Dudek",
+                "team": "Karlbergs BK",
+                "anytime_goal_prob": 18.0,
+                "first_goal_prob": 7.0,
+                "rating": 6.5,
+            },
         ],
         "shots_players": [
-            {"name": "Love Bjornson", "team": "AFC Eskilstuna", "exp_shots": 2.0, "exp_sot": 0.9, "rating": 6.8}
+            {
+                "name": "Love Bjornson",
+                "team": "AFC Eskilstuna",
+                "exp_shots": 2.0,
+                "exp_sot": 0.9,
+                "rating": 6.8,
+            }
         ],
         "cards_players": [],
         "value_analysis": {
@@ -176,24 +259,40 @@ eskilstuna_pred_extra = {
             "best_corners": "Under 10.5 Corners",
             "best_player_prop": "Love Bjornson Over 1.5 Shots",
             "safest": "AFC Eskilstuna Double Chance (1X)",
-            "high_risk_reward": "DRAW & BTTS (Yes)"
+            "high_risk_reward": "DRAW & BTTS (Yes)",
         },
-        "tactical_summary": "Both teams are tightly matched in the midtable. Expect a cautious positional affair with heavy emphasis on defensive structures and transitions."
-    }
+        "tactical_summary": "Both teams are tightly matched in the midtable. Expect a cautious positional affair with heavy emphasis on defensive structures and transitions.",
+    },
 }
 
-cur.execute("""
+cur.execute(
+    """
     INSERT INTO predictions (
         fixture_id, match_name, league, kickoff, prediction, expected_score,
         home_prob, draw_prob, away_prob, over_prob, under_prob, btts_yes_prob, btts_no_prob,
         has_lineup, predicted_at, extra_json
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(fixture_id) DO UPDATE SET extra_json=excluded.extra_json
-""", (
-    "15458375", "AFC Eskilstuna vs Karlbergs BK", "Ettan, Norra", "2026-06-05T16:00:00+00:00",
-    "DRAW", "1 - 1", 40.0, 28.0, 32.0, 48.0, 52.0, 55.0, 45.0,
-    1, datetime.datetime.now().isoformat(), json.dumps(eskilstuna_pred_extra)
-))
+""",
+    (
+        "15458375",
+        "AFC Eskilstuna vs Karlbergs BK",
+        "Ettan, Norra",
+        "2026-06-05T16:00:00+00:00",
+        "DRAW",
+        "1 - 1",
+        40.0,
+        28.0,
+        32.0,
+        48.0,
+        52.0,
+        55.0,
+        45.0,
+        1,
+        datetime.datetime.now().isoformat(),
+        json.dumps(eskilstuna_pred_extra),
+    ),
+)
 
 conn.commit()
 conn.close()
@@ -213,7 +312,7 @@ completed_comparisons = {
             {"player": "Neo Jönsson", "team": "Sweden U21", "minute": 2},
             {"player": "Otso Liimatta", "team": "Finland U21", "minute": 23},
             {"player": "Julius Körkkö", "team": "Finland U21", "minute": 54},
-            {"player": "Matias Siltanen", "team": "Finland U21", "minute": 67}
+            {"player": "Matias Siltanen", "team": "Finland U21", "minute": 67},
         ],
         "possession_home": 56,
         "possession_away": 44,
@@ -231,11 +330,35 @@ completed_comparisons = {
         "shots_on_target_home": 5,
         "shots_on_target_away": 6,
         "player_stats": [
-            {"name": "Neo Jönsson", "team": "Sweden U21", "goals": 1, "shots": 3, "shots_on_target": 2},
-            {"name": "Otso Liimatta", "team": "Finland U21", "goals": 1, "shots": 2, "shots_on_target": 1},
-            {"name": "Julius Körkkö", "team": "Finland U21", "goals": 1, "shots": 1, "shots_on_target": 1},
-            {"name": "Matias Siltanen", "team": "Finland U21", "goals": 1, "shots": 2, "shots_on_target": 2}
-        ]
+            {
+                "name": "Neo Jönsson",
+                "team": "Sweden U21",
+                "goals": 1,
+                "shots": 3,
+                "shots_on_target": 2,
+            },
+            {
+                "name": "Otso Liimatta",
+                "team": "Finland U21",
+                "goals": 1,
+                "shots": 2,
+                "shots_on_target": 1,
+            },
+            {
+                "name": "Julius Körkkö",
+                "team": "Finland U21",
+                "goals": 1,
+                "shots": 1,
+                "shots_on_target": 1,
+            },
+            {
+                "name": "Matias Siltanen",
+                "team": "Finland U21",
+                "goals": 1,
+                "shots": 2,
+                "shots_on_target": 2,
+            },
+        ],
     },
     "15458375": {
         "fixture_id": 15458375,
@@ -248,7 +371,7 @@ completed_comparisons = {
         "winner": "DRAW",
         "goals": [
             {"player": "Love Bjornson", "team": "AFC Eskilstuna", "minute": 14},
-            {"player": "Kamil Dudek", "team": "Karlbergs BK", "minute": 62}
+            {"player": "Kamil Dudek", "team": "Karlbergs BK", "minute": 62},
         ],
         "possession_home": 49,
         "possession_away": 51,
@@ -266,10 +389,22 @@ completed_comparisons = {
         "shots_on_target_home": 3,
         "shots_on_target_away": 4,
         "player_stats": [
-            {"name": "Love Bjornson", "team": "AFC Eskilstuna", "goals": 1, "shots": 2, "shots_on_target": 2},
-            {"name": "Kamil Dudek", "team": "Karlbergs BK", "goals": 1, "shots": 3, "shots_on_target": 1}
-        ]
-    }
+            {
+                "name": "Love Bjornson",
+                "team": "AFC Eskilstuna",
+                "goals": 1,
+                "shots": 2,
+                "shots_on_target": 2,
+            },
+            {
+                "name": "Kamil Dudek",
+                "team": "Karlbergs BK",
+                "goals": 1,
+                "shots": 3,
+                "shots_on_target": 1,
+            },
+        ],
+    },
 }
 
 with open("data/completed_comparisons.json", "w", encoding="utf-8") as f:
@@ -280,53 +415,61 @@ dashboard_state_path = "data/todays_dashboard_state.json"
 if os.path.exists(dashboard_state_path):
     with open(dashboard_state_path, "r", encoding="utf-8") as f:
         dashboard_data = json.load(f)
-        
+
     # Remove duplicates
-    dashboard_data = [m for m in dashboard_data if m["fixture_id"] not in [16260283, 15458375]]
-    
+    dashboard_data = [
+        m for m in dashboard_data if m["fixture_id"] not in [16260283, 15458375]
+    ]
+
     # Append U21 match
-    dashboard_data.append({
-        "fixture_id": 16260283,
-        "match": "Sweden U21 vs Finland U21",
-        "league": "International Friendly",
-        "kickoff": "2026-06-05T16:00:00+00:00",
-        "status_code": "FT",
-        "has_lineup": True,
-        "prediction": {
+    dashboard_data.append(
+        {
             "fixture_id": 16260283,
             "match": "Sweden U21 vs Finland U21",
             "league": "International Friendly",
             "kickoff": "2026-06-05T16:00:00+00:00",
-            "prediction": "Sweden U21 WIN",
-            "expected_score": "2 - 1",
+            "status_code": "FT",
             "has_lineup": True,
-            **sweden_pred_extra
-        },
-        "prematch_markets": None
-    })
-    
+            "prediction": {
+                "fixture_id": 16260283,
+                "match": "Sweden U21 vs Finland U21",
+                "league": "International Friendly",
+                "kickoff": "2026-06-05T16:00:00+00:00",
+                "prediction": "Sweden U21 WIN",
+                "expected_score": "2 - 1",
+                "has_lineup": True,
+                **sweden_pred_extra,
+            },
+            "prematch_markets": None,
+        }
+    )
+
     # Append Eskilstuna match
-    dashboard_data.append({
-        "fixture_id": 15458375,
-        "match": "AFC Eskilstuna vs Karlbergs BK",
-        "league": "Ettan, Norra",
-        "kickoff": "2026-06-05T16:00:00+00:00",
-        "status_code": "FT",
-        "has_lineup": True,
-        "prediction": {
+    dashboard_data.append(
+        {
             "fixture_id": 15458375,
             "match": "AFC Eskilstuna vs Karlbergs BK",
             "league": "Ettan, Norra",
             "kickoff": "2026-06-05T16:00:00+00:00",
-            "prediction": "DRAW",
-            "expected_score": "1 - 1",
+            "status_code": "FT",
             "has_lineup": True,
-            **eskilstuna_pred_extra
-        },
-        "prematch_markets": None
-    })
-    
+            "prediction": {
+                "fixture_id": 15458375,
+                "match": "AFC Eskilstuna vs Karlbergs BK",
+                "league": "Ettan, Norra",
+                "kickoff": "2026-06-05T16:00:00+00:00",
+                "prediction": "DRAW",
+                "expected_score": "1 - 1",
+                "has_lineup": True,
+                **eskilstuna_pred_extra,
+            },
+            "prematch_markets": None,
+        }
+    )
+
     with open(dashboard_state_path, "w", encoding="utf-8") as f:
         json.dump(dashboard_data, f, indent=4)
-        
-print("Seed script completed successfully! Predictions seeded and todays_dashboard_state updated.")
+
+print(
+    "Seed script completed successfully! Predictions seeded and todays_dashboard_state updated."
+)

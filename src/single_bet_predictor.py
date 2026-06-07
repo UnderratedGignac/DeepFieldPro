@@ -316,7 +316,9 @@ def run_single_bet_predictor(BankrollSize_P: float):
                 FairProb_V = FairDrawP_V
             elif SelectionLower_V == AwayTeam_V.strip().lower():
                 FairProb_V = FairAwayP_V
-            elif "both teams to score" in SelectionLower_V and "yes" in SelectionLower_V:
+            elif (
+                "both teams to score" in SelectionLower_V and "yes" in SelectionLower_V
+            ):
                 FairProb_V = (1 - math.exp(-HomeGoalLam_V)) * (
                     1 - math.exp(-AwayGoalLam_V)
                 )
@@ -327,18 +329,26 @@ def run_single_bet_predictor(BankrollSize_P: float):
             elif "total over" in SelectionLower_V:
                 # Extract line from selection e.g. "Total OVER 2.5" → 2.5
                 try:
-                    TotalLine_V = float(SelectionLower_V.replace("total over", "").strip())
+                    TotalLine_V = float(
+                        SelectionLower_V.replace("total over", "").strip()
+                    )
                 except ValueError:
                     TotalLine_V = 2.5
                 GoalThreshold_V = int(TotalLine_V) + 1  # P(goals >= threshold)
-                FairProb_V = poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, GoalThreshold_V)
+                FairProb_V = poisson_prob_ge(
+                    HomeGoalLam_V + AwayGoalLam_V, GoalThreshold_V
+                )
             elif "total under" in SelectionLower_V:
                 try:
-                    TotalLine_V = float(SelectionLower_V.replace("total under", "").strip())
+                    TotalLine_V = float(
+                        SelectionLower_V.replace("total under", "").strip()
+                    )
                 except ValueError:
                     TotalLine_V = 2.5
                 GoalThreshold_V = int(TotalLine_V) + 1
-                FairProb_V = 1.0 - poisson_prob_ge(HomeGoalLam_V + AwayGoalLam_V, GoalThreshold_V)
+                FairProb_V = 1.0 - poisson_prob_ge(
+                    HomeGoalLam_V + AwayGoalLam_V, GoalThreshold_V
+                )
             else:
                 FairProb_V = 0.50  # Unknown market, neutral prior
 

@@ -122,9 +122,7 @@ def clear_todays_data(TodayStr_P: str):
             f"DELETE FROM market WHERE fixture_id IN ({Placeholders_V})",
             TodayFixtureIds_V,
         )
-        Cursor_V.execute(
-            "DELETE FROM fixture WHERE kickoff_date = ?", (TodayStr_P,)
-        )
+        Cursor_V.execute("DELETE FROM fixture WHERE kickoff_date = ?", (TodayStr_P,))
         logger.info(
             f"Cleared {len(TodayFixtureIds_V)} old fixtures for {TodayStr_P} before re-scraping."
         )
@@ -136,7 +134,8 @@ async def random_delay():
     await asyncio.sleep(random.uniform(1.5, 3.5))
 
 
-from typing import Optional
+from typing import Optional  # noqa: E402
+
 
 def _parse_odds(OddsText_P: str) -> Optional[float]:
     if not OddsText_P:
@@ -239,15 +238,9 @@ def parse_kickertech_events(ApiResponses_P: list) -> dict:
             AwayTeam_V = Teams_V.get("away", "")
 
             # Handle date field naming variants
-            DateStart_V = (
-                Ev_V.get("dateStart")
-                or Ev_V.get("date_start")
-                or ""
-            )
+            DateStart_V = Ev_V.get("dateStart") or Ev_V.get("date_start") or ""
             TournamentName_V = (
-                Ev_V.get("tournamentName")
-                or Ev_V.get("tournament_name")
-                or "Football"
+                Ev_V.get("tournamentName") or Ev_V.get("tournament_name") or "Football"
             )
             SportId_V = Ev_V.get("sportId") or Ev_V.get("sport_id", 0)
 
@@ -256,16 +249,29 @@ def parse_kickertech_events(ApiResponses_P: list) -> dict:
                 a = str(AwayTeam_V).lower()
                 t = str(TournamentName_V).lower()
                 is_women = False
-                for kw in ["women", "female", "feminin", "femenil", "femenino", "femminile", "women's"]:
+                for kw in [
+                    "women",
+                    "female",
+                    "feminin",
+                    "femenil",
+                    "femenino",
+                    "femminile",
+                    "women's",
+                ]:
                     if kw in h or kw in a or kw in t:
                         is_women = True
                         break
-                if h.endswith(" (w)") or h.endswith(" w") or a.endswith(" (w)") or a.endswith(" w"):
+                if (
+                    h.endswith(" (w)")
+                    or h.endswith(" w")
+                    or a.endswith(" (w)")
+                    or a.endswith(" w")
+                ):
                     is_women = True
-                    
+
                 if is_women:
                     continue
-                    
+
                 EventsById_V[str(EventId_V)] = {
                     "fixture_id": str(EventId_V),
                     "home_team": str(HomeTeam_V),
@@ -300,18 +306,22 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
         # Option A: Parse nested odds from events directly (new format)
         if "events" in Data_V:
             RawEvents_V = Data_V["events"]
-            EventList_V = list(RawEvents_V.values()) if isinstance(RawEvents_V, dict) else RawEvents_V
+            EventList_V = (
+                list(RawEvents_V.values())
+                if isinstance(RawEvents_V, dict)
+                else RawEvents_V
+            )
             for Ev_V in EventList_V:
                 if not isinstance(Ev_V, dict):
                     continue
                 EventId_V = str(Ev_V.get("id"))
                 if EventId_V not in MarketsByEvent_V:
                     continue
-                
+
                 MainOdds_V = Ev_V.get("main_odds", {})
                 if not isinstance(MainOdds_V, dict):
                     continue
-                
+
                 # 1. Match Result (main)
                 main_market = MainOdds_V.get("main")
                 if isinstance(main_market, dict):
@@ -326,17 +336,25 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                         OddCode_V = Odd_V.get("odd_code", "")
                         SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
                         SelectionNorm_V = _normalize_selection(
-                            SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), None
+                            SelectionName_V,
+                            OddCode_V,
+                            EventsById_P.get(EventId_V, {}),
+                            None,
                         )
-                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
-                            MarketsByEvent_V[EventId_V].append({
-                                "market_id": Odd_V.get("unique_id", OddId_V),
-                                "market_name": "Match Result",
-                                "selection_name": SelectionNorm_V,
-                                "raw_odds": OddValue_V,
-                                "odd_code": OddCode_V
-                            })
-                
+                        if not any(
+                            m["market_id"] == Odd_V.get("unique_id", OddId_V)
+                            for m in MarketsByEvent_V[EventId_V]
+                        ):
+                            MarketsByEvent_V[EventId_V].append(
+                                {
+                                    "market_id": Odd_V.get("unique_id", OddId_V),
+                                    "market_name": "Match Result",
+                                    "selection_name": SelectionNorm_V,
+                                    "raw_odds": OddValue_V,
+                                    "odd_code": OddCode_V,
+                                }
+                            )
+
                 # 2. Both Teams to Score (bothscore)
                 bothscore_market = MainOdds_V.get("bothscore")
                 if isinstance(bothscore_market, dict):
@@ -351,17 +369,25 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                         OddCode_V = Odd_V.get("odd_code", "")
                         SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
                         SelectionNorm_V = _normalize_selection(
-                            SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), None
+                            SelectionName_V,
+                            OddCode_V,
+                            EventsById_P.get(EventId_V, {}),
+                            None,
                         )
-                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
-                            MarketsByEvent_V[EventId_V].append({
-                                "market_id": Odd_V.get("unique_id", OddId_V),
-                                "market_name": "Both teams to score",
-                                "selection_name": SelectionNorm_V,
-                                "raw_odds": OddValue_V,
-                                "odd_code": OddCode_V
-                            })
-                
+                        if not any(
+                            m["market_id"] == Odd_V.get("unique_id", OddId_V)
+                            for m in MarketsByEvent_V[EventId_V]
+                        ):
+                            MarketsByEvent_V[EventId_V].append(
+                                {
+                                    "market_id": Odd_V.get("unique_id", OddId_V),
+                                    "market_name": "Both teams to score",
+                                    "selection_name": SelectionNorm_V,
+                                    "raw_odds": OddValue_V,
+                                    "odd_code": OddCode_V,
+                                }
+                            )
+
                 # 3. Total Goals (total)
                 total_market = MainOdds_V.get("total")
                 if isinstance(total_market, dict):
@@ -374,24 +400,35 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                         except (TypeError, ValueError):
                             continue
                         OddCode_V = Odd_V.get("odd_code", "")
-                        LineRaw_V = Odd_V.get("additional_value_raw") or Odd_V.get("additional_value", "")
+                        LineRaw_V = Odd_V.get("additional_value_raw") or Odd_V.get(
+                            "additional_value", ""
+                        )
                         try:
                             Line_V = float(str(LineRaw_V).strip())
                         except Exception:
                             Line_V = 2.5
                         SelectionName_V = Odd_V.get("team_name", Odd_V.get("name", ""))
-                        if "over" in SelectionName_V.lower() or "ovr" in OddCode_V.lower() or "over" in str(Odd_V.get("name", "")).lower():
+                        if (
+                            "over" in SelectionName_V.lower()
+                            or "ovr" in OddCode_V.lower()
+                            or "over" in str(Odd_V.get("name", "")).lower()
+                        ):
                             SelectionNorm_V = f"Total OVER {Line_V}"
                         else:
                             SelectionNorm_V = f"Total UNDER {Line_V}"
-                        if not any(m["market_id"] == Odd_V.get("unique_id", OddId_V) for m in MarketsByEvent_V[EventId_V]):
-                            MarketsByEvent_V[EventId_V].append({
-                                "market_id": Odd_V.get("unique_id", OddId_V),
-                                "market_name": "Total Goals",
-                                "selection_name": SelectionNorm_V,
-                                "raw_odds": OddValue_V,
-                                "odd_code": OddCode_V
-                            })
+                        if not any(
+                            m["market_id"] == Odd_V.get("unique_id", OddId_V)
+                            for m in MarketsByEvent_V[EventId_V]
+                        ):
+                            MarketsByEvent_V[EventId_V].append(
+                                {
+                                    "market_id": Odd_V.get("unique_id", OddId_V),
+                                    "market_name": "Total Goals",
+                                    "selection_name": SelectionNorm_V,
+                                    "raw_odds": OddValue_V,
+                                    "odd_code": OddCode_V,
+                                }
+                            )
 
         # Option B: Odds endpoint returns {"odds": {odd_id: odd_object}} (old format, legacy support)
         RawOdds_V = Data_V.get("odds", {})
@@ -428,36 +465,52 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
 
                 CodeLower_V = OddCode_V.lower()
                 NameLower_V = SelectionName_V.lower()
-                if any(Skip_V in CodeLower_V or Skip_V in NameLower_V for Skip_V in ["corner", "offside", "freeKick", "booking"]):
+                if any(
+                    Skip_V in CodeLower_V or Skip_V in NameLower_V
+                    for Skip_V in ["corner", "offside", "freeKick", "booking"]
+                ):
                     continue
 
                 AdditionalValue_V = Odd_V.get("additionalValue", "")
                 try:
-                    BettingLine_V = float(str(AdditionalValue_V).strip()) if AdditionalValue_V else None
+                    BettingLine_V = (
+                        float(str(AdditionalValue_V).strip())
+                        if AdditionalValue_V
+                        else None
+                    )
                 except (ValueError, TypeError):
                     BettingLine_V = None
 
                 SelectionNorm_V = _normalize_selection(
-                    SelectionName_V, OddCode_V, EventsById_P.get(EventId_V, {}), BettingLine_V
+                    SelectionName_V,
+                    OddCode_V,
+                    EventsById_P.get(EventId_V, {}),
+                    BettingLine_V,
                 )
 
                 MarketId_V = f"{EventId_V}_{OddId_V}"
-                exists = any(m["market_id"] == MarketId_V for m in MarketsByEvent_V[EventId_V])
+                exists = any(
+                    m["market_id"] == MarketId_V for m in MarketsByEvent_V[EventId_V]
+                )
                 if not exists:
-                    MarketsByEvent_V[EventId_V].append({
-                        "market_id": MarketId_V,
-                        "market_name": MarketName_V,
-                        "selection_name": SelectionNorm_V,
-                        "raw_odds": OddValue_V,
-                        "odd_code": OddCode_V
-                    })
+                    MarketsByEvent_V[EventId_V].append(
+                        {
+                            "market_id": MarketId_V,
+                            "market_name": MarketName_V,
+                            "selection_name": SelectionNorm_V,
+                            "raw_odds": OddValue_V,
+                            "odd_code": OddCode_V,
+                        }
+                    )
 
     return MarketsByEvent_V
 
 
 def _normalize_selection(
-    SelectionName_P: str, OddCode_P: str, Fixture_P: dict,
-    BettingLine_P: Optional[float] = None
+    SelectionName_P: str,
+    OddCode_P: str,
+    Fixture_P: dict,
+    BettingLine_P: Optional[float] = None,
 ) -> str:
     """
     Normalize selection names to match what single_bet_predictor.py expects.
@@ -592,16 +645,29 @@ async def scrape_fixture_list_html(Page_P) -> list:
                 h = HomeTeam_V.lower()
                 a = AwayTeam_V.lower()
                 is_women = False
-                for kw in ["women", "female", "feminin", "femenil", "femenino", "femminile", "women's"]:
+                for kw in [
+                    "women",
+                    "female",
+                    "feminin",
+                    "femenil",
+                    "femenino",
+                    "femminile",
+                    "women's",
+                ]:
                     if kw in h or kw in a:
                         is_women = True
                         break
-                if h.endswith(" (w)") or h.endswith(" w") or a.endswith(" (w)") or a.endswith(" w"):
+                if (
+                    h.endswith(" (w)")
+                    or h.endswith(" w")
+                    or a.endswith(" (w)")
+                    or a.endswith(" w")
+                ):
                     is_women = True
-                    
+
                 if is_women:
                     continue
-                    
+
                 FixtureId_V = f"{HomeTeam_V.strip().lower().replace(' ', '_')}_vs_{AwayTeam_V.strip().lower().replace(' ', '_')}"
                 Now_V = datetime.datetime.now(datetime.timezone.utc)
                 TodayStr_V = Now_V.strftime("%Y-%m-%d")
@@ -610,7 +676,9 @@ async def scrape_fixture_list_html(Page_P) -> list:
                         "fixture_id": FixtureId_V,
                         "home_team": HomeTeam_V.strip(),
                         "away_team": AwayTeam_V.strip(),
-                        "kickoff_time": KickoffTime_V.strip() if KickoffTime_V else "TBD",
+                        "kickoff_time": (
+                            KickoffTime_V.strip() if KickoffTime_V else "TBD"
+                        ),
                         "kickoff_date": TodayStr_V,
                         "league_id": "FOOTBALL",
                         "tournament_name": "Football",
@@ -717,7 +785,9 @@ async def run_scraper():
                 )
                 await asyncio.sleep(5)
             except Exception:
-                logger.warning("today sub-path not available, continuing with main page data")
+                logger.warning(
+                    "today sub-path not available, continuing with main page data"
+                )
 
             # Save all captured API responses for debugging
             with open(API_RESPONSES_PATH, "w") as F_V:
@@ -749,9 +819,7 @@ async def run_scraper():
                 )
                 await run_full_probe(page)
                 HtmlFixtures_V = await scrape_fixture_list_html(page)
-                logger.info(
-                    f"HTML fallback found {len(HtmlFixtures_V)} fixtures"
-                )
+                logger.info(f"HTML fallback found {len(HtmlFixtures_V)} fixtures")
                 for Fix_V in HtmlFixtures_V:
                     TodayEvents_V[Fix_V["fixture_id"]] = Fix_V
                     AllOddsByEvent_V[Fix_V["fixture_id"]] = []
@@ -820,6 +888,7 @@ async def run_scraper():
 
         except Exception as MainErr_V:
             import traceback
+
             traceback.print_exc()
             with open(ERROR_LOG_PATH, "a") as F_V:
                 F_V.write(
@@ -833,7 +902,9 @@ async def run_scraper():
             Conn_V.close()
 
     print("\n--- SCRAPER HEALTH CHECK ---")
-    print(f"Target date(s)         : {TodayStr_V}{f' +{DAYS_AHEAD}d' if DAYS_AHEAD else ''}")
+    print(
+        f"Target date(s)         : {TodayStr_V}{f' +{DAYS_AHEAD}d' if DAYS_AHEAD else ''}"
+    )
     print(f"Total API responses    : {len(ApiResponses_V)}")
     print(f"Fixtures scraped       : {FixturesScraped_V}")
     print(f"Markets scraped        : {MarketsScraped_V}")

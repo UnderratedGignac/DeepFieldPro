@@ -5,7 +5,12 @@ with open("data/betarabia_api_responses.json", "r") as f:
 
 for i, resp in enumerate(responses):
     data = resp.get("data", {})
-    if isinstance(data, dict) and "events" in data and isinstance(data["events"], list) and len(data["events"]) > 0:
+    if (
+        isinstance(data, dict)
+        and "events" in data
+        and isinstance(data["events"], list)
+        and len(data["events"]) > 0
+    ):
         event = data["events"][0]
         print("Keys of event:", list(event.keys()))
         main_odds = event.get("main_odds", {})

@@ -24,7 +24,9 @@ def print(*args, **kwargs):
 
 
 sys.path.insert(0, os.path.dirname(__file__))
-from free_scraper_module import get_todays_fixtures_free as get_todays_fixtures  # noqa: E402
+from free_scraper_module import (  # noqa: E402
+    get_todays_fixtures_free as get_todays_fixtures,
+)
 
 PLAYER_STATS_CACHE = {}
 TEAM_PLAYERS_CACHE = {}

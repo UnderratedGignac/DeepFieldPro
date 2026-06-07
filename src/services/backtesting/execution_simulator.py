@@ -267,7 +267,9 @@ class ExecutionSimulator:
                 )
 
         # Check for stale odds
-        odds_age = (datetime.timezone.utcnow() - market_state["last_update"]).total_seconds()
+        odds_age = (
+            datetime.timezone.utcnow() - market_state["last_update"]
+        ).total_seconds()
         if odds_age > profile.stale_odds_threshold_sec:
             return ExecutionResult(
                 request_id=request.request_id,

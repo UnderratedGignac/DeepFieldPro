@@ -2,6 +2,7 @@
 World Cup Player Coverage Audit
 Performs fuzzy name matching to correctly measure WC player coverage in the dataset.
 """
+
 import pandas as pd
 import unicodedata
 import re
@@ -9,22 +10,24 @@ import sys
 import io
 
 # Force UTF-8 output to avoid Windows cp1256 encoding errors
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
 
 def normalize_name(name):
     """Normalize a player name for fuzzy matching."""
     if not isinstance(name, str):
-        return ''
+        return ""
     # Lowercase
     name = name.lower().strip()
     # Remove diacritics (accents)
-    name = unicodedata.normalize('NFKD', name)
-    name = ''.join(c for c in name if not unicodedata.combining(c))
+    name = unicodedata.normalize("NFKD", name)
+    name = "".join(c for c in name if not unicodedata.combining(c))
     # Remove special chars, keep spaces and letters
-    name = re.sub(r'[^a-z\s]', '', name)
+    name = re.sub(r"[^a-z\s]", "", name)
     # Collapse multiple spaces
-    name = re.sub(r'\s+', ' ', name).strip()
+    name = re.sub(r"\s+", " ", name).strip()
     return name
+
 
 def name_token_overlap(a, b):
     """Check if two names share at least 2 tokens (words)."""
@@ -32,12 +35,13 @@ def name_token_overlap(a, b):
     tokens_b = set(normalize_name(b).split())
     return len(tokens_a & tokens_b) >= 2
 
-print("Loading data...")
-wc = pd.read_csv('data/worldcup_players.csv')
-df = pd.read_csv('data/model_ready_features.csv', usecols=['Player'])
 
-wc_names = wc['player_name'].dropna().tolist()
-df_names = list(df['Player'].dropna().unique())
+print("Loading data...")
+wc = pd.read_csv("data/worldcup_players.csv")
+df = pd.read_csv("data/model_ready_features.csv", usecols=["Player"])
+
+wc_names = wc["player_name"].dropna().tolist()
+df_names = list(df["Player"].dropna().unique())
 
 # Normalize all names
 wc_norm = [(n, normalize_name(n)) for n in wc_names]
@@ -57,7 +61,9 @@ for orig, norm in wc_norm:
         exact_missing.append((orig, norm))
 
 print("\n=== EXACT MATCH (after normalization) ===")
-print(f"  Matched: {len(exact_matched)} ({round(len(exact_matched)/len(wc_norm)*100,1)}%)")
+print(
+    f"  Matched: {len(exact_matched)} ({round(len(exact_matched)/len(wc_norm)*100,1)}%)"
+)
 print(f"  Missing: {len(exact_missing)}")
 
 # Fuzzy token overlap match for remaining
@@ -97,7 +103,7 @@ if still_missing:
         print(f"  ... and {len(still_missing)-50} more")
 
     # Save missing list to file
-    with open('data/genuinely_missing_wc_players.txt', 'w', encoding='utf-8') as f:
+    with open("data/genuinely_missing_wc_players.txt", "w", encoding="utf-8") as f:
         for p in still_missing:
-            f.write(p + '\n')
+            f.write(p + "\n")
     print("\nFull missing list saved to: data/genuinely_missing_wc_players.txt")

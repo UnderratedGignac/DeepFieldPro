@@ -9,7 +9,7 @@ cur.execute("PRAGMA table_info(bet_log)")
 cols = [c[1] for c in cur.fetchall()]
 
 # Add bet_source if not exists
-if 'bet_source' not in cols:
+if "bet_source" not in cols:
     try:
         cur.execute("ALTER TABLE bet_log ADD COLUMN bet_source TEXT DEFAULT 'AI'")
         print("Added bet_source column.")
@@ -17,7 +17,7 @@ if 'bet_source' not in cols:
         print("Error adding bet_source:", e)
 
 # Add is_recommended if not exists
-if 'is_recommended' not in cols:
+if "is_recommended" not in cols:
     try:
         cur.execute("ALTER TABLE bet_log ADD COLUMN is_recommended INTEGER DEFAULT 0")
         print("Added is_recommended column.")

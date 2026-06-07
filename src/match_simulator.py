@@ -52,16 +52,18 @@ class MatchSimulator:
         mins = float(player.get("expected_minutes", 75))
         scale = mins / 90.0
 
-        xg_match   = player.get("xg_p90", player.get("xg", 0.0)) * scale
-        xa_match   = player.get("xa_p90", player.get("xa", 0.0)) * scale
+        xg_match = player.get("xg_p90", player.get("xg", 0.0)) * scale
+        xa_match = player.get("xa_p90", player.get("xa", 0.0)) * scale
         shots_match = player.get("shots_p90", player.get("shots", 0.0)) * scale
         # Cards modelled as per-game probability (already a rate, not p90)
-        yellow_prob = min(player.get("yellow_p90", player.get("yellow_prob", 0.0)) * scale, 0.99)
+        yellow_prob = min(
+            player.get("yellow_p90", player.get("yellow_prob", 0.0)) * scale, 0.99
+        )
 
         return {
-            "goals":        self._poisson(xg_match),
-            "assists":      self._poisson(xa_match),
-            "shots":        self._poisson(shots_match),
+            "goals": self._poisson(xg_match),
+            "assists": self._poisson(xa_match),
+            "shots": self._poisson(shots_match),
             "yellow_cards": self._binomial(yellow_prob),
         }
 
@@ -85,28 +87,24 @@ class MatchSimulator:
         for p in home_players:
             sims = self.simulate_player(p)
             home_goals += sims["goals"]
-            home_player_results.append(
-                self._player_output(p["name"], sims)
-            )
+            home_player_results.append(self._player_output(p["name"], sims))
 
         away_player_results = []
         for p in away_players:
             sims = self.simulate_player(p)
             away_goals += sims["goals"]
-            away_player_results.append(
-                self._player_output(p["name"], sims)
-            )
+            away_player_results.append(self._player_output(p["name"], sims))
 
         # ── Match outcome calculations ──────────────────────────────────────
         n = self.n_sims
         home_wins = int(np.sum(home_goals > away_goals))
-        draws     = int(np.sum(home_goals == away_goals))
+        draws = int(np.sum(home_goals == away_goals))
         away_wins = int(np.sum(home_goals < away_goals))
 
         total_goals = home_goals + away_goals
-        over_25  = int(np.sum(total_goals > 2.5))
-        over_15  = int(np.sum(total_goals > 1.5))
-        over_35  = int(np.sum(total_goals > 3.5))
+        over_25 = int(np.sum(total_goals > 2.5))
+        over_15 = int(np.sum(total_goals > 1.5))
+        over_35 = int(np.sum(total_goals > 3.5))
         btts_yes = int(np.sum((home_goals > 0) & (away_goals > 0)))
 
         # Exact score distribution (cap individual goals at 7 for display)
@@ -118,9 +116,9 @@ class MatchSimulator:
         ]
 
         return {
-            "match":    f"{match_context['home_team']} vs {match_context['away_team']}",
+            "match": f"{match_context['home_team']} vs {match_context['away_team']}",
             "home_win": round(home_wins / n * 100, 1),
-            "draw":     round(draws     / n * 100, 1),
+            "draw": round(draws / n * 100, 1),
             "away_win": round(away_wins / n * 100, 1),
             "expected_goals": {
                 "home": round(float(np.mean(home_goals)), 2),
@@ -135,7 +133,7 @@ class MatchSimulator:
                 "over_3_5": round(over_35 / n * 100, 1),
                 "under_3_5": round((1 - over_35 / n) * 100, 1),
                 "btts_yes": round(btts_yes / n * 100, 1),
-                "btts_no":  round((1 - btts_yes / n) * 100, 1),
+                "btts_no": round((1 - btts_yes / n) * 100, 1),
             },
             "player_props": home_player_results + away_player_results,
         }
@@ -148,13 +146,13 @@ class MatchSimulator:
         BUG FIX 3: All values rounded to 1 decimal place.
         """
         return {
-            "player":       name,
+            "player": name,
             # BUG FIX 2: use mean(goals > 0) from the simulation, not a static input prob
             "anytime_goal": round(float(np.mean(sims["goals"] > 0)) * 100, 1),
-            "assist":       round(float(np.mean(sims["assists"] > 0)) * 100, 1),
-            "shots_1plus":  round(float(np.mean(sims["shots"] > 0)) * 100, 1),
-            "shots_2plus":  round(float(np.mean(sims["shots"] > 1)) * 100, 1),
-            "yellow_card":  round(float(np.mean(sims["yellow_cards"] > 0)) * 100, 1),
+            "assist": round(float(np.mean(sims["assists"] > 0)) * 100, 1),
+            "shots_1plus": round(float(np.mean(sims["shots"] > 0)) * 100, 1),
+            "shots_2plus": round(float(np.mean(sims["shots"] > 1)) * 100, 1),
+            "yellow_card": round(float(np.mean(sims["yellow_cards"] > 0)) * 100, 1),
         }
 
 
@@ -164,15 +162,50 @@ if __name__ == "__main__":
 
     home = [
         # Striker: ~0.5 xG/90, 3 shots/90, 75 mins expected
-        {"name": "Morata",   "xg_p90": 0.50, "xa_p90": 0.10, "shots_p90": 3.0, "yellow_p90": 0.15, "expected_minutes": 75},
+        {
+            "name": "Morata",
+            "xg_p90": 0.50,
+            "xa_p90": 0.10,
+            "shots_p90": 3.0,
+            "yellow_p90": 0.15,
+            "expected_minutes": 75,
+        },
         # Winger: ~0.25 xG/90, 2 shots/90
-        {"name": "Williams", "xg_p90": 0.25, "xa_p90": 0.30, "shots_p90": 2.0, "yellow_p90": 0.10, "expected_minutes": 80},
+        {
+            "name": "Williams",
+            "xg_p90": 0.25,
+            "xa_p90": 0.30,
+            "shots_p90": 2.0,
+            "yellow_p90": 0.10,
+            "expected_minutes": 80,
+        },
         # CM: ~0.08 xG/90, 1 shot/90
-        {"name": "Pedri",    "xg_p90": 0.08, "xa_p90": 0.25, "shots_p90": 1.0, "yellow_p90": 0.20, "expected_minutes": 90},
+        {
+            "name": "Pedri",
+            "xg_p90": 0.08,
+            "xa_p90": 0.25,
+            "shots_p90": 1.0,
+            "yellow_p90": 0.20,
+            "expected_minutes": 90,
+        },
     ]
     away = [
-        {"name": "Firmino",  "xg_p90": 0.35, "xa_p90": 0.15, "shots_p90": 2.5, "yellow_p90": 0.12, "expected_minutes": 70},
-        {"name": "Fred",     "xg_p90": 0.05, "xa_p90": 0.10, "shots_p90": 0.8, "yellow_p90": 0.30, "expected_minutes": 90},
+        {
+            "name": "Firmino",
+            "xg_p90": 0.35,
+            "xa_p90": 0.15,
+            "shots_p90": 2.5,
+            "yellow_p90": 0.12,
+            "expected_minutes": 70,
+        },
+        {
+            "name": "Fred",
+            "xg_p90": 0.05,
+            "xa_p90": 0.10,
+            "shots_p90": 0.8,
+            "yellow_p90": 0.30,
+            "expected_minutes": 90,
+        },
     ]
     ctx = {"home_team": "Spain", "away_team": "Brazil"}
 

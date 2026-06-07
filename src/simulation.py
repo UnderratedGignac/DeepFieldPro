@@ -1,5 +1,3 @@
-# mypy: ignore-errors
-from __future__ import annotations
 """
 simulation.py — DeepFieldPro World Cup Simulation
 Runs a complete paper-trade simulation for today's international matches.
@@ -8,6 +6,9 @@ Does NOT require live odds — outputs bets at target odds thresholds.
 
 Run: python src/simulation.py --bankroll 500
 """
+
+# mypy: ignore-errors
+from __future__ import annotations
 
 import os
 import json

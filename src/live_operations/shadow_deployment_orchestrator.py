@@ -80,7 +80,12 @@ def settle_bet(bet_id, closing_odds):
         UPDATE shadow_bets SET status='SETTLED', closing_odds=?, clv=?, settled_at=?
         WHERE id=?
     """,
-        (closing_odds, clv, datetime.datetime.now(datetime.timezone.utc).isoformat(), bet_id),
+        (
+            closing_odds,
+            clv,
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            bet_id,
+        ),
     )
     conn.commit()
     conn.close()

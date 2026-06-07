@@ -491,7 +491,9 @@ class SessionManager:
         latency_score *= 0.2
 
         # Age component (10% weight) - older sessions slightly less trusted
-        age_minutes = (datetime.timezone.utcnow() - metrics.created_at).total_seconds() / 60
+        age_minutes = (
+            datetime.timezone.utcnow() - metrics.created_at
+        ).total_seconds() / 60
         age_score = max(0.5, 1.0 - (age_minutes / 60)) * 0.1
 
         total_score = success_score + failure_score + latency_score + age_score

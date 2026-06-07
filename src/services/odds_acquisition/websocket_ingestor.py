@@ -523,7 +523,9 @@ class WebSocketIngestor:
         if not self._metrics.last_message_time:
             return
 
-        elapsed = (datetime.timezone.utcnow() - self._metrics.last_message_time).total_seconds()
+        elapsed = (
+            datetime.timezone.utcnow() - self._metrics.last_message_time
+        ).total_seconds()
 
         if elapsed > self.STALE_STREAM_THRESHOLD_SECONDS:
             logger.warning(
@@ -553,7 +555,9 @@ class WebSocketIngestor:
             "consecutive_failures": self._metrics.consecutive_failures,
             "buffer_size": len(self._tick_buffer),
             "last_message_ago_seconds": (
-                (datetime.timezone.utcnow() - self._metrics.last_message_time).total_seconds()
+                (
+                    datetime.timezone.utcnow() - self._metrics.last_message_time
+                ).total_seconds()
                 if self._metrics.last_message_time
                 else None
             ),
@@ -567,5 +571,7 @@ class WebSocketIngestor:
         if not self._metrics.last_message_time:
             return True  # Just connected, no messages yet
 
-        elapsed = (datetime.timezone.utcnow() - self._metrics.last_message_time).total_seconds()
+        elapsed = (
+            datetime.timezone.utcnow() - self._metrics.last_message_time
+        ).total_seconds()
         return elapsed < self.STALE_STREAM_THRESHOLD_SECONDS

@@ -8,6 +8,7 @@ import datetime
 import logging
 import sqlite3
 import pandas as pd
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -69,7 +70,9 @@ def print_db_health(today_str: str):
         print(f"   Fixtures in DB  : {n_fixtures}")
         print(f"   Markets in DB   : {n_markets}")
         if n_fixtures == 0:
-            print("   ⚠  WARNING: No fixtures found for today — scraper may have been blocked.")
+            print(
+                "   ⚠  WARNING: No fixtures found for today — scraper may have been blocked."
+            )
         print("────────────────────────────────────────────────────────────────\n")
     except Exception as e:
         logger.warning(f"DB health check failed: {e}")
@@ -224,17 +227,20 @@ def run_simulation(today_str: str, num_sims: int = 10000) -> str | None:
         return None
 
     conn = sqlite3.connect(db_path)
-    sim  = MatchSimulator(num_simulations=num_sims)
-    se   = PlayerSimilarityEngine(conn)
+    sim = MatchSimulator(num_simulations=num_sims)
+    se = PlayerSimilarityEngine(conn)
 
     # Load today's fixtures
     c = conn.cursor()
     try:
-        c.execute("""
+        c.execute(
+            """
             SELECT fixture_id, home_team, away_team, kickoff_time, tournament_name
             FROM fixture
             WHERE kickoff_date = ? OR (kickoff_date IS NULL AND date(scraped_at) = ?)
-        """, (today_str, today_str))
+        """,
+            (today_str, today_str),
+        )
         fixtures = c.fetchall()
     except Exception as e:
         logger.warning(f"[Simulator] Could not load fixtures: {e}")
@@ -254,7 +260,8 @@ def run_simulation(today_str: str, num_sims: int = 10000) -> str | None:
         def get_players(team_name: str) -> list:
             """Look up players for a team by name match (fuzzy via LIKE)."""
             try:
-                rows = conn.execute("""
+                rows = conn.execute(
+                    """
                     SELECT player_name, position, xg_p90, xa_p90, shots_p90,
                            yellow_cards_p90, minutes_played
                     FROM player_stats
@@ -265,21 +272,25 @@ def run_simulation(today_str: str, num_sims: int = 10000) -> str | None:
                     AND minutes_played > 100
                     ORDER BY xg_p90 DESC
                     LIMIT 11
-                """, (f"%{team_name}%",)).fetchall()
+                """,
+                    (f"%{team_name}%",),
+                ).fetchall()
             except Exception:
                 rows = []
 
             players = []
             for pname, pos, xg, xa, shots, yellow, mins in rows:
-                players.append({
-                    "name":             pname,
-                    "position":         pos or "MID",
-                    "xg_p90":           float(xg or 0),
-                    "xa_p90":           float(xa or 0),
-                    "shots_p90":        float(shots or 0),
-                    "yellow_p90":       float(yellow or 0),
-                    "expected_minutes": 75,
-                })
+                players.append(
+                    {
+                        "name": pname,
+                        "position": pos or "MID",
+                        "xg_p90": float(xg or 0),
+                        "xa_p90": float(xa or 0),
+                        "shots_p90": float(shots or 0),
+                        "yellow_p90": float(yellow or 0),
+                        "expected_minutes": 75,
+                    }
+                )
             return players
 
         home_players = get_players(home_team)
@@ -287,35 +298,52 @@ def run_simulation(today_str: str, num_sims: int = 10000) -> str | None:
 
         # If fewer than 5 known players per side, fill with similarity engine estimates
         NEEDED = 5
-        default_pos_dist = ["GK", "DEF", "DEF", "DEF", "MID", "MID", "MID", "FWD", "FWD", "FWD", "FWD"]
-        for players, team_name in [(home_players, home_team), (away_players, away_team)]:
+        default_pos_dist = [
+            "GK",
+            "DEF",
+            "DEF",
+            "DEF",
+            "MID",
+            "MID",
+            "MID",
+            "FWD",
+            "FWD",
+            "FWD",
+            "FWD",
+        ]
+        for players, team_name in [
+            (home_players, home_team),
+            (away_players, away_team),
+        ]:
             while len(players) < NEEDED:
-                idx  = len(players)
-                pos  = default_pos_dist[idx % len(default_pos_dist)]
-                est  = se.get_estimated_stats(f"{team_name} Player {idx+1}", pos)
-                players.append({
-                    "name":             est["name"],
-                    "position":         est["position"],
-                    "xg_p90":           est.get("xg_p90", 0.05),
-                    "xa_p90":           est.get("xa_p90", 0.05),
-                    "shots_p90":        est.get("shots_p90", 1.0),
-                    "yellow_p90":       est.get("yellow_p90", 0.15),
-                    "expected_minutes": 75,
-                    "is_synthetic":     True,
-                    "confidence":       est.get("confidence", 10.0),
-                })
+                idx = len(players)
+                pos = default_pos_dist[idx % len(default_pos_dist)]
+                est = se.get_estimated_stats(f"{team_name} Player {idx+1}", pos)
+                players.append(
+                    {
+                        "name": est["name"],
+                        "position": est["position"],
+                        "xg_p90": est.get("xg_p90", 0.05),
+                        "xa_p90": est.get("xa_p90", 0.05),
+                        "shots_p90": est.get("shots_p90", 1.0),
+                        "yellow_p90": est.get("yellow_p90", 0.15),
+                        "expected_minutes": 75,
+                        "is_synthetic": True,
+                        "confidence": est.get("confidence", 10.0),
+                    }
+                )
 
         ctx = {
-            "home_team":       home_team,
-            "away_team":       away_team,
-            "fixture_id":      fixture_id,
-            "kickoff_time":    kickoff_time,
+            "home_team": home_team,
+            "away_team": away_team,
+            "fixture_id": fixture_id,
+            "kickoff_time": kickoff_time,
             "tournament_name": tournament_name or "Football",
         }
         try:
             result = sim.simulate_match(home_players, away_players, ctx)
-            result["fixture_id"]      = fixture_id
-            result["kickoff_time"]    = kickoff_time
+            result["fixture_id"] = fixture_id
+            result["kickoff_time"] = kickoff_time
             result["tournament_name"] = tournament_name or "Football"
             all_results.append(result)
             logger.info(
@@ -333,12 +361,18 @@ def run_simulation(today_str: str, num_sims: int = 10000) -> str | None:
     # Save simulation output
     out_path = os.path.join(DATA_DIR, f"simulation_results_{today_str}.json")
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "date":         today_str,
-            "num_simulations": num_sims,
-            "fixtures":     all_results,
-        }, f, indent=2)
+        json.dump(
+            {
+                "generated_at": datetime.datetime.now(
+                    datetime.timezone.utc
+                ).isoformat(),
+                "date": today_str,
+                "num_simulations": num_sims,
+                "fixtures": all_results,
+            },
+            f,
+            indent=2,
+        )
 
     logger.info(f"[Simulator] ✅ Saved simulation results → {out_path}")
     return out_path
@@ -378,7 +412,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    bankroll  = args.bankroll
+    bankroll = args.bankroll
     today_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
 
     scraper_env = {}
@@ -407,4 +441,6 @@ if __name__ == "__main__":
         if sim_path:
             print(f"Simulation results : {sim_path}")
         else:
-            print("Simulation         : No player data available yet. Run: python src/data_pipeline.py")
+            print(
+                "Simulation         : No player data available yet. Run: python src/data_pipeline.py"
+            )
