@@ -1016,11 +1016,11 @@
                                 }
                                 contentHTML += `
                                 <div class="market-row" style="margin-bottom: 6px;">
-                                    <button class="market-btn" onclick="placeBet('${p.match}', '${marketName}', '${sel.selection}', ${sel.prob}, ${sel.odds}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center;">
+                                    <button class="market-btn" onclick="placeBet('${p.match}', '${marketName}', '${sel.selection}', ${sel.prob}, ${sel.odds || 0}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center;">
                                         <span style="display:flex; align-items:center;">${sel.selection} ${recBadge}</span>
                                         <span style="font-family:'Outfit',sans-serif; font-weight:700;">
                                             <span style="color:var(--text-muted); font-size:0.8rem; margin-right:8px;">${sel.prob}%</span>
-                                            <span style="color:var(--primary);">@ ${sel.odds.toFixed(2)}</span>
+                                            <span style="color:var(--primary);">@ ${(sel.odds || 0).toFixed(2)}</span>
                                         </span>
                                     </button>
                                 </div>`;
