@@ -621,7 +621,6 @@ def get_comparison(fixture_id):
         except Exception:
             pass
 
-
     if not actuals:
         state_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
         if os.path.exists(state_path):
