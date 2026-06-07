@@ -26,9 +26,9 @@ def print(*args, **kwargs):
 sys.path.insert(0, os.path.dirname(__file__))
 
 # Import new DeepFieldPro modules - only the specific classes/functions we actually use
-from free_scraper_module import (
+from free_scraper_module import (  # noqa: E402
     get_todays_fixtures_free as get_todays_fixtures,
-)  # noqa: E402
+)
 from models.calibration_engine import ProbabilityCalibrator  # noqa: E402
 from risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
 from telemetry_warehouse.clv_tracker import create_clv_tracker  # noqa: E402
