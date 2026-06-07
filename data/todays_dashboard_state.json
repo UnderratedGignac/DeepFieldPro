@@ -16284,7 +16284,7 @@
         "match": "St. George Willawong FC vs Redlands United",
         "league": "Queensland Premier League 1",
         "kickoff": "2026-06-07T06:30:00+00:00",
-        "status_code": "1H",
+        "status_code": "FT",
         "has_lineup": false,
         "prediction": null,
         "prematch_markets": null
@@ -23874,7 +23874,7 @@
         "match": "Oita Trinita vs Montedio Yamagata",
         "league": "J2/J3 League, Placement Matches",
         "kickoff": "2026-06-07T07:00:00+00:00",
-        "status_code": "1H",
+        "status_code": "FT",
         "has_lineup": false,
         "prediction": null,
         "prematch_markets": null
@@ -32694,7 +32694,7 @@
         "match": "Bulgaria U19 vs Albania U19",
         "league": "U19 Friendly Games",
         "kickoff": "2026-06-07T07:30:00+00:00",
-        "status_code": "1H",
+        "status_code": "FT",
         "has_lineup": false,
         "prediction": null,
         "prematch_markets": null
