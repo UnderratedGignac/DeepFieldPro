@@ -9,7 +9,8 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "opponent_profil
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS opponent_profiles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         team_name TEXT,
@@ -20,7 +21,8 @@ def init_db():
         opp_defensive_block_shape TEXT,
         UNIQUE(team_name, season, match_week)
     )
-    """)
+    """
+    )
     conn.commit()
     conn.close()
 

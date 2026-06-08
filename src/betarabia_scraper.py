@@ -68,7 +68,8 @@ def init_db():
     """Initialize SQLite DB with fixture and market tables + kickoff_date column."""
     Conn_V = sqlite3.connect(DB_PATH)
     Cursor_V = Conn_V.cursor()
-    Cursor_V.execute("""
+    Cursor_V.execute(
+        """
       CREATE TABLE IF NOT EXISTS fixture (
         fixture_id TEXT PRIMARY KEY,
         home_team TEXT,
@@ -79,8 +80,10 @@ def init_db():
         tournament_name TEXT,
         scraped_at TEXT
       )
-    """)
-    Cursor_V.execute("""
+    """
+    )
+    Cursor_V.execute(
+        """
       CREATE TABLE IF NOT EXISTS market (
         market_id TEXT PRIMARY KEY,
         fixture_id TEXT,
@@ -92,7 +95,8 @@ def init_db():
         prop_line REAL,
         scraped_at TEXT
       )
-    """)
+    """
+    )
     # Migration: add kickoff_date and tournament_name if they don't exist
     try:
         Cursor_V.execute("ALTER TABLE fixture ADD COLUMN kickoff_date TEXT")

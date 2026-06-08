@@ -55,7 +55,8 @@ def get_or_init_bankroll(starting_bankroll: float = None) -> dict:
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    c.execute("""
+    c.execute(
+        """
         CREATE TABLE IF NOT EXISTS bankroll (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
             date             DATE UNIQUE,
@@ -66,7 +67,8 @@ def get_or_init_bankroll(starting_bankroll: float = None) -> dict:
             daily_pnl        REAL DEFAULT 0,
             system_status    TEXT DEFAULT 'ACTIVE'
         )
-    """)
+    """
+    )
 
     # Try to get today's row
     c.execute("SELECT * FROM bankroll WHERE date = ?", (today,))

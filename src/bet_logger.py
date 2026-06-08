@@ -9,7 +9,8 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "bet_log.db")
 def init_bet_log_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS bet_log (
         bet_id TEXT PRIMARY KEY,
         match_id TEXT,
@@ -34,7 +35,8 @@ def init_bet_log_db():
         bet_source TEXT DEFAULT 'AI',
         is_recommended INTEGER DEFAULT 0
     )
-    """)
+    """
+    )
     conn.commit()
     conn.close()
 

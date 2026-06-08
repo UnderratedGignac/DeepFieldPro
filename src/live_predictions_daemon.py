@@ -210,7 +210,8 @@ def log_prediction_to_db(pred_res, has_lineup):
         cur = conn.cursor()
 
         # Check if predictions table exists, create if not
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS predictions (
                 fixture_id TEXT PRIMARY KEY,
                 match_name TEXT,
@@ -228,7 +229,8 @@ def log_prediction_to_db(pred_res, has_lineup):
                 has_lineup INTEGER,
                 predicted_at TIMESTAMP
             )
-        """)
+        """
+        )
 
         # Check if column extra_json exists
         cur.execute("PRAGMA table_info(predictions)")
