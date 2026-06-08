@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS graveyard (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             strategy_id TEXT, name TEXT,
@@ -27,8 +26,7 @@ def init_db():
             total_bets INTEGER, capital_at_risk REAL,
             promoted_to TEXT, buried_at TEXT
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 

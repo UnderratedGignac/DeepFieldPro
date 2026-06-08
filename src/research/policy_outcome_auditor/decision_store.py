@@ -27,8 +27,7 @@ class DecisionStore:
 
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
-            conn.executescript(
-                """
+            conn.executescript("""
                 CREATE TABLE IF NOT EXISTS decisions (
                     trace_id TEXT PRIMARY KEY,
                     timestamp TEXT,
@@ -60,8 +59,7 @@ class DecisionStore:
                     market_status TEXT,
                     FOREIGN KEY(trace_id) REFERENCES decisions(trace_id)
                 );
-            """
-            )
+            """)
 
     def record_decision(self, event: PolicyDecisionEvent):
         with sqlite3.connect(self.db_path) as conn:

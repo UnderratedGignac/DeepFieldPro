@@ -29,8 +29,7 @@ def _get_conn() -> sqlite3.Connection:
 
 
 def _ensure_tables(conn: sqlite3.Connection):
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS deployment_state (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             current_phase TEXT NOT NULL,
@@ -40,17 +39,14 @@ def _ensure_tables(conn: sqlite3.Connection):
             phase_drawdown_pct REAL NOT NULL,
             last_updated TEXT NOT NULL
         )
-    """
-    )
-    conn.execute(
-        """
+    """)
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS drift_budget (
             drift_date TEXT PRIMARY KEY,
             min_ev_drift REAL NOT NULL DEFAULT 0.0,
             p_fill_drift REAL NOT NULL DEFAULT 0.0
         )
-    """
-    )
+    """)
     conn.commit()
 
 

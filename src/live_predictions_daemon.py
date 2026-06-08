@@ -210,8 +210,7 @@ def log_prediction_to_db(pred_res, has_lineup):
         cur = conn.cursor()
 
         # Check if predictions table exists, create if not
-        cur.execute(
-            """
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS predictions (
                 fixture_id TEXT PRIMARY KEY,
                 match_name TEXT,
@@ -229,8 +228,7 @@ def log_prediction_to_db(pred_res, has_lineup):
                 has_lineup INTEGER,
                 predicted_at TIMESTAMP
             )
-        """
-        )
+        """)
 
         # Check if column extra_json exists
         cur.execute("PRAGMA table_info(predictions)")
@@ -379,7 +377,7 @@ def load_predictions_from_db():
                         {"selection": "No", "prob": r["btts_no_prob"]},
                     ],
                 }
-            
+
             dp = extra.get("detailed_prediction", {})
             if dp:
                 # Reconstruct Corners
@@ -390,18 +388,34 @@ def load_predictions_from_db():
                 # Reconstruct Total Cards
                 if "Total Cards" not in db_markets and "cards_yellow_total" in dp:
                     db_markets["Total Cards"] = [
-                        {"selection": "Over 3.5 Cards", "prob": round((1.0 - math.exp(-dp["cards_yellow_total"] / 2.5)) * 100, 1)}
+                        {
+                            "selection": "Over 3.5 Cards",
+                            "prob": round(
+                                (1.0 - math.exp(-dp["cards_yellow_total"] / 2.5)) * 100,
+                                1,
+                            ),
+                        }
                     ]
                 # Reconstruct Goalscorer
                 if "Goalscorer" not in db_markets and "goalscorers" in dp:
                     db_markets["Goalscorer"] = [
-                        {"selection": f"{p['name']} Anytime Goal", "prob": round(p["anytime_goal_prob"], 1) if p["anytime_goal_prob"] > 1.0 else round(p["anytime_goal_prob"] * 100, 1)}
+                        {
+                            "selection": f"{p['name']} Anytime Goal",
+                            "prob": (
+                                round(p["anytime_goal_prob"], 1)
+                                if p["anytime_goal_prob"] > 1.0
+                                else round(p["anytime_goal_prob"] * 100, 1)
+                            ),
+                        }
                         for p in dp["goalscorers"][:3]
                     ]
                 # Reconstruct Player Shots
                 if "Player Shots" not in db_markets and "shots_players" in dp:
                     db_markets["Player Shots"] = [
-                        {"selection": f"{p['name']} Over 1.5 Shots", "prob": min(95.0, round(p["exp_shots"] * 30, 1))}
+                        {
+                            "selection": f"{p['name']} Over 1.5 Shots",
+                            "prob": min(95.0, round(p["exp_shots"] * 30, 1)),
+                        }
                         for p in dp["shots_players"][:3]
                         if p.get("exp_shots", 0) > 1.5
                     ]
@@ -924,7 +938,9 @@ def update_markdown_artifact(results, timestamp):
 
     # Write to data dir
     try:
-        with open(os.path.join(DATA_DIR, "todays_live_predictions.md"), "w", encoding="utf-8") as f:
+        with open(
+            os.path.join(DATA_DIR, "todays_live_predictions.md"), "w", encoding="utf-8"
+        ) as f:
             f.write(out_text)
     except Exception as e:
         print(f"Error writing markdown artifact: {e}")
@@ -1261,7 +1277,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
                     timeout=10,
                 )
                 print(f"[STAIR AI] Place bet response: {res.status_code} - {res.text}")
-                
+
                 order_id = None
                 if res.status_code in [200, 201]:
                     try:
@@ -1271,26 +1287,32 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
                         elif "orderId" in res_data:
                             order_id = res_data["orderId"]
                         elif "data" in res_data and isinstance(res_data["data"], dict):
-                            order_id = res_data["data"].get("orderId") or res_data["data"].get("order_id") or res_data["data"].get("id")
+                            order_id = (
+                                res_data["data"].get("orderId")
+                                or res_data["data"].get("order_id")
+                                or res_data["data"].get("id")
+                            )
                         elif "id" in res_data:
                             order_id = res_data["id"]
                     except Exception as json_err:
                         print("[STAIR AI] Error parsing response JSON:", json_err)
-                
+
                 if not order_id:
                     order_id = f"STAIR_ERR_{bet_id[-8:]}"
-                
+
                 # Write to stair_orders
                 try:
                     conn2 = sqlite3.connect(db_path)
                     cur2 = conn2.cursor()
                     cur2.execute(
                         "INSERT OR IGNORE INTO stair_orders (bet_id, order_id) VALUES (?, ?)",
-                        (bet_id, order_id)
+                        (bet_id, order_id),
                     )
                     conn2.commit()
                     conn2.close()
-                    print(f"[STAIR AI] Order logged to database: {bet_id} -> {order_id}")
+                    print(
+                        f"[STAIR AI] Order logged to database: {bet_id} -> {order_id}"
+                    )
                 except Exception as db_err:
                     print("[STAIR AI] Error saving order to database:", db_err)
             except Exception as se:
@@ -1308,13 +1330,14 @@ def settle_open_bets():
     Scrapes today's finished matches from Sofascore and settles any OPEN bets in bet_log.db.
     """
     print("[SETTLEMENT] Running settlement check...")
-    
+
     # Load completed comparisons for minor market results
     completed_path = os.path.join(DATA_DIR, "completed_comparisons.json")
     completed_data = {}
     if os.path.exists(completed_path):
         try:
             import json
+
             with open(completed_path, "r", encoding="utf-8") as f:
                 completed_data = json.load(f)
         except Exception as e:
@@ -1371,6 +1394,7 @@ def settle_open_bets():
                 return ""
             import re
             import unicodedata
+
             n = name.lower()
             n = "".join(
                 c
@@ -1392,6 +1416,7 @@ def settle_open_bets():
             bet_source,
         ) in open_bets:
             import re
+
             match_match = re.match(r"^(.*) vs (.*) \((.*)\)$", player_id)
             if not match_match:
                 match_name = match_id if match_id else "Unknown vs Unknown"
@@ -1445,21 +1470,27 @@ def settle_open_bets():
             act_cards = None
             scored_players = []
             player_shots_val = {}
-            
+
             fixture_id_str = None
             for fid, pred in res_map.items():
-                if pred.get("match") == match_name or clean_name(pred.get("match")) == clean_name(match_name):
+                if pred.get("match") == match_name or clean_name(
+                    pred.get("match")
+                ) == clean_name(match_name):
                     fixture_id_str = str(fid)
                     break
-            
+
             if fixture_id_str and fixture_id_str in completed_data:
                 match_in_completed = True
                 comp_match = completed_data[fixture_id_str]
                 act_corners = comp_match.get("corners_total")
                 act_cards = comp_match.get("cards_yellow_total")
-                scored_players = [g.get("player", "").lower() for g in comp_match.get("goals", [])]
+                scored_players = [
+                    g.get("player", "").lower() for g in comp_match.get("goals", [])
+                ]
                 for p_stat in comp_match.get("player_stats", []):
-                    player_shots_val[p_stat.get("name", "").lower()] = p_stat.get("shots", 0)
+                    player_shots_val[p_stat.get("name", "").lower()] = p_stat.get(
+                        "shots", 0
+                    )
 
             won = False
             if market_type == "1X2":
@@ -1484,7 +1515,7 @@ def settle_open_bets():
                 if act_corners is None:
                     h = hash(bet_id)
                     act_corners = (h % 6) + 7
-                
+
                 line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
                 line_val = float(line_match.group(1)) if line_match else 8.5
                 if "over" in sel_lower:
@@ -1495,7 +1526,7 @@ def settle_open_bets():
                 if act_cards is None:
                     h = hash(bet_id)
                     act_cards = (h % 5) + 2
-                
+
                 line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
                 line_val = float(line_match.group(1)) if line_match else 3.5
                 if "over" in sel_lower:
@@ -1503,21 +1534,34 @@ def settle_open_bets():
                 else:
                     won = act_cards < line_val
             elif market_type == "Goalscorer":
-                player_name_extracted = selection.replace("Anytime Goal", "").replace("Anytime", "").replace("Goal", "").strip()
+                player_name_extracted = (
+                    selection.replace("Anytime Goal", "")
+                    .replace("Anytime", "")
+                    .replace("Goal", "")
+                    .strip()
+                )
                 p_name_lower = player_name_extracted.lower()
-                
+
                 if match_in_completed:
-                    won = any(p_name_lower in sp or sp in p_name_lower for sp in scored_players)
+                    won = any(
+                        p_name_lower in sp or sp in p_name_lower
+                        for sp in scored_players
+                    )
                 else:
                     player_team = "Home"
                     if fixture_id_str and fixture_id_str in res_map:
                         dp = res_map[int(fixture_id_str)].get("detailed_prediction", {})
                         for pl in dp.get("goalscorers", []):
-                            if p_name_lower in pl["name"].lower() or pl["name"].lower() in p_name_lower:
+                            if (
+                                p_name_lower in pl["name"].lower()
+                                or pl["name"].lower() in p_name_lower
+                            ):
                                 player_team = pl.get("team", "Home")
                                 break
-                    
-                    team_scored = (home_score > 0 if player_team == "Home" else away_score > 0)
+
+                    team_scored = (
+                        home_score > 0 if player_team == "Home" else away_score > 0
+                    )
                     if team_scored:
                         h = hash(bet_id)
                         prob_est = (1.0 / entry_odds) if entry_odds > 0 else 0.3
@@ -1527,10 +1571,10 @@ def settle_open_bets():
             elif market_type == "Player Shots":
                 player_name_extracted = selection.split(" Over ")[0].strip()
                 p_name_lower = player_name_extracted.lower()
-                
+
                 line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
                 line_val = float(line_match.group(1)) if line_match else 1.5
-                
+
                 if match_in_completed:
                     shots_val = 0
                     for name, val in player_shots_val.items():
@@ -1686,9 +1730,9 @@ def update_dashboard_json(fixtures, results_cache):
                                 key = "No"
                         elif m_type == "Corners":
                             # We only have Over 8.5 Corners prediction right now
-                            key = sel_name # e.g. "Over 8.5 Corners"
+                            key = sel_name  # e.g. "Over 8.5 Corners"
                         elif m_type == "Total Cards":
-                            key = sel_name # e.g. "Over 3.5 Cards"
+                            key = sel_name  # e.g. "Over 3.5 Cards"
 
                         odds = None
                         if odds_dict:
@@ -1727,8 +1771,12 @@ def update_dashboard_json(fixtures, results_cache):
                                     ev,
                                 )
                             else:
-                                if ev < min_ev_threshold and prob < settings.get("min_confidence_pct", 55):
-                                    sel["skip_reason"] = "No Profitable Edge (EV < 5% & Confidence Low)"
+                                if ev < min_ev_threshold and prob < settings.get(
+                                    "min_confidence_pct", 55
+                                ):
+                                    sel["skip_reason"] = (
+                                        "No Profitable Edge (EV < 5% & Confidence Low)"
+                                    )
                                 elif ev < min_ev_threshold:
                                     sel["skip_reason"] = "Negative Expected Value"
                                 else:
@@ -1742,19 +1790,27 @@ def update_dashboard_json(fixtures, results_cache):
                             ev_est = -0.05
                             sel["odds"] = est_odds
                             sel["ev"] = round(ev_est * 100, 1)
-                            
+
                             is_recommended = False
                             if m_type == "Corners" and prob >= 55.0:
                                 is_recommended = True
                             elif m_type == "Total Cards" and prob >= 55.0:
                                 is_recommended = True
-                            elif m_type == "Goalscorer" and prob >= 20.0 and sel.get("is_top_pick"):
+                            elif (
+                                m_type == "Goalscorer"
+                                and prob >= 20.0
+                                and sel.get("is_top_pick")
+                            ):
                                 is_recommended = True
-                            elif m_type == "Player Shots" and prob >= 30.0 and sel.get("is_top_pick"):
+                            elif (
+                                m_type == "Player Shots"
+                                and prob >= 30.0
+                                and sel.get("is_top_pick")
+                            ):
                                 is_recommended = True
                             elif prob >= settings.get("min_confidence_pct", 55):
                                 is_recommended = True
-                                
+
                             sel["recommended"] = is_recommended
                             if is_recommended:
                                 log_ai_bet(
@@ -1766,7 +1822,9 @@ def update_dashboard_json(fixtures, results_cache):
                                     ev_est,
                                 )
                             else:
-                                sel["skip_reason"] = "Market Illiquid (No Real Odds Found)"
+                                sel["skip_reason"] = (
+                                    "Market Illiquid (No Real Odds Found)"
+                                )
 
         item = {
             "fixture_id": fid,
@@ -1781,7 +1839,9 @@ def update_dashboard_json(fixtures, results_cache):
         }
         dashboard_data.append(item)
 
-    with open(os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8") as f:
+    with open(
+        os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8"
+    ) as f:
         json.dump(dashboard_data, f, indent=4)
 
 
@@ -1789,7 +1849,9 @@ def refresh_completed_comparisons():
     """
     Checks for finished matches and fetches detailed stats to populate completed_comparisons.json.
     """
-    print("[COMPLETION] Checking for finished matches to populate reality data (Today + Yesterday)...")
+    print(
+        "[COMPLETION] Checking for finished matches to populate reality data (Today + Yesterday)..."
+    )
     completed_path = os.path.join(DATA_DIR, "completed_comparisons.json")
     completed_data = {}
     if os.path.exists(completed_path):
@@ -1803,20 +1865,21 @@ def refresh_completed_comparisons():
         # Check Today and Yesterday
         today = datetime.datetime.now()
         yesterday = today - datetime.timedelta(days=1)
-        
+
         all_fixtures = []
-        
-        # We need a way to fetch for a specific date. 
+
+        # We need a way to fetch for a specific date.
         # Let's temporarily monkeypatch or just use the logic here if get_todays_fixtures_free doesn't support it.
         # Actually, let's just use the logic from free_scraper_module directly for the loop.
-        
+
         for dt in [yesterday, today]:
             date_str = dt.strftime("%Y-%m-%d")
             url = f"https://api.sofascore.com/api/v1/sport/football/scheduled-events/{date_str}"
-            
+
             print(f"[COMPLETION] Scanning fixtures for {date_str}...")
             try:
                 from seleniumbase import SB
+
                 with SB(uc=True, headless=True) as sb:
                     sb.open(url)
                     time.sleep(2)
@@ -1829,20 +1892,22 @@ def refresh_completed_comparisons():
                             status_code = "1H"
                         elif e["status"]["type"] == "finished":
                             status_code = "FT"
-                        
-                        all_fixtures.append({
-                            "fixture": {
-                                "id": e["id"],
-                                "status": {"short": status_code},
-                                "home_score": e.get("homeScore", {}).get("current"),
-                                "away_score": e.get("awayScore", {}).get("current"),
-                            },
-                            "league": {"name": e["tournament"]["name"]},
-                            "teams": {
-                                "home": {"name": e["homeTeam"]["name"]},
-                                "away": {"name": e["awayTeam"]["name"]},
+
+                        all_fixtures.append(
+                            {
+                                "fixture": {
+                                    "id": e["id"],
+                                    "status": {"short": status_code},
+                                    "home_score": e.get("homeScore", {}).get("current"),
+                                    "away_score": e.get("awayScore", {}).get("current"),
+                                },
+                                "league": {"name": e["tournament"]["name"]},
+                                "teams": {
+                                    "home": {"name": e["homeTeam"]["name"]},
+                                    "away": {"name": e["awayTeam"]["name"]},
+                                },
                             }
-                        })
+                        )
             except Exception as e:
                 print(f"[COMPLETION] Error scanning {date_str}: {e}")
 

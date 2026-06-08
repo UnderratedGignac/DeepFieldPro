@@ -41,8 +41,7 @@ class DataQualityMonitor:
             cur = conn.cursor()
 
             # Table 1: API Latency - tracks lineup release timing
-            cur.execute(
-                """
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS api_latency (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     fixture_id TEXT,
@@ -54,12 +53,10 @@ class DataQualityMonitor:
                     api_source TEXT,
                     recorded_at TEXT
                 )
-            """
-            )
+            """)
 
             # Table 2: Odds Staleness - tracks market line ticks
-            cur.execute(
-                """
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS odds_staleness (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     market_id TEXT,
@@ -73,12 +70,10 @@ class DataQualityMonitor:
                     staleness_minutes REAL,
                     recorded_at TEXT
                 )
-            """
-            )
+            """)
 
             # Table 3: Missing Lineups - tracks fixtures without lineups
-            cur.execute(
-                """
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS missing_lineups (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     fixture_id TEXT,
@@ -89,12 +84,10 @@ class DataQualityMonitor:
                     status TEXT,
                     checked_at TEXT
                 )
-            """
-            )
+            """)
 
             # Table 4: API Health Summary - aggregated metrics
-            cur.execute(
-                """
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS api_health_summary (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     date TEXT,
@@ -106,8 +99,7 @@ class DataQualityMonitor:
                     health_score REAL,
                     recorded_at TEXT
                 )
-            """
-            )
+            """)
 
             # Create indexes for faster queries
             cur.execute(

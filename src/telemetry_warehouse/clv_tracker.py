@@ -53,8 +53,7 @@ class CLVTracker:
             cur = conn.cursor()
 
             # Create bets table if not exists
-            cur.execute(
-                """
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS bets (
                     bet_id TEXT PRIMARY KEY,
                     timestamp TEXT,
@@ -73,8 +72,7 @@ class CLVTracker:
                     uncertainty_spread REAL,
                     kickoff_time TEXT
                 )
-            """
-            )
+            """)
 
             # Check if CLV columns exist and add them if not
             cur.execute("PRAGMA table_info(bets)")
@@ -90,8 +88,7 @@ class CLVTracker:
                 cur.execute("ALTER TABLE bets ADD COLUMN kickoff_time TEXT")
 
             # Create predictions table for tracking pre-match data
-            cur.execute(
-                """
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS predictions (
                     fixture_id TEXT PRIMARY KEY,
                     match_name TEXT,
@@ -110,8 +107,7 @@ class CLVTracker:
                     predicted_at TIMESTAMP,
                     extra_json TEXT
                 )
-            """
-            )
+            """)
 
             conn.commit()
             conn.close()

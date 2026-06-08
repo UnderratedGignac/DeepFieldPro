@@ -45,8 +45,7 @@ DEMOTION_CRITERIA = {
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS strategies (
             strategy_id TEXT PRIMARY KEY,
             name TEXT, current_state TEXT DEFAULT 'RESEARCH',
@@ -54,8 +53,7 @@ def init_db():
             sharpe REAL DEFAULT 0, total_bets INTEGER DEFAULT 0,
             created_at TEXT, last_transition TEXT
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 

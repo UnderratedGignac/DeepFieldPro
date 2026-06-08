@@ -21,8 +21,7 @@ DB_PATH = os.path.join(BASE, "data", "shadow_bets.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS shadow_bets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             generated_at TEXT,
@@ -38,8 +37,7 @@ def init_db():
             clv REAL,
             settled_at TEXT
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 
@@ -96,12 +94,10 @@ def get_summary():
     """Return aggregate CLV stats across all settled bets."""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    rows = conn.execute(
-        """
+    rows = conn.execute("""
         SELECT COUNT(*), AVG(clv), MIN(clv), MAX(clv), AVG(ev)
         FROM shadow_bets WHERE status='SETTLED'
-    """
-    ).fetchone()
+    """).fetchone()
     conn.close()
     return {
         "settled_count": rows[0] or 0,

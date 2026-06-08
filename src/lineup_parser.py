@@ -46,8 +46,7 @@ POSITION_TO_ROLE = {
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        """
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS parsed_lineups (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         match_id     TEXT,
@@ -61,8 +60,7 @@ def init_db():
         timestamp    DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(match_id, player_id)
     )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 

@@ -475,15 +475,13 @@ class BrowserEngine:
         page = await context.new_page()
 
         # Additional page-level stealth
-        await page.add_init_script(
-            """
+        await page.add_init_script("""
             window.chrome = {
                 runtime: {},
                 loadTimes: function() {},
                 csi: function() {}
             };
-        """
-        )
+        """)
 
         return page
 

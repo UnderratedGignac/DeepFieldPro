@@ -56,13 +56,11 @@ class NoBetFilter:
                 return
 
             # Load unsettled bets
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT player_name, team, market, stake, status 
                 FROM bets 
                 WHERE status IN ('open', 'pending', 'active')
-            """
-            )
+            """)
 
             for row in cur.fetchall():
                 player, team, market, stake, status = row

@@ -8,8 +8,7 @@ conn = sqlite3.connect(db_path)
 cur = conn.cursor()
 
 # Ensure predictions table exists
-cur.execute(
-    """
+cur.execute("""
     CREATE TABLE IF NOT EXISTS predictions (
         fixture_id TEXT PRIMARY KEY,
         match_name TEXT,
@@ -28,8 +27,7 @@ cur.execute(
         predicted_at TIMESTAMP,
         extra_json TEXT
     )
-"""
-)
+""")
 
 # 1. Seed Sweden U21 vs Finland U21 Prediction
 sweden_pred_extra = {

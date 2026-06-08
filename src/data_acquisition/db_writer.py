@@ -15,8 +15,7 @@ def init_db():
     cursor = conn.cursor()
 
     # parsed_lineups table
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS parsed_lineups (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fixture_id TEXT,
@@ -31,12 +30,10 @@ def init_db():
             scraped_at TEXT,
             UNIQUE(fixture_id, normalized_name)
         )
-    """
-    )
+    """)
 
     # lineup_history table
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS lineup_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fixture_id TEXT,
@@ -45,12 +42,10 @@ def init_db():
             lineup_version INTEGER,
             timestamp TEXT
         )
-    """
-    )
+    """)
 
     # odds_stream table
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS odds_stream (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fixture_id TEXT,
@@ -66,12 +61,10 @@ def init_db():
             scraped_at TEXT,
             UNIQUE(fixture_id, bookmaker, market, normalized_name, line, side)
         )
-    """
-    )
+    """)
 
     # odds_history table
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS odds_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fixture_id TEXT,
@@ -82,8 +75,7 @@ def init_db():
             movement REAL,
             timestamp TEXT
         )
-    """
-    )
+    """)
 
     conn.commit()
     conn.close()

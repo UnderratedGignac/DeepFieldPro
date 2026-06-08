@@ -12,8 +12,7 @@ DB_PATH = os.path.join(BASE, "data", "live_clv.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS clv_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sportsbook TEXT, market TEXT, fixture TEXT,
@@ -21,8 +20,7 @@ def init_db():
             clv_pct REAL, latency_ms INTEGER,
             recorded_at TEXT
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 

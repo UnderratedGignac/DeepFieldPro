@@ -37,8 +37,7 @@ POLL_INTERVAL = 30  # seconds between scrapes
 
 def init_db():
     conn = sqlite3.connect(DB_ODDS)
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS odds_feed (
+    conn.execute("""CREATE TABLE IF NOT EXISTS odds_feed (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         match_id        TEXT,
         market_type     TEXT,
@@ -48,8 +47,7 @@ def init_db():
         volume          REAL DEFAULT 0,
         bookmaker       TEXT DEFAULT 'Betarabia',
         timestamp       TEXT
-    )"""
-    )
+    )""")
     conn.commit()
     conn.close()
 

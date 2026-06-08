@@ -127,8 +127,7 @@ print("[OK] Starting lineups populated.")
 # 2. Setup Odds Table
 conn_odds = sqlite3.connect(DB_ODDS)
 cursor_odds = conn_odds.cursor()
-cursor_odds.execute(
-    """CREATE TABLE IF NOT EXISTS odds_feed (
+cursor_odds.execute("""CREATE TABLE IF NOT EXISTS odds_feed (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     match_id        TEXT,
     market_type     TEXT,
@@ -138,8 +137,7 @@ cursor_odds.execute(
     volume          REAL,
     bookmaker       TEXT,
     timestamp       DATETIME
-)"""
-)
+)""")
 
 # Clear prior test odds
 for match_id in MATCH_FIXTURES.keys():

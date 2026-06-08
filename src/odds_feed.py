@@ -47,8 +47,7 @@ _write_queue = queue.Queue()
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        """
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS odds_feed (
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
         match_id       TEXT,
@@ -60,8 +59,7 @@ def init_db():
         bookmaker      TEXT,
         timestamp      DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 

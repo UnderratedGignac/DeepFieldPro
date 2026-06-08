@@ -75,8 +75,7 @@ SB_SEASON_ID = 106  # FIFA World Cup 2022
 def init_db(conn: sqlite3.Connection):
     """Create team_stats and player_stats tables if they don't exist."""
     c = conn.cursor()
-    c.executescript(
-        """
+    c.executescript("""
     CREATE TABLE IF NOT EXISTS team_stats (
         team_id TEXT PRIMARY KEY,
         team_name TEXT,
@@ -114,8 +113,7 @@ def init_db(conn: sqlite3.Connection):
         data_source TEXT,
         updated_at TEXT
     );
-    """
-    )
+    """)
     conn.commit()
     logger.info("[DB] Schema initialised.")
 

@@ -148,8 +148,10 @@ class ProbabilityCalibrator:
                 # We'll assume it's for the 'default' market
                 self.calibrators = {"default": data}
                 self.isotonic_regressors = {}
-                
-            self._is_fitted = len(self.isotonic_regressors) > 0 or len(self.calibrators) > 0
+
+            self._is_fitted = (
+                len(self.isotonic_regressors) > 0 or len(self.calibrators) > 0
+            )
             return True
         except Exception as e:
             print(f"Error loading calibrator from {filepath}: {e}")

@@ -18,8 +18,7 @@ DB_PATH = os.path.join(BASE, "data", "edge_decay.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS edge_snapshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             bet_id TEXT,
@@ -33,8 +32,7 @@ def init_db():
             half_life_seconds REAL,
             recorded_at TEXT
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 

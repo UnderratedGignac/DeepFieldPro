@@ -21,8 +21,7 @@ logger = logging.getLogger(__name__)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS experiments (
             experiment_id TEXT PRIMARY KEY,
             name TEXT, hypothesis TEXT,
@@ -31,8 +30,7 @@ def init_db():
             clv_avg REAL, roi REAL, sharpe REAL,
             notes TEXT
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 

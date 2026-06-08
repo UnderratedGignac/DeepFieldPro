@@ -40,8 +40,7 @@ def init_db():
     """Tracks which leagues and pages have already been successfully scraped."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute(
-        """
+    c.execute("""
         CREATE TABLE IF NOT EXISTS league_sync (
             league_id INTEGER,
             season INTEGER,
@@ -50,8 +49,7 @@ def init_db():
             status TEXT DEFAULT 'PENDING',
             PRIMARY KEY (league_id, season)
         )
-    """
-    )
+    """)
     conn.commit()
     return conn
 

@@ -33,8 +33,7 @@ DAILY_STOP_LOSS_PCT = 1.0  # -100% in one day  → halt for the day
 def init_bankroll_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        """
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS bankroll (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
         date             DATE UNIQUE,
@@ -45,8 +44,7 @@ def init_bankroll_db():
         daily_pnl        REAL,
         system_status    TEXT DEFAULT 'ACTIVE'
     )
-    """
-    )
+    """)
 
     today = datetime.now(timezone.utc).date().isoformat()
     cursor.execute(

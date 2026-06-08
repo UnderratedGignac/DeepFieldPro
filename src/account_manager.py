@@ -8,8 +8,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "book_accounts.d
 def init_account_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute(
-        """
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS book_accounts (
         book_name TEXT PRIMARY KEY,
         tier INTEGER,
@@ -20,8 +19,7 @@ def init_account_db():
         total_staked DECIMAL(10,2),
         total_pnl DECIMAL(10,2)
     )
-    """
-    )
+    """)
 
     # Initialize default books if empty
     cursor.execute("SELECT COUNT(*) FROM book_accounts")
