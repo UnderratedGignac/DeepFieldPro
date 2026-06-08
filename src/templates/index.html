@@ -572,6 +572,12 @@
             <a class="nav-item" onclick="switchView('performance-view', this)">
                 <i class="fa-solid fa-chart-line"></i> Performance (AI vs User)
             </a>
+            <a class="nav-item" onclick="switchView('parlay-view', this)">
+                <i class="fa-solid fa-layer-group"></i> Smart Parlays
+            </a>
+            <a class="nav-item" onclick="switchView('settled-view', this)">
+                <i class="fa-solid fa-file-invoice-dollar"></i> P&L Ledger
+            </a>
             <a class="nav-item" onclick="switchView('comparison-view', this)">
                 <i class="fa-solid fa-scale-balanced"></i> AI vs Reality
             </a>
@@ -821,6 +827,46 @@
             </div>
         </div>
 
+        <!-- PARLAY VIEW -->
+        <div id="parlay-view" class="view-section">
+            <div class="kpi-grid">
+                <div class="kpi-card" style="border-left: 4px solid var(--primary); background: rgba(229, 193, 88, 0.05);">
+                    <div class="kpi-title">Parlay Capital Staked</div>
+                    <div class="kpi-value" id="parlay-kpi-staked">$0.00</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid #ff4d4d; background: rgba(255, 77, 77, 0.05);">
+                    <div class="kpi-title">Total Parlay Losses</div>
+                    <div class="kpi-value" id="parlay-kpi-lost">$0.00</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid #00ff88; background: rgba(0, 255, 136, 0.05);">
+                    <div class="kpi-title">Potential Parlay Return</div>
+                    <div class="kpi-value" id="parlay-kpi-return">$0.00</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid var(--secondary); background: rgba(197, 160, 58, 0.05);">
+                    <div class="kpi-title">Active (Pending) Parlays</div>
+                    <div class="kpi-value" id="parlay-kpi-pending">0</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
+                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-chart-pie"></i> Parlay Profit/Loss Distribution</h3>
+                    <div style="height: 250px;"><canvas id="parlayPnLChart"></canvas></div>
+                </div>
+                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
+                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-chart-bar"></i> Parlay Trust vs EV Analysis</h3>
+                    <div style="height: 250px;"><canvas id="parlayTrustChart"></canvas></div>
+                </div>
+            </div>
+
+            <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-layer-group"></i> Smart Generated Parlays (Current Momentum)</h3>
+            <div id="parlay-grid" class="dashboard">
+                <div style="text-align: center; width: 100%; padding: 40px; color: var(--text-muted);">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Generating high-confidence combinations...
+                </div>
+            </div>
+        </div>
+
         <!-- PERFORMANCE VIEW -->
         <div id="performance-view" class="view-section">
             <div class="kpi-grid">
@@ -887,8 +933,67 @@
             </div>
         </div>
 
-        <!-- MATCH COMPARISON VIEW -->
-        <div id="comparison-view" class="view-section">
+        <!-- SETTLED LEDGER VIEW -->
+        <div id="settled-view" class="view-section">
+            <div class="kpi-grid">
+                <div class="kpi-card" style="border-left: 4px solid var(--primary);">
+                    <div class="kpi-title">Total Profit / Loss</div>
+                    <div class="kpi-value" id="ledger-total-pnl">$0.00</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid #00ff88;">
+                    <div class="kpi-title">Total Wins</div>
+                    <div class="kpi-value" id="ledger-total-wins">0</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid #ff4d4d;">
+                    <div class="kpi-title">Total Losses</div>
+                    <div class="kpi-value" id="ledger-total-losses">0</div>
+                </div>
+                <div class="kpi-card" style="border-left: 4px solid var(--secondary);">
+                    <div class="kpi-title">Total Turn-Over</div>
+                    <div class="kpi-value" id="ledger-total-turnover">$0.00</div>
+                </div>
+            </div>
+
+            <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; margin-bottom: 24px;">
+                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-layer-group"></i> Settled Parlays</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Placed At</th>
+                            <th>Legs</th>
+                            <th>Total Odds</th>
+                            <th>Stake</th>
+                            <th>Result</th>
+                            <th>PNL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledger-parlay-body">
+                        <tr><td colspan="6" style="text-align:center;">No settled parlays found.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
+                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-bolt"></i> Settled Regular Bets</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Placed At</th>
+                            <th>Match / Selection</th>
+                            <th>Odds</th>
+                            <th>Stake</th>
+                            <th>Result</th>
+                            <th>PNL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledger-single-body">
+                        <tr><td colspan="6" style="text-align:center;">No settled bets found.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- COMPARISON VIEW -->
             <div style="display: grid; grid-template-columns: 300px 1fr; gap: 24px; min-height: 500px;">
                 <!-- Left panel: Matches list -->
                 <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 20px; max-height: 700px; overflow-y: auto;">
@@ -928,7 +1033,8 @@
                 'settings-view': 'Engine Configuration',
                 'performance-view': 'User vs AI Performance',
                 'comparison-view': 'AI vs Reality Comparisons',
-                'stair-view': 'Stair AI API Bets'
+                'stair-view': 'Stair AI API Bets',
+                'parlay-view': 'Parlay Intelligence'
             };
             document.getElementById('page-title').innerText = titles[viewId] || 'DeepFieldPro';
             
@@ -939,7 +1045,8 @@
                 'settings-view': '/settings',
                 'performance-view': '/performance',
                 'comparison-view': '/comparison',
-                'stair-view': '/stair'
+                'stair-view': '/stair',
+                'parlay-view': '/parlays'
             };
             if(paths[viewId] && window.location.pathname !== paths[viewId]) {
                 history.pushState(null, '', paths[viewId]);
@@ -955,6 +1062,200 @@
                 loadComparisonList();
             } else if(viewId === 'stair-view') {
                 loadStairBets();
+            } else if(viewId === 'parlay-view') {
+                loadParlays();
+            } else if(viewId === 'settled-view') {
+                loadSettledLedger();
+            }
+        }
+
+        async function loadSettledLedger() {
+            try {
+                const res = await fetch('/api/settled_ledger');
+                const data = await res.json();
+                
+                const parlayBody = document.getElementById('ledger-parlay-body');
+                const singleBody = document.getElementById('ledger-single-body');
+                
+                let totalPnL = 0;
+                let wins = 0;
+                let losses = 0;
+                let turnover = 0;
+
+                // Render Parlays
+                if(data.parlays.length === 0) {
+                    parlayBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No settled parlays found.</td></tr>';
+                } else {
+                    parlayBody.innerHTML = data.parlays.map(p => {
+                        totalPnL += p.pnl || 0;
+                        turnover += p.stake || 0;
+                        if(p.result === 'W') wins++; else losses++;
+                        
+                        const legs = JSON.parse(p.legs_json);
+                        const legsList = legs.map(l => `<div style="font-size:0.7rem;">• ${l.match}: ${l.selection}</div>`).join('');
+                        
+                        return `<tr>
+                            <td>${new Date(p.placed_at).toLocaleString()}</td>
+                            <td>${legsList}</td>
+                            <td>@ ${p.total_odds}</td>
+                            <td>$${p.stake.toFixed(2)}</td>
+                            <td><span class="${p.result === 'W' ? 'tag-win' : 'tag-loss'}">${p.result}</span></td>
+                            <td style="color:${p.pnl >= 0 ? '#00ff88' : '#ff4d4d'}; font-weight:700;">$${(p.pnl || 0).toFixed(2)}</td>
+                        </tr>`;
+                    }).join('');
+                }
+
+                // Render Singles
+                if(data.singles.length === 0) {
+                    singleBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No settled bets found.</td></tr>';
+                } else {
+                    singleBody.innerHTML = data.singles.map(s => {
+                        totalPnL += s.pnl || 0;
+                        turnover += s.stake || 0;
+                        if(s.result === 'W') wins++; else losses++;
+                        
+                        return `<tr>
+                            <td>${new Date(s.placed_at).toLocaleString()}</td>
+                            <td><strong>${s.match_id}</strong><br><span style="font-size:0.75rem;">${s.player_id || s.market_type}</span></td>
+                            <td>@ ${s.entry_odds}</td>
+                            <td>$${s.stake.toFixed(2)}</td>
+                            <td><span class="${s.result === 'W' ? 'tag-win' : 'tag-loss'}">${s.result}</span></td>
+                            <td style="color:${s.pnl >= 0 ? '#00ff88' : '#ff4d4d'}; font-weight:700;">$${(s.pnl || 0).toFixed(2)}</td>
+                        </tr>`;
+                    }).join('');
+                }
+
+                document.getElementById('ledger-total-pnl').innerText = `$${totalPnL.toFixed(2)}`;
+                document.getElementById('ledger-total-pnl').style.color = totalPnL >= 0 ? '#00ff88' : '#ff4d4d';
+                document.getElementById('ledger-total-wins').innerText = wins;
+                document.getElementById('ledger-total-losses').innerText = losses;
+                document.getElementById('ledger-total-turnover').innerText = `$${turnover.toFixed(2)}`;
+
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function doPlaceParlay(parlayData) {
+            if(!confirm(`Confirm placement of this ${parlayData.size}-leg parlay with $${parlayData.recommended_stake} stake?`)) return;
+            try {
+                const res = await fetch('/api/place_parlay', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(parlayData)
+                });
+                if(res.ok) {
+                    alert("Parlay successfully logged to P&L Ledger!");
+                    loadParlays();
+                }
+            } catch(e) {
+                alert("Failed to log parlay.");
+            }
+        }
+
+        let parlayPnLChartInstance = null;
+        let parlayTrustChartInstance = null;
+
+        async function loadParlays() {
+            const grid = document.getElementById('parlay-grid');
+            try {
+                const res = await fetch('/api/smart_parlays');
+                const data = await res.json();
+                
+                if (!data.top_parlays || data.top_parlays.length === 0) {
+                    grid.innerHTML = '<div class="placeholder-box" style="width:100%;"><h3>No parlays found</h3><p>Run the parlay intelligence model to generate new combinations.</p></div>';
+                    return;
+                }
+
+                grid.innerHTML = '';
+                
+                // Real KPI Updates
+                const totalStaked = data.top_parlays.reduce((acc, p) => acc + (p.recommended_stake || 0), 0);
+                const potentialReturn = data.top_parlays.reduce((acc, p) => acc + (p.recommended_stake * p.total_odds), 0);
+                
+                document.getElementById('parlay-kpi-staked').innerText = `$${totalStaked.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('parlay-kpi-pending').innerText = data.top_parlays.length;
+                document.getElementById('parlay-kpi-return').innerText = `$${potentialReturn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+                data.top_parlays.forEach((p, idx) => {
+                    const card = document.createElement('div');
+                    card.className = 'match-card';
+                    card.style.borderLeft = `5px solid ${p.parlay_trust_score > 70 ? '#00ff88' : 'var(--primary)'}`;
+                    
+                    let legsHTML = p.legs.map(l => `
+                        <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border-color);">
+                            <div style="font-size:0.75rem; color:var(--text-muted);">${l.match}</div>
+                            <div style="font-weight:700; display:flex; justify-content:space-between;">
+                                <span>${l.selection} (${l.market})</span>
+                                <span style="color:var(--primary);">@ ${l.odds.toFixed(2)}</span>
+                            </div>
+                            <div style="font-size:0.65rem; color:var(--secondary);">Trust: ${l.trust}%</div>
+                        </div>
+                    `).join('');
+
+                    card.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px;">
+                            <span style="background:var(--primary); color:var(--bg-color); padding:4px 10px; border-radius:4px; font-weight:800; font-size:0.75rem;">${p.size}-LEG SMART PARLAY</span>
+                            <span style="color:var(--primary); font-weight:900; font-size:1.2rem;">@ ${p.total_odds}</span>
+                        </div>
+                        ${legsHTML}
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">
+                            <div class="stat-item" style="background:rgba(0,0,0,0.2);">
+                                <div class="stat-label">Trust Score</div>
+                                <div class="stat-value" style="color:#00ff88;">${p.parlay_trust_score}%</div>
+                            </div>
+                            <div class="stat-item" style="background:rgba(0,0,0,0.2);">
+                                <div class="stat-label">Expected EV</div>
+                                <div class="stat-value" style="color:var(--primary);">${p.combined_ev}%</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:15px; font-weight:700; color:var(--text-muted); font-size:0.8rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Recommended Stake: <span style="color:var(--text-main); font-size:1rem;">$${p.recommended_stake}</span></span>
+                            <span style="color:#00ff88;">Pot. Payout: $${(p.recommended_stake * p.total_odds).toFixed(2)}</span>
+                        </div>
+                        <button class="btn-primary" style="width:100%; margin-top:15px; padding:10px;" onclick='doPlaceParlay(${JSON.stringify(p)})'>
+                            <i class="fa-solid fa-bolt"></i> PLACE PARLAY
+                        </button>
+                    `;
+                    grid.appendChild(card);
+                });
+
+                // Charts
+                const ctxPnL = document.getElementById('parlayPnLChart').getContext('2d');
+                if(parlayPnLChartInstance) parlayPnLChartInstance.destroy();
+                parlayPnLChartInstance = new Chart(ctxPnL, {
+                    type: 'line',
+                    data: {
+                        labels: ['Start', ...data.top_parlays.map((_, i) => `P${i+1}`)],
+                        datasets: [{
+                            label: 'Equity Curve (Simulated)',
+                            data: [0, ...data.top_parlays.map((p, i) => (i + 1) * 25)], // Still simulated until we have history, but labeled as such
+                            borderColor: '#00ff88',
+                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+
+                const ctxTrust = document.getElementById('parlayTrustChart').getContext('2d');
+                if(parlayTrustChartInstance) parlayTrustChartInstance.destroy();
+                parlayTrustChartInstance = new Chart(ctxTrust, {
+                    type: 'bar',
+                    data: {
+                        labels: data.top_parlays.map((_, i) => `P${i+1}`),
+                        datasets: [
+                            { label: 'Trust', data: data.top_parlays.map(p => p.parlay_trust_score), backgroundColor: '#E5C158' },
+                            { label: 'EV %', data: data.top_parlays.map(p => p.combined_ev), backgroundColor: '#1B3B2B' }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+            } catch(e) {
+                console.error(e);
+                grid.innerHTML = '<div style="color:#ff4d4d; padding:20px;">Failed to load parlays.</div>';
             }
         }
 

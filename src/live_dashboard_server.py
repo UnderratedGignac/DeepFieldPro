@@ -160,6 +160,44 @@ def get_stair_balance():
     return jsonify({"available": 0, "locked": 0})
 
 
+@app.route("/api/place_parlay", methods=["POST"])
+def place_parlay():
+    data = request.json
+    try:
+        from bet_logger import log_parlay
+        parlay_id = log_parlay(
+            total_odds=data.get("total_odds"),
+            fair_prob=data.get("fair_prob"),
+            combined_ev=data.get("combined_ev"),
+            trust_score=data.get("parlay_trust_score"),
+            stake=data.get("recommended_stake"),
+            legs=data.get("legs")
+        )
+        return jsonify({"status": "success", "parlay_id": parlay_id})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/settled_ledger")
+def get_settled_ledger():
+    # Fetch settled single bets
+    singles = query_db(
+        "bet_log.db",
+        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at FROM bet_log WHERE result != 'OPEN' ORDER BY placed_at DESC"
+    )
+    
+    # Fetch settled parlays
+    parlays = query_db(
+        "bet_log.db",
+        "SELECT parlay_id, total_odds, stake, result, pnl, placed_at, legs_json FROM parlay_log WHERE result != 'OPEN' ORDER BY placed_at DESC"
+    )
+    
+    return jsonify({
+        "singles": [dict(r) for r in (singles or [])],
+        "parlays": [dict(r) for r in (parlays or [])]
+    })
+
+
 @app.route("/api/tracker")
 def get_tracker():
     rows = query_db(
@@ -275,6 +313,19 @@ def get_stair_bets():
         "SELECT b.bet_id, b.match_id, b.market_type, b.entry_odds, b.stake, b.result as status, b.pnl, b.placed_at, s.order_id FROM bet_log b JOIN stair_orders s ON b.bet_id = s.bet_id ORDER BY b.placed_at DESC",
     )
     return jsonify({"stair_bets": [dict(r) for r in (rows or [])]})
+
+
+@app.route("/api/smart_parlays")
+def get_smart_parlays():
+    parlay_path = os.path.join(DATA_DIR, "smart_parlays.json")
+    if os.path.exists(parlay_path):
+        try:
+            with open(parlay_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"top_parlays": []})
 
 
 @app.route("/api/settle_bet", methods=["POST"])

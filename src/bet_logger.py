@@ -11,34 +11,54 @@ def init_bet_log_db():
     cursor = conn.cursor()
     cursor.execute(
         """
-    CREATE TABLE IF NOT EXISTS bet_log (
-        bet_id TEXT PRIMARY KEY,
-        match_id TEXT,
-        player_id TEXT,
-        market_type TEXT,
-        line DECIMAL(5,1),
-        side TEXT,
-        entry_odds DECIMAL(6,3),
-        fair_odds DECIMAL(6,3),
-        edge_pct DECIMAL(5,3),
+    CREATE TABLE IF NOT EXISTS parlay_log (
+        parlay_id TEXT PRIMARY KEY,
+        total_odds DECIMAL(10,2),
+        fair_prob DECIMAL(10,4),
+        combined_ev DECIMAL(10,2),
+        trust_score DECIMAL(10,2),
         stake DECIMAL(10,2),
-        book TEXT,
-        placed_at TIMESTAMP,
-        lineup_drop_at TIMESTAMP,
-        latency_ms INTEGER,
-        closing_odds DECIMAL(6,3),
-        clv DECIMAL(5,3),
-        result TEXT,
+        legs_json TEXT,
+        result TEXT DEFAULT 'OPEN',
         pnl DECIMAL(10,2),
-        regime TEXT,
-        role_shift_flag BOOLEAN,
-        bet_source TEXT DEFAULT 'AI',
-        is_recommended INTEGER DEFAULT 0
+        placed_at TIMESTAMP
     )
     """
     )
     conn.commit()
     conn.close()
+
+
+def log_parlay(total_odds, fair_prob, combined_ev, trust_score, stake, legs):
+    import json
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    parlay_id = str(uuid.uuid4())
+    placed_at = datetime.now(timezone.utc).isoformat()
+    legs_json = json.dumps(legs)
+
+    cursor.execute(
+        """
+        INSERT INTO parlay_log (
+            parlay_id, total_odds, fair_prob, combined_ev, trust_score, stake, legs_json, placed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """,
+        (
+            parlay_id,
+            total_odds,
+            fair_prob,
+            combined_ev,
+            trust_score,
+            stake,
+            legs_json,
+            placed_at,
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+    return parlay_id
 
 
 def log_bet(
