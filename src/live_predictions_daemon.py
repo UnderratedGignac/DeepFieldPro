@@ -1321,9 +1321,7 @@ def settle_open_bets():
             print("Error loading completed_comparisons:", e)
 
     try:
-        from free_scraper_module import get_todays_fixtures_free
-
-        fixtures = get_todays_fixtures_free()
+        fixtures = get_todays_fixtures()
     except Exception as e:
         print("Error fetching fixtures for settlement:", e)
         return
@@ -1728,6 +1726,13 @@ def update_dashboard_json(fixtures, results_cache):
                                     prob,
                                     ev,
                                 )
+                            else:
+                                if ev < min_ev_threshold and prob < settings.get("min_confidence_pct", 55):
+                                    sel["skip_reason"] = "No Profitable Edge (EV < 5% & Confidence Low)"
+                                elif ev < min_ev_threshold:
+                                    sel["skip_reason"] = "Negative Expected Value"
+                                else:
+                                    sel["skip_reason"] = "Confidence Below Threshold"
                         else:
                             # FALLBACK: No real odds found. Estimate 95% fair odds.
                             est_odds = (
@@ -1760,6 +1765,8 @@ def update_dashboard_json(fixtures, results_cache):
                                     prob,
                                     ev_est,
                                 )
+                            else:
+                                sel["skip_reason"] = "Market Illiquid (No Real Odds Found)"
 
         item = {
             "fixture_id": fid,
@@ -1793,9 +1800,6 @@ def refresh_completed_comparisons():
             pass
 
     try:
-        import datetime
-        from free_scraper_module import get_todays_fixtures_free
-        
         # Check Today and Yesterday
         today = datetime.datetime.now()
         yesterday = today - datetime.timedelta(days=1)

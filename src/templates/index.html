@@ -643,6 +643,26 @@
 
         <!-- BET TRACKER VIEW -->
         <div id="tracker-view" class="view-section">
+            <!-- FINANCIAL KPIs -->
+            <div class="kpi-grid" style="margin-bottom: 20px;">
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Staked</div>
+                    <div class="kpi-value" id="kpi-tracker-staked">Loading...</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Won (Profit)</div>
+                    <div class="kpi-value" id="kpi-tracker-won" style="color: #00ff88;">Loading...</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Total Lost</div>
+                    <div class="kpi-value" id="kpi-tracker-lost" style="color: #ff4d4d;">Loading...</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Pending (Open)</div>
+                    <div class="kpi-value" id="kpi-tracker-pending" style="color: #E5C158;">Loading...</div>
+                </div>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 3fr; gap: 20px; margin-bottom: 20px;">
                 <!-- Win Rate Donut -->
                 <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; text-align: center;">
@@ -1097,15 +1117,20 @@
                                 } else if (sel.is_top_pick) {
                                     recBadge = `<span style="background:rgba(255,255,255,0.1); color:var(--text-muted); font-weight:600; padding:2px 6px; border-radius:4px; font-size:0.65rem; text-transform:uppercase; margin-left:8px; border:1px solid rgba(255,255,255,0.2);">AI PICK</span>`;
                                 }
+                                let skipReasonHTML = '';
+                                if(!sel.recommended && sel.skip_reason) {
+                                    skipReasonHTML = `<div style="font-size: 0.65rem; color: #ff4d4d; margin-top: 2px; text-align: right; padding-right: 5px; opacity: 0.8;"><i class="fa-solid fa-triangle-exclamation"></i> AI Skipped: ${sel.skip_reason}</div>`;
+                                }
                                 contentHTML += `
-                                <div class="market-row" style="margin-bottom: 6px;">
-                                    <button class="market-btn" onclick="placeBet('${p.match}', '${marketName}', '${sel.selection}', ${sel.prob}, ${sel.odds || 0}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center;">
+                                <div class="market-row" style="margin-bottom: 6px; display: flex; flex-direction: column; width: 100%;">
+                                    <button class="market-btn" onclick="placeBet('${p.match}', '${marketName}', '${sel.selection}', ${sel.prob}, ${sel.odds || 0}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
                                         <span style="display:flex; align-items:center;">${sel.selection} ${recBadge}</span>
                                         <span style="font-family:'Outfit',sans-serif; font-weight:700;">
                                             <span style="color:var(--text-muted); font-size:0.8rem; margin-right:8px;">${sel.prob}%</span>
                                             <span style="color:var(--primary);">@ ${(sel.odds || 0).toFixed(2)}</span>
                                         </span>
                                     </button>
+                                    ${skipReasonHTML}
                                 </div>`;
                             });
                         }
@@ -1324,6 +1349,13 @@
                 const data = await res.json();
                 const tbody = document.querySelector('#tracker-table tbody');
                 
+                if(data.financials) {
+                    document.getElementById('kpi-tracker-staked').innerText = `$${data.financials.total_staked.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('kpi-tracker-won').innerText = `$${data.financials.total_won.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('kpi-tracker-lost').innerText = `$${data.financials.total_lost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('kpi-tracker-pending').innerText = `$${data.financials.total_pending.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                }
+
                 if(data.stats) {
                     const ctxDonut = document.getElementById('winLossChart').getContext('2d');
                     if(winLossChartInstance) winLossChartInstance.destroy();

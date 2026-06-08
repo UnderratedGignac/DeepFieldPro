@@ -175,17 +175,29 @@ def get_tracker():
     )
 
     stats = {"W": 0, "L": 0, "OPEN": 0}
+    financials = {"total_staked": 0.0, "total_won": 0.0, "total_lost": 0.0, "total_pending": 0.0}
     # Count from database for ALL bets so the donut chart isn't empty!
     db_stats = query_db(
-        "bet_log.db", "SELECT result, COUNT(*) as cnt FROM bet_log GROUP BY result"
+        "bet_log.db", "SELECT result, COUNT(*) as cnt, SUM(stake) as total_stake, SUM(pnl) as total_pnl FROM bet_log GROUP BY result"
     )
     if db_stats:
         for r in db_stats:
             res = r["result"]
             if res in stats:
                 stats[res] = r["cnt"]
+            
+            stake = r["total_stake"] or 0.0
+            pnl = r["total_pnl"] or 0.0
 
-    return jsonify({"bets": [dict(r) for r in (rows or [])], "stats": stats})
+            financials["total_staked"] += stake
+            if res == "W":
+                financials["total_won"] += pnl
+            elif res == "L":
+                financials["total_lost"] += abs(pnl)
+            elif res == "OPEN":
+                financials["total_pending"] += stake
+
+    return jsonify({"bets": [dict(r) for r in (rows or [])], "stats": stats, "financials": financials})
 
 
 @app.route("/api/performance")

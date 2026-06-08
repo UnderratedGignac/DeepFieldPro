@@ -569,13 +569,15 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                 if isinstance(DeepOdds_V, dict) and len(DeepOdds_V) > 0:
                     logger.info(f"[PARSER] Event {EventId_V} has {len(DeepOdds_V)} odds in deep file.")
                     for OddId_V, Odd_V in DeepOdds_V.items():
-                        if not isinstance(Odd_V, dict): continue
+                        if not isinstance(Odd_V, dict):
+                            continue
                         
                         # Support both camelCase and snake_case keys
                         OddValue_V = Odd_V.get("oddValue") or Odd_V.get("odd_value")
                         try:
                             OddValue_V = float(OddValue_V)
-                        except (TypeError, ValueError): continue
+                        except (TypeError, ValueError):
+                            continue
 
                         SelectionName_V = Odd_V.get("name") or Odd_V.get("team_name") or ""
                         OddCode_V = Odd_V.get("oddCode") or Odd_V.get("odd_code") or ""
