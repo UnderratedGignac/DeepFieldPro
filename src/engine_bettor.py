@@ -63,16 +63,21 @@ def expected_value(model_prob: float, decimal_odds: float) -> float:
     return model_prob * (decimal_odds - 1.0) - (1.0 - model_prob)
 
 
-def edge_pct(model_prob: float, market_odds: float) -> float:
+def edge_pct(model_prob: float, market_odds: float, other_side_odds: float) -> float:
     """
-    Probability edge = model_prob - no-vig implied_prob.
-    We strip vig from a 2-way market (over/under) before computing edge.
+    Probability edge = model_prob - true_implied_prob (vig removed).
+    Strips vig from a 2-way market before computing edge.
     """
-    # For over/under markets, assume balanced book: true prob ≈ implied / 1.05
-    implied = implied_prob(market_odds)
-    # Approximate vig removal for a simple over/under line
-    vig_factor = 1.05
-    true_implied = implied / vig_factor
+    if market_odds <= 1.0 or other_side_odds <= 1.0:
+        return 0.0
+        
+    # Get true probabilities
+    true_probs = strip_vig([market_odds, other_side_odds])
+    
+    # Assuming market_odds corresponds to the 'over' side for this calculation
+    # (The caller must ensure the order matches)
+    true_implied = true_probs[0]
+    
     return (model_prob - true_implied) * 100.0
 
 
@@ -323,7 +328,7 @@ def identify_value_bets(
             # Evaluate OVER
             if over_odds > 1.0 and model_prob_over >= MIN_MODEL_PROB:
                 ev = expected_value(model_prob_over, over_odds)
-                edg = edge_pct(model_prob_over, over_odds)
+                edg = edge_pct(model_prob_over, over_odds, under_odds)
                 if ev * 100 >= MIN_EV_PCT and edg >= MIN_EDGE_PCT:
                     value_bets.append(
                         {
@@ -347,7 +352,7 @@ def identify_value_bets(
             # Evaluate UNDER
             if under_odds > 1.0 and model_prob_under >= MIN_MODEL_PROB:
                 ev = expected_value(model_prob_under, under_odds)
-                edg = edge_pct(model_prob_under, under_odds)
+                edg = edge_pct(model_prob_under, under_odds, over_odds)
                 if ev * 100 >= MIN_EV_PCT and edg >= MIN_EDGE_PCT:
                     value_bets.append(
                         {

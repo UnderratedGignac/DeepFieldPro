@@ -219,8 +219,9 @@ class CLVTracker:
                 f"[CLVTracker] No closing odds found, using entry odds: {closing_odds}"
             )
 
-        # Calculate CLV percentage: (closing_odds / entry_odds) - 1
-        clv_percentage = (closing_odds / entry_odds) - 1
+        # Calculate CLV percentage: (1 / closing_odds) - (1 / entry_odds)
+        # Positive = beat the closing line = good.
+        clv_percentage = (1.0 / closing_odds) - (1.0 / entry_odds)
 
         # Update database
         self._update_bet_with_clv(

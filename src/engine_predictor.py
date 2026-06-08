@@ -150,15 +150,30 @@ def load_dataset():
 
 
 def load_models():
-    """Load all trained LightGBM models from disk."""
-    models = {}
+    """Load regime-specific ensemble models."""
+    models = {
+        'club': {},
+        'international': {}
+    }
     for t in TARGETS:
-        path = os.path.join(MODEL_DIR, f"lgb_{t}_final.txt")
-        if os.path.exists(path):
-            models[t] = lgb.Booster(model_file=path)
-        else:
-            print(f"  WARNING: Model missing for {t}")
+        # Load Club
+        path_club = os.path.join(MODEL_DIR, f"lgbm_{t}_club_v2.pkl")
+        if os.path.exists(path_club):
+            with open(path_club, 'rb') as f:
+                models['club'][t] = pickle.load(f)
+        
+        # Load International
+        path_int = os.path.join(MODEL_DIR, f"lgbm_{t}_int_v2.pkl")
+        if os.path.exists(path_int):
+            with open(path_int, 'rb') as f:
+                models['international'][t] = pickle.load(f)
     return models
+
+def simulate_player(row, models, features, n_sims=N_SIMS):
+    regime = 'club' if row.get('competition_type', 0) == 0 else 'international'
+    current_models = models[regime]
+    
+    # ... use current_models for ensemble prediction
 
 
 def get_todays_fixtures(target_date: str) -> list[dict]:
@@ -190,37 +205,69 @@ def get_todays_fixtures(target_date: str) -> list[dict]:
     return output
 
 
+import joblib
+
+import statsmodels.api as sm
+from models.expected_minutes import minutes_model
+
+# ... (existing imports)
+
+CALIBRATOR_PATH = os.path.join(ROOT, "models", "calibrator_player_shots.pkl")
+
+def load_calibrator():
+    if os.path.exists(CALIBRATOR_PATH):
+        return joblib.load(CALIBRATOR_PATH)
+    return None
+
+# Load it once
+shots_calibrator = load_calibrator()
+
 def simulate_player(
     row: pd.Series, models: dict, features: list, n_sims: int = N_SIMS
 ) -> dict:
-    """
-    Run Monte Carlo simulations for a single player row.
-    Returns dict of expected values and probabilities for each market.
-    """
-    X = pd.DataFrame([row[features].fillna(0)])
-    result = {
-        "player": row["player_"],
-        "nation": row.get("nation_", ""),
-        "pos": row.get("pos_", ""),
-    }
+    # ... (existing setup code)
 
     for target in TARGETS:
         if target not in models:
             continue
         exp = max(0.0, float(models[target].predict(X)[0]))
+        # Scale expected value by projected minutes
+from scipy.stats import nbinom
+
+# ... (rest of imports)
+
+def simulate_player(
+    row: pd.Series, models: dict, features: list, n_sims: int = N_SIMS
+) -> dict:
+    # ... (existing setup code)
+    
+    # ... (inside the loop)
+        scaled_exp = exp * (exp_mins / 90.0)
+        
         short = target.replace("Performance_", "").replace("min_", "min")
 
         if target == "min_":
             sims = np.clip(np.random.normal(exp, max(5.0, exp * 0.2), n_sims), 0, 90)
         else:
-            sims = np.random.poisson(max(0.001, exp), n_sims)
+            # Overdispersion factor (Variance = 1.2 * Mean)
+            mu = max(0.001, scaled_exp)
+            var = mu * 1.2
+            p = mu / var
+            n = mu**2 / (var - mu)
+            sims = np.random.negative_binomial(n, p, n_sims)
+        
+        # Calibration logic
+        prob_over_0_5 = float(np.mean(sims >= 1))
+        # ...
+        
+        if target == 'Performance_Sh' and shots_calibrator:
+            # Apply calibrator to 'Shots' market
+            prob_over_0_5 = float(shots_calibrator.predict([prob_over_0_5])[0])
 
-        result[f"exp_{short}"] = round(exp, 4)
-        result[f"p_{short}_over_0_5"] = round(float(np.mean(sims >= 1)), 4)
-        result[f"p_{short}_over_1_5"] = round(float(np.mean(sims >= 2)), 4)
-        result[f"p_{short}_over_2_5"] = round(float(np.mean(sims >= 3)), 4)
-        result[f"ci95_lo_{short}"] = round(float(np.percentile(sims, 2.5)), 2)
-        result[f"ci95_hi_{short}"] = round(float(np.percentile(sims, 97.5)), 2)
+        result[f"exp_{short}"] = round(scaled_exp, 4)
+        result[f"p_{short}_over_0_5"] = round(prob_over_0_5, 4)
+        # ... (rest of the function)
+
 
     # Confidence tier
     exp_gls = result.get("exp_Gls", 0)

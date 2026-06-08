@@ -18,6 +18,51 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 import lightgbm as lgb
+import statsmodels.api as sm
+from statsmodels.discrete.discrete_model import NegativeBinomial
+import optuna
+from sklearn.metrics import mean_absolute_error
+from sklearn.feature_selection import SequentialFeatureSelector
+
+def prune_features(model, X, y):
+    """Prune features using Sequential Feature Selection."""
+    sfs = SequentialFeatureSelector(model, n_features_to_select=5, direction='backward')
+    sfs.fit(X, y)
+    selected_features = X.columns[sfs.get_support()].tolist()
+    print(f"Selected {len(selected_features)} features: {selected_features}")
+    return selected_features
+
+def objective(trial, X, y):
+    """Optuna objective function for LightGBM."""
+    param = {
+        'n_estimators': trial.suggest_int('n_estimators', 100, 500),
+        'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.1),
+        'max_depth': trial.suggest_int('max_depth', 3, 10),
+        'subsample': trial.suggest_float('subsample', 0.5, 1.0),
+        'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
+        'verbose': -1
+    }
+    
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = lgb.LGBMRegressor(**param)
+    model.fit(X_train, y_train)
+    
+    preds = model.predict(X_val)
+    return mean_absolute_error(y_val, preds)
+
+def tune_lgbm(X, y):
+    """Run Optuna study."""
+    study = optuna.create_study(direction='minimize')
+    study.optimize(lambda trial: objective(trial, X, y), n_trials=20)
+    return study.best_params
+
+def train_nb_model(X, y):
+    """Train a Negative Binomial model."""
+    # Add constant for intercept
+    X_V = sm.add_constant(X)
+    # Using 'add' parameterization for overdispersion
+    model = NegativeBinomial(y, X_V).fit(disp='add', cov_type='HC0', maxiter=100)
+    return model
 
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..")
 MODEL_DIR = os.path.join(BASE_DIR, "models")
@@ -109,9 +154,9 @@ def encode_position(PosStr_P) -> int:
 
 
 def train_sot_club_model(df):
-    """Train SoT model for club competitions."""
+    """Train ensemble (LGBM + NB) for SoT model for club competitions."""
     print("\n" + "=" * 60)
-    print("MODEL 1: Training lgbm_sot_club_v1.pkl")
+    print("MODEL 1: Training ensemble (lgbm_sot_club_v2.pkl)")
     print("=" * 60)
 
     ClubDf_V = df[df["competition_type"] == 0].copy()
@@ -125,7 +170,6 @@ def train_sot_club_model(df):
     ClubDf_V["pos_encoded"] = ClubDf_V["pos_"].apply(encode_position)
 
     # Feature set — only numeric columns confirmed in CSV
-    # game_id_ is UUID string → EXCLUDED (not a useful feature)
     FeatureCols_V = [
         "age_",
         "competition_type",
@@ -138,37 +182,39 @@ def train_sot_club_model(df):
     ]
 
     TargetCol_V = "Performance_SoT"
-    print(f"Using features: {FeatureCols_V}")
-    print(f"Using target column: {TargetCol_V} (>= 1 shots on target = 1)")
-
+    
     X_V = clean_features(ClubDf_V[FeatureCols_V])
     Y_V = ClubDf_V[TargetCol_V].fillna(0)
-    X_V["sample_weight"] = 1.0
-
-    print(
-        f"Features shape: {X_V.shape}, Target distribution: {Y_V.value_counts().to_dict()}"
-    )
+    
+    # Prune features
+    base_model = lgb.LGBMRegressor(verbose=-1)
+    selected_features = prune_features(base_model, X_V, Y_V)
+    X_V = X_V[selected_features]
 
     X_Train_V, X_Val_V, Y_Train_V, Y_Val_V = train_test_split(
         X_V, Y_V, test_size=0.2, random_state=42
     )
 
-    Model_V = lgb.LGBMRegressor(**LgbmParams_V)
-    Model_V.fit(X_Train_V, Y_Train_V, eval_set=[(X_Val_V, Y_Val_V)])
-
-    Y_PredProb_V = Model_V.predict(X_Val_V)
-    # Mean absolute error for regressor
-    from sklearn.metrics import mean_absolute_error
-
-    MAE_V = mean_absolute_error(Y_Val_V, Y_PredProb_V)
-
-    print("\nValidation Results:")
-    print("\nValidation Results:")
-    print(f"  MAE: {MAE_V:.4f}")
-
-    ModelPath_V = os.path.join(MODEL_DIR, "lgbm_sot_club_v1.pkl")
+    # Train Ensemble with HPO
+    print("Optimizing LGBM hyperparameters...")
+    best_params = tune_lgbm(X_V, Y_V)
+    print(f"Best params: {best_params}")
+    
+    print("Training LGBM...")
+    lgbm_model = lgb.LGBMRegressor(**best_params)
+    lgbm_model.fit(X_Train_V, Y_Train_V)
+    
+    print("Training NB...")
+    nb_model = train_nb_model(X_Train_V, Y_Train_V)
+    
+    # Save ensemble
+    ensemble = {'lgbm': lgbm_model, 'nb': nb_model}
+    ModelPath_V = os.path.join(MODEL_DIR, "lgbm_sot_club_v2.pkl")
     with open(ModelPath_V, "wb") as f:
-        pickle.dump(Model_V, f)
+        pickle.dump(ensemble, f)
+    
+    print(f"Ensemble model saved to {ModelPath_V}")
+    return ensemble
     print(f"\n[OK] Saved: {ModelPath_V}")
 
     return Model_V
@@ -501,3 +547,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+ d e f   t r a i n _ s o t _ i n t _ m o d e l ( d f ) : 
+         I n t D f _ V   =   d f [ d f [ ' c o m p e t i t i o n _ t y p e ' ]   = =   1 ] . c o p y ( ) 
+         I n t D f _ V [ ' p o s _ e n c o d e d ' ]   =   I n t D f _ V [ ' p o s _ ' ] . a p p l y ( e n c o d e _ p o s i t i o n ) 
+         F e a t u r e C o l s _ V   =   [ ' a g e _ ' ,   ' c o m p e t i t i o n _ t y p e ' ,   ' m i n _ ' ,   ' p o s _ e n c o d e d ' ,   ' P e r f o r m a n c e _ S h ' ] 
+         T a r g e t C o l _ V   =   ' P e r f o r m a n c e _ S o T ' 
+         X _ V   =   c l e a n _ f e a t u r e s ( I n t D f _ V [ F e a t u r e C o l s _ V ] ) 
+         Y _ V   =   I n t D f _ V [ T a r g e t C o l _ V ] . f i l l n a ( 0 ) 
+         b e s t _ p a r a m s   =   t u n e _ l g b m ( X _ V ,   Y _ V ) 
+         l g b m _ m o d e l   =   l g b . L G B M R e g r e s s o r ( * * b e s t _ p a r a m s ) 
+         l g b m _ m o d e l . f i t ( X _ V ,   Y _ V ) 
+         n b _ m o d e l   =   t r a i n _ n b _ m o d e l ( X _ V ,   Y _ V ) 
+         e n s e m b l e   =   { ' l g b m ' :   l g b m _ m o d e l ,   ' n b ' :   n b _ m o d e l } 
+         M o d e l P a t h _ V   =   o s . p a t h . j o i n ( M O D E L _ D I R ,   ' l g b m _ s o t _ i n t _ v 2 . p k l ' ) 
+         w i t h   o p e n ( M o d e l P a t h _ V ,   ' w b ' )   a s   f : 
+                 p i c k l e . d u m p ( e n s e m b l e ,   f ) 
+         r e t u r n   e n s e m b l e 
+  
+ 

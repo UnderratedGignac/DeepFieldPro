@@ -59,27 +59,28 @@ PAPER_TRADE_MODE = True  # ← SET TO False ONLY AFTER BACKTEST VALIDATES EDGE
 def place_bet(
     fair_prob: float,
     market_odds: float,
-    all_outcome_odds: list,  # e.g. [2.10, 1.80] for over/under — needed for vig strip
+    all_outcome_odds: list,
     match_id: str,
     player_id: str,
-    market_type: str,  # e.g. 'passes_over_40.5'
-    line: float,  # e.g. 40.5
-    side: str,  # 'over' or 'under'
-    lineup_drop_at: str,  # ISO timestamp of lineup release
-    latency_ms: int,  # ms from lineup drop to this function call
-    regime: str,  # market regime from Market Regime Intelligence layer
-    role_shift_flag: bool,  # was a role shift detected for this player?
+    market_type: str,
+    line: float,
+    side: str,
+    lineup_drop_at: str,
+    latency_ms: int,
+    regime: str,
+    role_shift_flag: bool,
+    confidence: str = 'LOW', # Added parameter
 ):
     """
     Attempt to place a bet. Goes through all safety checks before execution.
-
-    fair_prob:        Model's true win probability for this side (e.g. 0.55)
-    market_odds:      The odds being offered by the bookmaker (e.g. 2.10)
-    all_outcome_odds: All odds for this market (for vig stripping) e.g. [2.10, 1.80]
-
-    Returns: bet_id (str) if placed, None if rejected.
     """
+    # Guard 0: Confidence check
+    if confidence == 'LOW':
+        print("SKIP: Confidence is LOW. Betting prohibited.")
+        return None
+        
     execution_start = time.time()
+    # ... rest of the function
 
     print("\n" + "-" * 50)
     print(f"Evaluating opportunity: {market_type} | {side} {line} @ {market_odds}")
@@ -151,11 +152,24 @@ def place_bet(
         )
         return None
 
+import random
+
+# ...
+
+def get_randomized_stake(stake: float) -> float:
+    """Randomize stake by +/- 2-5% to avoid suspicious betting patterns."""
+    randomization_factor = random.uniform(0.95, 1.05)
+    return round(stake * randomization_factor, 2)
+
+# ... inside place_bet function, after calculating stake:
     # Step 4: Calculate stake
     current_bankroll = status["current_balance"]
     stake = get_recommended_stake(
         fair_prob, market_odds, current_bankroll, KELLY_FRACTION
     )
+    
+    # NEW: Apply randomization
+    stake = get_randomized_stake(stake)
 
     if stake <= 0:
         print("SKIP: Kelly sizing returned $0 stake.")
