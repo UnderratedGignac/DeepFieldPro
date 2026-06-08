@@ -25,7 +25,8 @@ MIN_STARTS_FOR_BASELINE = 3  # Do not build a baseline with fewer starts than th
 def init_history_db():
     conn = sqlite3.connect(DB_PATH_HISTORY)
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS role_baseline (
         player_id        TEXT PRIMARY KEY,
         player_name      TEXT,
@@ -34,7 +35,8 @@ def init_history_db():
         total_appearances INTEGER,
         last_updated     TIMESTAMP
     )
-    """)
+    """
+    )
     conn.commit()
     conn.close()
 

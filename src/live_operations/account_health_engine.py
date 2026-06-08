@@ -19,7 +19,8 @@ DB_PATH = os.path.join(BASE, "data", "account_health.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS account_health (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sportsbook TEXT,
@@ -29,7 +30,8 @@ def init_db():
             restriction_flag INTEGER DEFAULT 0,
             recorded_at TEXT
         )
-    """)
+    """
+    )
     conn.commit()
     conn.close()
 
@@ -87,11 +89,13 @@ def get_latest_scores():
     """Return the most recent trust score per sportsbook."""
     init_db()
     conn = sqlite3.connect(DB_PATH)
-    rows = conn.execute("""
+    rows = conn.execute(
+        """
         SELECT sportsbook, trust_score, acceptance_rate, recorded_at
         FROM account_health
         WHERE id IN (SELECT MAX(id) FROM account_health GROUP BY sportsbook)
-    """).fetchall()
+    """
+    ).fetchall()
     conn.close()
     return [
         {

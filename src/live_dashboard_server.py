@@ -770,13 +770,15 @@ def init_databases():
             print("[!] Error calling init_bet_log_db:", e)
 
         # Ensure stair_orders table exists
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS stair_orders (
                 bet_id TEXT PRIMARY KEY,
                 order_id TEXT,
                 FOREIGN KEY(bet_id) REFERENCES bet_log(bet_id)
             )
-        """)
+        """
+        )
 
         # Backfill existing AI bets in bet_log with dummy order_ids if they don't exist in stair_orders
         cur.execute("SELECT bet_id FROM bet_log WHERE bet_source='AI'")

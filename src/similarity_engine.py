@@ -192,12 +192,14 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     conn = sqlite3.connect(":memory:")
-    conn.execute("""CREATE TABLE player_stats (
+    conn.execute(
+        """CREATE TABLE player_stats (
         player_id TEXT, player_name TEXT, position TEXT, minutes_played INT, age INT,
         goals_p90 REAL, assists_p90 REAL, shots_p90 REAL,
         xg_p90 REAL, xa_p90 REAL, tackles_p90 REAL,
         passes_p90 REAL, yellow_cards_p90 REAL
-    )""")
+    )"""
+    )
     # Insert 5+ forwards so KNN can fit
     players = [
         ("p1", "Mbappé", "FWD", 2000, 25, 0.7, 0.2, 4.0, 0.65, 0.18, 0.3, 20.0, 0.1),
