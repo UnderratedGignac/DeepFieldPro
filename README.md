@@ -1,108 +1,199 @@
-# DeepFieldPro: Institutional-Grade Quantitative Sports Betting Platform
+# DeepFieldPro
 
-![CI/CD Pipeline](https://github.com/UnderratedGignac/DeepFieldPro/actions/workflows/deepfield_pipeline.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![Status](https://img.shields.io/badge/status-production--ready-green.svg)
+Institutional-style football betting research and operations platform.
 
-## ≡اù Executive Summary
-DeepFieldPro is a **fully integrated, institutional-grade quantitative sports betting platform** that transforms theoretical research into live market validation. The system combines stealth data acquisition, scientific backtesting, continuous shadow deployment, and rigorous risk management to answer one critical question:
+DeepFieldPro combines live sportsbook/fixture acquisition, lineup-aware prediction, LightGBM and sklearn model inference, Poisson market pricing, bankroll/risk controls, CLV tracking, telemetry, and dashboards. The codebase is Python-first and currently contains both a service-oriented acquisition stack and a local SQLite/script-driven live prediction workflow.
 
-> **"Does our edge survive real-world market conditions, latency, and sportsbook adaptation?"**
+## What It Does
 
----
+- Scrapes and normalizes football fixtures, lineups, player statistics, and odds.
+- Captures Betarabia/Kickertech markets and supports sportsbook browser/WebSocket infrastructure.
+- Loads trained model artifacts from `models/` for player, team, prop, and match prediction.
+- Prices betting markets using model outputs, quantile bands, and Poisson probability transforms.
+- Applies risk controls, staking logic, no-bet filters, CLV tracking, and settlement workflows.
+- Exposes dashboard/API surfaces for monitoring predictions, odds, sessions, and metrics.
 
-## ≡اأ Core System Features
+## Main Runtime Paths
 
-### 1. Data Acquisition & Infrastructure
-*   **24/7 Live Data Acquisition:** Playwright-based browser orchestration with anti-detection fingerprinting.
-*   **Immutable Odds Storage:** Local SQLite time-series storage for every market movement.
-*   **WebSocket Ingestor:** Live frame interception with automatic reconnection and stream health monitoring.
-*   **Odds Normalizer:** Cross-book market mapping and odds conversion.
+| Purpose | Command |
+|---|---|
+| Initialize SQLAlchemy schema | `python src/database/migrate.py` |
+| Start service-oriented acquisition stack | `python src/orchestrator.py` |
+| Start live prediction loop | `python src/live_predictions_daemon.py` |
+| Run scheduled jobs | `python src/scheduler_daemon.py` |
+| Start FastAPI API | `uvicorn src.api.main:app --host 0.0.0.0 --port 8000` |
+| Start Streamlit dashboard | `streamlit run src/dashboard.py` |
 
-### 2. Research Operating System (Research OS)
-*   **Experiment Registry:** Immutable tracking of research hypotheses and results.
-*   **Scientific Validation:** Walk-forward testing, Monte Carlo simulation, and leakage detection.
-*   **Strategy Lifecycle:** Automated state transitions (Research → Shadow → Production).
-*   **Edge Decay Analyzer:** EV half-life measurement and latency sensitivity testing.
+## Architecture
 
-### 3. Live Operations & Execution
-*   **Live Prediction Daemon:** Continuous background polling of fixtures and AI evaluation.
-*   **Shadow Deployment:** Continuous paper trading with real-time CLV tracking.
-*   **Edge Decay Monitor:** Real-time monitoring of EV evaporation.
-*   **Strict Lineup Validator:** Zero-tolerance lineup checking before execution.
-
-### 4. Risk & Portfolio Management
-*   **Risk Engine:** Fractional Kelly sizing, exposure caps, and automated kill-switches.
-*   **Capital Allocation:** Dynamic bankroll distribution across strategies.
-*   **Liquidity & Impact:** Market-impact-aware stake sizing to prevent detection.
-
----
-
-## ≡اôè Operational Workflows
-
-### Phase 1: Discovery (Research)
 ```mermaid
-graph LR
-    A[Hypothesis] --> B[Dataset Snapshot]
-    B --> C[Walk-Forward Test]
-    C --> D[Monte Carlo Sim]
-    D --> E{Leakage Check}
-    E -->|Pass| F[Promote to Shadow]
-    E -->|Fail| G[Strategy Graveyard]
+graph TD
+  Operator[Operator or Scheduler] --> Daemon[live_predictions_daemon.py]
+  Operator --> Orchestrator[src/orchestrator.py]
+  Orchestrator --> SessionManager[src/services/session_manager]
+  SessionManager --> Browser[Playwright Browser Engine]
+  Orchestrator --> WS[WebSocket Ingestor]
+  WS --> SQLA[(SQLAlchemy DB / PostgreSQL or SQLite)]
+  Daemon --> Sources[Sofascore / API-Football / FBref / Betarabia]
+  Sources --> OddsDB[(data/odds_stream.db)]
+  Daemon --> Models[models/*.pkl and *.txt]
+  Models --> Prediction[Prediction and EV Layer]
+  Prediction --> Risk[Risk and Execution]
+  Risk --> BetLog[(data/bet_log.db)]
+  BetLog --> Telemetry[CLV / Telemetry / Dashboard]
 ```
 
-### Phase 2: Live Inference Loop
-```mermaid
-graph LR
-    A[Scrape Betarabia] --> B[Fetch Upcoming Fixtures]
-    B --> C{Lineups Confirmed?}
-    C -->|No| D[Skip Betting / Gen Estimates]
-    C -->|Yes| E[LightGBM Predict]
-    E --> F{EV > Threshold?}
-    F -->|No| G[Discard Bet]
-    F -->|Yes| H[Log Recommended Bet]
-```
+## Repository Map
 
-### Phase 3: Capital Execution
-```mermaid
-graph LR
-    A[Recommend Bet] --> B[Calc Kelly Fractional]
-    B --> C[Check Bankroll Liquidity]
-    C --> D{Stake <= Balance?}
-    D -->|No| E[Block Bet]
-    D -->|Yes| F[Deduct Stake]
-    F --> G[Insert to bet_log.db]
-    G --> H[Stream to UI]
-```
+| Path | Purpose |
+|---|---|
+| `src/api/` | FastAPI health, session, browser, WebSocket, odds, market, and metrics endpoints. |
+| `src/services/` | Service-oriented browser session, odds acquisition, backtesting, risk, CLV, normalization, and shadow execution modules. |
+| `src/database/` | SQLAlchemy models and migration entry point. |
+| `src/data_acquisition/` | Betarabia acquisition, lineup parsing, validation, repricing, replay, execution simulation, and raw frame handling. |
+| `src/research/`, `src/meta_research/` | Research governance, validation, policy outcome auditing, and readiness tooling. |
+| `src/portfolio_optimization/`, `src/capital_*` | Allocation, drawdown, liquidity, rollout, and capital scaling modules. |
+| `src/telemetry_warehouse/`, `src/live_operations/` | CLV, account health, data quality, alerting, and telemetry archiving. |
+| `models/` | LightGBM text boosters and serialized sklearn/LightGBM/joblib artifacts. |
+| `data/` | Local SQLite databases, JSON state, CSV datasets, screenshots/probe artifacts, and migrations. |
+| `db/` | Adaptive memory and adversarial telemetry SQLite stores. |
+| `tests/` | Import and pipeline smoke/e2e tests. |
 
----
-
-## ≡اأخ Getting Started
+## Setup
 
 ### Prerequisites
+
 - Python 3.10+
-- Node.js 18+ (for Playwright)
+- Playwright-compatible browser dependencies
+- Optional: PostgreSQL/Redis if running a fuller service deployment
 
-### Quick Start
-1. **Clone & Setup:**
-   ```bash
-   git clone https://github.com/UnderratedGignac/DeepFieldPro.git
-   cd DeepFieldPro
-   cp .env.example .env
-   # Edit .env with your credentials
-   ```
-2. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   playwright install chromium
-   playwright install-deps chromium
-   ```
-3. **Initialize & Run:**
-   ```bash
-   python src/database/migrate.py
-   python src/orchestrator.py
-   ```
-4. **Access:** Open `http://localhost:5000` (Dashboard).
+### Install
 
----
-*Built with precision for institutional-grade quantitative sports betting research.*
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium
+```
+
+On Linux servers, also run:
+
+```bash
+playwright install-deps chromium
+```
+
+### Configure
+
+```bash
+copy .env.example .env
+```
+
+Edit `.env` locally with API keys and sportsbook credentials. Do not commit `.env`.
+
+Common configuration areas include:
+
+- API-Football / RapidAPI credentials
+- Betfair credentials and certificate path
+- Telegram alert credentials
+- Database URL
+- Browser/scraper runtime flags
+
+## Running Locally
+
+Initialize the database schema:
+
+```bash
+python src/database/migrate.py
+```
+
+Start the acquisition orchestrator:
+
+```bash
+python src/orchestrator.py
+```
+
+Or start the live prediction daemon:
+
+```bash
+python src/live_predictions_daemon.py
+```
+
+Start the API:
+
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+Useful API endpoints:
+
+- `GET /health`
+- `GET /ready`
+- `GET /live`
+- `GET /metrics`
+- `GET /sessions`
+- `GET /browser/status`
+- `GET /websocket/status`
+
+## Data Stores
+
+| Store | Purpose |
+|---|---|
+| `data/bet_log.db` | Bet records, predictions, STAIR order mapping. |
+| `data/odds_stream.db` | Betarabia fixture and market rows. |
+| `data/bankroll.db` | Daily bankroll and exposure tracking. |
+| `data/sync_state.db` | League/page sync state for data fetching. |
+| `src/data/deepfield.db` | SQLAlchemy fallback database for service stack. |
+| `db/adaptive_memory.sqlite` | Execution outcomes and market regime history. |
+| `db/adversarial_telemetry.sqlite` | Account telemetry and sportsbook behavior signals. |
+
+## Models
+
+The repository includes LightGBM text boosters and serialized model artifacts for:
+
+- Expected minutes
+- Passes
+- Shots
+- Shots on target
+- Goals
+- Cards
+- Offsides
+- Bottom-up match prediction
+- Player impact
+- Calibration
+
+Model runners load artifacts from `models/` and combine predictions with opponent profiles, lineup status, current odds, and market-pricing functions.
+
+## Documentation
+
+Detailed generated documentation lives in:
+
+- `SYSTEM_AUDIT_DOCUMENTATION.md`
+- `FILE_INVENTORY_DEEPFIELDPRO.md`
+- `DEEPFIELD_AUDIT_REPORT.md`
+- `USER_GUIDE.md`
+- `IMPLEMENTATION_PLAN.md`
+
+## Testing
+
+Run the available test suite with:
+
+```bash
+pytest
+```
+
+The project also includes several script-level smoke tests under `src/` and `tests/`.
+
+## Security Notes
+
+- Do not commit `.env` or credentials.
+- Treat `*.pkl` and joblib model files as trusted artifacts only.
+- Move hardcoded API keys out of source before production deployment.
+- Add authentication and rate limiting before exposing `src/api/main.py` publicly.
+- Keep sportsbook/browser profiles isolated from development machines in production.
+
+## Operational Notes
+
+- Betarabia scraping failures are usually debugged with `data/betarabia_page_probe.html` and `data/betarabia_screenshot.png`.
+- Missing players are logged so datasets and fallback mappings can be improved.
+- Local SQLite workflows are convenient for development, but high-frequency odds ingestion should move to PostgreSQL/TimescaleDB for production scale.
+- The codebase contains legacy and newer service paths; check `SYSTEM_AUDIT_DOCUMENTATION.md` before consolidating runtime behavior.

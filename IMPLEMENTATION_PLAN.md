@@ -1,75 +1,113 @@
-# 🛠️ DeepFieldPro: Technical Implementation Plan
+# DeepFieldPro Implementation Plan
 
-This document outlines the exact, file-by-file engineering steps required to transition DeepFieldPro into an institutional-grade, prop-specialized betting platform.
+Updated: 2026-06-08
 
----
+This plan reflects the current repository state. Several items from the older plan have already been implemented; the remaining work is mostly consolidation, hardening, migration, validation, and production readiness.
 
-## Phase 1: Database & Telemetry Upgrades
-Before we can track Closing Line Value (CLV) or filter bad bets, we must upgrade our SQLite schemas.
+## Current State
 
-### 1. `bet_log.db` Migration
-**Action:** Add new columns to track market movement and confidence.
-- `closing_odds` (Float): The odds exactly 1 second before kickoff.
-- `clv_percentage` (Float): `(closing_odds / bet_odds) - 1`.
-- `uncertainty_spread` (Float): The difference between the P90 and P10 model outputs.
+| Area | Current Status | Evidence |
+|---|---|---|
+| Expected minutes | Implemented | `src/models/expected_minutes.py`, `models/lgbm_minutes_v1.pkl`, `models/minutes_*` |
+| Calibration | Implemented | `src/models/calibration_engine.py`, `src/calibration_trainer.py`, `models/platt_scaler_sot.pkl` |
+| No-bet filtering | Implemented | `src/risk_engine/no_bet_filter.py` |
+| CLV tracking | Implemented in multiple places | `src/clv_tracker.py`, `src/clv_updater.py`, `src/telemetry_warehouse/clv_tracker.py` |
+| Bankroll tracking | Implemented | `src/bankroll_tracker.py`, `data/bankroll.db` |
+| Live prediction daemon | Implemented | `src/live_predictions_daemon.py` |
+| Service-oriented acquisition | Implemented | `src/orchestrator.py`, `src/services/*`, `src/api/main.py` |
+| Betarabia acquisition | Implemented | `src/betarabia_scraper.py`, `src/odds_scraper_betarabia.py`, `data/odds_stream.db` |
+| Dashboard/API surfaces | Implemented | `src/dashboard.py`, `src/live_dashboard_server.py`, `src/api/main.py` |
 
-### 2. `data_quality.db` (New)
-**Action:** Create a new local SQLite database to monitor API health.
-- **Table `api_latency`:** Tracks the timestamp of lineup releases vs. kickoff.
-- **Table `odds_staleness`:** Tracks the last time a market line ticked.
+## Phase 1: Runtime Consolidation
 
----
+Goal: make one supported production path clear.
 
-## Phase 2: Building the New Core Modules
-We will create four new specialized modules in the `src/` directory.
+1. Decide whether production runtime is the service stack, the live daemon, or a hybrid.
+2. Document the canonical startup order in `README.md` and `SYSTEM_AUDIT_DOCUMENTATION.md`.
+3. Route shared behavior through one set of modules for odds, prediction, risk, logging, and CLV.
+4. Mark legacy scripts as research-only, smoke-test-only, or deprecated.
+5. Add a small `system_check` command that validates required files, DBs, env vars, and model artifacts.
 
-### 1. `src/models/expected_minutes.py` (The xMin Engine)
-**Purpose:** Replace hardcoded `career_min` with a probabilistic model.
-- **Input:** Player historical usage, days of rest, manager substitution history.
-- **Output:** Returns a dictionary: `{"p10": 45, "p50": 78, "p90": 95}`.
-- **Integration:** This must be the very first model called by the daemon.
+## Phase 2: Database And Migration Hardening
 
-### 2. `src/models/calibration_engine.py` (The Calibrator)
-**Purpose:** Force LightGBM outputs to reflect true real-world probability.
-- **Logic:** Wraps the trained LightGBM models in `sklearn.calibration.CalibratedClassifierCV` (Isotonic Regression).
-- **Integration:** The daemon passes raw model probabilities to this engine before deciding if there is an edge.
+Goal: remove schema drift and make setup repeatable.
 
-### 3. `src/risk_engine/no_bet_filter.py` (The Gatekeeper)
-**Purpose:** Reject bets even if the EV is technically positive.
-- **Rules:**
-  - `reject_if_uncertainty_high()`: Blocks bet if P90 - P10 xMin spread is > 30 mins.
-  - `reject_if_stale_odds()`: Blocks bet if the odds haven't changed in 15+ minutes.
-  - `reject_if_correlated()`: Blocks a bet if we already have exposure to the same team/player in another market.
+1. Create migrations for all operational SQLite schemas, not only SQLAlchemy `src/data/deepfield.db`.
+2. Consolidate duplicate `bet_log` and `predictions` schemas between `data/bet_log.db`, `src/data/bet_log.db`, and SQLAlchemy models.
+3. Add indexes for common dashboard and settlement queries.
+4. Add DB backup/restore procedures for `data/`, `db/`, and telemetry parquet.
+5. Define retention policy for raw frames and odds ticks.
 
-### 4. `src/telemetry_warehouse/clv_tracker.py` (The CLV Scraper)
-**Purpose:** The ultimate source of truth for model performance.
-- **Logic:** Runs a background async thread that wakes up 60 seconds before a match starts, queries Betarabia/Pinnacle for the final odds, and writes them to the `bet_log.db`.
+## Phase 3: Model Registry And Validation
 
----
+Goal: make every model artifact auditable.
 
-## Phase 3: The Great Refactor
-We will modify the existing orchestration scripts to utilize the new modules.
+For every file under `models/`, record:
 
-### 1. `src/live_predictions_daemon.py`
-**The new execution flow:**
-1. Scrape Live Games & Lineups (Block execution if Lineups = False).
-2. Call `expected_minutes.py` to get xMin for all starting players.
-3. Pass xMin into the Shots / SoT LightGBM Models.
-4. Pass raw probabilities through `calibration_engine.py`.
-5. Compare Calibrated Probability vs Bookmaker Odds to find EV.
-6. Pass the proposed bet through `no_bet_filter.py`.
-7. If approved, calculate fractional stake using `kelly_calculator.py`.
-8. Execute Bet & Log.
-9. Schedule `clv_tracker.py` to fire exactly at kickoff.
+- Model name and version
+- Target variable
+- Feature list and feature order
+- Training dataset snapshot
+- Training script
+- Validation split
+- Metrics
+- Calibration status
+- Compatible inference module
 
-### 2. `src/live_dashboard_server.py` & `index.html`
-**UI Upgrades:**
-- Build a new tab: **"Data Quality & Health"**. Displays API latency and missing lineups.
-- Update the **"Bet Tracker"** tab to include a CLV column (green if we beat the closing line, red if we lost to it).
-- Update the **"Live Predictions"** tab to show the P10/P90 Uncertainty spread for each player.
+Add a `models/MODEL_REGISTRY.md` or structured JSON registry and make inference fail fast when the feature schema does not match.
 
----
+## Phase 4: Security And Configuration
 
-## Phase 4: Deprecation (Maintenance Mode)
-**Action:** We will remove the active execution calls for Match Winner (1X2) and Over/Under models from the live daemon. 
-- The Python files (e.g., `predict_todays_games.py` for team stats) will not be deleted, but they will be isolated to the `/research` folder. They will only be used to generate contextual features (e.g., Team Implied Win Probability) for the Player Prop models.
+Goal: remove production blockers.
+
+1. Move hardcoded external keys from source into `.env`.
+2. Add authentication and rate limiting to `src/api/main.py`.
+3. Redact credentials from logs and generated reports.
+4. Separate local development profiles from production browser/sportsbook profiles.
+5. Add a secret-check step to CI.
+
+## Phase 5: Test Coverage
+
+Goal: catch regressions in the workflows that matter.
+
+Add or expand tests for:
+
+- Betarabia parser schema drift
+- Odds DB writes
+- Prediction DB writes
+- Model artifact loading
+- No-bet filter decisions
+- Kelly/stake sizing
+- CLV settlement updates
+- FastAPI health/metrics endpoints
+- Dashboard state JSON generation
+
+## Phase 6: Production Data And Scaling
+
+Goal: make live acquisition reliable at higher frequency.
+
+1. Move high-frequency odds ticks from local SQLite to PostgreSQL/TimescaleDB or another production time-series backend.
+2. Run scrapers, inference, settlement, and dashboards as separate workers.
+3. Add queueing between acquisition and inference.
+4. Add service-level metrics for freshness, latency, dropped frames, parser errors, and DB write failures.
+5. Add alerts for stale odds, missing lineups, failed settlement, and low account health.
+
+## Phase 7: Documentation Maintenance
+
+Goal: keep docs synced with the codebase.
+
+1. Regenerate `SYSTEM_AUDIT_DOCUMENTATION.md` after architecture changes.
+2. Regenerate `FILE_INVENTORY_DEEPFIELDPRO.md` after large file additions/removals.
+3. Update `README.md` when startup commands or supported runtime paths change.
+4. Update `USER_GUIDE.md` when dashboard behavior changes.
+5. Update this plan when phases are completed.
+
+## Near-Term Priority Order
+
+1. Secrets cleanup.
+2. Runtime path decision.
+3. DB migration consolidation.
+4. Model registry.
+5. Parser drift tests.
+6. API auth.
+7. Production time-series storage.

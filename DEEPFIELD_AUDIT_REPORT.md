@@ -1,89 +1,65 @@
-# 🔬 DeepFieldPro: Senior ML Validation Audit & Ranked Evaluation
+# DeepFieldPro Audit Report
 
-> **Author:** Senior Quantitative Betting Researcher & ML Validation Lead
-> **Objective:** Evidence-based evaluation of DeepFieldPro's predictive modules.
+Updated: 2026-06-08
 
-## Phase 1: Full System Audit (Feature Group Inventory)
-| Feature Group | Feature Count | Data Source | Update Frequency | Target Markets |
-| ------------- | ------------- | ----------- | ---------------- | -------------- |
-| Historical Baseline | 4 | FBRef / StatsBomb | Weekly | Props, Goals |
-| Player Form | 4 | FBRef | Weekly | Props |
-| Team Strength | 2 | Standings DB | Daily | 1X2, Props |
-| Lineup Intelligence | 3 | Betarabia API | Live (T-60m) | All Markets |
-| CLV / Market | 5 | Odds Stream DB | Live (Tick) | Execution |
+This report summarizes the current validation posture of DeepFieldPro after repository inspection. It should be read together with `SYSTEM_AUDIT_DOCUMENTATION.md` for architecture and `FILE_INVENTORY_DEEPFIELDPRO.md` for the full file inventory.
 
-## Phase 2: Feature Importance Laboratory (Ablation Study)
-Based on 3-Fold Cross-Validation on the `shots_training_dataset`.
+## Current Platform Assessment
 
-| Feature Group | Log Loss Lift | Brier Lift | CLV Lift (Est) | ROI Lift (Est) | Stat. Significance |
-| ------------- | ------------- | ---------- | -------- | -------- | ------------------------ |
-| Player Form | -0.57% | -0.59% | +0.4% | +1.2% | p < 0.05 |
-| Team Strength | 4.95% | 5.83% | +0.1% | +0.3% | p = 0.12 (Not Sig) |
-| Lineup Intel | 12.40% | 9.80% | +2.1% | +4.5% | p < 0.001 |
+DeepFieldPro is no longer only a prototype plan. The repository now contains working modules for live acquisition, model inference, bankroll/risk tracking, CLV telemetry, dashboards, API health endpoints, and research/simulation layers. The codebase still has two active runtime styles:
 
-**Conclusion:** *Team Strength* metrics add little value to individual player props (like Shots) compared to historical baseline and player form. *Lineup Intel* is the absolute highest driver of edge.
+- A service-oriented stack under `src/services/`, `src/api/`, `src/database/`, and `src/orchestrator.py`.
+- A local SQLite/script workflow centered on `src/live_predictions_daemon.py`, `src/betarabia_scraper.py`, `src/model_runner.py`, `data/*.db`, and `models/*`.
 
-## Phase 3: Expected Minutes Model Evaluation
-Currently, minutes are estimated via `career_min` averages. Building a dedicated Expected Minutes (xMin) regression model yielded an RMSE improvement of **14.2 minutes**.
+## Feature Group Inventory
 
-| Market | Improvement in Log Loss | Improvement in ROI |
-| ------ | ----------------------- | ------------------ |
-| Shots | 2.1% | 0.8% |
-| Anytime Goalscorer | 3.4% | 1.1% |
-| Assists | 1.9% | 0.5% |
+| Feature Group | Current Implementation | Data Source | Update Frequency | Primary Markets |
+|---|---|---|---|---|
+| Historical baseline | Training datasets, FBref/Sofascore/API-Football scripts, model artifacts | CSV, SQLite, FBref, Sofascore, API-Football | Batch/manual/daily depending on script | Props, match markets |
+| Player form | Rolling feature scripts and LightGBM model inputs | CSV datasets, match logs | Batch/manual | Props |
+| Team/opponent strength | Opponent profile DB, feature modules, team models | SQLite, CSV, API data | Batch/manual | 1X2, totals, props |
+| Lineup intelligence | Lineup scraper/parser/monitor and live daemon checks | Sofascore/API-Football-style payloads | Live near kickoff | All lineup-sensitive markets |
+| Odds/market intelligence | Betarabia scraper, odds DB, WebSocket service layer, CLV modules | Betarabia/Kickertech, Betfair scaffold, local DBs | Live/polling | Execution and EV validation |
+| Risk/portfolio | Kelly calculator, bankroll tracker, no-bet filter, portfolio/capital modules | Bet log, bankroll DB, simulated state | Per candidate / daily | Bet sizing and exposure control |
+| Telemetry/CLV | CLV tracker/updater, telemetry warehouse, live operations modules | Bet log, odds cache, account telemetry DBs | Live/scheduled | Model and execution validation |
 
-**Recommendation:** Expected Minutes MUST become a mandatory upstream model. Prop betting EV is directly proportional to time on pitch.
+## Model Inventory Summary
 
-## Phase 4: Injury & Availability Intelligence Audit
-The system currently lacks granular injury severity features (only tracking binary availability). Incorporating *Days Absent* and *Minutes Restriction Likelihood* into the xMin model showed a simulated **+1.4% ROI lift** on returning players, as the market constantly overestimates returning stars' minutes.
+The repository includes LightGBM text boosters and serialized pickle/joblib artifacts for minutes, passes, shots, shots on target, goals, cards, offsides, bottom-up match prediction, player impact, and probability calibration.
 
-## Phase 5: Ensemble Model Testing
-| Model | Log Loss | Brier | ROI (Sim) | CLV (Sim) |
-| ----- | -------- | ----- | --- | --- |
-| LightGBM (Current) | 0.542 | 0.181 | 4.2% | 3.1% |
-| XGBoost | 0.545 | 0.183 | 3.9% | 2.9% |
-| CatBoost | 0.541 | 0.180 | 4.3% | 3.2% |
-| Stacked Ensemble | 0.538 | 0.178 | 5.1% | 3.8% |
+Key model patterns observed:
 
-**Recommendation:** A Stacked Ensemble (LightGBM + CatBoost + Poisson GLM) provides the highest stability, though LightGBM remains computationally optimal for live streaming.
+- Quantile LightGBM models produce P10/P50/P90 bands for uncertainty-aware pricing.
+- Regression boosters estimate count/rate-like targets such as goals, cards, offsides, and player performance fields.
+- Serialized sklearn/LightGBM artifacts support bottom-up match and player-impact workflows.
+- Poisson transforms convert predicted rates into over/under and anytime probabilities.
 
-## Phase 6: Market Information Value Study
-SHAP analysis on closing line data reveals that *Odds Velocity* (how fast the line moved in the last 15 minutes) contains **3x more predictive power** than the absolute opening odds. 
+## Validation Findings
 
-## Phase 7: Correlation & Portfolio Risk Analysis
-Historical correlation matrix reveals severe exposure clusters when betting *Team Win* + *Star Player Goal*. Covariance is ~0.65. 
-**Recommendation:** Implement a strict correlation penalty in the Kelly Criterion sizing to avoid doubling risk on dependent events.
+| Area | Status | Evidence in Repository | Risk |
+|---|---|---|---|
+| Expected minutes | Implemented as artifacts and `src/models/expected_minutes.py`; also used by live daemon initialization paths | `models/lgbm_minutes_v1.pkl`, `models/minutes_*`, `src/models/expected_minutes.py` | Feature schema/version drift can break inference |
+| Probability calibration | Implemented | `src/models/calibration_engine.py`, `models/platt_scaler_sot.pkl`, `src/calibration_trainer.py` | Needs routine recalibration against settled bets |
+| CLV tracking | Implemented in multiple modules | `src/clv_tracker.py`, `src/clv_updater.py`, `src/telemetry_warehouse/clv_tracker.py` | Closing odds source may be incomplete or simulated |
+| No-bet filtering | Implemented | `src/risk_engine/no_bet_filter.py` | Must be wired consistently across all execution paths |
+| Bankroll tracking | Implemented | `src/bankroll_tracker.py`, `data/bankroll.db` | Multiple DB schemas require consolidation |
+| API health/metrics | Implemented | `src/api/main.py` | API currently lacks production auth |
+| Betarabia acquisition | Implemented | `src/betarabia_scraper.py`, `src/odds_scraper_betarabia.py`, `data/odds_stream.db` | DOM/API schema drift and anti-bot blocking |
+| Research governance | Implemented as modules/simulation labs | `src/research/`, `src/meta_research/`, `src/autonomous_portfolio_evolution/` | Some labs appear simulation-oriented rather than fully production-wired |
 
-## Phase 8: Prediction Uncertainty Framework
-Using Quantile Regression in LightGBM, we generated P10/P50/P90 outputs. 
-**Result:** Sizing stakes inversely proportional to the P10-P90 spread (Uncertainty) improved risk-adjusted ROI (Sharpe Ratio) by **18%**.
+## Highest Impact Improvements
 
-## Phase 9: Walk-Forward Validation Audit
-Walk-forward validation (Train 2022-2024 -> Test 2025) confirmed **no future leakage**. Log loss remained stable across all temporal splits (Dev: 0.542 -> OOT: 0.544). 
+1. Consolidate the service stack and local SQLite daemon into one documented runtime contract.
+2. Add model registry metadata for every artifact: feature schema, target, training snapshot, validation metrics, calibration date, and compatible code version.
+3. Move hardcoded external API keys and credentials to environment variables.
+4. Add authentication and rate limiting before exposing the FastAPI API outside localhost/private networks.
+5. Add idempotent migrations for every SQLite schema and remove duplicate prediction/bet schemas where possible.
+6. Add parser drift tests for Betarabia/Kickertech payloads and dashboard-state generation.
+7. Make risk filters mandatory in all execution paths, including script-oriented paths.
+8. Store high-frequency odds ticks in PostgreSQL/TimescaleDB or another production time-series store.
+9. Add scheduled recalibration reports that compare model probability buckets against settled outcomes and CLV.
+10. Keep the full system documentation and file inventory regenerated after major architectural changes.
 
-## Phase 10: Player Chemistry Analysis
-Testing pairs (e.g. De Bruyne -> Haaland) showed a marginal **+0.3% ROI** lift. 
-**Recommendation:** Remove. Adds immense dimensionality and complexity without a statistically significant return on investment.
+## Current Audit Conclusion
 
-## Phase 11: Betting Market Execution Simulator
-| Market | Predicted EV | Executed EV | Difference |
-| ------ | ------------ | ----------- | ---------- |
-| 1X2 | 4.1% | 3.8% | -0.3% |
-| Corners | 6.5% | 4.9% | -1.6% |
-| Player Props | 8.2% | 5.1% | -3.1% |
-
-**Conclusion:** Props suffer heavy slippage and lower limits. Theoretical EV must be discounted by ~3% to reflect execution friction.
-
-# 🏆 Final Deliverable: Top 10 Highest Impact Improvements
-
-Based on the audit, here are the top 6 improvements prioritized by expected real-world gain:
-
-1. **Lineup Intelligence (Keep/Improve):** Absolute highest driver of edge. Must remain the strict gatekeeper.
-2. **Dedicated Expected Minutes (xMin) Model (Implement):** Shifts ROI +1.1% on props. Essential for accurate player predictions.
-3. **Prediction Uncertainty Sizing (Implement):** Penalizing stakes on wide P10-P90 spreads increased Sharpe by 18%.
-4. **Execution Friction Discounting (Implement):** Shrinking theoretical EV by 3% for props to prevent over-staking on illiquid markets.
-5. **Portfolio Correlation Penalty (Implement):** Prevents blowing up the bankroll on correlated parlays/SGBs.
-6. **Stacked Ensemble (Implement):** Adding CatBoost to LightGBM lowers log-loss to 0.538.
-
----
-*End of Audit Report.*
+DeepFieldPro has the core ingredients of an institutional sports-betting research and operations stack, but production readiness depends on reducing duplicate runtime paths, tightening secrets/security, versioning model artifacts, and making database migrations explicit. The most valuable edge drivers remain lineup intelligence, expected-minutes modeling, market/CLV feedback, uncertainty-aware sizing, and strict portfolio risk controls.

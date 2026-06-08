@@ -1,59 +1,134 @@
-# Welcome to DeepFieldPro 🚀
+# DeepFieldPro User Guide
 
-**DeepFieldPro** is your personal, fully automated AI sports betting assistant. 
+Updated: 2026-06-08
 
-Instead of guessing who is going to win a game based on gut feeling or what the TV pundits say, DeepFieldPro uses advanced artificial intelligence to find mathematical advantages ("edges") against the bookmakers. 
+DeepFieldPro is a football betting research and operations platform. It reads fixture, lineup, player-stat, and odds data; generates model-driven probabilities; compares those probabilities with market prices; and records recommendations, bets, bankroll state, and closing-line value.
 
-Think of it like a high-frequency trading bot used on Wall Street, but built for soccer games!
+This guide is written for local operators. For engineering details, read `README.md` and `SYSTEM_AUDIT_DOCUMENTATION.md`.
 
----
+## What You Can Do
 
-## 🧠 How Does It Work?
+- View live and upcoming match predictions.
+- Track whether predictions were based on official or estimated lineups.
+- Monitor recommended markets and estimated edge.
+- Review bet logs, bankroll movement, and settlement state.
+- Inspect whether the system is receiving odds and fixture data.
+- Use the generated documentation to understand the full system architecture.
 
-It all happens automatically behind the scenes:
+## Main Ways To Run The System
 
-1. **Scanning the Market:** 24/7, the system acts like a super-scout. It reads the upcoming matches and scans the odds provided by bookmakers.
-2. **Checking the Teams:** Before it even thinks about making a bet, it waits for the official starting lineups to be announced. If a star player is unexpectedly benched, the AI immediately recalculates everything. It never bets on guesswork.
-3. **Running the Math:** It simulates the game thousands of times in its "head" based on years of historical data. It figures out the *true probability* of things happening—like who will win, how many corners there will be, or if a specific player will take a shot on target.
-4. **Finding the Edge:** It compares its own calculated probabilities against the odds offered by the bookmaker. If the bookmaker is offering a payout that is higher than the true mathematical risk, the AI detects an "edge."
-5. **Managing the Bankroll:** If it finds an edge, it doesn't just bet all your money. It uses a strict mathematical formula (called the Kelly Criterion) to calculate exactly how many cents or dollars to risk based on how confident it is. This ensures your bankroll steadily grows over time without risking a catastrophic loss.
+### Option 1: Windows Launcher
 
----
+Use this if you want the simplest local startup path:
 
-## 🎯 What Does It Bet On?
+```bat
+LAUNCH_DEEPFIELD.bat
+```
 
-The AI isn't just picking the winner of the match. It's looking for value wherever it can find it. Currently, it analyzes:
+Depending on local configuration, the launcher starts the dashboard and related backend scripts.
 
-- **Match Winners (1X2):** Who will win, or will it be a draw?
-- **Goals (Over/Under 2.5):** Will there be a lot of scoring, or will it be a boring 0-0?
-- **Both Teams to Score (BTTS):** Will both teams find the back of the net?
-- **Corners (Over 8.5):** Are these teams playing an aggressive, wide attacking style that results in lots of corners?
-- **Player Shots (Over 1.5):** Is a specific striker highly likely to pepper the goalkeeper with shots today?
-- **Anytime Goalscorer:** Which players are mathematically overdue to score a goal based on their underlying stats?
+### Option 2: Live Prediction Daemon
 
----
+Use this to run the script-oriented local workflow:
 
-## 💻 How to Use It
+```bash
+python src/live_predictions_daemon.py
+```
 
-Using DeepFieldPro is incredibly simple. You don't need to be a programmer or a math genius.
+The daemon:
 
-**Step 1:** Double-click the `LAUNCH_DEEPFIELD.bat` file on your computer.
-**Step 2:** A beautiful live dashboard will automatically pop up in your web browser. 
+1. Starts/refreshes Betarabia odds scraping.
+2. Fetches today's fixtures.
+3. Checks for official lineups near kickoff.
+4. Uses estimated lineups when official lineups are not yet available.
+5. Loads model artifacts from `models/`.
+6. Writes predictions and dashboard state to local files/databases.
+7. Repeats its sweep after a short sleep interval.
 
-That's it! 
+### Option 3: Service-Oriented Stack
 
-On the dashboard, you can sit back and watch the AI work:
-- **Live Predictions:** See upcoming games, whether the official lineups are out, and exactly what the AI thinks will happen.
-- **Bankroll & ROI:** Watch your starting capital ($100) grow. The system tracks every penny, showing you your daily profits and overall Return on Investment (ROI).
-- **Bet Tracker:** See a transparent log of every single bet the AI placed, why it placed it, and whether it won or lost.
+Use this for the newer acquisition/session/WebSocket architecture:
 
----
+```bash
+python src/database/migrate.py
+python src/orchestrator.py
+```
 
-## 🛡️ Is My Money Safe?
+Start the API separately when needed:
 
-Yes! The system is built with aggressive capital preservation in mind:
-- **Strict Caps:** It will never risk more than it should on a single game.
-- **Data Driven:** It has zero emotion. It doesn't chase losses, and it doesn't bet on its "favorite team." 
-- **Auto-Stop:** If the bankroll ever runs low, the system physically blocks itself from placing reckless bets. 
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
 
-Sit back, keep the engine running, and let the AI do the heavy lifting!
+Useful endpoints:
+
+- `GET /health`
+- `GET /ready`
+- `GET /live`
+- `GET /metrics`
+- `GET /sessions`
+- `GET /browser/status`
+- `GET /websocket/status`
+
+## What The Dashboard Shows
+
+The dashboard state is stored in files such as `data/todays_dashboard_state.json` and prediction rows in `data/bet_log.db`.
+
+Typical fields include:
+
+- Match name and league
+- Kickoff time
+- Prediction and expected score
+- Match probabilities
+- Player or market recommendations
+- Whether official lineup data was available
+- Odds and estimated expected value where available
+- Bet status, settlement, and CLV data
+
+## Data Sources
+
+DeepFieldPro uses multiple sources and caches:
+
+- Betarabia/Kickertech for sportsbook markets
+- Sofascore-style endpoints for fixtures, lineups, and stats
+- API-Football scripts where credentials and coverage are available
+- FBref/soccerdata-style historical player and team data
+- Local SQLite databases and CSV files under `data/`
+- Model artifacts under `models/`
+
+## Safety And Bankroll Controls
+
+The system includes several risk-control concepts:
+
+- Kelly/fractional sizing
+- Bankroll tracking
+- No-bet filters
+- Stop-loss and exposure logic
+- CLV tracking
+- Account and market telemetry
+
+Before using real capital, verify:
+
+1. The system is using current odds.
+2. Lineups are confirmed or the recommendation is explicitly marked as estimated.
+3. The bet log and bankroll DB are updating correctly.
+4. Risk limits match your intended bankroll.
+5. API keys and credentials are stored in `.env`, not in source code.
+
+## Common Troubleshooting
+
+| Problem | Check |
+|---|---|
+| No fixtures appear | Verify network/API availability and fixture scraper output. |
+| No Betarabia odds | Check `data/betarabia_page_probe.html`, `data/betarabia_screenshot.png`, and `data/odds_stream.db`. |
+| Predictions missing | Confirm model files exist under `models/` and source datasets exist under `data/`. |
+| Lineups unavailable | The daemon may fall back to estimated lineups until official lineups are released. |
+| Dashboard stale | Check `data/todays_dashboard_state.json` timestamp and daemon logs. |
+| API unhealthy | Call `/health`, `/ready`, and `/metrics` from the FastAPI service. |
+
+## Important Notes
+
+- This is a research and operations platform, not a guarantee of profit.
+- Local SQLite workflows are convenient for development but should be hardened before production use.
+- Do not expose the API publicly until authentication and rate limiting are added.
+- Do not commit `.env` or sportsbook credentials.

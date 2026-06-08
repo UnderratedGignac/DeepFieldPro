@@ -4,7 +4,7 @@
     "max_exposure_pct": 0.05,
     "min_confidence_pct": 55,
     "data_source": "sofascore_free",
-    "target_leagues": "Friendlies",
+    "target_leagues": "All",
     "refresh_interval_sec": 30,
     "auto_place_bets": true,
     "home_adv_weight": 1.2,
