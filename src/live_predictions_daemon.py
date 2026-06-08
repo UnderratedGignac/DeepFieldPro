@@ -395,7 +395,7 @@ def load_predictions_from_db():
                 # Reconstruct Goalscorer
                 if "Goalscorer" not in db_markets and "goalscorers" in dp:
                     db_markets["Goalscorer"] = [
-                        {"selection": f"{p['name']} Anytime Goal", "prob": round(p["anytime_goal_prob"] * 100, 1) if p["anytime_goal_prob"] < 1.0 else p["anytime_goal_prob"]}
+                        {"selection": f"{p['name']} Anytime Goal", "prob": round(p["anytime_goal_prob"], 1) if p["anytime_goal_prob"] > 1.0 else round(p["anytime_goal_prob"] * 100, 1)}
                         for p in dp["goalscorers"][:3]
                     ]
                 # Reconstruct Player Shots
@@ -857,7 +857,7 @@ def predict_match(fixture, lineups, player_model, match_model, df):
             "Goalscorer": [
                 {
                     "selection": f"{p['name']} Anytime Goal",
-                    "prob": round(p["anytime_goal_prob"] * 100, 1),
+                    "prob": round(p["anytime_goal_prob"], 1),
                 }
                 for p in goalscorers_sorted[:3]
             ],
@@ -1770,11 +1770,203 @@ def update_dashboard_json(fixtures, results_cache):
             "has_lineup": prediction["has_lineup"] if prediction else False,
             "prediction": prediction,
             "prematch_markets": prematch_markets,
+            "fixture": f["fixture"],
         }
         dashboard_data.append(item)
 
     with open(os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8") as f:
         json.dump(dashboard_data, f, indent=4)
+
+
+def refresh_completed_comparisons():
+    """
+    Checks for finished matches and fetches detailed stats to populate completed_comparisons.json.
+    """
+    print("[COMPLETION] Checking for finished matches to populate reality data (Today + Yesterday)...")
+    completed_path = os.path.join(DATA_DIR, "completed_comparisons.json")
+    completed_data = {}
+    if os.path.exists(completed_path):
+        try:
+            with open(completed_path, "r", encoding="utf-8") as f:
+                completed_data = json.load(f)
+        except Exception:
+            pass
+
+    try:
+        import datetime
+        from free_scraper_module import get_todays_fixtures_free
+        
+        # Check Today and Yesterday
+        today = datetime.datetime.now()
+        yesterday = today - datetime.timedelta(days=1)
+        
+        all_fixtures = []
+        
+        # We need a way to fetch for a specific date. 
+        # Let's temporarily monkeypatch or just use the logic here if get_todays_fixtures_free doesn't support it.
+        # Actually, let's just use the logic from free_scraper_module directly for the loop.
+        
+        for dt in [yesterday, today]:
+            date_str = dt.strftime("%Y-%m-%d")
+            url = f"https://api.sofascore.com/api/v1/sport/football/scheduled-events/{date_str}"
+            
+            print(f"[COMPLETION] Scanning fixtures for {date_str}...")
+            try:
+                from seleniumbase import SB
+                with SB(uc=True, headless=True) as sb:
+                    sb.open(url)
+                    time.sleep(2)
+                    content = sb.execute_script("return document.body.innerText;")
+                    data = json.loads(content)
+                    events = data.get("events", [])
+                    for e in events:
+                        status_code = "NS"
+                        if e["status"]["type"] == "inprogress":
+                            status_code = "1H"
+                        elif e["status"]["type"] == "finished":
+                            status_code = "FT"
+                        
+                        all_fixtures.append({
+                            "fixture": {
+                                "id": e["id"],
+                                "status": {"short": status_code},
+                                "home_score": e.get("homeScore", {}).get("current"),
+                                "away_score": e.get("awayScore", {}).get("current"),
+                            },
+                            "league": {"name": e["tournament"]["name"]},
+                            "teams": {
+                                "home": {"name": e["homeTeam"]["name"]},
+                                "away": {"name": e["awayTeam"]["name"]},
+                            }
+                        })
+            except Exception as e:
+                print(f"[COMPLETION] Error scanning {date_str}: {e}")
+
+    except Exception as e:
+        print(f"[COMPLETION] Critical error in scan loop: {e}")
+        return
+
+    res_map = load_predictions_from_db()
+
+    updated = False
+    for f in all_fixtures:
+        status = f["fixture"]["status"]["short"]
+        if status == "FT":
+            fid = f["fixture"]["id"]
+            fid_str = str(fid)
+
+            if fid_str in completed_data:
+                continue
+
+            # Only fetch if we actually have a prediction for this match
+            if fid not in res_map:
+                continue
+
+            print(
+                f"[COMPLETION] Fetching detailed reality stats for {f['teams']['home']['name']} vs {f['teams']['away']['name']} (ID: {fid})..."
+            )
+            try:
+                from free_scraper_module import get_fixture_stats_free
+
+                stats_raw = get_fixture_stats_free(fid)
+                if not stats_raw:
+                    continue
+
+                # Parse Sofascore stats into our completed_comparisons format
+                actuals = {
+                    "fixture_id": fid,
+                    "match": f"{f['teams']['home']['name']} vs {f['teams']['away']['name']}",
+                    "league": f["league"]["name"],
+                    "status": "FT",
+                    "score": f"{f['fixture']['home_score']} - {f['fixture']['away_score']}",
+                    "home_score": f["fixture"]["home_score"],
+                    "away_score": f["fixture"]["away_score"],
+                    "winner": "DRAW",
+                    "goals": [],
+                    "possession_home": 50,
+                    "possession_away": 50,
+                    "corners_home": 0,
+                    "corners_away": 0,
+                    "corners_total": 0,
+                    "fouls_home": 0,
+                    "fouls_away": 0,
+                    "cards_yellow_home": 0,
+                    "cards_yellow_away": 0,
+                    "cards_yellow_total": 0,
+                    "cards_red_total": 0,
+                    "shots_home": 0,
+                    "shots_away": 0,
+                    "shots_on_target_home": 0,
+                    "shots_on_target_away": 0,
+                    "player_stats": [],
+                }
+
+                if f["fixture"]["home_score"] > f["fixture"]["away_score"]:
+                    actuals["winner"] = f"{f['teams']['home']['name']} WIN"
+                elif f["fixture"]["away_score"] > f["fixture"]["home_score"]:
+                    actuals["winner"] = f"{f['teams']['away']['name']} WIN"
+
+                # Extract stats from statistics array
+                all_stats = next(
+                    (
+                        p
+                        for p in stats_raw.get("statistics", [])
+                        if p.get("period") == "ALL"
+                    ),
+                    None,
+                )
+                if all_stats:
+                    for group in all_stats.get("groups", []):
+                        for item in group.get("statisticsItems", []):
+                            name = item.get("name")
+                            home_val = item.get("homeValue")
+                            away_val = item.get("awayValue")
+
+                            if name == "Ball possession":
+                                actuals["possession_home"] = int(
+                                    str(home_val).replace("%", "")
+                                )
+                                actuals["possession_away"] = int(
+                                    str(away_val).replace("%", "")
+                                )
+                            elif name == "Corner kicks":
+                                actuals["corners_home"] = int(home_val)
+                                actuals["corners_away"] = int(away_val)
+                                actuals["corners_total"] = (
+                                    actuals["corners_home"] + actuals["corners_away"]
+                                )
+                            elif name == "Fouls":
+                                actuals["fouls_home"] = int(home_val)
+                                actuals["fouls_away"] = int(away_val)
+                            elif name == "Yellow cards":
+                                actuals["cards_yellow_home"] = int(home_val)
+                                actuals["cards_yellow_away"] = int(away_val)
+                                actuals["cards_yellow_total"] = (
+                                    actuals["cards_yellow_home"]
+                                    + actuals["cards_yellow_away"]
+                                )
+                            elif name == "Red cards":
+                                actuals["cards_red_total"] = int(home_val) + int(
+                                    away_val
+                                )
+                            elif name == "Total shots":
+                                actuals["shots_home"] = int(home_val)
+                                actuals["shots_away"] = int(away_val)
+                            elif name == "Shots on target":
+                                actuals["shots_on_target_home"] = int(home_val)
+                                actuals["shots_on_target_away"] = int(away_val)
+
+                completed_data[fid_str] = actuals
+                updated = True
+            except Exception as e:
+                print(f"[!] Error fetching/parsing stats for {fid}: {e}")
+
+    if updated:
+        with open(completed_path, "w", encoding="utf-8") as f:
+            json.dump(completed_data, f, indent=4)
+        print(
+            f"[COMPLETION] Successfully updated {completed_path} with new finished matches."
+        )
 
 
 def init_stair_ai_agent():
@@ -1854,7 +2046,8 @@ def run_daemon():
         except Exception as e:
             print("Failed to start background scraper:", e)
 
-        # 2. Run post-match settlement
+        # 2. Run post-match settlement and reality data completion
+        refresh_completed_comparisons()
         settle_open_bets()
 
         # Load existing predictions from DB

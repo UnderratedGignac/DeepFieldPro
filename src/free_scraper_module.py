@@ -122,6 +122,20 @@ def get_fixture_lineups_free(fixture_id):
             return []
 
 
+def get_fixture_stats_free(fixture_id):
+    url = f"https://api.sofascore.com/api/v1/event/{fixture_id}/statistics"
+
+    with SB(uc=True, headless=True) as sb:
+        sb.open(url)
+        time.sleep(1)
+        try:
+            content = sb.execute_script("return document.body.innerText;")
+            data = json.loads(content)
+            return data
+        except Exception:
+            return None
+
+
 def get_fixture_lineups_batch(fixture_ids):
     if not fixture_ids:
         return {}

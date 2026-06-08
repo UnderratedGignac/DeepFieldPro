@@ -161,7 +161,7 @@ df = df[df["Minutes Played"] > 10].copy()
 
 # Save
 os.makedirs(config.DATA_DIR, exist_ok=True)
-df.to_csv(os.path.join(config.DATA_DIR, "training_dataset.csv", index=False))
+df.to_csv(os.path.join(config.DATA_DIR, "training_dataset.csv"), index=False)
 
 print(f"\n[OK] Training dataset v2 saved: {df.shape[0]} rows x {df.shape[1]} cols")
 print(f"\nFinal passes_per_90 distribution:\n{df['passes_per_90'].describe()}")
