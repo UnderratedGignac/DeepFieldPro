@@ -20,7 +20,7 @@ services:
       dockerfile: Dockerfile
     container_name: deepfield_dashboard
     ports:
-      - "5000:5000"
+      - "5050:5050"
     volumes:
       - ./data:/app/data
       - ./models:/app/models
@@ -28,3 +28,4 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
+      - DEEPFIELD_DISABLE_DAEMON=1
