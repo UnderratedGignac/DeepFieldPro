@@ -1,0 +1,355 @@
+{
+    "generated_at": "2026-06-09T14:19:08.627956+00:00",
+    "bankroll_used": 352.4699999999999,
+    "top_parlays": [
+        {
+            "legs": [
+                {
+                    "match": "Bahrain vs Syria",
+                    "selection": "Syria Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.72
+                },
+                {
+                    "match": "Nordic United FC vs \u00d6stersunds FK",
+                    "selection": "\u00d6stersunds FK Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.41,
+                    "trust": 43.06
+                },
+                {
+                    "match": "\u00d6sters IF vs IFK V\u00e4rnamo",
+                    "selection": "\u00d6sters IF Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.41,
+                    "trust": 42.77
+                }
+            ],
+            "total_odds": 2.68,
+            "combined_ev": -19.56,
+            "parlay_trust_score": 36.55,
+            "recommended_stake": 10.0,
+            "size": 3
+        },
+        {
+            "legs": [
+                {
+                    "match": "Bahrain vs Syria",
+                    "selection": "Syria Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.72
+                },
+                {
+                    "match": "\u00d6sters IF vs IFK V\u00e4rnamo",
+                    "selection": "\u00d6sters IF Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.41,
+                    "trust": 42.77
+                },
+                {
+                    "match": "Nordic United FC vs \u00d6stersunds FK",
+                    "selection": "\u00d6stersunds FK Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.41,
+                    "trust": 42.73
+                }
+            ],
+            "total_odds": 2.68,
+            "combined_ev": -19.56,
+            "parlay_trust_score": 36.46,
+            "recommended_stake": 10.0,
+            "size": 3
+        },
+        {
+            "legs": [
+                {
+                    "match": "Hungary vs Kazakhstan",
+                    "selection": "Hungary Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                },
+                {
+                    "match": "Nordic United FC vs \u00d6stersunds FK",
+                    "selection": "\u00d6stersunds FK Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.41,
+                    "trust": 43.06
+                },
+                {
+                    "match": "\u00d6sters IF vs IFK V\u00e4rnamo",
+                    "selection": "\u00d6sters IF Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.41,
+                    "trust": 42.77
+                }
+            ],
+            "total_odds": 2.68,
+            "combined_ev": -19.56,
+            "parlay_trust_score": 36.53,
+            "recommended_stake": 10.0,
+            "size": 3
+        },
+        {
+            "legs": [
+                {
+                    "match": "Bahrain vs Syria",
+                    "selection": "Syria Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.72
+                },
+                {
+                    "match": "Hungary vs Kazakhstan",
+                    "selection": "Hungary Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                },
+                {
+                    "match": "SJK Akatemia vs Jippo Joensuu",
+                    "selection": "Jippo Joensuu Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                },
+                {
+                    "match": "Sandvikens IF vs Falkenbergs FF",
+                    "selection": "Falkenbergs FF Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                }
+            ],
+            "total_odds": 3.3,
+            "combined_ev": -25.19,
+            "parlay_trust_score": 34.0,
+            "recommended_stake": 10.0,
+            "size": 4
+        },
+        {
+            "legs": [
+                {
+                    "match": "Hungary vs Kazakhstan",
+                    "selection": "Hungary Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                },
+                {
+                    "match": "SJK Akatemia vs Jippo Joensuu",
+                    "selection": "Jippo Joensuu Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                },
+                {
+                    "match": "Sandvikens IF vs Falkenbergs FF",
+                    "selection": "Falkenbergs FF Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                },
+                {
+                    "match": "IK Oddevold vs IFK Norrk\u00f6ping",
+                    "selection": "IK Oddevold Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.39
+                }
+            ],
+            "total_odds": 3.3,
+            "combined_ev": -25.19,
+            "parlay_trust_score": 33.93,
+            "recommended_stake": 10.0,
+            "size": 4
+        },
+        {
+            "legs": [
+                {
+                    "match": "SJK Akatemia vs Jippo Joensuu",
+                    "selection": "Jippo Joensuu Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                },
+                {
+                    "match": "Sandvikens IF vs Falkenbergs FF",
+                    "selection": "Falkenbergs FF Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.64
+                },
+                {
+                    "match": "IK Oddevold vs IFK Norrk\u00f6ping",
+                    "selection": "IK Oddevold Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.39
+                },
+                {
+                    "match": "MAS de F\u00e8s vs AS FAR Rabat",
+                    "selection": "AS FAR Rabat Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.15
+                }
+            ],
+            "total_odds": 3.3,
+            "combined_ev": -25.19,
+            "parlay_trust_score": 33.84,
+            "recommended_stake": 10.0,
+            "size": 4
+        },
+        {
+            "legs": [
+                {
+                    "match": "IK Oddevold vs IFK Norrk\u00f6ping",
+                    "selection": "IK Oddevold Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.39
+                },
+                {
+                    "match": "MAS de F\u00e8s vs AS FAR Rabat",
+                    "selection": "AS FAR Rabat Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.15
+                },
+                {
+                    "match": "Union Sportive Yacoub El Mansour vs CODM Mekn\u00e8s",
+                    "selection": "Union Sportive Yacoub El Mansour Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.07
+                },
+                {
+                    "match": "Kuwait vs Oman",
+                    "selection": "Kuwait Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 42.78
+                }
+            ],
+            "total_odds": 3.3,
+            "combined_ev": -25.19,
+            "parlay_trust_score": 33.56,
+            "recommended_stake": 10.0,
+            "size": 4
+        },
+        {
+            "legs": [
+                {
+                    "match": "MAS de F\u00e8s vs AS FAR Rabat",
+                    "selection": "AS FAR Rabat Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.15
+                },
+                {
+                    "match": "Union Sportive Yacoub El Mansour vs CODM Mekn\u00e8s",
+                    "selection": "Union Sportive Yacoub El Mansour Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.07
+                },
+                {
+                    "match": "Kuwait vs Oman",
+                    "selection": "Kuwait Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 42.78
+                },
+                {
+                    "match": "Latvia vs Faroe Islands",
+                    "selection": "Latvia Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 42.78
+                }
+            ],
+            "total_odds": 3.3,
+            "combined_ev": -25.19,
+            "parlay_trust_score": 33.44,
+            "recommended_stake": 10.0,
+            "size": 4
+        },
+        {
+            "legs": [
+                {
+                    "match": "Union Sportive Yacoub El Mansour vs CODM Mekn\u00e8s",
+                    "selection": "Union Sportive Yacoub El Mansour Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 43.07
+                },
+                {
+                    "match": "Kuwait vs Oman",
+                    "selection": "Kuwait Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 42.78
+                },
+                {
+                    "match": "Latvia vs Faroe Islands",
+                    "selection": "Latvia Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 42.78
+                },
+                {
+                    "match": "FC Honka vs HJK",
+                    "selection": "FC Honka Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 42.74
+                }
+            ],
+            "total_odds": 3.3,
+            "combined_ev": -25.19,
+            "parlay_trust_score": 33.36,
+            "recommended_stake": 10.0,
+            "size": 4
+        },
+        {
+            "legs": [
+                {
+                    "match": "Tajikistan vs India",
+                    "selection": "Tajikistan Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.29,
+                    "trust": 44.34
+                },
+                {
+                    "match": "DR Congo U20 vs Saudi Arabia U23",
+                    "selection": "DR Congo U20 Gen 10 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.29,
+                    "trust": 44.05
+                },
+                {
+                    "match": "Latvia vs Faroe Islands",
+                    "selection": "Latvia Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 42.78
+                },
+                {
+                    "match": "FC Honka vs HJK",
+                    "selection": "FC Honka Gen 11 Over 1.5 Shots",
+                    "market": "Player Shots",
+                    "odds": 1.35,
+                    "trust": 42.74
+                }
+            ],
+            "total_odds": 3.03,
+            "combined_ev": -25.19,
+            "parlay_trust_score": 33.86,
+            "recommended_stake": 10.0,
+            "size": 4
+        }
+    ]
+}

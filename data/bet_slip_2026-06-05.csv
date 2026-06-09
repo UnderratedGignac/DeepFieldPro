@@ -1,0 +1,4 @@
+Player,Team,Match,Market,Side,Book Odds,Model Prob,Edge %,EV %,Confidence,Kelly Raw %,Stake %,Stake $,Pot. Profit $,Pot. Loss $,Risk Level,Gate Status,Bet
+Dušan Vlahović,Serbia,Mexico vs Serbia,Shots Over 1.5,OVER,1.8,75.7%,22.8%,36.3%,HIGH,11.33%,2.00%,184.47,147.58,184.47,HIGH,OK,✅ BET
+Dušan Vlahović,Serbia,Mexico vs Serbia,Goals Over 0.5,OVER,2.4,47.7%,8.0%,14.5%,HIGH,2.59%,2.00%,184.47,258.26,184.47,HIGH,OK,✅ BET
+Dušan Vlahović,Serbia,Mexico vs Serbia,SoT Over 0.5,OVER,1.65,65.3%,7.6%,7.7%,HIGH,2.97%,1.00%,92.24,59.95,92.24,MEDIUM,OK,✅ BET
