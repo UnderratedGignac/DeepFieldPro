@@ -37,6 +37,7 @@ from free_scraper_module import (  # noqa: E402
 from models.calibration_engine import ProbabilityCalibrator  # noqa: E402
 from risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
 from telemetry_warehouse.clv_tracker import create_clv_tracker  # noqa: E402
+from dfp_config import settings as dfp_settings # institutional risk gates
 
 PLAYER_STATS_CACHE = {}
 TEAM_PLAYERS_CACHE = {}
@@ -1851,7 +1852,7 @@ def update_dashboard_json(fixtures, results_cache):
                             is_recommended = (
                                 ev >= min_ev_threshold
                                 and prob >= settings.get("min_confidence_pct", 55)
-                                and odds >= settings.MODEL_MIN_ODDS
+                                and odds >= dfp_settings.MODEL_MIN_ODDS
                                 and is_at_peak
                             )
                             
@@ -1900,8 +1901,8 @@ def update_dashboard_json(fixtures, results_cache):
                                     ev,
                                 )
                             else:
-                                if odds < settings.MODEL_MIN_ODDS:
-                                    sel["skip_reason"] = f"Odds Below Minimum ({settings.MODEL_MIN_ODDS})"
+                                if odds < dfp_settings.MODEL_MIN_ODDS:
+                                    sel["skip_reason"] = f"Odds Below Minimum ({dfp_settings.MODEL_MIN_ODDS})"
                                 elif ev < min_ev_threshold:
                                     sel["skip_reason"] = f"Low Edge (EV {round(ev*100,1)}% < {round(min_ev_threshold*100,1)}%)"
                                 elif prob < settings.get("min_confidence_pct", 55):
@@ -1921,7 +1922,7 @@ def update_dashboard_json(fixtures, results_cache):
                             sel["ev"] = round(ev_est * 100, 1)
 
                             is_recommended = False
-                            if est_odds >= settings.MODEL_MIN_ODDS:
+                            if est_odds >= dfp_settings.MODEL_MIN_ODDS:
                                 if m_type == "Corners" and prob >= 55.0:
                                     is_recommended = True
                                 elif m_type == "Total Cards" and prob >= 55.0:
