@@ -15,16 +15,39 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
+from src.dfp_config import settings
+
 logger = logging.getLogger(__name__)
 
+# ============================================================================
+# Authentication Middleware / Dependency
+# ============================================================================
+
+async def verify_api_key(x_api_key: str = Header(None), request: Request = None):
+    """
+    Middleware-style dependency to verify the X-API-Key header.
+    Exempts /health, /ready, and /live endpoints.
+    """
+    exempt_paths = ["/health", "/ready", "/live", "/docs", "/openapi.json"]
+    if request.url.path in exempt_paths:
+        return
+
+    if not x_api_key or x_api_key != settings.DEEPFIELD_API_KEY:
+        logger.warning(f"Unauthorized access attempt to {request.url.path} from {request.client.host}")
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: Invalid or missing X-API-Key header"
+        )
 
 # ============================================================================
 # Pydantic Models for Request/Response
 # ============================================================================
+
 
 
 class HealthResponse(BaseModel):
@@ -170,6 +193,16 @@ app = FastAPI(
     description="Production-grade API for sportsbook data acquisition and odds ingestion",
     version="1.0.0",
     lifespan=lifespan,
+    dependencies=[Depends(verify_api_key)]
+)
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -495,17 +528,43 @@ async def get_odds_history(
     }
 
 
-@app.get("/markets/active", tags=["Markets"])
-async def get_active_markets(
-    sport: str = "football", state: AppState = Depends(get_app_state)
-):
-    """Get list of currently active markets."""
-    # Placeholder implementation
-    return {
-        "sport": sport,
-        "markets": [],
-        "count": 0,
-    }
+# Add these imports at the top
+from src.services.market_intelligence.engine import get_active_matches
+from src.services.risk_engine.engine import get_bankroll_status, get_active_parlays
+
+# ============================================================================
+# Dashboard Endpoints
+# ============================================================================
+
+@app.get("/dashboard/matches", tags=["Dashboard"])
+async def get_dashboard_matches():
+    """Get active matches for the Live Predictions dashboard."""
+    try:
+        matches = get_active_matches()
+        return {"matches": matches}
+    except Exception as e:
+        logger.error(f"Failed to fetch matches: {e}")
+        return {"matches": []}
+
+@app.get("/dashboard/bankroll", tags=["Dashboard"])
+async def get_dashboard_bankroll():
+    """Get bankroll and ROI status."""
+    try:
+        status = get_bankroll_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to fetch bankroll: {e}")
+        return {"current_balance": 0.0, "total_pnl": 0.0, "roi": 0.0}
+
+@app.get("/dashboard/parlays", tags=["Dashboard"])
+async def get_dashboard_parlays():
+    """Get active/pending parlays."""
+    try:
+        parlays = get_active_parlays()
+        return {"parlays": parlays}
+    except Exception as e:
+        logger.error(f"Failed to fetch parlays: {e}")
+        return {"parlays": []}
 
 
 # ============================================================================

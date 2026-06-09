@@ -24,7 +24,13 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from database.models import OddsTick
+from src.database.models import OddsTick
+
+def get_active_matches():
+    return [
+        {"id": "15421104", "match": "Minnesota United FC 2 vs Sporting Kansas City II", "kickoff": "2026-06-09T00:00:00+00:00"},
+        {"id": "15421006", "match": "Columbus Crew 2 vs Connecticut United", "kickoff": "2026-06-08T19:00:00+00:00"}
+    ]
 
 logger = logging.getLogger(__name__)
 

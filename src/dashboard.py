@@ -4,138 +4,65 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from datetime import datetime, timezone
+from src.dfp_config import settings
 
 st.set_page_config(page_title="Deep Field Pro Dashboard", layout="wide")
 
-DB_BANKROLL = os.path.join(os.path.dirname(__file__), "..", "data", "bankroll.db")
-DB_BETLOG = os.path.join(os.path.dirname(__file__), "..", "data", "bet_log.db")
-DB_ACCOUNTS = os.path.join(os.path.dirname(__file__), "..", "data", "book_accounts.db")
+# Source of truth: Consolidated deepfield.db
+DB_DEEPFIELD = settings.DATABASE_URL.replace("sqlite:///", "")
 
-
-def get_db_connection(db_path):
-    if not os.path.exists(db_path):
+def get_db_connection():
+    if not os.path.exists(DB_DEEPFIELD):
         return None
-    return sqlite3.connect(db_path)
+    return sqlite3.connect(DB_DEEPFIELD)
 
+st.title("📈 Deep Field Pro v2.0 - Performance Dashboard")
 
-st.title("📈 Deep Field Pro v2.0 - Live Dashboard")
+# --- GLOBAL TOGGLE: SHADOW VS LIVE ---
+st.sidebar.header("Dashboard Settings")
+view_mode = st.sidebar.radio(
+    "Select View Mode",
+    ["Shadow Data", "Live Data"],
+    index=0 if settings.SHADOW_MODE else 1
+)
+status_filter = 'SHADOW' if view_mode == "Shadow Data" else 'settled'
 
-# --- Section 1: System Status & Bankroll ---
-st.header("Bankroll & System Status")
-conn_bankroll = get_db_connection(DB_BANKROLL)
-if conn_bankroll:
-    today = datetime.now(timezone.utc).date().isoformat()
-    df_bankroll = pd.read_sql_query(
-        "SELECT * FROM bankroll WHERE date = ?", conn_bankroll, params=(today,)
-    )
+# --- Section 1: Bankroll Overview ---
+st.header(f"Bankroll & {view_mode}")
+conn = get_db_connection()
 
-    if not df_bankroll.empty:
-        status = df_bankroll["system_status"].iloc[0]
-        current_balance = df_bankroll["current_balance"].iloc[0]
-        daily_pnl = df_bankroll["daily_pnl"].iloc[0]
-        exposure = df_bankroll["daily_exposure"].iloc[0]
+if conn:
+    # Get Bets based on mode
+    query = f"SELECT * FROM bets WHERE status = '{status_filter}' OR status = 'pending' ORDER BY placed_at DESC"
+    if view_mode == "Live Data":
+        # For live, we show settled + pending (excluding shadow)
+        query = "SELECT * FROM bets WHERE status != 'SHADOW' ORDER BY placed_at DESC"
+    
+    df_bets = pd.read_sql_query(query, conn)
+
+    if not df_bets.empty:
+        total_pnl = df_bets['result'].sum() if 'result' in df_bets else 0.0
+        total_staked = df_bets['stake'].sum()
+        roi = (total_pnl / total_staked) * 100 if total_staked > 0 else 0.0
+        win_rate = (len(df_bets[df_bets['status'] == 'won']) / len(df_bets[df_bets['status'] != 'pending'])) * 100 if len(df_bets[df_bets['status'] != 'pending']) > 0 else 0.0
 
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric(
-            "System Status",
-            status,
-            delta_color="off" if status == "ACTIVE" else "inverse",
-        )
-        col2.metric(
-            "Current Balance", f"${current_balance:,.2f}", f"${daily_pnl:,.2f} today"
-        )
-        col3.metric("Daily Exposure", f"${exposure:,.2f}")
-        col4.metric("Peak Balance", f"${df_bankroll['peak_balance'].iloc[0]:,.2f}")
-    else:
-        st.warning("No bankroll data for today.")
+        col1.metric("Total P&L", f"${total_pnl:,.2f}")
+        col2.metric("Total Staked", f"${total_staked:,.2f}")
+        col3.metric("ROI", f"{roi:.2f}%")
+        col4.metric("Win Rate", f"{win_rate:.1f}%")
 
-    # Historical Bankroll Chart
-    df_all_bankroll = pd.read_sql_query(
-        "SELECT date, current_balance FROM bankroll ORDER BY date", conn_bankroll
-    )
-    if not df_all_bankroll.empty:
-        fig = px.line(
-            df_all_bankroll,
-            x="date",
-            y="current_balance",
-            title="Bankroll Growth Over Time",
-        )
+        # Performance Chart
+        df_bets['placed_at'] = pd.to_datetime(df_bets['placed_at'])
+        df_daily = df_bets.set_index('placed_at').resample('D')['result'].sum().cumsum().reset_index()
+        fig = px.line(df_daily, x='placed_at', y='result', title=f"Cumulative {view_mode} Profit")
         st.plotly_chart(fig, use_container_width=True)
 
-    conn_bankroll.close()
-else:
-    st.error("Bankroll database not found.")
-
-st.divider()
-
-# --- Section 2: CLV & Edge Tracking ---
-st.header("CLV & Edge Tracking")
-conn_betlog = get_db_connection(DB_BETLOG)
-if conn_betlog:
-    df_betlog = pd.read_sql_query(
-        "SELECT * FROM bet_log ORDER BY placed_at DESC", conn_betlog
-    )
-
-    if not df_betlog.empty:
-        # Metrics
-        total_bets = len(df_betlog)
-        avg_clv = (
-            df_betlog["clv"].mean() * 100
-            if "clv" in df_betlog and not df_betlog["clv"].isnull().all()
-            else 0.0
-        )
-
-        col1, col2 = st.columns(2)
-        col1.metric("Total Bets Logged", total_bets)
-        col2.metric("Average CLV Capture", f"{avg_clv:.2f}%")
-
-        # Display recent bets
-        st.subheader("Recent Bets")
-        st.dataframe(
-            df_betlog[
-                [
-                    "placed_at",
-                    "match_id",
-                    "market_type",
-                    "side",
-                    "entry_odds",
-                    "stake",
-                    "book",
-                    "clv",
-                    "result",
-                ]
-            ].head(10)
-        )
+        # Recent Bets Table
+        st.subheader(f"Recent {view_mode} History")
+        st.dataframe(df_bets[['placed_at', 'market_type', 'selection', 'odds', 'stake', 'status', 'result']].head(20))
     else:
-        st.info("No bets logged yet.")
-    conn_betlog.close()
+        st.info(f"No {view_mode} recorded yet.")
+    conn.close()
 else:
-    st.error("Bet log database not found.")
-
-st.divider()
-
-# --- Section 3: Account Health ---
-st.header("Bookmaker Account Health")
-conn_accounts = get_db_connection(DB_ACCOUNTS)
-if conn_accounts:
-    df_accounts = pd.read_sql_query(
-        "SELECT * FROM book_accounts ORDER BY tier ASC", conn_accounts
-    )
-    if not df_accounts.empty:
-        st.dataframe(
-            df_accounts[
-                [
-                    "book_name",
-                    "tier",
-                    "status",
-                    "current_balance",
-                    "max_stake",
-                    "total_pnl",
-                ]
-            ]
-        )
-    else:
-        st.info("No account data found.")
-    conn_accounts.close()
-else:
-    st.error("Accounts database not found.")
+    st.error("DeepField database not found. Please run migrations.")

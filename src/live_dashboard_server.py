@@ -1,8 +1,9 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, Response
 import json
 import os
 import sqlite3
 import datetime
+import time
 
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -77,6 +78,28 @@ def get_state():
             return jsonify([])  # Return empty if no state file
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/stream")
+def stream_state():
+    def event_stream():
+        state_path = os.path.join(
+            os.path.dirname(__file__), "..", "data", "todays_dashboard_state.json"
+        )
+        last_mtime = 0
+        while True:
+            try:
+                if os.path.exists(state_path):
+                    mtime = os.path.getmtime(state_path)
+                    if mtime > last_mtime:
+                        last_mtime = mtime
+                        with open(state_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        yield f"data: {content}\n\n"
+            except Exception:
+                pass
+            time.sleep(2)  # Check file every 2 seconds
+
+    return Response(event_stream(), mimetype="text/event-stream")
 
 
 @app.route("/api/bankroll")
@@ -177,6 +200,14 @@ def place_parlay():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+@app.route("/api/active_parlays")
+def get_active_parlays_ledger():
+    parlays = query_db(
+        "bet_log.db",
+        "SELECT parlay_id, total_odds, stake, result, pnl, placed_at, legs_json FROM parlay_log WHERE result = 'OPEN' ORDER BY placed_at DESC"
+    )
+    return jsonify([dict(r) for r in (parlays or [])])
 
 @app.route("/api/settled_ledger")
 def get_settled_ledger():
@@ -390,16 +421,9 @@ def place_bet():
         conn.commit()
         conn.close()
 
-        # Deduct stake from bankroll
-        br_path = os.path.join(DATA_DIR, "bankroll.db")
-        conn2 = sqlite3.connect(br_path)
-        cur2 = conn2.cursor()
-        cur2.execute(
-            "UPDATE bankroll SET current_balance = current_balance - ? WHERE id = (SELECT MAX(id) FROM bankroll)",
-            (stake,),
-        )
-        conn2.commit()
-        conn2.close()
+        # Deduct stake from bankroll via tracker
+        from bankroll_tracker import register_bet
+        register_bet(stake)
 
         return jsonify({"status": "success", "bet_id": bet_id})
     except Exception as e:
@@ -867,5 +891,5 @@ if __name__ == "__main__":
         print(
             "[*] Background prediction worker thread is DISABLED (running in multi-process mode)."
         )
-    print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5050")
-    app.run(host="0.0.0.0", port=5050, debug=False)
+    print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5055")
+    app.run(host="0.0.0.0", port=5055, debug=False)

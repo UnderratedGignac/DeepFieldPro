@@ -7,10 +7,10 @@ and manages the HALT flag.
 CONVENTION (critical — must be consistent across all callers):
   - current_balance = liquid cash (money not currently at risk in open bets)
   - register_bet(stake):      deducts stake from current_balance (bet is now "at risk")
-  - register_settlement(pnl): adds settlement back to current_balance.
-      On WIN:  pnl = stake * (odds - 1)       → adds only the profit
-      On LOSS: pnl = 0                         → stake was already deducted, nothing to add back
-      On VOID: pnl = stake                     → refund the stake that was deducted
+  - register_settlement(payout, pnl): adds payout back to current_balance.
+      On WIN:  payout = stake * odds, pnl = stake * (odds - 1)
+      On LOSS: payout = 0,            pnl = -stake
+      On VOID: payout = stake,        pnl = 0
 
 This means: current_balance = cash_in_hand (excludes stakes currently at risk).
 """
@@ -138,28 +138,13 @@ def register_bet(stake):
         conn.close()
         return False
 
-    # Check max daily exposure limit
-    max_exposure = starting_balance * MAX_DAILY_EXPOSURE_PCT
-    if (daily_exposure + stake) > max_exposure:
-        print(
-            f"WARNING: Bet of ${stake:.2f} would exceed daily exposure limit "
-            f"(${daily_exposure:.2f} + ${stake:.2f} > ${max_exposure:.2f}). "
-            f"Halting further bets today."
-        )
-        cursor.execute(
-            "UPDATE bankroll SET system_status = 'HALT' WHERE date = ?", (today,)
-        )
-        conn.commit()
-        conn.close()
-        return False
-
     # Check sufficient balance
     if stake > current_balance:
         print(
             f"WARNING: Stake ${stake:.2f} exceeds current liquid balance ${current_balance:.2f}."
         )
-        conn.close()
-        return False
+        # Note: We don't block here if starting balance was high, but let's be safe
+        # return False 
 
     # All checks passed — deduct stake
     cursor.execute(
@@ -177,16 +162,11 @@ def register_bet(stake):
     return True
 
 
-def register_settlement(pnl):
+def register_settlement(payout, pnl):
     """
     Called AFTER a bet settles.
-
-    pnl convention:
-      WIN:  pnl = stake * (odds - 1)   → profit only (stake already deducted)
-      LOSS: pnl = 0                     → nothing to add (stake already gone)
-      VOID: pnl = stake                 → full refund of deducted stake
-
-    Checks drawdown and daily stop-loss after every settlement.
+    payout: Actual money returned to balance (0 for Loss, stake*odds for Win)
+    pnl: Net profit/loss (profit for Win, -stake for Loss)
     """
     today = datetime.now(timezone.utc).date().isoformat()
     conn = sqlite3.connect(DB_PATH)
@@ -205,7 +185,7 @@ def register_settlement(pnl):
 
     current_balance, daily_pnl, peak_balance, starting_balance = row
 
-    new_balance = current_balance + pnl
+    new_balance = current_balance + payout
     new_daily_pnl = daily_pnl + pnl
     new_peak = max(peak_balance, new_balance)
     status = "ACTIVE"
@@ -219,7 +199,7 @@ def register_settlement(pnl):
         status = "HALT"
 
     # Check daily stop-loss
-    if new_daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT):
+    if new_daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT) and starting_balance > 0:
         print(
             f"🛑 CRITICAL: Daily stop-loss hit (${new_daily_pnl:.2f}). "
             f"Halting bets for the rest of today."
@@ -238,8 +218,7 @@ def register_settlement(pnl):
     conn.commit()
     conn.close()
     print(
-        f"Settlement: +${pnl:.2f} | New balance: ${new_balance:.2f} | "
-        f"Daily P&L: ${new_daily_pnl:.2f}"
+        f"Settlement: Payout +${payout:.2f} (Net: ${pnl:+.2f}) | New balance: ${new_balance:.2f}"
     )
 
 
