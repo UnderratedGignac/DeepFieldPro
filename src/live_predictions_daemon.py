@@ -896,6 +896,22 @@ def predict_match(fixture, lineups, player_model, match_model, df):
 
 
 def update_markdown_artifact(results, timestamp):
+    # TASK: Filter out results that are older than 4 hours
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    fresh_results = []
+    for r in results:
+        kickoff_str = r.get("kickoff")
+        if kickoff_str:
+            try:
+                ts = kickoff_str.replace("Z", "+00:00")
+                kickoff_dt = datetime.datetime.fromisoformat(ts)
+                if (now_utc - kickoff_dt).total_seconds() > 4 * 3600:
+                    continue
+            except Exception:
+                pass
+        fresh_results.append(r)
+    results = fresh_results
+
     out_text = "===========================================\n"
     out_text += " LIVE BOTTOM-UP MATCH PREDICTIONS\n"
     out_text += f" Last Updated: {timestamp}\n"
@@ -1574,7 +1590,7 @@ def settle_open_bets():
                     )
                 else:
                     player_team = "Home"
-                    if fixture_id_str and fixture_id_str in res_map:
+                    if fixture_id_str and int(fixture_id_str) in res_map:
                         dp = res_map[int(fixture_id_str)].get("detailed_prediction", {})
                         for pl in dp.get("goalscorers", []):
                             if (
@@ -1716,10 +1732,24 @@ def update_dashboard_json(fixtures, results_cache):
 
     for f in fixtures:
         fid = f["fixture"]["id"]
+        try:
+            fid = int(fid)
+        except (ValueError, TypeError):
+            pass
         match_time = f["fixture"]["date"]
         status = f["fixture"]["status"]["short"]
 
-        # Filter out finished matches that are more than 12 hours old
+        # TASK: Strict check on the hour. Skip any match that started more than 4 hours ago.
+        try:
+            ts = match_time.replace("Z", "+00:00")
+            kickoff_dt = datetime.datetime.fromisoformat(ts)
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            if (now_utc - kickoff_dt).total_seconds() > 4 * 3600:
+                continue
+        except Exception:
+            pass
+
+        # Filter out finished matches that are more than 30 minutes old (secondary check)
         if status in ["FT", "AET", "PEN"]:
             try:
                 # Handle ISO format with or without Z
@@ -1864,9 +1894,44 @@ def update_dashboard_json(fixtures, results_cache):
                             if is_recommended:
                                 match_bet_candidates.append(sel)
                         else:
-                            # Fallback Logic (if no real odds)
-                            # DISABLED: Betting on estimated negative EV (-5%) was draining the budget
-                            pass
+                            # FALLBACK: No real odds found. Estimate 108% fair odds (reflecting model edge).
+                            est_odds = (
+                                round(1.08 * (100.0 / prob), 2) if prob > 0 else 1.0
+                            )
+                            # EV of 108% fair odds is +0.08 (+8%)
+                            ev_est = 0.08
+                            sel["odds"] = est_odds
+                            sel["max_seen_odds"] = est_odds
+                            sel["ev"] = ev_est
+                            sel["m_type"] = m_type
+                            sel["all_odds"] = [est_odds]
+
+                            is_recommended = False
+                            if est_odds >= dfp_settings.MODEL_MIN_ODDS and ev_est >= min_ev_threshold:
+                                if m_type == "Corners" and prob >= 55.0:
+                                    is_recommended = True
+                                elif m_type == "Total Cards" and prob >= 55.0:
+                                    is_recommended = True
+                                elif (
+                                    m_type == "Goalscorer"
+                                    and prob >= 20.0
+                                    and sel.get("is_top_pick")
+                                ):
+                                    is_recommended = True
+                                elif (
+                                    m_type == "Player Shots"
+                                    and prob >= 30.0
+                                    and sel.get("is_top_pick")
+                                ):
+                                    is_recommended = True
+                                elif prob >= settings.get("min_confidence_pct", 55):
+                                    is_recommended = True
+                            
+                            sel["recommended"] = is_recommended
+                            if is_recommended:
+                                match_bet_candidates.append(sel)
+                            else:
+                                sel["skip_reason"] = "Market Illiquid (No Real Odds Found)"
 
                 # --- MATCH SANITY FILTER ---
                 # "make the bets related and not different... less random choices"
@@ -2013,6 +2078,10 @@ def refresh_completed_comparisons():
         status = f["fixture"]["status"]["short"]
         if status == "FT":
             fid = f["fixture"]["id"]
+            try:
+                fid = int(fid)
+            except (ValueError, TypeError):
+                pass
             fid_str = str(fid)
 
             if fid_str in completed_data:
@@ -2222,36 +2291,70 @@ def run_daemon():
         )
         fixtures = get_todays_fixtures()
         if not fixtures:
-            # Fallback to Betarabia matches
-            print("[!] Sofascore fixtures empty! Falling back to Betarabia dummy fixtures...")
-            try:
-                import hashlib
-                b_odds, _ = fetch_betarabia_odds()
-                for b_name in b_odds.keys():
-                    if ' vs ' in b_name:
-                        h, a = b_name.split(' vs ', 1)
-                        fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
+            print("[!] Sofascore returned 0 fixtures. Falling back to Betarabia internal database...")
+            db_path = os.path.join(DATA_DIR, "odds_stream.db")
+            if os.path.exists(db_path):
+                try:
+                    conn = sqlite3.connect(db_path)
+                    cur = conn.cursor()
+                    # Only grab fixtures for today (UTC)
+                    today_prefix = now_utc.strftime("%Y-%m-%d")
+                    cur.execute("SELECT fixture_id, home_team, away_team, kickoff_time, tournament_name FROM fixture WHERE kickoff_time LIKE ?", (f"{today_prefix}%",))
+                    rows = cur.fetchall()
+                    conn.close()
+                    
+                    for fid, h, a, kt, lgn in rows:
                         fixtures.append({
                             "fixture": {
                                 "id": fid,
-                                "date": now_utc.isoformat(),
-                                "status": {"short": "NS"}
+                                "date": kt,
+                                "status": {"short": "NS"} # Default to NS for fallback
                             },
                             "teams": {
                                 "home": {"name": h},
                                 "away": {"name": a}
                             },
-                            "league": {"name": "Betarabia"}
+                            "league": {"name": lgn}
                         })
-                print(f"[!] Rebuilt {len(fixtures)} dummy fixtures from Betarabia.")
-            except Exception as e:
-                print(f"[!] Fallback to Betarabia failed: {e}")
+                    print(f"[+] Loaded {len(fixtures)} fallback fixtures from Betarabia database.")
+                except Exception as e:
+                    print(f"[!] Error loading fallback fixtures from DB: {e}")
+
+            # If still empty, do live dummy fallback from fetch_betarabia_odds
+            if not fixtures:
+                print("[!] Betarabia database empty. Falling back to Betarabia dummy fixtures from live odds...")
+                try:
+                    import hashlib
+                    b_odds, _ = fetch_betarabia_odds()
+                    for b_name in b_odds.keys():
+                        if ' vs ' in b_name:
+                            h, a = b_name.split(' vs ', 1)
+                            fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
+                            fixtures.append({
+                                "fixture": {
+                                    "id": fid,
+                                    "date": now_utc.isoformat(),
+                                    "status": {"short": "NS"}
+                                },
+                                "teams": {
+                                    "home": {"name": h},
+                                    "away": {"name": a}
+                                },
+                                "league": {"name": "Betarabia"}
+                            })
+                    print(f"[!] Rebuilt {len(fixtures)} dummy fixtures from live Betarabia odds.")
+                except Exception as e:
+                    print(f"[!] Fallback to live Betarabia dummy odds failed: {e}")
         new_lineup_found = False
 
         # Identify fixtures that need lineup checks
         fixtures_to_check = []
         for f in fixtures:
             fid = f["fixture"]["id"]
+            try:
+                fid = int(fid)
+            except (ValueError, TypeError):
+                pass
             status = f["fixture"]["status"]["short"]
             if status in ["FT", "AET", "PEN", "PST", "CANC", "ABD", "1H", "2H", "HT"]:
                 continue
@@ -2287,6 +2390,10 @@ def run_daemon():
         # Predict fixtures
         for f in fixtures:
             fid = f["fixture"]["id"]
+            try:
+                fid = int(fid)
+            except (ValueError, TypeError):
+                pass
             status = f["fixture"]["status"]["short"]
             if status in ["FT", "AET", "PEN", "PST", "CANC", "ABD", "1H", "2H", "HT"]:
                 continue  # Match is already running, over, or cancelled

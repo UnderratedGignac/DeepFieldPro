@@ -5,6 +5,14 @@ import sys
 import sqlite3
 import datetime
 import time
+import sys
+from dotenv import load_dotenv
+
+# Add parent directory to sys.path so 'from src...' imports work
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Load environment variables
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # Ensure src is in path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -98,9 +106,18 @@ def stream_state():
                         last_mtime = mtime
                         with open(state_path, "r", encoding="utf-8") as f:
                             content = f.read()
-                        yield f"data: {content}\n\n"
-            except Exception:
-                pass
+                            if content and content.strip():
+                                try:
+                                    json_data = json.loads(content)
+                                    if isinstance(json_data, list):
+                                        print(f"[*] [SSE] Streaming update with {len(json_data)} matches.")
+                                    yield f"data: {content}\n\n"
+                                except json.JSONDecodeError as e:
+                                    print(f"[!] [SSE] JSON Decode Error: {e}")
+                            else:
+                                yield "data: []\n\n"
+            except Exception as e:
+                print(f"[!] [SSE] Stream Exception: {e}")
             time.sleep(2)  # Check file every 2 seconds
 
     return Response(event_stream(), mimetype="text/event-stream")
@@ -895,5 +912,7 @@ if __name__ == "__main__":
         print(
             "[*] Background prediction worker thread is DISABLED (running in multi-process mode)."
         )
-    print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5050")
-    app.run(host="0.0.0.0", port=5050, debug=False)
+    host = os.getenv("FLASK_HOST", "0.0.0.0")
+    port = int(os.getenv("FLASK_PORT", 5050))
+    print(f"[*] Starting DeepFieldPro Live UI on http://127.0.0.1:{port}")
+    app.run(host=host, port=port, debug=False)
