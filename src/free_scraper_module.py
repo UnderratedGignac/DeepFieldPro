@@ -87,6 +87,31 @@ def get_todays_fixtures_free():
                             },
                         }
                     )
+                if not formatted_fixtures:
+                    print("[!] Sofascore fixtures empty! Falling back to Betarabia dummy fixtures...")
+                    import hashlib
+                    from src.live_predictions_daemon import fetch_betarabia_odds
+                    b_odds, _ = fetch_betarabia_odds()
+                    for b_name in b_odds.keys():
+                        if ' vs ' in b_name:
+                            h, a = b_name.split(' vs ', 1)
+                            fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
+                            formatted_fixtures.append({
+                                "fixture": {
+                                    "id": fid,
+                                    "date": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                                    "status": {"short": "NS"},
+                                    "home_score": None,
+                                    "away_score": None
+                                },
+                                "league": {"name": "Betarabia"},
+                                "teams": {
+                                    "home": {"name": h},
+                                    "away": {"name": a}
+                                }
+                            })
+                    print(f"[!] Rebuilt {len(formatted_fixtures)} dummy fixtures from Betarabia.")
+
                 return formatted_fixtures
         except Exception as e:
             if "used by another process" in str(e) and attempt < 2:
@@ -94,8 +119,37 @@ def get_todays_fixtures_free():
                 time.sleep(3)
                 continue
             print(f"[!] Scraper Error (Fixtures): {e}")
-            return []
-    return []
+
+    # Fallback to Betarabia if all attempts fail
+    formatted_fixtures = []
+    print("[!] Sofascore completely failed. Falling back to Betarabia dummy fixtures...")
+    try:
+        import hashlib
+        from src.live_predictions_daemon import fetch_betarabia_odds
+        b_odds, _ = fetch_betarabia_odds()
+        for b_name in b_odds.keys():
+            if ' vs ' in b_name:
+                h, a = b_name.split(' vs ', 1)
+                fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
+                formatted_fixtures.append({
+                    "fixture": {
+                        "id": fid,
+                        "date": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        "status": {"short": "NS"},
+                        "home_score": None,
+                        "away_score": None
+                    },
+                    "league": {"name": "Betarabia"},
+                    "teams": {
+                        "home": {"name": h},
+                        "away": {"name": a}
+                    }
+                })
+        print(f"[!] Rebuilt {len(formatted_fixtures)} dummy fixtures from Betarabia.")
+    except Exception as e:
+        print(f"[!] Fallback to Betarabia failed: {e}")
+        
+    return formatted_fixtures
 
 
 def get_fixture_lineups_free(fixture_id):

@@ -2221,6 +2221,31 @@ def run_daemon():
             f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Scanning fixtures for predictions..."
         )
         fixtures = get_todays_fixtures()
+        if not fixtures:
+            # Fallback to Betarabia matches
+            print("[!] Sofascore fixtures empty! Falling back to Betarabia dummy fixtures...")
+            try:
+                import hashlib
+                b_odds, _ = fetch_betarabia_odds()
+                for b_name in b_odds.keys():
+                    if ' vs ' in b_name:
+                        h, a = b_name.split(' vs ', 1)
+                        fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
+                        fixtures.append({
+                            "fixture": {
+                                "id": fid,
+                                "date": now_utc.isoformat(),
+                                "status": {"short": "NS"}
+                            },
+                            "teams": {
+                                "home": {"name": h},
+                                "away": {"name": a}
+                            },
+                            "league": {"name": "Betarabia"}
+                        })
+                print(f"[!] Rebuilt {len(fixtures)} dummy fixtures from Betarabia.")
+            except Exception as e:
+                print(f"[!] Fallback to Betarabia failed: {e}")
         new_lineup_found = False
 
         # Identify fixtures that need lineup checks

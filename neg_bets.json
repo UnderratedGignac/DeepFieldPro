@@ -1,0 +1,2627 @@
+[
+  [
+    "C\u00f4te d'Ivoire U23 vs Canada U20 (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "C\u00f4te d'Ivoire U23 vs Canada U20 (Over 8.5 Corners)",
+    "Corners",
+    1.19,
+    1.253,
+    -5
+  ],
+  [
+    "C\u00f4te d'Ivoire U23 vs Canada U20 (Over 3.5 Cards)",
+    "Total Cards",
+    1.19,
+    1.253,
+    -5
+  ],
+  [
+    "C\u00f4te d'Ivoire U23 vs Canada U20 (Antoni Klukowski Anytime Goal)",
+    "Goalscorer",
+    3.53,
+    3.717,
+    -5
+  ],
+  [
+    "C\u00f4te d'Ivoire U23 vs Canada U20 (Antoni Klukowski Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "C\u00f4te d'Ivoire U23 vs Canada U20 (Konan Jaures-Ulrich Loukou Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "C\u00f4te d'Ivoire U23 vs Canada U20 (Marius Aiyenero Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Belarus U21 vs Kazakhstan U21 (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Belarus U21 vs Kazakhstan U21 (Over 8.5 Corners)",
+    "Corners",
+    1,
+    1.053,
+    -5
+  ],
+  [
+    "Belarus U21 vs Kazakhstan U21 (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Belarus U21 vs Kazakhstan U21 (Mansur Birkurmanov Anytime Goal)",
+    "Goalscorer",
+    3.6,
+    3.788,
+    -5
+  ],
+  [
+    "Belarus U21 vs Kazakhstan U21 (Gleb Kuchko Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Belarus U21 vs Kazakhstan U21 (Mansur Birkurmanov Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Belarus U21 vs Kazakhstan U21 (Dinmukhammed Rustemuly Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "KTP vs FC Haka (Away (2))",
+    "1X2",
+    1.41,
+    1.484,
+    -5
+  ],
+  [
+    "KTP vs FC Haka (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "KTP vs FC Haka (Over 8.5 Corners)",
+    "Corners",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "KTP vs FC Haka (Over 3.5 Cards)",
+    "Total Cards",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "KTP vs FC Haka (Onni H\u00e4nninen Anytime Goal)",
+    "Goalscorer",
+    3.67,
+    3.861,
+    -5
+  ],
+  [
+    "KTP vs FC Haka (Roni Polat Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "KTP vs FC Haka (Onni H\u00e4nninen Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "KTP vs FC Haka (Oliver Whyte Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Fath Union Sport vs Difa\u00e2 Hassani El-Jadidi (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Fath Union Sport vs Difa\u00e2 Hassani El-Jadidi (Over 8.5 Corners)",
+    "Corners",
+    1,
+    1.053,
+    -5
+  ],
+  [
+    "Fath Union Sport vs Difa\u00e2 Hassani El-Jadidi (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Fath Union Sport vs Difa\u00e2 Hassani El-Jadidi (Lamine Diakit\u00e9 Anytime Goal)",
+    "Goalscorer",
+    3.47,
+    3.65,
+    -5
+  ],
+  [
+    "Fath Union Sport vs Difa\u00e2 Hassani El-Jadidi (Romuald Dacosta Anytime Goal)",
+    "Goalscorer",
+    3.47,
+    3.65,
+    -5
+  ],
+  [
+    "Fath Union Sport vs Difa\u00e2 Hassani El-Jadidi (Lamine Diakit\u00e9 Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Fath Union Sport vs Difa\u00e2 Hassani El-Jadidi (Romuald Dacosta Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Fath Union Sport vs Difa\u00e2 Hassani El-Jadidi (Salaheddine Benyachou Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Norway U21 vs Finland U21 (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Norway U21 vs Finland U21 (Over 8.5 Corners)",
+    "Corners",
+    1.07,
+    1.125,
+    -5
+  ],
+  [
+    "Norway U21 vs Finland U21 (Liam M\u00f6ller Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Norway U21 vs Finland U21 (Liam M\u00f6ller Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Norway U21 vs Finland U21 (Kristian Lonebu Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Norway U21 vs Finland U21 (Niklas Kemp Fuglestad Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Venezuela U23 vs Portugal U19 (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Venezuela U23 vs Portugal U19 (Over 8.5 Corners)",
+    "Corners",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Venezuela U23 vs Portugal U19 (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Venezuela U23 vs Portugal U19 (Tiago Freitas Anytime Goal)",
+    "Goalscorer",
+    3.37,
+    3.546,
+    -5
+  ],
+  [
+    "Venezuela U23 vs Portugal U19 (Tiago Freitas Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Venezuela U23 vs Portugal U19 (Fabio Bald\u00e9 Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Venezuela U23 vs Portugal U19 (Santos Torrealba Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "\u00c4ngelholms FF vs BK Olympic (Home (1))",
+    "1X2",
+    1.41,
+    1.484,
+    -5
+  ],
+  [
+    "\u00c4ngelholms FF vs BK Olympic (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "\u00c4ngelholms FF vs BK Olympic (Over 8.5 Corners)",
+    "Corners",
+    1.07,
+    1.125,
+    -5
+  ],
+  [
+    "\u00c4ngelholms FF vs BK Olympic (Eric Vedholm Anytime Goal)",
+    "Goalscorer",
+    3.43,
+    3.61,
+    -5
+  ],
+  [
+    "\u00c4ngelholms FF vs BK Olympic (Eric Vedholm Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "\u00c4ngelholms FF vs BK Olympic (Yassin Mohammed Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "\u00c4ngelholms FF vs BK Olympic (Chibueze Blessing Ejimole Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "FC Stockholm Internazionale vs Vasalunds IF (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "FC Stockholm Internazionale vs Vasalunds IF (Over 8.5 Corners)",
+    "Corners",
+    1.26,
+    1.328,
+    -5
+  ],
+  [
+    "FC Stockholm Internazionale vs Vasalunds IF (Over 3.5 Cards)",
+    "Total Cards",
+    1.19,
+    1.253,
+    -5
+  ],
+  [
+    "FC Stockholm Internazionale vs Vasalunds IF (Lukas Sunesson Anytime Goal)",
+    "Goalscorer",
+    3.75,
+    3.953,
+    -5
+  ],
+  [
+    "FC Stockholm Internazionale vs Vasalunds IF (Lukas Sunesson Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "FC Stockholm Internazionale vs Vasalunds IF (Maximilian Dejene Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "FC Stockholm Internazionale vs Vasalunds IF (Elias Alarcon Mac Callum Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "FC J\u00e4rf\u00e4lla vs IFK Stocksund (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "FC J\u00e4rf\u00e4lla vs IFK Stocksund (Over 8.5 Corners)",
+    "Corners",
+    1.26,
+    1.328,
+    -5
+  ],
+  [
+    "FC J\u00e4rf\u00e4lla vs IFK Stocksund (Over 3.5 Cards)",
+    "Total Cards",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "FC J\u00e4rf\u00e4lla vs IFK Stocksund (Kenan Nisic Anytime Goal)",
+    "Goalscorer",
+    3.47,
+    3.65,
+    -5
+  ],
+  [
+    "FC J\u00e4rf\u00e4lla vs IFK Stocksund (Kenan Nisic Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "FC J\u00e4rf\u00e4lla vs IFK Stocksund (Abdulmannan Khalil Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "FC J\u00e4rf\u00e4lla vs IFK Stocksund (Noel W\u00e5gberg Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Utsiktens BK vs FC Roseng\u00e5rd (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Utsiktens BK vs FC Roseng\u00e5rd (Over 8.5 Corners)",
+    "Corners",
+    1.19,
+    1.253,
+    -5
+  ],
+  [
+    "Utsiktens BK vs FC Roseng\u00e5rd (Over 3.5 Cards)",
+    "Total Cards",
+    1.01,
+    1.065,
+    -5
+  ],
+  [
+    "Utsiktens BK vs FC Roseng\u00e5rd (Emmanuel Onotu Anytime Goal)",
+    "Goalscorer",
+    3.38,
+    3.559,
+    -5
+  ],
+  [
+    "Utsiktens BK vs FC Roseng\u00e5rd (Emmanuel Onotu Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Utsiktens BK vs FC Roseng\u00e5rd (Victor Andersson Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Utsiktens BK vs FC Roseng\u00e5rd (Wiggo Hjort Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "RS Berkane vs Ittihad Tanger (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "RS Berkane vs Ittihad Tanger (Over 8.5 Corners)",
+    "Corners",
+    1.05,
+    1.1,
+    -5
+  ],
+  [
+    "RS Berkane vs Ittihad Tanger (Over 3.5 Cards)",
+    "Total Cards",
+    0.99,
+    1.043,
+    -5
+  ],
+  [
+    "RS Berkane vs Ittihad Tanger (Youssef Mehri Anytime Goal)",
+    "Goalscorer",
+    3.54,
+    3.731,
+    -5
+  ],
+  [
+    "RS Berkane vs Ittihad Tanger (Youssef Mehri Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "RS Berkane vs Ittihad Tanger (Haytham El Bahja Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "RS Berkane vs Ittihad Tanger (Jawad Rhabra Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Wydad Casablanca vs Olympic Safi (Over 8.5 Corners)",
+    "Corners",
+    1.05,
+    1.1,
+    -5
+  ],
+  [
+    "Wydad Casablanca vs Olympic Safi (Over 3.5 Cards)",
+    "Total Cards",
+    1.05,
+    1.1,
+    -5
+  ],
+  [
+    "Wydad Casablanca vs Olympic Safi (Achref Habbassi Anytime Goal)",
+    "Goalscorer",
+    3.44,
+    3.623,
+    -5
+  ],
+  [
+    "Wydad Casablanca vs Olympic Safi (Achref Habbassi Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Wydad Casablanca vs Olympic Safi (Mohamed Rayhi Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Wydad Casablanca vs Olympic Safi (Wissam Ben Yedder Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Netherlands vs Uzbekistan (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Netherlands vs Uzbekistan (Over 8.5 Corners)",
+    "Corners",
+    1.05,
+    1.1,
+    -5
+  ],
+  [
+    "Netherlands vs Uzbekistan (Donyell Malen Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Netherlands vs Uzbekistan (Cody Gakpo Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Netherlands vs Uzbekistan (Donyell Malen Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Netherlands vs Uzbekistan (Cody Gakpo Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Netherlands vs Uzbekistan (Eldor Shomurodov Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Columbus Crew 2 vs Connecticut United (Over 8.5 Corners)",
+    "Corners",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Columbus Crew 2 vs Connecticut United (Over 3.5 Cards)",
+    "Total Cards",
+    1.01,
+    1.065,
+    -5
+  ],
+  [
+    "Columbus Crew 2 vs Connecticut United (Barnab\u00e1s Tanyi Anytime Goal)",
+    "Goalscorer",
+    3.78,
+    3.984,
+    -5
+  ],
+  [
+    "Columbus Crew 2 vs Connecticut United (Barnab\u00e1s Tanyi Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Columbus Crew 2 vs Connecticut United (Patrick Paix\u00e3o Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Columbus Crew 2 vs Connecticut United (Kevin Gbambl\u00e9 Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "France vs Northern Ireland (Over 8.5 Corners)",
+    "Corners",
+    0.99,
+    1.043,
+    -5
+  ],
+  [
+    "France vs Northern Ireland (Over 3.5 Cards)",
+    "Total Cards",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "France vs Northern Ireland (D\u00e9sir\u00e9 Dou\u00e9 Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "France vs Northern Ireland (Kylian Mbapp\u00e9 Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "France vs Northern Ireland (D\u00e9sir\u00e9 Dou\u00e9 Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "France vs Northern Ireland (Kylian Mbapp\u00e9 Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "France vs Northern Ireland (Jamie Donley Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Olympique Dcheira vs Hassania d'Agadir (Over 8.5 Corners)",
+    "Corners",
+    1.5,
+    1.582,
+    -5
+  ],
+  [
+    "Olympique Dcheira vs Hassania d'Agadir (Reda Abardi Anytime Goal)",
+    "Goalscorer",
+    3.45,
+    3.636,
+    -5
+  ],
+  [
+    "Olympique Dcheira vs Hassania d'Agadir (Reda Abardi Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Olympique Dcheira vs Hassania d'Agadir (Ayoub Benaadi\u00a0 Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Olympique Dcheira vs Hassania d'Agadir (Baba Ilou Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Nacional vs Junior Barranquilla (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Nacional vs Junior Barranquilla (Over 8.5 Corners)",
+    "Corners",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Nacional vs Junior Barranquilla (Over 3.5 Cards)",
+    "Total Cards",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Nacional vs Junior Barranquilla (Jannenson Sarmiento Anytime Goal)",
+    "Goalscorer",
+    3.36,
+    3.534,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Nacional vs Junior Barranquilla (Jannenson Sarmiento Over 1.5 Shots)",
+    "Player Shots",
+    1.22,
+    1.282,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Nacional vs Junior Barranquilla (Nicol\u00e1s Rodr\u00edguez Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Nacional vs Junior Barranquilla (Alfredo Morelos Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Liverpool UY vs Cerro Largo (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Liverpool UY vs Cerro Largo (Over 8.5 Corners)",
+    "Corners",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Liverpool UY vs Cerro Largo (Over 3.5 Cards)",
+    "Total Cards",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "Liverpool UY vs Cerro Largo (Tiziano Correa Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Liverpool UY vs Cerro Largo (Tiziano Correa Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Liverpool UY vs Cerro Largo (Rub\u00e9n Bentancourt Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Liverpool UY vs Cerro Largo (Federico Mart\u00ednez Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Am\u00e9rica Mineiro vs Atl\u00e9tico Goianiense (Over 8.5 Corners)",
+    "Corners",
+    1.19,
+    1.253,
+    -5
+  ],
+  [
+    "Am\u00e9rica Mineiro vs Atl\u00e9tico Goianiense (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Am\u00e9rica Mineiro vs Atl\u00e9tico Goianiense (Gabriel Barros Anytime Goal)",
+    "Goalscorer",
+    3.58,
+    3.774,
+    -5
+  ],
+  [
+    "Am\u00e9rica Mineiro vs Atl\u00e9tico Goianiense (Gabriel Barros Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Am\u00e9rica Mineiro vs Atl\u00e9tico Goianiense (Geovany Soares Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Am\u00e9rica Mineiro vs Atl\u00e9tico Goianiense (Gustavo Coutinho Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Vila Nova FC vs Botafogo-SP (Over 8.5 Corners)",
+    "Corners",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Vila Nova FC vs Botafogo-SP (Over 3.5 Cards)",
+    "Total Cards",
+    1.19,
+    1.253,
+    -5
+  ],
+  [
+    "Vila Nova FC vs Botafogo-SP (Janderson Anytime Goal)",
+    "Goalscorer",
+    3.51,
+    3.69,
+    -5
+  ],
+  [
+    "Vila Nova FC vs Botafogo-SP (Janderson Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Vila Nova FC vs Botafogo-SP (Andr\u00e9 Lu\u00eds Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Vila Nova FC vs Botafogo-SP (Kelvin Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Deportes Temuco vs Curic\u00f3 Unido (Over 8.5 Corners)",
+    "Corners",
+    1.07,
+    1.125,
+    -5
+  ],
+  [
+    "Deportes Temuco vs Curic\u00f3 Unido (Over 3.5 Cards)",
+    "Total Cards",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Deportes Temuco vs Curic\u00f3 Unido (Maximiliano Cuadra Anytime Goal)",
+    "Goalscorer",
+    3.64,
+    3.831,
+    -5
+  ],
+  [
+    "Deportes Temuco vs Curic\u00f3 Unido (Maximiliano Cuadra Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Deportes Temuco vs Curic\u00f3 Unido (Diego Avenda\u00f1o Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Deportes Temuco vs Curic\u00f3 Unido (Mauro L\u00f3pes Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "Deportes Temuco vs Curic\u00f3 Unido (Mauro L\u00f3pes Anytime Goal)",
+    "Goalscorer",
+    3.49,
+    3.676,
+    -5
+  ],
+  [
+    "Deportes Temuco vs Curic\u00f3 Unido (Luis Acevedo Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Uni\u00f3n Espa\u00f1ola vs Uni\u00f3n San Felipe (Over 8.5 Corners)",
+    "Corners",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Uni\u00f3n Espa\u00f1ola vs Uni\u00f3n San Felipe (Over 3.5 Cards)",
+    "Total Cards",
+    0.99,
+    1.043,
+    -5
+  ],
+  [
+    "Uni\u00f3n Espa\u00f1ola vs Uni\u00f3n San Felipe (Norberto Palmieri Anytime Goal)",
+    "Goalscorer",
+    3.38,
+    3.559,
+    -5
+  ],
+  [
+    "Uni\u00f3n Espa\u00f1ola vs Uni\u00f3n San Felipe (Norberto Palmieri Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Uni\u00f3n Espa\u00f1ola vs Uni\u00f3n San Felipe (Andr\u00e9s Vilches Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Uni\u00f3n Espa\u00f1ola vs Uni\u00f3n San Felipe (Mitchell Wassenne Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Uni\u00f3n Espa\u00f1ola vs Uni\u00f3n San Felipe (Patricio Mu\u00f1oz Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Over 8.5 Corners)",
+    "Corners",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Over 3.5 Cards)",
+    "Total Cards",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Tega Ikoba Anytime Goal)",
+    "Goalscorer",
+    3.6,
+    3.788,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Marcus Caldeira Anytime Goal)",
+    "Goalscorer",
+    3.91,
+    4.115,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Marcus Caldeira Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Darius Randell Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Tega Ikoba Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Minnesota United FC 2 vs Sporting Kansas City II (Ty Haas Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Spain vs Peru (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Spain vs Peru (Over 8.5 Corners)",
+    "Corners",
+    1.03,
+    1.08,
+    -5
+  ],
+  [
+    "Spain vs Peru (Over 3.5 Cards)",
+    "Total Cards",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Spain vs Peru (Over 3.5 Cards)",
+    "Total Cards",
+    1.1,
+    1.156,
+    -5
+  ],
+  [
+    "Spain vs Peru (Mikel Oyarzabal Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Spain vs Peru (Dani Olmo Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Spain vs Peru (Mikel Oyarzabal Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Spain vs Peru (Dani Olmo Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Spain vs Peru (Adri\u00e1n Ugarriza Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "East Timor vs Brunei Darussalam (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "East Timor vs Brunei Darussalam (Over 8.5 Corners)",
+    "Corners",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "East Timor vs Brunei Darussalam (Over 3.5 Cards)",
+    "Total Cards",
+    1.19,
+    1.253,
+    -5
+  ],
+  [
+    "East Timor vs Brunei Darussalam (Hariz Danial Khallidden Anytime Goal)",
+    "Goalscorer",
+    3.58,
+    3.774,
+    -5
+  ],
+  [
+    "East Timor vs Brunei Darussalam (Zenivio Mota Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "East Timor vs Brunei Darussalam (Hariz Danial Khallidden Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "East Timor vs Brunei Darussalam (Nur Asyraffahmi Norsamri Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "China vs Thailand (Away (2))",
+    "1X2",
+    1.41,
+    1.484,
+    -5
+  ],
+  [
+    "China vs Thailand (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "China vs Thailand (Over 8.5 Corners)",
+    "Corners",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "China vs Thailand (Over 3.5 Cards)",
+    "Total Cards",
+    1.19,
+    1.253,
+    -5
+  ],
+  [
+    "China vs Thailand (Teerasak Poeiphimai Anytime Goal)",
+    "Goalscorer",
+    3.74,
+    3.937,
+    -5
+  ],
+  [
+    "China vs Thailand (Zhang Yuning Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "China vs Thailand (Teerasil Dangda Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "China vs Thailand (Teerasak Poeiphimai Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Philippines vs Myanmar (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Philippines vs Myanmar (Over 8.5 Corners)",
+    "Corners",
+    1.03,
+    1.08,
+    -5
+  ],
+  [
+    "Philippines vs Myanmar (Over 3.5 Cards)",
+    "Total Cards",
+    1.05,
+    1.1,
+    -5
+  ],
+  [
+    "Philippines vs Myanmar (Jarvey Gayoso Anytime Goal)",
+    "Goalscorer",
+    3.44,
+    3.623,
+    -5
+  ],
+  [
+    "Philippines vs Myanmar (Jarvey Gayoso Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Philippines vs Myanmar (Randy Schneider Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Philippines vs Myanmar (Maw Oo Min Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "Cambodia vs Hong Kong (Away (2))",
+    "1X2",
+    1.41,
+    1.484,
+    -5
+  ],
+  [
+    "Cambodia vs Hong Kong (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "Cambodia vs Hong Kong (Over 8.5 Corners)",
+    "Corners",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "Cambodia vs Hong Kong (Over 3.5 Cards)",
+    "Total Cards",
+    1.05,
+    1.1,
+    -5
+  ],
+  [
+    "Cambodia vs Hong Kong (Abdel Kader Coulibaly Anytime Goal)",
+    "Goalscorer",
+    3.75,
+    3.953,
+    -5
+  ],
+  [
+    "Cambodia vs Hong Kong (Sin Kakada Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Cambodia vs Hong Kong (Abdel Kader Coulibaly Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Cambodia vs Hong Kong (Everton Camargo Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "FC Livyi Bereh Kyiv vs Oleksandria (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "FC Livyi Bereh Kyiv vs Oleksandria (Over 8.5 Corners)",
+    "Corners",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "FC Livyi Bereh Kyiv vs Oleksandria (Nazar Voloshyn Anytime Goal)",
+    "Goalscorer",
+    3.54,
+    3.731,
+    -5
+  ],
+  [
+    "FC Livyi Bereh Kyiv vs Oleksandria (Nazar Voloshyn Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "FC Livyi Bereh Kyiv vs Oleksandria (Papa Ndiaga Yade Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "FC Livyi Bereh Kyiv vs Oleksandria (Dmytro Shastal Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Indonesia vs Mozambique (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Indonesia vs Mozambique (Over 8.5 Corners)",
+    "Corners",
+    1.14,
+    1.198,
+    -5
+  ],
+  [
+    "Indonesia vs Mozambique (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Indonesia vs Mozambique (Alc\u00eddio Raice Anytime Goal)",
+    "Goalscorer",
+    3.56,
+    3.745,
+    -5
+  ],
+  [
+    "Indonesia vs Mozambique (Alc\u00eddio Raice Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Indonesia vs Mozambique (Ole Romeny Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Indonesia vs Mozambique (Ragnar Oratmangoen Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Armenia vs Moldova (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Armenia vs Moldova (Virgiliu Postolachi Anytime Goal)",
+    "Goalscorer",
+    3.49,
+    3.676,
+    -5
+  ],
+  [
+    "Armenia vs Moldova (Virgiliu Postolachi Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Armenia vs Moldova (Narek Grigoryan Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Armenia vs Moldova (Artur Miranyan Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "DR Congo vs Chile (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "DR Congo vs Chile (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "DR Congo vs Chile (Lucas Cepeda Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "DR Congo vs Chile (Lucas Cepeda Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "DR Congo vs Chile (Yoane Wissa Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "DR Congo vs Chile (Nathana\u00ebl Mbuku Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Belarus vs Burkina Faso (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Belarus vs Burkina Faso (Dango Ouattara Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Belarus vs Burkina Faso (Dango Ouattara Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Belarus vs Burkina Faso (Valeri Gromyko Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Belarus vs Burkina Faso (Pierre Landry Kabor\u00e9 Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Latvia vs Faroe Islands (Away (2))",
+    "1X2",
+    1.41,
+    1.484,
+    -5
+  ],
+  [
+    "Latvia vs Faroe Islands (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "Latvia vs Faroe Islands (\u00c1ki Samuelsen Anytime Goal)",
+    "Goalscorer",
+    3.58,
+    3.774,
+    -5
+  ],
+  [
+    "Latvia vs Faroe Islands (\u00c1ki Samuelsen Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Latvia vs Faroe Islands (Adrian Justinussen Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Latvia vs Faroe Islands (Kristaps Grabovskis Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Estonia vs Lithuania (Over 8.5 Corners)",
+    "Corners",
+    1.5,
+    1.582,
+    -5
+  ],
+  [
+    "Estonia vs Lithuania (Over 3.5 Cards)",
+    "Total Cards",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "Estonia vs Lithuania (Armandas Ku\u010dys Anytime Goal)",
+    "Goalscorer",
+    3.77,
+    3.968,
+    -5
+  ],
+  [
+    "Estonia vs Lithuania (Vaidas Magdusauskas Anytime Goal)",
+    "Goalscorer",
+    3.77,
+    3.968,
+    -5
+  ],
+  [
+    "Estonia vs Lithuania (Armandas Ku\u010dys Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Estonia vs Lithuania (Vaidas Magdusauskas Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Estonia vs Lithuania (Rocco Robert Shein Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "SJK Akatemia vs Jippo Joensuu (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "SJK Akatemia vs Jippo Joensuu (Terrence Smith Anytime Goal)",
+    "Goalscorer",
+    3.54,
+    3.731,
+    -5
+  ],
+  [
+    "SJK Akatemia vs Jippo Joensuu (Terrence Smith Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "SJK Akatemia vs Jippo Joensuu (Joonas Kekarainen Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "SJK Akatemia vs Jippo Joensuu (Danila Bulgakov Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "Union Sportive Yacoub El Mansour vs CODM Mekn\u00e8s (Mustapha Sahd Anytime Goal)",
+    "Goalscorer",
+    3.56,
+    3.745,
+    -5
+  ],
+  [
+    "Union Sportive Yacoub El Mansour vs CODM Mekn\u00e8s (Mustapha Sahd Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Union Sportive Yacoub El Mansour vs CODM Mekn\u00e8s (Youssef Anouar Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Union Sportive Yacoub El Mansour vs CODM Mekn\u00e8s (Mehdi Balouk Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Ahrobiznes Volochysk vs Kudrivka (Away (2))",
+    "1X2",
+    1.41,
+    1.484,
+    -5
+  ],
+  [
+    "Ahrobiznes Volochysk vs Kudrivka (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "Ahrobiznes Volochysk vs Kudrivka (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Ahrobiznes Volochysk vs Kudrivka (Raymond Owusu Anytime Goal)",
+    "Goalscorer",
+    3.49,
+    3.676,
+    -5
+  ],
+  [
+    "Ahrobiznes Volochysk vs Kudrivka (Raymond Owusu Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Ahrobiznes Volochysk vs Kudrivka (Roman Kuzmyn Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Ahrobiznes Volochysk vs Kudrivka (Oleksandr Belyaev Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "SJK Akatemia vs Jippo Joensuu (Home (1))",
+    "1X2",
+    1.41,
+    1.484,
+    -5
+  ],
+  [
+    "Union Sportive Yacoub El Mansour vs CODM Mekn\u00e8s (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Hungary vs Kazakhstan (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Hungary vs Kazakhstan (Alex T\u00f3th Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Hungary vs Kazakhstan (Alex T\u00f3th Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Hungary vs Kazakhstan (Dastan Satpaev Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Hungary vs Kazakhstan (Galymzhan Kenzhebek Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Russia vs Trinidad and Tobago (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Russia vs Trinidad and Tobago (Over 3.5 Cards)",
+    "Total Cards",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "Russia vs Trinidad and Tobago (Kaihim Thomas Anytime Goal)",
+    "Goalscorer",
+    3.39,
+    3.571,
+    -5
+  ],
+  [
+    "Russia vs Trinidad and Tobago (Kaihim Thomas Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Russia vs Trinidad and Tobago (Ivan Sergeev Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Russia vs Trinidad and Tobago (Lechii Sadulaev Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "IK Brage vs Ljungskile SK (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "IK Brage vs Ljungskile SK (Over 3.5 Cards)",
+    "Total Cards",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "IK Brage vs Ljungskile SK (Lukas Lindholm Corner Anytime Goal)",
+    "Goalscorer",
+    3.68,
+    3.876,
+    -5
+  ],
+  [
+    "IK Brage vs Ljungskile SK (Lukas Lindholm Corner Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "IK Brage vs Ljungskile SK (Anton Lundin Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "IK Brage vs Ljungskile SK (Gustav Nordh Over 1.5 Shots)",
+    "Player Shots",
+    1.51,
+    1.587,
+    -5
+  ],
+  [
+    "IK Oddevold vs IFK Norrk\u00f6ping (Over 3.5 Cards)",
+    "Total Cards",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "IK Oddevold vs IFK Norrk\u00f6ping (Shahin Leonardo Farah Anytime Goal)",
+    "Goalscorer",
+    3.44,
+    3.623,
+    -5
+  ],
+  [
+    "IK Oddevold vs IFK Norrk\u00f6ping (Shahin Leonardo Farah Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "IK Oddevold vs IFK Norrk\u00f6ping (Olle Kjellman Olblad Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "IK Oddevold vs IFK Norrk\u00f6ping (Elias Jemal Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Nordic United FC vs \u00d6stersunds FK (Mario Palomino Delgado Anytime Goal)",
+    "Goalscorer",
+    3.56,
+    3.745,
+    -5
+  ],
+  [
+    "Nordic United FC vs \u00d6stersunds FK (Mario Palomino Delgado Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Nordic United FC vs \u00d6stersunds FK (Lorent Mehmeti Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Nordic United FC vs \u00d6stersunds FK (Kalipha Jawla Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Sandvikens IF vs Falkenbergs FF (Over 8.5 Corners)",
+    "Corners",
+    1.26,
+    1.328,
+    -5
+  ],
+  [
+    "Sandvikens IF vs Falkenbergs FF (Johan Arvidsson Anytime Goal)",
+    "Goalscorer",
+    3.63,
+    3.817,
+    -5
+  ],
+  [
+    "Sandvikens IF vs Falkenbergs FF (Johan Arvidsson Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Sandvikens IF vs Falkenbergs FF (Albin Andersson Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Sandvikens IF vs Falkenbergs FF (Hampus Kallstrom Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "\u00d6sters IF vs IFK V\u00e4rnamo (Samuel Burakowsky Anytime Goal)",
+    "Goalscorer",
+    3.51,
+    3.69,
+    -5
+  ],
+  [
+    "\u00d6sters IF vs IFK V\u00e4rnamo (Samuel Burakowsky Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "\u00d6sters IF vs IFK V\u00e4rnamo (Linus Carlstrand Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "\u00d6sters IF vs IFK V\u00e4rnamo (Marcus Antonsson Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Nordic United FC vs \u00d6stersunds FK (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "Angola vs Central African Republic (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Angola vs Central African Republic (Delphin Mokonou Anytime Goal)",
+    "Goalscorer",
+    3.43,
+    3.61,
+    -5
+  ],
+  [
+    "Angola vs Central African Republic (Delphin Mokonou Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Angola vs Central African Republic (Ghislain V\u00e9nuste Baboula Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Angola vs Central African Republic (Dep\u00fa Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "San Marino vs Azerbaijan (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "San Marino vs Azerbaijan (Lorenzo Lazzari Anytime Goal)",
+    "Goalscorer",
+    3.57,
+    3.759,
+    -5
+  ],
+  [
+    "San Marino vs Azerbaijan (Lorenzo Lazzari Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "San Marino vs Azerbaijan (Renat Dada\u015fov Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "San Marino vs Azerbaijan (Nicola Nanni Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Kawkab Athletic Club Marrakech vs Raja Club Athletic (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Kawkab Athletic Club Marrakech vs Raja Club Athletic (Pape Ousmane Sakho Anytime Goal)",
+    "Goalscorer",
+    3.75,
+    3.953,
+    -5
+  ],
+  [
+    "Kawkab Athletic Club Marrakech vs Raja Club Athletic (Souleymane Ciss\u00e9 Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Kawkab Athletic Club Marrakech vs Raja Club Athletic (Pape Ousmane Sakho Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Kawkab Athletic Club Marrakech vs Raja Club Athletic (Hamza Founti Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Renaissance Zemamra vs Union Touarga Sport (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Renaissance Zemamra vs Union Touarga Sport (Over 3.5 Cards)",
+    "Total Cards",
+    1.36,
+    1.431,
+    -5
+  ],
+  [
+    "Renaissance Zemamra vs Union Touarga Sport (Nacer Moustaghfir Anytime Goal)",
+    "Goalscorer",
+    3.67,
+    3.861,
+    -5
+  ],
+  [
+    "Renaissance Zemamra vs Union Touarga Sport (Nacer Moustaghfir Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Renaissance Zemamra vs Union Touarga Sport (Faffa El Yazid Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Renaissance Zemamra vs Union Touarga Sport (Mohsine Moutouali Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Almer\u00eda vs CD Castell\u00f3n (Over 8.5 Corners)",
+    "Corners",
+    1.26,
+    1.328,
+    -5
+  ],
+  [
+    "Almer\u00eda vs CD Castell\u00f3n (Ousmane Camara Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Almer\u00eda vs CD Castell\u00f3n (Ousmane Camara Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Almer\u00eda vs CD Castell\u00f3n (Adri\u00e1n Embarba Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Almer\u00eda vs CD Castell\u00f3n (Miguel de la Fuente Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Almer\u00eda vs CD Castell\u00f3n (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "MAS de F\u00e8s vs AS FAR Rabat (Over 2.5)",
+    "Over/Under 2.5",
+    1.72,
+    1.808,
+    -5
+  ],
+  [
+    "MAS de F\u00e8s vs AS FAR Rabat (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "MAS de F\u00e8s vs AS FAR Rabat (Ahmed Hammoudan Anytime Goal)",
+    "Goalscorer",
+    3.75,
+    3.953,
+    -5
+  ],
+  [
+    "MAS de F\u00e8s vs AS FAR Rabat (Soufiane Benjdida Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "MAS de F\u00e8s vs AS FAR Rabat (Ahmed Hammoudan Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "MAS de F\u00e8s vs AS FAR Rabat (Hamza Khabba Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "N\u00e1utico vs Fortaleza (Luiz Fernando Anytime Goal)",
+    "Goalscorer",
+    3.7,
+    3.891,
+    -5
+  ],
+  [
+    "N\u00e1utico vs Fortaleza (Vin\u00edcius Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "N\u00e1utico vs Fortaleza (Luiz Fernando Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "N\u00e1utico vs Fortaleza (Derek Freitas Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Ponte Preta vs Cuiab\u00e1 (David da Hora Anytime Goal)",
+    "Goalscorer",
+    3.61,
+    3.802,
+    -5
+  ],
+  [
+    "Ponte Preta vs Cuiab\u00e1 (David da Hora Over 1.5 Shots)",
+    "Player Shots",
+    1.32,
+    1.389,
+    -5
+  ],
+  [
+    "Ponte Preta vs Cuiab\u00e1 (Rodrigo Rodrigues Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Ponte Preta vs Cuiab\u00e1 (Vinicius Peixoto Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "N\u00e1utico vs Fortaleza (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Ponte Preta vs Cuiab\u00e1 (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Ottawa vs FC Supra Du Quebec (Erling Myklebust Anytime Goal)",
+    "Goalscorer",
+    3.75,
+    3.953,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Ottawa vs FC Supra Du Quebec (Erling Myklebust Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Ottawa vs FC Supra Du Quebec (David Choiniere Over 1.5 Shots)",
+    "Player Shots",
+    1.38,
+    1.449,
+    -5
+  ],
+  [
+    "Atl\u00e9tico Ottawa vs FC Supra Du Quebec (Ballou Tabla Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "Senegal vs Saudi Arabia (Under 2.5)",
+    "Over/Under 2.5",
+    1.67,
+    1.754,
+    -5
+  ],
+  [
+    "Senegal vs Saudi Arabia (Over 3.5 Cards)",
+    "Total Cards",
+    1.72,
+    1.815,
+    -5
+  ],
+  [
+    "Senegal vs Saudi Arabia (Khalid Al-Ghannam Anytime Goal)",
+    "Goalscorer",
+    3.39,
+    3.571,
+    -5
+  ],
+  [
+    "Senegal vs Saudi Arabia (Nicolas Jackson Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Senegal vs Saudi Arabia (Khalid Al-Ghannam Over 1.5 Shots)",
+    "Player Shots",
+    1.27,
+    1.333,
+    -5
+  ],
+  [
+    "Senegal vs Saudi Arabia (Sadio Man\u00e9 Over 1.5 Shots)",
+    "Player Shots",
+    1.44,
+    1.515,
+    -5
+  ],
+  [
+    "DR Congo U20 vs Saudi Arabia U23 (Turki Al-Ghumayl Anytime Goal)",
+    "Goalscorer",
+    3.85,
+    4.049,
+    -5
+  ],
+  [
+    "Cape Town City FC vs Magesi FC (D\u017eenan Zajmovi\u0107 Anytime Goal)",
+    "Goalscorer",
+    3.33,
+    3.509,
+    -5
+  ],
+  [
+    "Kuopion Palloseura vs VPS (Luka Smyth Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Ilves vs FC Lahti (Aaron Lindholm Anytime Goal)",
+    "Goalscorer",
+    3.61,
+    3.802,
+    -5
+  ],
+  [
+    "SJK vs Inter Turku (Jeremiah Streng Anytime Goal)",
+    "Goalscorer",
+    3.49,
+    3.676,
+    -5
+  ],
+  [
+    "Varbergs BoIS vs Norrby IF (Shanyder Borgelin Anytime Goal)",
+    "Goalscorer",
+    3.57,
+    3.759,
+    -5
+  ],
+  [
+    "\u00d6rebro SK vs GIF Sundsvall (Samuel Wikman Anytime Goal)",
+    "Goalscorer",
+    3.77,
+    3.968,
+    -5
+  ],
+  [
+    "Colombia U19 vs Tunisia U20 (Santiago Arrechea Anytime Goal)",
+    "Goalscorer",
+    3.57,
+    3.759,
+    -5
+  ],
+  [
+    "M\u00e1laga CF vs Las Palmas (Carlos Dotor Anytime Goal)",
+    "Goalscorer",
+    3.74,
+    3.937,
+    -5
+  ],
+  [
+    "Portugal vs Nigeria (Pedro Neto Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "England vs Costa Rica (Marcus Rashford Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Forge FC vs HFX Wanderers FC (Aghilas Sadek Anytime Goal)",
+    "Goalscorer",
+    3.61,
+    3.802,
+    -5
+  ],
+  [
+    "Cear\u00e1 vs Ava\u00ed (Jean Lucas Anytime Goal)",
+    "Goalscorer",
+    3.67,
+    3.861,
+    -5
+  ],
+  [
+    "FC Tampa Bay Rowdies vs Charleston Battery (Matt Myers Anytime Goal)",
+    "Goalscorer",
+    3.57,
+    3.759,
+    -5
+  ],
+  [
+    "One Knoxville SC vs Chattanooga Red Wolves SC (Eli Conway Anytime Goal)",
+    "Goalscorer",
+    3.45,
+    3.636,
+    -5
+  ],
+  [
+    "Greenville Triumph SC vs Loudoun United FC (William Akio Anytime Goal)",
+    "Goalscorer",
+    3.38,
+    3.559,
+    -5
+  ],
+  [
+    "Goi\u00e1s vs Gr\u00eamio Novorizontino (Anselmo Ramon Anytime Goal)",
+    "Goalscorer",
+    3.39,
+    3.571,
+    -5
+  ],
+  [
+    "Westchester SC vs Fort Wayne FC (Miguel Diaz Anytime Goal)",
+    "Goalscorer",
+    3.61,
+    3.802,
+    -5
+  ],
+  [
+    "Charlotte Independence vs Union Omaha SC (Jon Bakero Anytime Goal)",
+    "Goalscorer",
+    3.65,
+    3.846,
+    -5
+  ],
+  [
+    "Inter Toronto vs Cavalry FC (Nathaniel Edwards Anytime Goal)",
+    "Goalscorer",
+    3.56,
+    3.745,
+    -5
+  ],
+  [
+    "Detroit City FC vs El Paso Locomotive FC (Alasanne Ates Diouf Anytime Goal)",
+    "Goalscorer",
+    3.65,
+    3.846,
+    -5
+  ],
+  [
+    "Sport Recife vs Athletic Club (Dixon Vera Anytime Goal)",
+    "Goalscorer",
+    3.48,
+    3.663,
+    -5
+  ],
+  [
+    "Monterey Bay FC vs SC Jacksonville (Ilijah Paul Anytime Goal)",
+    "Goalscorer",
+    3.71,
+    3.906,
+    -5
+  ],
+  [
+    "Phoenix Rising FC vs Louisville City FC (Ihsan Sacko Anytime Goal)",
+    "Goalscorer",
+    3.56,
+    3.745,
+    -5
+  ],
+  [
+    "Vancouver Whitecaps FC II vs North Texas SC (Kevin Podgorni Anytime Goal)",
+    "Goalscorer",
+    3.68,
+    3.876,
+    -5
+  ],
+  [
+    "AC Boise vs Richmond Kickers (Lucca Dourado Anytime Goal)",
+    "Goalscorer",
+    3.45,
+    3.636,
+    -5
+  ],
+  [
+    "AV Alta FC vs Sarasota Paradise (Sander Roed Anytime Goal)",
+    "Goalscorer",
+    3.47,
+    3.65,
+    -5
+  ],
+  [
+    "Venezuela U23 vs Japan U19 (Jelani McGhee Anytime Goal)",
+    "Goalscorer",
+    3.38,
+    3.559,
+    -5
+  ]
+]
