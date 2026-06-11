@@ -302,6 +302,44 @@
             border: 1px solid var(--border-color);
         }
         .impact-players strong { display: block; color: var(--primary); margin-bottom: 6px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+        .status-badge {
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .status-badge.live-now {
+            background: rgba(255, 77, 77, 0.15);
+            color: #ff4d4d;
+            border: 1px solid rgba(255, 77, 77, 0.3);
+            animation: pulse 2s infinite;
+        }
+        .status-badge.finished {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+        }
+
+        .score-display {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-align: center;
+            margin: 15px 0;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px rgba(229, 193, 88, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(229, 193, 88, 0.1);
+        }
+
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(229, 193, 88, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(229, 193, 88, 0); } 100% { box-shadow: 0 0 0 0 rgba(229, 193, 88, 0); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -334,7 +372,69 @@
             box-shadow: 0 4px 12px rgba(229, 193, 88, 0.15);
         }
 
-        #loader { text-align: center; font-size: 1rem; color: var(--primary); padding: 40px; width: 100%;}
+        #loader { 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 100px 40px;
+            width: 100%;
+            background: rgba(10, 25, 16, 0.4);
+            border-radius: var(--card-radius);
+            border: 1px dashed var(--border-color);
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loader-hex {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            margin-bottom: 30px;
+            animation: hexRotate 4s infinite linear;
+        }
+
+        .loader-hex i {
+            font-size: 80px;
+            color: var(--primary);
+            filter: drop-shadow(0 0 15px var(--primary));
+        }
+
+        .loader-text {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.4rem;
+            color: var(--text-main);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .loader-status {
+            color: var(--secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 20px;
+        }
+
+        .scan-line {
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background: linear-gradient(to bottom, transparent, rgba(229, 193, 88, 0.1), transparent);
+            animation: scanMove 3s infinite linear;
+            pointer-events: none;
+        }
+
+        @keyframes hexRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes scanMove { 0% { top: -50%; } 100% { top: 100%; } }
         
         .placeholder-box {
             background: var(--surface-color);
@@ -716,7 +816,16 @@
                     <button onclick="manualRefresh()" style="padding:10px 15px; border-radius:20px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--primary); cursor:pointer;"><i class="fa-solid fa-rotate-right"></i></button>
                 </div>
             </div>
-            <div id="loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Synchronizing with Live Data Feed...</div>
+            <div id="loader">
+                <div class="scan-line"></div>
+                <div class="loader-hex">
+                    <i class="fa-solid fa-microchip"></i>
+                </div>
+                <div class="loader-text">DeepField Pro Analysis</div>
+                <div class="loader-status" id="loader-status">
+                    <i class="fa-solid fa-satellite fa-fade"></i> Connecting to Global Match Feed...
+                </div>
+            </div>
             <div id="dashboard" class="dashboard"></div>
         </div>
 
@@ -1128,6 +1237,29 @@
     </main>
 
     <script>
+        // Institutional Loader Status Rotation
+        const loaderStatuses = [
+            "Connecting to Global Match Feed...",
+            "Mapping Neural Player Networks...",
+            "Calculating Bayesian Probabilities...",
+            "Scanning Market Liquidity...",
+            "Stripping Bookmaker Vig...",
+            "Identifying Value Gradients...",
+            "Optimizing Capital Deployment...",
+            "Synchronizing Tactical Models..."
+        ];
+        let currentStatusIdx = 0;
+
+        function rotateLoaderStatus() {
+            const statusEl = document.getElementById('loader-status');
+            if (!statusEl) return;
+            
+            currentStatusIdx = (currentStatusIdx + 1) % loaderStatuses.length;
+            statusEl.innerHTML = `<i class="fa-solid fa-satellite fa-fade"></i> ${loaderStatuses[currentStatusIdx]}`;
+        }
+
+        setInterval(rotateLoaderStatus, 2500);
+
         function showToast(msg, type='success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -1507,6 +1639,7 @@
         let currentMatchFilter = 'all';
         let cachedMatches = [];
         let previousMatches = {};
+        let isInitialLoad = true;
 
         function renderSkeletons() {
             dashboard.innerHTML = Array(6).fill(`
@@ -1555,6 +1688,7 @@
                 const data = await res.json();
                 processNewData(data);
                 loader.style.display = 'none';
+                isInitialLoad = false;
                 document.getElementById('sync-progress-container').style.display = 'none';
                 return data;
             } catch (err) {
@@ -1641,8 +1775,6 @@
         }
 
         function renderDashboard(matches) {
-            dashboard.innerHTML = '';
-
             const searchInput = document.getElementById('search-input')?.value.toLowerCase() || '';
             const sortSelect = document.getElementById('sort-select')?.value || 'time';
             
@@ -1673,6 +1805,8 @@
             }
 
             if (filteredMatches.length === 0) {
+                if (isInitialLoad) return; // Don't show "No Matches" placeholder during initial data fetch
+
                 dashboard.innerHTML = `
                     <div class="placeholder-box" style="grid-column: 1 / -1; width: 100%; box-sizing: border-box; animation: fadeIn 0.4s ease-out;">
                         <i class="fa-solid fa-gamepad" style="font-size: 3rem; color: var(--border-color); margin-bottom: 20px;"></i>
@@ -1682,6 +1816,8 @@
                 `;
                 return;
             }
+
+            dashboard.innerHTML = '';
 
             if (sortSelect === 'confidence') {
                 filteredMatches.sort((a, b) => {
@@ -1726,12 +1862,31 @@
                     lineupBadge = `<span style="background:rgba(255,255,255,0.05); color:var(--text-muted); font-size:0.65rem; font-weight:700; padding:3px 8px; border-radius:12px; border:1px solid var(--border-color); display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-lock"></i> NO XI</span>`;
                 }
 
+                let statusBadge = '';
+                const status = (match.status_code || '').toUpperCase();
+                if (['1H', '2H', 'HT', 'LIVE'].includes(status)) {
+                    statusBadge = `<span class="status-badge live-now"><i class="fa-solid fa-circle-play"></i> LIVE ${status}</span>`;
+                } else if (['FT', 'AET', 'PEN'].includes(status)) {
+                    statusBadge = `<span class="status-badge finished"><i class="fa-solid fa-flag-checkered"></i> FINISHED</span>`;
+                }
+
+                let scoreHTML = '';
+                if (match.fixture && (match.fixture.home_score !== null || match.fixture.away_score !== null)) {
+                    const hs = match.fixture.home_score ?? 0;
+                    const as = match.fixture.away_score ?? 0;
+                    scoreHTML = `<div class="score-display">${hs} - ${as}</div>`;
+                }
+
                 let contentHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <div class="league-badge" style="margin:0;">${match.league}</div>
-                        ${lineupBadge}
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            ${statusBadge}
+                            ${lineupBadge}
+                        </div>
                     </div>
                     <h2 class="match-title">${match.match}</h2>
+                    ${scoreHTML}
                     <div class="kickoff"><i class="fa-solid fa-clock"></i> Kickoff: ${formatTime(match.kickoff)}</div>
                 `;
 
@@ -2435,8 +2590,11 @@
                         btn.style.background = 'rgba(229,193,88,0.04)';
                     }
                     
-                    const statusText = m.status_code === 'FT' ? 'Finished' : (m.status_code === 'NS' ? 'Upcoming' : 'Live');
-                    const statusColor = m.status_code === 'FT' ? '#00ff88' : (m.status_code === 'NS' ? '#a0a0a0' : '#ffaa00');
+                    const status = (m.status_code || '').toUpperCase();
+                    const isFinished = ['FT', 'AET', 'PEN'].includes(status);
+                    const isUpcoming = ['NS', 'TBD'].includes(status);
+                    const statusText = isFinished ? 'Finished' : (isUpcoming ? 'Upcoming' : 'Live');
+                    const statusColor = isFinished ? '#00ff88' : (isUpcoming ? '#a0a0a0' : '#ffaa00');
                     
                     btn.innerHTML = `
                         <div style="font-size: 0.72rem; color: var(--primary); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between;">

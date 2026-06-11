@@ -1,9 +1,13 @@
 from flask import Flask, render_template, jsonify, request, Response
 import json
 import os
+import sys
 import sqlite3
 import datetime
 import time
+
+# Ensure src is in path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -891,5 +895,5 @@ if __name__ == "__main__":
         print(
             "[*] Background prediction worker thread is DISABLED (running in multi-process mode)."
         )
-    print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5055")
-    app.run(host="0.0.0.0", port=5055, debug=False)
+    print("[*] Starting DeepFieldPro Live UI on http://127.0.0.1:5050")
+    app.run(host="0.0.0.0", port=5050, debug=False)

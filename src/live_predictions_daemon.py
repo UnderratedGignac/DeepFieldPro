@@ -1,13 +1,17 @@
+import sys
+import os
+
+# Ensure src is in path to allow 'src' package imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pandas as pd
 import numpy as np
 import joblib
 import requests
 import datetime
 import time
-import os
 import math
-import sys
-from execution_engine import place_bet # TASK 1: Import place_bet
+from src.execution_engine import place_bet # TASK 1: Import place_bet
 
 # Unicode-safe print override for Windows console compatibility
 _orig_print = print
@@ -31,13 +35,13 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
 # Import new DeepFieldPro modules - only the specific classes/functions we actually use
-from free_scraper_module import (  # noqa: E402
+from src.free_scraper_module import (  # noqa: E402
     get_todays_fixtures_free as get_todays_fixtures,
 )
-from models.calibration_engine import ProbabilityCalibrator  # noqa: E402
-from risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
-from telemetry_warehouse.clv_tracker import create_clv_tracker  # noqa: E402
-from dfp_config import settings as dfp_settings # institutional risk gates
+from src.models.calibration_engine import ProbabilityCalibrator  # noqa: E402
+from src.risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
+from src.telemetry_warehouse.clv_tracker import create_clv_tracker  # noqa: E402
+from src.dfp_config import settings as dfp_settings # institutional risk gates
 
 PLAYER_STATS_CACHE = {}
 TEAM_PLAYERS_CACHE = {}
@@ -1208,7 +1212,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
             if stake <= 0:
                 return
 
-            from bankroll_tracker import register_bet
+            from src.bankroll_tracker import register_bet
 
             if not register_bet(stake):
                 print(f"[!] Bankroll tracker blocked bet {bet_id} for ${stake:.2f}")
@@ -1245,6 +1249,23 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
             # Commit and close DB before making synchronous network request
             conn.commit()
             conn.close()
+
+            # Massive Edge Alert
+            if ev >= 1.0:
+                from src.services.alerting import notifier
+                edge_pct_val = round(ev * 100, 1)
+                alert_msg = (
+                    f"🚨 *MASSIVE EDGE ALERT (+{edge_pct_val}%)* 🚨\n\n"
+                    f"*Match:* {match}\n"
+                    f"*Selection:* {selection}\n"
+                    f"*Odds:* {odds}\n"
+                    f"*Stake:* ${stake:.2f}\n\n"
+                    f"_The AI just sniped this mispriced line!_"
+                )
+                if hasattr(notifier, '_send_whatsapp'):
+                    notifier._send_whatsapp(alert_msg)
+                else:
+                    notifier.send_general_alert("Massive Edge Alert", alert_msg)
 
             # STAIR-AI INTEGRATION
             team_code = str(selection)
@@ -1602,7 +1623,7 @@ def settle_open_bets():
             print(f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f})")
 
             # Capital adjustments via Central Tracker
-            from bankroll_tracker import register_settlement
+            from src.bankroll_tracker import register_settlement
             register_settlement(payout, pnl)
 
         # PARLAY SETTLEMENT
@@ -1665,7 +1686,7 @@ def settle_open_bets():
                 res = 'L'
                 pnl = -p_stake
                 cur.execute("UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?", (res, pnl, json.dumps(legs), p_id))
-                from bankroll_tracker import register_settlement
+                from src.bankroll_tracker import register_settlement
                 register_settlement(0.0, pnl)
                 print(f"[SETTLEMENT] Parlay {p_id} LOST.")
             elif parlay_finished:
@@ -1673,7 +1694,7 @@ def settle_open_bets():
                 pnl = p_stake * (p_odds - 1)
                 payout = p_stake * p_odds
                 cur.execute("UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?", (res, pnl, json.dumps(legs), p_id))
-                from bankroll_tracker import register_settlement
+                from src.bankroll_tracker import register_settlement
                 register_settlement(payout, pnl)
                 print(f"[SETTLEMENT] Parlay {p_id} WON! (PnL: ${pnl:.2f})")
             elif legs_updated:
@@ -1698,14 +1719,14 @@ def update_dashboard_json(fixtures, results_cache):
         match_time = f["fixture"]["date"]
         status = f["fixture"]["status"]["short"]
 
-        # Filter out finished matches that are more than 30 minutes old
+        # Filter out finished matches that are more than 12 hours old
         if status in ["FT", "AET", "PEN"]:
             try:
                 # Handle ISO format with or without Z
                 ts = match_time.replace("Z", "+00:00")
                 kickoff_dt = datetime.datetime.fromisoformat(ts)
                 now_utc = datetime.datetime.now(datetime.timezone.utc)
-                if (now_utc - kickoff_dt).total_seconds() > 0.5 * 3600:
+                if (now_utc - kickoff_dt).total_seconds() > 12 * 3600:
                     continue
             except Exception:
                 pass
@@ -1772,220 +1793,129 @@ def update_dashboard_json(fixtures, results_cache):
                 # skip betting for this match
                 pass
             else:
+                match_bet_candidates = []
                 for m_type, selections in prediction["markets"].items():
-                    max_prob = max([s["prob"] for s in selections]) if selections else 0
                     for sel in selections:
                         sel_name = sel["selection"]
                         prob = sel["prob"]
-                        sel["is_top_pick"] = prob == max_prob
 
+                        # Determine Key for odds lookup
                         key = None
                         if m_type == "1X2":
-                            if "Home" in sel_name or "1" in sel_name:
-                                key = "Home"
-                            elif "Draw" in sel_name or "X" in sel_name:
-                                key = "Draw"
-                            elif "Away" in sel_name or "2" in sel_name:
-                                key = "Away"
+                            if "Home" in sel_name or "1" in sel_name: key = "Home"
+                            elif "Draw" in sel_name or "X" in sel_name: key = "Draw"
+                            elif "Away" in sel_name or "2" in sel_name: key = "Away"
                         elif m_type == "Over/Under 2.5":
-                            if "Over" in sel_name:
-                                key = "Over"
-                            elif "Under" in sel_name:
-                                key = "Under"
+                            if "Over" in sel_name: key = "Over"
+                            elif "Under" in sel_name: key = "Under"
                         elif m_type == "BTTS":
-                            if "Yes" in sel_name:
-                                key = "Yes"
-                            elif "No" in sel_name:
-                                key = "No"
-                        elif m_type == "Corners":
-                            # We only have Over 8.5 Corners prediction right now
-                            key = sel_name  # e.g. "Over 8.5 Corners"
-                        elif m_type == "Total Cards":
-                            key = sel_name  # e.g. "Over 3.5 Cards"
+                            if "Yes" in sel_name: key = "Yes"
+                            elif "No" in sel_name: key = "No"
+                        elif m_type == "Corners": key = sel_name
+                        elif m_type == "Total Cards": key = sel_name
 
                         odds = None
+                        all_market_odds = []
                         if odds_dict:
                             if m_type in odds_dict and key in odds_dict[m_type]:
                                 odds = odds_dict[m_type][key]
+                                all_market_odds = list(odds_dict[m_type].values())
                             elif m_type == "Corners" and "Corners" in odds_dict:
-                                # flexible matching for corners
                                 for o_name, o_price in odds_dict["Corners"].items():
-                                    if "8.5" in o_name and "over" in o_name.lower():
+                                    if "8.5" in o_name and "over" in o_name.lower(): 
                                         odds = o_price
+                                        all_market_odds = [o_price, 1.05] # Dummy under odds if missing
                                         break
                             elif m_type == "Total Cards" and "Cards" in odds_dict:
-                                # flexible matching for cards
                                 for o_name, o_price in odds_dict["Cards"].items():
-                                    if "3.5" in o_name and "over" in o_name.lower():
+                                    if "3.5" in o_name and "over" in o_name.lower(): 
                                         odds = o_price
+                                        all_market_odds = [o_price, 1.05]
                                         break
 
                         if odds is not None:
-                            # SNIPER LOGIC: Track odds history to find the 'peak'
+                            # Sniper / Peak Logic
                             try:
                                 conn_sniper = sqlite3.connect(os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"))
                                 cur_sniper = conn_sniper.cursor()
-                                cur_sniper.execute(
-                                    "INSERT INTO odds_history (fixture_id, market, selection, odds) VALUES (?, ?, ?, ?)",
-                                    (str(fid), m_type, sel_name, odds)
-                                )
+                                cur_sniper.execute("INSERT INTO odds_history (fixture_id, market, selection, odds) VALUES (?, ?, ?, ?)", (str(fid), m_type, sel_name, odds))
                                 conn_sniper.commit()
-                                
-                                # Get max odds seen so far for this market/selection today
-                                cur_sniper.execute(
-                                    "SELECT MAX(odds) FROM odds_history WHERE fixture_id = ? AND market = ? AND selection = ?",
-                                    (str(fid), m_type, sel_name)
-                                )
+                                cur_sniper.execute("SELECT MAX(odds) FROM odds_history WHERE fixture_id = ? AND market = ? AND selection = ?", (str(fid), m_type, sel_name))
                                 max_seen_odds = cur_sniper.fetchone()[0] or odds
                                 conn_sniper.close()
-                            except Exception as e:
-                                print(f"[SNIPER ERROR] {e}")
-                                max_seen_odds = odds
+                            except: max_seen_odds = odds
 
                             ev = (prob / 100.0) * odds - 1.0
-                            
-                            # SNIPER REQUIREMENT: Odds must be at least 98% of the 'Max Seen' to trigger recommendation
-                            # This prevents betting if the odds just dropped significantly
                             is_at_peak = (odds >= max_seen_odds * 0.98)
                             
-                            # REQUIRE: Positive EV AND Minimum Confidence AND Minimum Odds AND At Peak
+                            # VALUE CHASER LOGIC: Chase high EV even if prob is lower.
+                            # If EV > 15%, we allow prob down to 30%. Otherwise need 55%.
+                            conf_threshold = settings.get("min_confidence_pct", 55)
+                            if ev >= 0.15: conf_threshold = 30.0
+
                             is_recommended = (
                                 ev >= min_ev_threshold
-                                and prob >= settings.get("min_confidence_pct", 55)
+                                and prob >= conf_threshold
                                 and odds >= dfp_settings.MODEL_MIN_ODDS
                                 and is_at_peak
                             )
                             
-                            sel["odds"] = odds
-                            sel["max_seen_odds"] = max_seen_odds
-                            sel["ev"] = round(ev * 100, 1)
-                            sel["recommended"] = is_recommended
-
+                            sel.update({"odds": odds, "max_seen_odds": max_seen_odds, "ev": ev, "m_type": m_type, "all_odds": all_market_odds})
                             if is_recommended:
-                                # TASK 1: Enhanced Execution Call with Risk Gates
-                                try:
-                                    has_lineup = int(prediction.get("has_lineup", 0)) if prediction else 0
-                                    xmin_p10 = float(prediction.get("xmin_p10", 0.0)) if prediction else 0.0
-                                    xmin_p90 = float(prediction.get("xmin_p90", 0.0)) if prediction else 0.0
-                                    expected_mean = float(prediction.get("xmin_mean", 0.0)) if prediction else 0.0
-
-                                    bet_id = place_bet(
-                                        fair_prob=prob / 100.0,
-                                        market_odds=odds,
-                                        all_outcome_odds=[odds], # Simplified for this call
-                                        match_id=str(fid),
-                                        player_id=sel_name.split()[0], # Estimating player from selection
-                                        market_type=m_type,
-                                        line=2.5, # Default line
-                                        side=sel_name.lower(),
-                                        lineup_drop_at=match_time,
-                                        latency_ms=0,
-                                        regime="live_ui_trigger",
-                                        role_shift_flag=False,
-                                        has_lineup=has_lineup,
-                                        xmin_p10=xmin_p10,
-                                        xmin_p90=xmin_p90,
-                                        expected_mean=expected_mean
-                                    )
-                                    if bet_id:
-                                        print(f"[DAEMON] Bet placed successfully via Execution Engine: {bet_id}")
-                                except Exception as e:
-                                    print(f"[ERROR] Failed to route bet to execution engine: {e}")
-
-                                log_ai_bet(
-                                    f"{home} vs {away}",
-                                    m_type,
-                                    sel_name,
-                                    odds,
-                                    prob,
-                                    ev,
-                                )
-                            else:
-                                if odds < dfp_settings.MODEL_MIN_ODDS:
-                                    sel["skip_reason"] = f"Odds Below Minimum ({dfp_settings.MODEL_MIN_ODDS})"
-                                elif ev < min_ev_threshold:
-                                    sel["skip_reason"] = f"Low Edge (EV {round(ev*100,1)}% < {round(min_ev_threshold*100,1)}%)"
-                                elif prob < settings.get("min_confidence_pct", 55):
-                                    sel["skip_reason"] = "Confidence Below Threshold"
-                                elif not is_at_peak:
-                                    sel["skip_reason"] = f"Sniper Waiting: Peak Odds were {max_seen_odds} (Current {odds})"
-                                else:
-                                    sel["skip_reason"] = "Risk/Reward Mismatch"
+                                match_bet_candidates.append(sel)
                         else:
-                            # FALLBACK: No real odds found. Estimate 95% fair odds.
-                            est_odds = (
-                                round(0.95 * (100.0 / prob), 2) if prob > 0 else 1.0
-                            )
-                            # EV of 95% fair odds is always -0.05 (-5%)
-                            ev_est = -0.05
-                            sel["odds"] = est_odds
-                            sel["ev"] = round(ev_est * 100, 1)
+                            # Fallback Logic (if no real odds)
+                            # DISABLED: Betting on estimated negative EV (-5%) was draining the budget
+                            pass
 
-                            is_recommended = False
-                            if est_odds >= dfp_settings.MODEL_MIN_ODDS:
-                                if m_type == "Corners" and prob >= 55.0:
-                                    is_recommended = True
-                                elif m_type == "Total Cards" and prob >= 55.0:
-                                    is_recommended = True
-                                elif (
-                                    m_type == "Goalscorer"
-                                    and prob >= 20.0
-                                    and sel.get("is_top_pick")
-                                ):
-                                    is_recommended = True
-                                elif (
-                                    m_type == "Player Shots"
-                                    and prob >= 30.0
-                                    and sel.get("is_top_pick")
-                                ):
-                                    is_recommended = True
-                                elif prob >= settings.get("min_confidence_pct", 55):
-                                    is_recommended = True
+                # --- MATCH SANITY FILTER ---
+                # "make the bets related and not different... less random choices"
+                if match_bet_candidates:
+                    # Sort by EV descending to pick the best value first
+                    match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
+                    
+                    # Selection: Only take the SINGLE BEST bet for the entire match.
+                    # This eliminates all contradictory/random-feeling overlapping bets.
+                    match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
+                    best_bet = match_bet_candidates[0]
+                    
+                    m_type = best_bet["m_type"]
+                    sel_name = best_bet["selection"]
+                    prob = best_bet["prob"]
+                    odds = best_bet["odds"]
+                    ev = best_bet["ev"]
+                    all_odds = best_bet.get("all_odds", [odds])
+                    
+                    try:
+                        has_lineup = int(prediction.get("has_lineup", 0))
+                        xmin_p10 = float(prediction.get("xmin_p10", 0.0))
+                        xmin_p90 = float(prediction.get("xmin_p90", 0.0))
+                        expected_mean = float(prediction.get("xmin_mean", 0.0))
 
-                            sel["recommended"] = is_recommended
-                            if is_recommended:
-                                # TASK 1: Enhanced Execution Call with Risk Gates (Fallback Case)
-                                try:
-                                    has_lineup = int(prediction.get("has_lineup", 0)) if prediction else 0
-                                    xmin_p10 = float(prediction.get("xmin_p10", 0.0)) if prediction else 0.0
-                                    xmin_p90 = float(prediction.get("xmin_p90", 0.0)) if prediction else 0.0
-                                    expected_mean = float(prediction.get("xmin_mean", 0.0)) if prediction else 0.0
+                        bet_id = place_bet(
+                            fair_prob=prob / 100.0,
+                            market_odds=odds,
+                            all_outcome_odds=all_odds, # Pass all odds for proper vig stripping
+                            match_id=str(fid),
+                            player_id=sel_name.split()[0],
+                            market_type=m_type,
+                            line=2.5,
+                            side=sel_name.lower(),
+                            lineup_drop_at=match_time,
+                            latency_ms=0,
+                            regime="live_value_chaser",
+                            role_shift_flag=False,
+                            has_lineup=has_lineup,
+                            xmin_p10=xmin_p10,
+                            xmin_p90=xmin_p90,
+                            expected_mean=expected_mean
+                        )
+                        if bet_id:
+                            print(f"[DAEMON] VALUE BET placed: {m_type} | {sel_name} @ {odds} (EV: {ev*100:.1f}%)")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to place best bet: {e}")
 
-                                    bet_id = place_bet(
-                                        fair_prob=prob / 100.0,
-                                        market_odds=est_odds,
-                                        all_outcome_odds=[est_odds],
-                                        match_id=str(fid),
-                                        player_id=sel_name.split()[0],
-                                        market_type=m_type,
-                                        line=2.5,
-                                        side=sel_name.lower(),
-                                        lineup_drop_at=match_time,
-                                        latency_ms=0,
-                                        regime="live_ui_fallback_trigger",
-                                        role_shift_flag=False,
-                                        has_lineup=has_lineup,
-                                        xmin_p10=xmin_p10,
-                                        xmin_p90=xmin_p90,
-                                        expected_mean=expected_mean
-                                    )
-                                    if bet_id:
-                                        print(f"[DAEMON] Fallback Bet placed successfully: {bet_id}")
-                                except Exception as e:
-                                    print(f"[ERROR] Failed to route fallback bet: {e}")
-
-                                log_ai_bet(
-                                    f"{home} vs {away}",
-                                    m_type,
-                                    sel_name,
-                                    est_odds,
-                                    prob,
-                                    ev_est,
-                                )
-                            else:
-                                sel["skip_reason"] = (
-                                    "Market Illiquid (No Real Odds Found)"
-                                )
+                    log_ai_bet(f"{home} vs {away}", m_type, sel_name, odds, prob, ev)
 
         item = {
             "fixture_id": fid,
@@ -2059,8 +1989,8 @@ def refresh_completed_comparisons():
                                 "fixture": {
                                     "id": e["id"],
                                     "status": {"short": status_code},
-                                    "home_score": e.get("homeScore", {}).get("current"),
-                                    "away_score": e.get("awayScore", {}).get("current"),
+                                    "home_score": e.get("homeScore", {}).get("normaltime", e.get("homeScore", {}).get("current")),
+                                    "away_score": e.get("awayScore", {}).get("normaltime", e.get("awayScore", {}).get("current")),
                                 },
                                 "league": {"name": e["tournament"]["name"]},
                                 "teams": {
@@ -2096,7 +2026,7 @@ def refresh_completed_comparisons():
                 f"[COMPLETION] Fetching detailed reality stats for {f['teams']['home']['name']} vs {f['teams']['away']['name']} (ID: {fid})..."
             )
             try:
-                from free_scraper_module import get_fixture_stats_free
+                from src.free_scraper_module import get_fixture_stats_free
 
                 stats_raw = get_fixture_stats_free(fid)
                 if not stats_raw:
@@ -2270,8 +2200,9 @@ def run_daemon():
             import subprocess
             import sys
 
+            scraper_path = os.path.join(os.path.dirname(__file__), "betarabia_scraper.py")
             subprocess.Popen(
-                [sys.executable, "src/betarabia_scraper.py"], close_fds=True
+                [sys.executable, scraper_path], close_fds=True
             )
         except Exception as e:
             print("Failed to start background scraper:", e)
@@ -2322,7 +2253,7 @@ def run_daemon():
                 f"[*] Fetching lineups in batch for {len(fids)} matches near kickoff..."
             )
             try:
-                from free_scraper_module import get_fixture_lineups_batch
+                from src.free_scraper_module import get_fixture_lineups_batch
 
                 batch_lineups = get_fixture_lineups_batch(fids)
             except Exception as e:
@@ -2394,6 +2325,31 @@ def run_daemon():
             print("[+] Artifact updated with latest confirmed lineups.")
 
         update_dashboard_json(fixtures, [])
+        
+        # 4. Refresh Smart Parlays with the new Value-Chaser logic
+        try:
+            parlay_script = os.path.join(os.path.dirname(__file__), "parlay_intelligence_v2.py")
+            subprocess.Popen([sys.executable, parlay_script], close_fds=True)
+        except Exception as e:
+            print("Failed to start parlay engine:", e)
+
+        # 5. Institutional Monitoring (Momentum, News, Audits)
+        try:
+            # Steam Move Alerts Disabled by User Request
+            # Lineup Sniper Disabled by User Request
+            
+            # Daily Audit (Run at 23:55)
+            now = datetime.datetime.now()
+            if now.hour == 23 and now.minute >= 55:
+                from src.services.daily_audit import run_daily_audit
+                # Only run once per night
+                if not os.path.exists(os.path.join(DATA_DIR, f"audit_{now.date()}.done")):
+                    run_daily_audit()
+                    with open(os.path.join(DATA_DIR, f"audit_{now.date()}.done"), "w") as f: f.write("done")
+                    
+        except Exception as e:
+            print(f"[MONITORING ERROR] {e}")
+
         print("[*] Sweep complete. Dashboard state updated. Sleeping for 3 minutes...")
 
         # Wait 3 minutes (180s) before the next sweep

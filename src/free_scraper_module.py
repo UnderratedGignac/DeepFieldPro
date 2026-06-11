@@ -68,8 +68,8 @@ def get_todays_fixtures_free():
                     elif e["status"]["type"] == "finished":
                         status_code = "FT"
 
-                    home_score = e.get("homeScore", {}).get("current", None)
-                    away_score = e.get("awayScore", {}).get("current", None)
+                    home_score = e.get("homeScore", {}).get("normaltime", e.get("homeScore", {}).get("current", None))
+                    away_score = e.get("awayScore", {}).get("normaltime", e.get("awayScore", {}).get("current", None))
 
                     formatted_fixtures.append(
                         {

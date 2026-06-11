@@ -73,7 +73,8 @@ def build_parlays():
 
             ParlayEv_V = (ParlayFairProb_V * ParlayOdds_V) - 1.0
 
-            if ParlayEv_V >= 0.08:
+            # VALUE CHASER: Increased EV and Odds thresholds for parlays
+            if ParlayEv_V >= 0.12 and ParlayOdds_V >= 4.0:
                 FullKelly_V = (
                     (ParlayFairProb_V * ParlayOdds_V - 1) / (ParlayOdds_V - 1)
                     if ParlayOdds_V > 1
