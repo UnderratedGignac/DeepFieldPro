@@ -58,8 +58,15 @@ def get_todays_fixtures_free():
                         continue
 
                     # Sofascore uses Unix timestamps
+                    kickoff_ts = e["startTimestamp"]
+                    now_ts = time.time()
+                    
+                    # HARD FILTER: Skip matches that started more than 4 hours ago
+                    if (now_ts - kickoff_ts) > (4 * 3600):
+                        continue
+
                     kickoff_iso = datetime.datetime.fromtimestamp(
-                        e["startTimestamp"], datetime.timezone.utc
+                        kickoff_ts, datetime.timezone.utc
                     ).isoformat()
 
                     status_code = "NS"

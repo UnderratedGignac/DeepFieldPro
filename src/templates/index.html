@@ -1524,41 +1524,50 @@
 
         function connectSSE() {
             if (eventSource) {
+                console.log("[SSE] Closing existing connection.");
                 eventSource.close();
             }
+            console.log("[SSE] Connecting to /api/stream...");
             eventSource = new EventSource('/api/stream');
-            
+
             eventSource.onmessage = function(event) {
+                if (!event.data || event.data.trim() === "") {
+                    console.warn("[SSE] Received empty event data.");
+                    return;
+                }
                 try {
                     const data = JSON.parse(event.data);
+                    console.log("[SSE] Received update with " + data.length + " matches.");
                     processNewData(data);
                 } catch (e) {
-                    console.error("SSE Parse Error", e);
+                    console.error("[SSE] JSON Parse Error:", e, "Data:", event.data);
                 }
             };
-            
+
             eventSource.onerror = function(err) {
-                console.error("SSE Connection Error. Attempting to reconnect...", err);
+                console.error("[SSE] Connection Error. Attempting to reconnect in 5s...", err);
                 eventSource.close();
                 setTimeout(connectSSE, 5000);
             };
         }
 
         async function fetchState() {
+            console.log("[API] Fetching current state from /api/state...");
             if (cachedMatches.length === 0) {
                 renderSkeletons();
             }
             document.getElementById('sync-progress-container').style.display = 'block';
             try {
                 const res = await fetch('/api/state');
-                if (!res.ok) throw new Error("State not found");
+                if (!res.ok) throw new Error("State not found (HTTP " + res.status + ")");
                 const data = await res.json();
+                console.log("[API] State fetched successfully. Matches: " + data.length);
                 processNewData(data);
                 loader.style.display = 'none';
                 document.getElementById('sync-progress-container').style.display = 'none';
                 return data;
             } catch (err) {
-                console.error(err);
+                console.error("[API] Fetch Error:", err);
                 document.getElementById('sync-progress-container').style.display = 'none';
                 if(dashboard.innerHTML === '' || dashboard.innerHTML.includes('skeleton')) {
                     dashboard.innerHTML = `<div class="placeholder-box" style="width:100%;"><h3><i class="fa-solid fa-triangle-exclamation"></i> Connection Error</h3><p>Could not reach the prediction daemon. Retrying...</p></div>`;
@@ -1567,27 +1576,30 @@
         }
 
         async function manualRefresh() {
+            console.log("[UI] Manual refresh triggered.");
             showToast("Syncing with prediction engine...", "info");
             await fetchState();
             showToast("Dashboard synchronized.", "success");
         }
 
         function processNewData(data) {
+            console.log("[DATA] Processing " + data.length + " matches.");
             let needsRender = false;
-            
+
             data.forEach(m => {
                 const matchId = m.match;
                 const prev = previousMatches[matchId];
-                
+
                 if (prev) {
                     // Check for goals
                     const prevGoals = prev.goals ? prev.goals.length : 0;
                     const currGoals = m.goals ? m.goals.length : 0;
                     if (currGoals > prevGoals) {
+                        console.log("[DATA] GOAL detected in " + matchId);
                         sendDesktopNotification('⚽ GOAL!', `Goal scored in ${matchId}`);
                         showToast(`Goal scored in ${matchId}!`, 'success');
                     }
-                    
+
                     // Mark odds differences for flashing
                     if (m.prematch_markets && prev.prematch_markets) {
                         for (const market in m.prematch_markets) {
@@ -1607,6 +1619,7 @@
                     }
                 } else {
                     // New match
+                    console.log("[DATA] New match discovered: " + matchId);
                     if (m.prediction && m.prediction.detailed_prediction && m.prediction.detailed_prediction.confidence >= 8) {
                         sendDesktopNotification('🚀 High Confidence Bet', `AI found edge in ${matchId}`);
                         showToast(`High Confidence AI Edge found in ${matchId}`, 'success');
@@ -1615,12 +1628,13 @@
                 }
                 previousMatches[matchId] = m;
             });
-            
+
             cachedMatches = data;
             renderDashboard(cachedMatches);
         }
 
         function setMatchFilter(filterType, element) {
+            console.log("[UI] Switching filter to: " + filterType);
             currentMatchFilter = filterType;
             document.querySelectorAll('.filter-pill').forEach(el => el.classList.remove('active'));
             if (element) {
@@ -1641,24 +1655,37 @@
         }
 
         function renderDashboard(matches) {
+            console.log("[RENDER] Rendering dashboard with " + matches.length + " source matches.");
             dashboard.innerHTML = '';
 
             const searchInput = document.getElementById('search-input')?.value.toLowerCase() || '';
             const sortSelect = document.getElementById('sort-select')?.value || 'time';
-            
+
             let filteredMatches = matches;
 
-            if (currentMatchFilter === 'live') {
+            if (currentMatchFilter === 'all') {
+                console.log("[RENDER] Filtering 'All' tab (pruning finished).");
+                filteredMatches = filteredMatches.filter(m => {
+                    const status = (m.status_code || '').toLowerCase();
+                    const isFinished = ['ft', 'finished', 'completed', 'aet', 'pen'].includes(status) || 
+                                       status.includes('finish') || 
+                                       status.includes('complete');
+                    return !isFinished;
+                });
+            } else if (currentMatchFilter === 'live') {
+                console.log("[RENDER] Filtering 'Live' tab.");
                 filteredMatches = filteredMatches.filter(m => {
                     const status = (m.status_code || '').toLowerCase();
                     return ['1h', '2h', 'ht', 'live', 'inprogress', 'in_progress', 'live-now'].includes(status) || status.includes('progress');
                 });
             } else if (currentMatchFilter === 'upcoming') {
+                console.log("[RENDER] Filtering 'Upcoming' tab.");
                 filteredMatches = filteredMatches.filter(m => {
                     const status = (m.status_code || '').toLowerCase();
                     return ['ns', 'upcoming', 'not_started', 'not started'].includes(status) || status.includes('upcoming') || status.includes('start');
                 });
             } else if (currentMatchFilter === 'finished') {
+                console.log("[RENDER] Filtering 'Finished' tab.");
                 filteredMatches = filteredMatches.filter(m => {
                     const status = (m.status_code || '').toLowerCase();
                     return ['ft', 'finished', 'completed', 'aet', 'pen'].includes(status) || status.includes('finish') || status.includes('complete');
@@ -1666,11 +1693,14 @@
             }
 
             if (searchInput) {
-                filteredMatches = filteredMatches.filter(m => 
-                    m.match.toLowerCase().includes(searchInput) || 
+                console.log("[RENDER] Applying search: " + searchInput);
+                filteredMatches = filteredMatches.filter(m =>
+                    m.match.toLowerCase().includes(searchInput) ||
                     (m.league && m.league.toLowerCase().includes(searchInput))
                 );
             }
+
+            console.log("[RENDER] Final count after filtering: " + filteredMatches.length);
 
             if (filteredMatches.length === 0) {
                 dashboard.innerHTML = `

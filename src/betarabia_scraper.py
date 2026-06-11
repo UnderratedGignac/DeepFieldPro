@@ -521,9 +521,15 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
             EventData_V = Data_V.get("data")
             if not isinstance(EventData_V, dict):
                 EventData_V = Data_V  # Fallback if 'data' wrapper is missing
+            
+            if not EventData_V:
+                continue
 
             Groups_V = EventData_V.get("groups", [])
-            Info_V = EventData_V.get("info", {})
+            Info_V = EventData_V.get("info")
+            if not Info_V:
+                Info_V = {}
+            
             EventId_V = str(Info_V.get("id") or Data_V.get("id", ""))
 
             if not EventId_V and "lb/" in Url_V:

@@ -1,6 +1,6 @@
 {
     "kelly_multiplier": 0.25,
-    "min_ev_threshold": 0.05,
+    "min_ev_threshold": 0.4,
     "max_exposure_pct": 0.05,
     "min_confidence_pct": 55,
     "data_source": "sofascore_free",
