@@ -11,7 +11,7 @@ class LineupScraper:
 
     async def fetch_official_lineups(self, fixture_id: str) -> Dict[str, Any]:
         """
-        Poll official sources (Sofascore, Fotmob, Club Socials) for confirmed starting XIs.
+        Poll official sources (API-Football, Fotmob, Club Socials) for confirmed starting XIs.
         Returns a lineup payload dictionary.
         """
         logger.info(f"Checking for official lineups for {fixture_id}...")

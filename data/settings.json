@@ -1,9 +1,9 @@
 {
     "kelly_multiplier": 0.25,
-    "min_ev_threshold": 0.4,
+    "min_ev_threshold": 0.1,
     "max_exposure_pct": 0.05,
     "min_confidence_pct": 55,
-    "data_source": "sofascore_free",
+    "data_source": "",
     "target_leagues": "All",
     "refresh_interval_sec": 30,
     "auto_place_bets": true,

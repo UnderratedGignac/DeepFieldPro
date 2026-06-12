@@ -34,7 +34,7 @@ MARKETS = [
 ]
 SOURCES = [
     ("official_club_socials", 1.0),
-    ("sofascore", 0.95),
+    ("api_football", 0.98),
     ("journalist_leak", 0.7),
     ("expected_predictor", 0.5),
 ]

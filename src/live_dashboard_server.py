@@ -33,7 +33,7 @@ if not os.path.exists(SETTINGS_FILE):
                 "max_exposure_pct": 0.05,
                 "platt_scaling": True,
                 "refresh_interval_sec": 30,
-                "data_source": "sofascore_free",
+                "data_source": "api_football",
                 "api_football_key": "",
                 "target_leagues": "All",
                 "min_confidence_pct": 55,
@@ -182,26 +182,29 @@ def get_bankroll():
 def get_stair_balance():
     try:
         import requests
+        from src.dfp_config import settings
+        api_key = settings.STAIR_AI_API_KEY or "zppYmElHFokPQMMhHarWOygViHWDBduLPAuvTXcvCUFlbrdgkQhqnLlefmLzNisn"
 
         res = requests.get(
-            "https://staging.stair-ai.com/api/v1/arena/agents/me",
-            headers={
-                "x-api-key": "zppYmElHFokPQMMhHarWOygViHWDBduLPAuvTXcvCUFlbrdgkQhqnLlefmLzNisn"
-            },
-            timeout=5,
+            "https://stair-ai.com/api/v1/arena/agents/me",
+            headers={"x-api-key": api_key},
+            timeout=8,
         )
         if res.status_code == 200:
             data = res.json()
-            wallet = data.get("data", {}).get("wallet", {})
+            # Try to get wallet directly or under 'data'
+            wallet = data.get("wallet") or data.get("data", {}).get("wallet", {})
+            available = wallet.get("available_balance_usdc") or wallet.get("availableBalance") or 0
+            locked = wallet.get("locked_balance_usdc") or wallet.get("lockedBalance") or 0
             return jsonify(
                 {
-                    "available": wallet.get("availableBalance", 0),
-                    "locked": wallet.get("lockedBalance", 0),
+                    "available": float(available),
+                    "locked": float(locked),
                 }
             )
-    except Exception:
-        pass
-    return jsonify({"available": 0, "locked": 0})
+    except Exception as e:
+        print("Error fetching stair balance:", e)
+    return jsonify({"available": 0.0, "locked": 0.0})
 
 
 @app.route("/api/place_parlay", methods=["POST"])
@@ -362,13 +365,126 @@ def get_performance():
 def get_stair_bets():
     rows = query_db(
         "bet_log.db",
-        "SELECT b.bet_id, b.match_id, b.market_type, b.entry_odds, b.stake, b.result as status, b.pnl, b.placed_at, s.order_id FROM bet_log b JOIN stair_orders s ON b.bet_id = s.bet_id ORDER BY b.placed_at DESC",
+        """SELECT b.bet_id, b.match_id, b.market_type, b.entry_odds, b.stake,
+                  b.result as status, b.pnl, b.placed_at, b.side,
+                  s.order_id
+           FROM bet_log b
+           JOIN stair_orders s ON b.bet_id = s.bet_id
+           WHERE b.bet_source = 'AI'
+           ORDER BY b.placed_at DESC""",
     )
     return jsonify({"stair_bets": [dict(r) for r in (rows or [])]})
 
 
+
+# ─── BetArabia Virtual Betting System ─────────────────────────────────────────
+
+BETARABIA_DB = os.path.join(DATA_DIR, "betarabia_bets.db")
+
+def query_betarabia(sql, params=()):
+    """Query the BetArabia bets database."""
+    if not os.path.exists(BETARABIA_DB):
+        return []
+    conn = sqlite3.connect(BETARABIA_DB)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+
+@app.route("/api/betarabia_bets")
+def get_betarabia_bets():
+    """Return all BetArabia virtual bets."""
+    rows = query_betarabia("""
+        SELECT bet_id, fixture_id, match_name, league, kickoff_time,
+               market_type, selection, odds, model_prob, fair_odds,
+               ev_pct, edge_pct, stake, result, pnl, placed_at,
+               settled_at, home_score, away_score
+        FROM betarabia_bets
+        ORDER BY placed_at DESC
+        LIMIT 200
+    """)
+    return jsonify({"bets": [dict(r) for r in rows]})
+
+
+@app.route("/api/betarabia_bankroll")
+def get_betarabia_bankroll():
+    """Return current bankroll state + history."""
+    # Current state (today)
+    today = __import__('datetime').date.today().isoformat()
+    current = query_betarabia(
+        "SELECT * FROM betarabia_bankroll WHERE date = ?", (today,)
+    )
+    history = query_betarabia(
+        "SELECT date, starting_balance, current_balance, daily_pnl, total_bets, won_bets, lost_bets FROM betarabia_bankroll ORDER BY date ASC"
+    )
+    
+    if current:
+        cur_dict = dict(current[0])
+    else:
+        cur_dict = {
+            "current_balance": 500.0,
+            "starting_balance": 500.0,
+            "peak_balance": 500.0,
+            "daily_pnl": 0.0,
+            "total_bets": 0,
+            "won_bets": 0,
+            "lost_bets": 0
+        }
+    
+    # Aggregate totals across all time
+    all_bets = query_betarabia("SELECT result, pnl, stake FROM betarabia_bets")
+    total_staked = sum(float(r["stake"]) for r in all_bets)
+    total_pnl = sum(float(r["pnl"]) for r in all_bets)
+    won_all = sum(1 for r in all_bets if r["result"] == "WON")
+    lost_all = sum(1 for r in all_bets if r["result"] == "LOST")
+    open_all = sum(1 for r in all_bets if r["result"] == "OPEN")
+
+    return jsonify({
+        "current": cur_dict,
+        "history": [dict(r) for r in history],
+        "totals": {
+            "total_bets": len(all_bets),
+            "open_bets": open_all,
+            "won_bets": won_all,
+            "lost_bets": lost_all,
+            "total_staked": round(total_staked, 2),
+            "total_pnl": round(total_pnl, 2),
+            "win_rate": round(won_all / max(won_all + lost_all, 1) * 100, 1)
+        }
+    })
+
+
+@app.route("/api/betarabia_run", methods=["POST"])
+def run_betarabia():
+    """Trigger the BetArabia betting engine to place new bets."""
+    try:
+        sys.path.insert(0, os.path.dirname(__file__))
+        from src.betarabia_betting_engine import run_betarabia_engine, init_db
+        init_db()
+        placed = run_betarabia_engine()
+        return jsonify({"status": "ok", "placed": len(placed), "bet_ids": placed})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/betarabia_settle", methods=["POST"])
+def settle_betarabia():
+    """Trigger settlement check for finished BetArabia bets."""
+    try:
+        from src.betarabia_betting_engine import check_and_settle_bets
+        check_and_settle_bets()
+        return jsonify({"status": "ok", "message": "Settlement check complete"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+
 @app.route("/api/smart_parlays")
 def get_smart_parlays():
+
     parlay_path = os.path.join(DATA_DIR, "smart_parlays.json")
     if os.path.exists(parlay_path):
         try:

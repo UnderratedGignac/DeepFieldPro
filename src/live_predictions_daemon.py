@@ -35,8 +35,10 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
 # Import new DeepFieldPro modules - only the specific classes/functions we actually use
-from src.free_scraper_module import (  # noqa: E402
-    get_todays_fixtures_free as get_todays_fixtures,
+from src.api_football_client import (  # noqa: E402
+    get_todays_fixtures_api as get_todays_fixtures,
+    get_fixture_lineups_batch_api as get_fixture_lineups_batch,
+    get_fixture_stats_api as get_fixture_stats,
 )
 from src.models.calibration_engine import ProbabilityCalibrator  # noqa: E402
 from src.risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
@@ -1172,6 +1174,150 @@ def find_betarabia_odds(home_team, away_team):
         return None
 
 
+def process_stair_ai_world_cup_bets(fixtures, player_model, match_model, df):
+    """
+    Scans generated predictions for World Cup fixtures, maps them to Polymarket event slugs,
+    calculates EV against Polymarket mid prices, places trades on Stair AI,
+    and submits the reasoning-ledger trace.
+    """
+    from src.dfp_config import settings
+    # 1. Retrieve API key
+    api_key = settings.STAIR_AI_API_KEY or "zppYmElHFokPQMMhHarWOygViHWDBduLPAuvTXcvCUFlbrdgkQhqnLlefmLzNisn"
+    if not api_key:
+        print("[STAIR AI] API key not configured. Skipping World Cup Arena check.")
+        return
+
+    # 2. Fetch Stair AI mappings
+    from src.stair_ai_client import get_mappings, execute_stair_flow
+    mappings = get_mappings(api_key)
+    if not mappings:
+        print("[STAIR AI] Curated mappings list is empty or mappings API failed. Skipping.")
+        return
+
+    # 3. Fetch agent wallet details to know available balance
+    available_balance = 100.0 # Default fallback
+    try:
+        r_wallet = requests.get(
+            "https://stair-ai.com/api/v1/arena/agents/me",
+            headers={"x-api-key": api_key},
+            timeout=10
+        )
+        if r_wallet.status_code == 200:
+            wallet = r_wallet.json().get("wallet") or {}
+            available_balance = float(wallet.get("available_balance_usdc") or 100.0)
+            print(f"[STAIR AI] Retrieved agent wallet balance: ${available_balance:.2f} USDC")
+    except Exception as e:
+        print(f"[STAIR AI] Error retrieving agent wallet balance: {e}")
+
+    # 4. Load predictions from DB to know our calculated probabilities
+    db_preds = load_predictions_from_db()
+
+    # 5. Connect to bet_log.db to check for already placed trades
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute("CREATE TABLE IF NOT EXISTS stair_orders (bet_id TEXT PRIMARY KEY, order_id TEXT)")
+        cur.execute("SELECT bet_id FROM stair_orders")
+        existing_stair_bets = {row[0] for row in cur.fetchall()}
+        conn.close()
+    except Exception as e:
+        print("[STAIR AI] Error checking stair_orders table:", e)
+        existing_stair_bets = set()
+
+    # 6. Iterate through all mappings
+    for m in mappings:
+        sportmonks_fid = m["sportmonks_fixture_id"]
+        match_name = m["sportmonks_match_name"]
+        
+        # Check if already placed a bet for this fixture (by fixture ID in bet_id)
+        # Unique bet_id prefix: f"STAIR_{sportmonks_fid}_"
+        already_bet = False
+        for bet_id in existing_stair_bets:
+            if bet_id.startswith(f"STAIR_{sportmonks_fid}_"):
+                already_bet = True
+                break
+                
+        if already_bet:
+            # We already placed a bet for this match, skip to avoid duplicates
+            continue
+
+        # Look up match in our system's fixtures by name (fuzzy match)
+        matched_fixture = None
+        home_country = m["home_country"]
+        away_country = m["away_country"]
+
+        for f in fixtures:
+            f_home = f["teams"]["home"]["name"]
+            f_away = f["teams"]["away"]["name"]
+            # Fuzzy match home and away country/team names
+            h_score = get_match_score(home_country, f_home)
+            a_score = get_match_score(away_country, f_away)
+            if h_score >= 0.5 and a_score >= 0.5:
+                matched_fixture = f
+                break
+
+        if not matched_fixture:
+            # Fixture not found in today/tomorrow feed, skip
+            continue
+
+        # Fetch local prediction details
+        fid = matched_fixture["fixture"]["id"]
+        try:
+            fid = int(fid)
+        except (ValueError, TypeError):
+            pass
+            
+        local_pred = db_preds.get(fid)
+        if not local_pred:
+            # Prediction not generated yet, skip
+            continue
+
+        # Run the Stair AI agent flow for this match!
+        try:
+            order_info = execute_stair_flow(api_key, m, local_pred, available_balance)
+            if order_info:
+                # Log to bet_log and stair_orders
+                bet_id = f"STAIR_{sportmonks_fid}_{order_info['outcome']}"
+                conn = sqlite3.connect(db_path)
+                cur = conn.cursor()
+                # Log local bet representation
+                cur.execute(
+                    """
+                    INSERT INTO bet_log 
+                    (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake, result, pnl, placed_at, bet_source, is_recommended, line, side)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        bet_id,
+                        match_name,
+                        f"{match_name} ({order_info['outcome']})",
+                        "Match Result",
+                        order_info["odds"],
+                        round(1.0 / local_pred["home_prob"] if order_info["outcome"] == m["home_short_code"] else 1.5, 3), # simplified fair odds representation
+                        10.0, # edge representation
+                        order_info["stake"],
+                        "OPEN",
+                        0.0,
+                        datetime.datetime.now().isoformat(),
+                        "AI",
+                        1,
+                        2.5,
+                        order_info["outcome"]
+                    )
+                )
+                # Log stair order ID mapping
+                cur.execute(
+                    "INSERT OR IGNORE INTO stair_orders (bet_id, order_id) VALUES (?, ?)",
+                    (bet_id, order_info["order_id"])
+                )
+                conn.commit()
+                conn.close()
+                print(f"[STAIR AI] Bet successfully executed and logged for {match_name}: {bet_id} -> {order_info['order_id']}")
+        except Exception as flow_err:
+            print(f"[STAIR AI] Flow failed for {match_name}: {flow_err}")
+
+
 def log_ai_bet(match, market, selection, odds, prob, ev):
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
@@ -1307,12 +1453,14 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
                     "time_in_force_seconds": 30,
                     "usd_size": str(stake),
                 }
+                from src.dfp_config import settings
+                stair_api_key = settings.STAIR_AI_API_KEY or "zppYmElHFokPQMMhHarWOygViHWDBduLPAuvTXcvCUFlbrdgkQhqnLlefmLzNisn"
                 stair_headers = {
                     "Content-Type": "application/json",
-                    "x-api-key": "lmIxslhTmXaJSLpRndCZjaziawkycPJkecyDCWYnXaVFyyWmqZQhaHCJdVLdShrk",
+                    "x-api-key": stair_api_key,
                 }
                 res = requests.post(
-                    "https://staging.stair-ai.com/api/v1/arena/orders",
+                    "https://stair-ai.com/api/v1/arena/orders",
                     json=stair_payload,
                     headers=stair_headers,
                     timeout=10,
@@ -1368,7 +1516,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
 
 def settle_open_bets():
     """
-    Scrapes today's finished matches from Sofascore and settles any OPEN bets in bet_log.db.
+    Scrapes today's finished matches from API-Football and settles any OPEN bets in bet_log.db.
     """
     print("[SETTLEMENT] Running settlement check...")
 
@@ -1405,7 +1553,7 @@ def settle_open_bets():
                 )
 
     if not finished_matches:
-        print("[SETTLEMENT] No finished matches found in Sofascore today yet.")
+        print("[SETTLEMENT] No finished matches found via API-Football today yet.")
         return
 
     db_path = os.path.join(DATA_DIR, "bet_log.db")
@@ -1740,12 +1888,22 @@ def update_dashboard_json(fixtures, results_cache):
         status = f["fixture"]["status"]["short"]
 
         # TASK: Strict check on the hour. Skip any match that started more than 4 hours ago.
+        time_to_kickoff = 999
         try:
             ts = match_time.replace("Z", "+00:00")
             kickoff_dt = datetime.datetime.fromisoformat(ts)
             now_utc = datetime.datetime.now(datetime.timezone.utc)
+            time_to_kickoff = (kickoff_dt - now_utc).total_seconds() / 60.0
+            
             if (now_utc - kickoff_dt).total_seconds() > 4 * 3600:
                 continue
+                
+            # Smart Status Detection for Dashboard
+            if status == "NS":
+                if time_to_kickoff <= 0:
+                    if time_to_kickoff < -105: status = "FT"
+                    elif time_to_kickoff < -50: status = "2H"
+                    else: status = "1H"
         except Exception:
             pass
 
@@ -1818,145 +1976,162 @@ def update_dashboard_json(fixtures, results_cache):
                     )
 
         if prediction and "markets" in prediction:
-            # Strictly enforce that we ONLY bet on games that have official lineups
-            if not prediction.get("has_lineup", False):
-                # skip betting for this match
-                pass
-            else:
-                match_bet_candidates = []
-                for m_type, selections in prediction["markets"].items():
-                    for sel in selections:
-                        sel_name = sel["selection"]
-                        prob = sel["prob"]
+            # Always inject Betarabia odds into prediction markets for display purposes.
+            # Betting placement is controlled separately (requires has_lineup).
+            match_bet_candidates = []
 
-                        # Determine Key for odds lookup
-                        key = None
-                        if m_type == "1X2":
-                            if "Home" in sel_name or "1" in sel_name: key = "Home"
-                            elif "Draw" in sel_name or "X" in sel_name: key = "Draw"
-                            elif "Away" in sel_name or "2" in sel_name: key = "Away"
-                        elif m_type == "Over/Under 2.5":
-                            if "Over" in sel_name: key = "Over"
-                            elif "Under" in sel_name: key = "Under"
-                        elif m_type == "BTTS":
-                            if "Yes" in sel_name: key = "Yes"
-                            elif "No" in sel_name: key = "No"
-                        elif m_type == "Corners": key = sel_name
-                        elif m_type == "Total Cards": key = sel_name
+            for m_type, selections in prediction["markets"].items():
+                for sel in selections:
+                    sel_name = sel["selection"]
+                    prob = sel["prob"]
 
-                        odds = None
-                        all_market_odds = []
-                        if odds_dict:
-                            if m_type in odds_dict and key in odds_dict[m_type]:
-                                odds = odds_dict[m_type][key]
-                                all_market_odds = list(odds_dict[m_type].values())
-                            elif m_type == "Corners" and "Corners" in odds_dict:
-                                for o_name, o_price in odds_dict["Corners"].items():
-                                    if "8.5" in o_name and "over" in o_name.lower(): 
-                                        odds = o_price
-                                        all_market_odds = [o_price, 1.05] # Dummy under odds if missing
-                                        break
-                            elif m_type == "Total Cards" and "Cards" in odds_dict:
-                                for o_name, o_price in odds_dict["Cards"].items():
-                                    if "3.5" in o_name and "over" in o_name.lower(): 
-                                        odds = o_price
-                                        all_market_odds = [o_price, 1.05]
-                                        break
+                    # Determine Key for odds lookup
+                    key = None
+                    if m_type == "1X2":
+                        if "Home" in sel_name or "1" in sel_name: key = "Home"
+                        elif "Draw" in sel_name or "X" in sel_name: key = "Draw"
+                        elif "Away" in sel_name or "2" in sel_name: key = "Away"
+                    elif m_type == "Over/Under 2.5":
+                        if "Over" in sel_name: key = "Over"
+                        elif "Under" in sel_name: key = "Under"
+                    elif m_type == "BTTS":
+                        if "Yes" in sel_name: key = "Yes"
+                        elif "No" in sel_name: key = "No"
+                    elif m_type == "Corners": key = sel_name
+                    elif m_type == "Total Cards": key = sel_name
 
-                        if odds is not None:
-                            # Sniper / Peak Logic
-                            try:
-                                conn_sniper = sqlite3.connect(os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"))
-                                cur_sniper = conn_sniper.cursor()
-                                cur_sniper.execute("INSERT INTO odds_history (fixture_id, market, selection, odds) VALUES (?, ?, ?, ?)", (str(fid), m_type, sel_name, odds))
-                                conn_sniper.commit()
-                                cur_sniper.execute("SELECT MAX(odds) FROM odds_history WHERE fixture_id = ? AND market = ? AND selection = ?", (str(fid), m_type, sel_name))
-                                max_seen_odds = cur_sniper.fetchone()[0] or odds
-                                conn_sniper.close()
-                            except: max_seen_odds = odds
+                    odds = None
+                    all_market_odds = []
+                    if odds_dict:
+                        if m_type in odds_dict and key and key in odds_dict[m_type]:
+                            odds = odds_dict[m_type][key]
+                            all_market_odds = list(odds_dict[m_type].values())
+                        elif m_type == "Corners" and "Corners" in odds_dict:
+                            for o_name, o_price in odds_dict["Corners"].items():
+                                if "8.5" in o_name and "over" in o_name.lower():
+                                    odds = o_price
+                                    all_market_odds = [o_price, 1.05]
+                                    break
+                        elif m_type == "Total Cards" and "Cards" in odds_dict:
+                            for o_name, o_price in odds_dict["Cards"].items():
+                                if "3.5" in o_name and "over" in o_name.lower():
+                                    odds = o_price
+                                    all_market_odds = [o_price, 1.05]
+                                    break
+                        elif m_type in ("Goalscorer", "Player Shots"):
+                            # Use estimated fair odds based on probability for display
+                            odds = round(1.05 * (100.0 / prob), 2) if prob > 0 else None
+                            if odds:
+                                all_market_odds = [odds]
 
-                            ev = (prob / 100.0) * odds - 1.0
-                            is_at_peak = (odds >= max_seen_odds * 0.98)
-                            
-                            # VALUE CHASER LOGIC: Chase high EV even if prob is lower.
-                            # If EV > 15%, we allow prob down to 30%. Otherwise need 55%.
-                            conf_threshold = settings.get("min_confidence_pct", 55)
-                            if ev >= 0.15: conf_threshold = 30.0
+                    if odds is not None:
+                        # Sniper / Peak Logic
+                        try:
+                            conn_sniper = sqlite3.connect(os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"))
+                            cur_sniper = conn_sniper.cursor()
+                            cur_sniper.execute("INSERT INTO odds_history (fixture_id, market, selection, odds) VALUES (?, ?, ?, ?)", (str(fid), m_type, sel_name, odds))
+                            conn_sniper.commit()
+                            cur_sniper.execute("SELECT MAX(odds) FROM odds_history WHERE fixture_id = ? AND market = ? AND selection = ?", (str(fid), m_type, sel_name))
+                            max_seen_odds = cur_sniper.fetchone()[0] or odds
+                            conn_sniper.close()
+                        except: max_seen_odds = odds
 
-                            is_recommended = (
-                                ev >= min_ev_threshold
-                                and prob >= conf_threshold
-                                and odds >= dfp_settings.MODEL_MIN_ODDS
-                                and is_at_peak
-                            )
-                            
-                            sel.update({"odds": odds, "max_seen_odds": max_seen_odds, "ev": ev, "m_type": m_type, "all_odds": all_market_odds})
-                            if is_recommended:
-                                match_bet_candidates.append(sel)
+                        ev = (prob / 100.0) * odds - 1.0
+                        is_at_peak = (odds >= max_seen_odds * 0.98)
+
+                        # VALUE CHASER LOGIC: Chase high EV even if prob is lower.
+                        # If EV > 15%, we allow prob down to 30%. Otherwise need 55%.
+                        conf_threshold = settings.get("min_confidence_pct", 55)
+                        if ev >= 0.15: conf_threshold = 30.0
+
+                        is_recommended = (
+                            ev >= min_ev_threshold
+                            and prob >= conf_threshold
+                            and odds >= dfp_settings.MODEL_MIN_ODDS
+                            and is_at_peak
+                        )
+
+                        if not is_recommended:
+                            reasons = []
+                            if ev < min_ev_threshold: reasons.append(f"EV too low ({ev*100:.1f}% < {min_ev_threshold*100:.1f}%)")
+                            if prob < conf_threshold: reasons.append(f"Prob too low ({prob:.1f}% < {conf_threshold:.1f}%)")
+                            if odds < dfp_settings.MODEL_MIN_ODDS: reasons.append(f"Odds too low ({odds} < {dfp_settings.MODEL_MIN_ODDS})")
+                            if not is_at_peak: reasons.append("Not at peak odds")
+                            sel["skip_reason"] = ", ".join(reasons)
+
+                        sel.update({"odds": odds, "max_seen_odds": max_seen_odds, "ev": ev, "m_type": m_type, "all_odds": all_market_odds})
+                        sel["recommended"] = is_recommended
+                        # TASK: Allow betting without official lineups if near kickoff or started
+                        is_near_kickoff = time_to_kickoff <= 10 # Within 10 mins or started
+                        if is_recommended and (prediction.get("has_lineup", False) or is_near_kickoff):
+                            match_bet_candidates.append(sel)
+                        elif is_recommended:
+                            sel["skip_reason"] = "Waiting for lineup/kickoff window"
+                    else:
+                        # FALLBACK: No real odds found. Estimate 108% fair odds (reflecting model edge).
+                        est_odds = (
+                            round(1.08 * (100.0 / prob), 2) if prob > 0 else 1.0
+                        )
+                        # EV of 108% fair odds is +0.08 (+8%)
+                        ev_est = 0.08
+                        sel["odds"] = est_odds
+                        sel["max_seen_odds"] = est_odds
+                        sel["ev"] = ev_est
+                        sel["m_type"] = m_type
+                        sel["all_odds"] = [est_odds]
+
+                        is_recommended = False
+                        if est_odds >= dfp_settings.MODEL_MIN_ODDS and ev_est >= min_ev_threshold:
+                            if m_type == "Corners" and prob >= 55.0:
+                                is_recommended = True
+                            elif m_type == "Total Cards" and prob >= 55.0:
+                                is_recommended = True
+                            elif (
+                                m_type == "Goalscorer"
+                                and prob >= 20.0
+                                and sel.get("is_top_pick")
+                            ):
+                                is_recommended = True
+                            elif (
+                                m_type == "Player Shots"
+                                and prob >= 30.0
+                                and sel.get("is_top_pick")
+                            ):
+                                is_recommended = True
+                            elif prob >= settings.get("min_confidence_pct", 55):
+                                is_recommended = True
+
+                        sel["recommended"] = is_recommended
+                        # TASK: Allow betting without official lineups if near kickoff or started
+                        if is_recommended and (prediction.get("has_lineup", False) or is_near_kickoff):
+                            match_bet_candidates.append(sel)
                         else:
-                            # FALLBACK: No real odds found. Estimate 108% fair odds (reflecting model edge).
-                            est_odds = (
-                                round(1.08 * (100.0 / prob), 2) if prob > 0 else 1.0
-                            )
-                            # EV of 108% fair odds is +0.08 (+8%)
-                            ev_est = 0.08
-                            sel["odds"] = est_odds
-                            sel["max_seen_odds"] = est_odds
-                            sel["ev"] = ev_est
-                            sel["m_type"] = m_type
-                            sel["all_odds"] = [est_odds]
+                            sel["skip_reason"] = "Market Illiquid (No Real Odds Found)"
 
-                            is_recommended = False
-                            if est_odds >= dfp_settings.MODEL_MIN_ODDS and ev_est >= min_ev_threshold:
-                                if m_type == "Corners" and prob >= 55.0:
-                                    is_recommended = True
-                                elif m_type == "Total Cards" and prob >= 55.0:
-                                    is_recommended = True
-                                elif (
-                                    m_type == "Goalscorer"
-                                    and prob >= 20.0
-                                    and sel.get("is_top_pick")
-                                ):
-                                    is_recommended = True
-                                elif (
-                                    m_type == "Player Shots"
-                                    and prob >= 30.0
-                                    and sel.get("is_top_pick")
-                                ):
-                                    is_recommended = True
-                                elif prob >= settings.get("min_confidence_pct", 55):
-                                    is_recommended = True
-                            
-                            sel["recommended"] = is_recommended
-                            if is_recommended:
-                                match_bet_candidates.append(sel)
-                            else:
-                                sel["skip_reason"] = "Market Illiquid (No Real Odds Found)"
 
-                # --- MATCH SANITY FILTER ---
-                # "make the bets related and not different... less random choices"
-                if match_bet_candidates:
-                    # Sort by EV descending to pick the best value first
-                    match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
-                    
-                    # Selection: Only take the SINGLE BEST bet for the entire match.
-                    # This eliminates all contradictory/random-feeling overlapping bets.
-                    match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
-                    best_bet = match_bet_candidates[0]
-                    
-                    m_type = best_bet["m_type"]
-                    sel_name = best_bet["selection"]
-                    prob = best_bet["prob"]
-                    odds = best_bet["odds"]
-                    ev = best_bet["ev"]
-                    all_odds = best_bet.get("all_odds", [odds])
-                    
-                    try:
-                        has_lineup = int(prediction.get("has_lineup", 0))
-                        xmin_p10 = float(prediction.get("xmin_p10", 0.0))
-                        xmin_p90 = float(prediction.get("xmin_p90", 0.0))
-                        expected_mean = float(prediction.get("xmin_mean", 0.0))
+            # --- MATCH SANITY FILTER ---
+            if match_bet_candidates:
+                # Sort by EV descending to pick the best value first
+                match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
 
+                # Selection: Only take the SINGLE BEST bet for the entire match.
+                # This eliminates all contradictory/random-feeling overlapping bets.
+                best_bet = match_bet_candidates[0]
+
+                m_type = best_bet["m_type"]
+                sel_name = best_bet["selection"]
+                prob = best_bet["prob"]
+                odds = best_bet["odds"]
+                ev = best_bet["ev"]
+                all_odds = best_bet.get("all_odds", [odds])
+
+                try:
+                    has_lineup = int(prediction.get("has_lineup", 0))
+                    xmin_p10 = float(prediction.get("xmin_p10", 0.0))
+                    xmin_p90 = float(prediction.get("xmin_p90", 0.0))
+                    expected_mean = float(prediction.get("xmin_mean", 0.0))
+
+                    if settings.get("auto_place_bets", False):
                         bet_id = place_bet(
                             fair_prob=prob / 100.0,
                             market_odds=odds,
@@ -1977,10 +2152,11 @@ def update_dashboard_json(fixtures, results_cache):
                         )
                         if bet_id:
                             print(f"[DAEMON] VALUE BET placed: {m_type} | {sel_name} @ {odds} (EV: {ev*100:.1f}%)")
-                    except Exception as e:
-                        print(f"[ERROR] Failed to place best bet: {e}")
+                except Exception as e:
+                    print(f"[ERROR] Failed to place best bet: {e}")
 
-                    log_ai_bet(f"{home} vs {away}", m_type, sel_name, odds, prob, ev)
+                log_ai_bet(f"{home} vs {away}", m_type, sel_name, odds, prob, ev)
+
 
         item = {
             "fixture_id": fid,
@@ -2018,52 +2194,35 @@ def refresh_completed_comparisons():
             pass
 
     try:
+        from src.api_football_client import get_finished_matches_api, get_fixture_stats_api
+        
         # Check Today and Yesterday
-        today = datetime.datetime.now()
-        yesterday = today - datetime.timedelta(days=1)
+        today_dt = datetime.datetime.now()
+        yesterday_dt = today_dt - datetime.timedelta(days=1)
 
         all_fixtures = []
 
-        # We need a way to fetch for a specific date.
-        # Let's temporarily monkeypatch or just use the logic here if get_todays_fixtures_free doesn't support it.
-        # Actually, let's just use the logic from free_scraper_module directly for the loop.
-
-        for dt in [yesterday, today]:
+        for dt in [yesterday_dt, today_dt]:
             date_str = dt.strftime("%Y-%m-%d")
-            url = f"https://api.sofascore.com/api/v1/sport/football/scheduled-events/{date_str}"
-
-            print(f"[COMPLETION] Scanning fixtures for {date_str}...")
+            print(f"[COMPLETION] Scanning fixtures for {date_str} via API-Football...")
             try:
-                from seleniumbase import SB
-
-                with SB(uc=True, headless=True) as sb:
-                    sb.open(url)
-                    time.sleep(2)
-                    content = sb.execute_script("return document.body.innerText;")
-                    data = json.loads(content)
-                    events = data.get("events", [])
-                    for e in events:
-                        status_code = "NS"
-                        if e["status"]["type"] == "inprogress":
-                            status_code = "1H"
-                        elif e["status"]["type"] == "finished":
-                            status_code = "FT"
-
-                        all_fixtures.append(
-                            {
-                                "fixture": {
-                                    "id": e["id"],
-                                    "status": {"short": status_code},
-                                    "home_score": e.get("homeScore", {}).get("normaltime", e.get("homeScore", {}).get("current")),
-                                    "away_score": e.get("awayScore", {}).get("normaltime", e.get("awayScore", {}).get("current")),
-                                },
-                                "league": {"name": e["tournament"]["name"]},
-                                "teams": {
-                                    "home": {"name": e["homeTeam"]["name"]},
-                                    "away": {"name": e["awayTeam"]["name"]},
-                                },
-                            }
-                        )
+                finished = get_finished_matches_api(date_str)
+                for f in finished:
+                    all_fixtures.append(
+                        {
+                            "fixture": {
+                                "id": f["fixture"]["id"],
+                                "status": {"short": f["fixture"]["status"]["short"]},
+                                "home_score": f["goals"]["home"],
+                                "away_score": f["goals"]["away"],
+                            },
+                            "league": {"name": f["league"]["name"]},
+                            "teams": {
+                                "home": {"name": f["teams"]["home"]["name"]},
+                                "away": {"name": f["teams"]["away"]["name"]},
+                            },
+                        }
+                    )
             except Exception as e:
                 print(f"[COMPLETION] Error scanning {date_str}: {e}")
 
@@ -2095,13 +2254,11 @@ def refresh_completed_comparisons():
                 f"[COMPLETION] Fetching detailed reality stats for {f['teams']['home']['name']} vs {f['teams']['away']['name']} (ID: {fid})..."
             )
             try:
-                from src.free_scraper_module import get_fixture_stats_free
-
-                stats_raw = get_fixture_stats_free(fid)
-                if not stats_raw:
+                stats_raw = get_fixture_stats_api(fid)
+                if not stats_raw or not stats_raw.get("response"):
                     continue
 
-                # Parse Sofascore stats into our completed_comparisons format
+                # Parse API-Football stats into our completed_comparisons format
                 actuals = {
                     "fixture_id": fid,
                     "match": f"{f['teams']['home']['name']} vs {f['teams']['away']['name']}",
@@ -2135,55 +2292,43 @@ def refresh_completed_comparisons():
                 elif f["fixture"]["away_score"] > f["fixture"]["home_score"]:
                     actuals["winner"] = f"{f['teams']['away']['name']} WIN"
 
-                # Extract stats from statistics array
-                all_stats = next(
-                    (
-                        p
-                        for p in stats_raw.get("statistics", [])
-                        if p.get("period") == "ALL"
-                    ),
-                    None,
-                )
-                if all_stats:
-                    for group in all_stats.get("groups", []):
-                        for item in group.get("statisticsItems", []):
-                            name = item.get("name")
-                            home_val = item.get("homeValue")
-                            away_val = item.get("awayValue")
+                # Map API-Football statistics
+                for team_stats in stats_raw.get("response", []):
+                    is_home = team_stats.get("team", {}).get("name") == f["teams"]["home"]["name"]
+                    stats_list = team_stats.get("statistics", [])
+                    
+                    for stat in stats_list:
+                        s_type = stat.get("type")
+                        s_val = stat.get("value")
+                        if s_val is None: s_val = 0
+                        
+                        if isinstance(s_val, str) and "%" in s_val:
+                            try: s_val = float(s_val.replace("%", ""))
+                            except: s_val = 0
+                        
+                        if s_type == "Ball Possession":
+                            if is_home: actuals["possession_home"] = s_val
+                            else: actuals["possession_away"] = s_val
+                        elif s_type == "Corner Kicks":
+                            if is_home: actuals["corners_home"] = s_val
+                            else: actuals["corners_away"] = s_val
+                        elif s_type == "Fouls":
+                            if is_home: actuals["fouls_home"] = s_val
+                            else: actuals["fouls_away"] = s_val
+                        elif s_type == "Yellow Cards":
+                            if is_home: actuals["cards_yellow_home"] = s_val
+                            else: actuals["cards_yellow_away"] = s_val
+                        elif s_type == "Red Cards":
+                            actuals["cards_red_total"] += s_val
+                        elif s_type == "Total Shots":
+                            if is_home: actuals["shots_home"] = s_val
+                            else: actuals["shots_away"] = s_val
+                        elif s_type == "Shots on Goal":
+                            if is_home: actuals["shots_on_target_home"] = s_val
+                            else: actuals["shots_on_target_away"] = s_val
 
-                            if name == "Ball possession":
-                                actuals["possession_home"] = int(
-                                    str(home_val).replace("%", "")
-                                )
-                                actuals["possession_away"] = int(
-                                    str(away_val).replace("%", "")
-                                )
-                            elif name == "Corner kicks":
-                                actuals["corners_home"] = int(home_val)
-                                actuals["corners_away"] = int(away_val)
-                                actuals["corners_total"] = (
-                                    actuals["corners_home"] + actuals["corners_away"]
-                                )
-                            elif name == "Fouls":
-                                actuals["fouls_home"] = int(home_val)
-                                actuals["fouls_away"] = int(away_val)
-                            elif name == "Yellow cards":
-                                actuals["cards_yellow_home"] = int(home_val)
-                                actuals["cards_yellow_away"] = int(away_val)
-                                actuals["cards_yellow_total"] = (
-                                    actuals["cards_yellow_home"]
-                                    + actuals["cards_yellow_away"]
-                                )
-                            elif name == "Red cards":
-                                actuals["cards_red_total"] = int(home_val) + int(
-                                    away_val
-                                )
-                            elif name == "Total shots":
-                                actuals["shots_home"] = int(home_val)
-                                actuals["shots_away"] = int(away_val)
-                            elif name == "Shots on target":
-                                actuals["shots_on_target_home"] = int(home_val)
-                                actuals["shots_on_target_away"] = int(away_val)
+                actuals["corners_total"] = actuals["corners_home"] + actuals["corners_away"]
+                actuals["cards_yellow_total"] = actuals["cards_yellow_home"] + actuals["cards_yellow_away"]
 
                 completed_data[fid_str] = actuals
                 updated = True
@@ -2199,13 +2344,15 @@ def refresh_completed_comparisons():
 
 
 def init_stair_ai_agent():
+    from src.dfp_config import settings
+    api_key = settings.STAIR_AI_API_KEY or "zppYmElHFokPQMMhHarWOygViHWDBduLPAuvTXcvCUFlbrdgkQhqnLlefmLzNisn"
     headers = {
         "Content-Type": "application/json",
-        "x-api-key": "lmIxslhTmXaJSLpRndCZjaziawkycPJkecyDCWYnXaVFyyWmqZQhaHCJdVLdShrk",
+        "x-api-key": api_key,
     }
     try:
         res = requests.get(
-            "https://staging.stair-ai.com/api/v1/arena/agents/me",
+            "https://stair-ai.com/api/v1/arena/agents/me",
             headers=headers,
             timeout=10,
         )
@@ -2217,7 +2364,7 @@ def init_stair_ai_agent():
                 "social": {"twitter": "https://twitter.com/deepfieldpro"},
             }
             requests.patch(
-                "https://staging.stair-ai.com/api/v1/arena/agents/me",
+                "https://stair-ai.com/api/v1/arena/agents/me",
                 json=patch_payload,
                 headers=headers,
                 timeout=10,
@@ -2232,7 +2379,7 @@ def init_stair_ai_agent():
                 "social": {"twitter": "https://twitter.com/deepfieldpro"},
             }
             reg_res = requests.post(
-                "https://staging.stair-ai.com/api/v1/arena/agents/register",
+                "https://stair-ai.com/api/v1/arena/agents/register",
                 json=register_payload,
                 headers=headers,
                 timeout=10,
@@ -2261,6 +2408,12 @@ def run_daemon():
 
     # Run initial settlement on startup
     settle_open_bets()
+    try:
+        from src.betarabia_betting_engine import init_db, check_and_settle_bets
+        init_db()
+        check_and_settle_bets()
+    except Exception as e:
+        print("Failed to initialize or settle BetArabia on startup:", e)
 
     while True:
         # 1. Trigger Betarabia odds scraper in background (non-blocking)
@@ -2280,6 +2433,11 @@ def run_daemon():
         refresh_completed_comparisons()
         time.sleep(5)
         settle_open_bets()
+        try:
+            from src.betarabia_betting_engine import check_and_settle_bets
+            check_and_settle_bets()
+        except Exception as e:
+            print("Failed to settle BetArabia bets in loop:", e)
         time.sleep(5)
 
         # Load existing predictions from DB
@@ -2291,24 +2449,42 @@ def run_daemon():
         )
         fixtures = get_todays_fixtures()
         if not fixtures:
-            print("[!] Sofascore returned 0 fixtures. Falling back to Betarabia internal database...")
+            print("[!] API-Football returned 0 fixtures. Falling back to Betarabia internal database...")
             db_path = os.path.join(DATA_DIR, "odds_stream.db")
             if os.path.exists(db_path):
                 try:
                     conn = sqlite3.connect(db_path)
                     cur = conn.cursor()
-                    # Only grab fixtures for today (UTC)
+                    # Widen window: grab today AND tomorrow UTC (catches late-night South American matches)
                     today_prefix = now_utc.strftime("%Y-%m-%d")
-                    cur.execute("SELECT fixture_id, home_team, away_team, kickoff_time, tournament_name FROM fixture WHERE kickoff_time LIKE ?", (f"{today_prefix}%",))
+                    tomorrow_prefix = (now_utc + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+                    cur.execute(
+                        "SELECT fixture_id, home_team, away_team, kickoff_time, tournament_name FROM fixture "
+                        "WHERE kickoff_time LIKE ? OR kickoff_time LIKE ? ORDER BY kickoff_time",
+                        (f"{today_prefix}%", f"{tomorrow_prefix}%")
+                    )
                     rows = cur.fetchall()
                     conn.close()
-                    
+
                     for fid, h, a, kt, lgn in rows:
+                        # Smart-compute live status from kickoff time
+                        status_code = "NS"
+                        try:
+                            ko = datetime.datetime.fromisoformat(kt.replace("Z", "+00:00"))
+                            elapsed_min = (now_utc - ko).total_seconds() / 60.0
+                            if elapsed_min > 95:
+                                status_code = "FT"
+                            elif elapsed_min > 45:
+                                status_code = "2H"
+                            elif elapsed_min > 0:
+                                status_code = "1H"
+                        except Exception:
+                            pass
                         fixtures.append({
                             "fixture": {
                                 "id": fid,
                                 "date": kt,
-                                "status": {"short": "NS"} # Default to NS for fallback
+                                "status": {"short": status_code}
                             },
                             "teams": {
                                 "home": {"name": h},
@@ -2316,35 +2492,50 @@ def run_daemon():
                             },
                             "league": {"name": lgn}
                         })
-                    print(f"[+] Loaded {len(fixtures)} fallback fixtures from Betarabia database.")
+                    print(f"[+] Loaded {len(fixtures)} fallback fixtures from Betarabia database (today+tomorrow).")
                 except Exception as e:
                     print(f"[!] Error loading fallback fixtures from DB: {e}")
 
-            # If still empty, do live dummy fallback from fetch_betarabia_odds
+
+            # If still empty, do live dummy fallback from odds_stream.db fixture table
             if not fixtures:
-                print("[!] Betarabia database empty. Falling back to Betarabia dummy fixtures from live odds...")
+                print("[!] Betarabia database empty. Falling back to Betarabia dummy fixtures from odds_stream.db...")
                 try:
                     import hashlib
-                    b_odds, _ = fetch_betarabia_odds()
-                    for b_name in b_odds.keys():
-                        if ' vs ' in b_name:
-                            h, a = b_name.split(' vs ', 1)
-                            fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
+                    odds_db_path = os.path.join(DATA_DIR, "odds_stream.db")
+                    if os.path.exists(odds_db_path):
+                        conn_odds = sqlite3.connect(odds_db_path)
+                        cur_odds = conn_odds.cursor()
+                        cur_odds.execute("SELECT fixture_id, home_team, away_team, kickoff_time, tournament_name FROM fixture")
+                        b_rows = cur_odds.fetchall()
+                        conn_odds.close()
+                        for fid_b, h, a, kt_b, lgn_b in b_rows:
+                            kt_use = kt_b if kt_b else now_utc.isoformat()
                             fixtures.append({
                                 "fixture": {
-                                    "id": fid,
-                                    "date": now_utc.isoformat(),
+                                    "id": fid_b,
+                                    "date": kt_use,
                                     "status": {"short": "NS"}
                                 },
                                 "teams": {
                                     "home": {"name": h},
                                     "away": {"name": a}
                                 },
-                                "league": {"name": "Betarabia"}
+                                "league": {"name": lgn_b or "Betarabia"}
                             })
-                    print(f"[!] Rebuilt {len(fixtures)} dummy fixtures from live Betarabia odds.")
+                        print(f"[!] Rebuilt {len(fixtures)} dummy fixtures from odds_stream.db.")
+                    else:
+                        print("[!] odds_stream.db not found, no fallback available.")
                 except Exception as e:
-                    print(f"[!] Fallback to live Betarabia dummy odds failed: {e}")
+                    print(f"[!] Fallback to odds_stream.db dummy fixtures failed: {e}")
+
+        # ─── EARLY DASHBOARD WRITE ───────────────────────────────────────────
+        # Write state immediately after scraping so odds are always visible,
+        # even if the lineup batch fetch below takes a long time.
+        update_dashboard_json(fixtures, [])
+        print("[+] Dashboard JSON written (pre-lineup pass).")
+        # ─────────────────────────────────────────────────────────────────────
+
         new_lineup_found = False
 
         # Identify fixtures that need lineup checks
@@ -2373,7 +2564,7 @@ def run_daemon():
             if 0 < time_to_kickoff <= 45:
                 fixtures_to_check.append(f)
 
-        # Fetch lineups in batch
+        # Fetch lineups in batch — wrapped in a thread timeout to avoid hangs
         batch_lineups = {}
         if fixtures_to_check:
             fids = [f["fixture"]["id"] for f in fixtures_to_check]
@@ -2381,9 +2572,22 @@ def run_daemon():
                 f"[*] Fetching lineups in batch for {len(fids)} matches near kickoff..."
             )
             try:
-                from src.free_scraper_module import get_fixture_lineups_batch
-
-                batch_lineups = get_fixture_lineups_batch(fids)
+                import threading
+                result_holder = {}
+                def _fetch():
+                    try:
+                        result_holder['lineups'] = get_fixture_lineups_batch(fids)
+                    except Exception as ex:
+                        result_holder['error'] = str(ex)
+                t = threading.Thread(target=_fetch, daemon=True)
+                t.start()
+                t.join(timeout=90)  # Max 90 seconds for lineup fetch
+                if t.is_alive():
+                    print("[!] Lineup batch fetch timed out after 90s — skipping.")
+                elif 'lineups' in result_holder:
+                    batch_lineups = result_holder['lineups']
+                elif 'error' in result_holder:
+                    print("[!] Lineup fetch error:", result_holder['error'])
             except Exception as e:
                 print("Failed to run batch lineup fetcher:", e)
 
@@ -2395,8 +2599,8 @@ def run_daemon():
             except (ValueError, TypeError):
                 pass
             status = f["fixture"]["status"]["short"]
-            if status in ["FT", "AET", "PEN", "PST", "CANC", "ABD", "1H", "2H", "HT"]:
-                continue  # Match is already running, over, or cancelled
+            if status in ["FT", "AET", "PEN", "PST", "CANC", "ABD"]:
+                continue  # Match is definitely over or invalid
 
             # If we already have a finalized prediction with official lineups, skip
             if fid in db_preds and db_preds[fid].get("has_lineup", False):
@@ -2447,6 +2651,17 @@ def run_daemon():
                     est_lineups = [{"startXI": home_xi}, {"startXI": away_xi}]
                     res = predict_match(f, est_lineups, player_model, match_model, df)
                     log_prediction_to_db(res, has_lineup=False)
+            else:
+                # Match is LIVE (time_to_kickoff <= 0) but we don't have a prediction yet
+                if fid not in db_preds:
+                    print(
+                        f"    -> Generating EMERGENCY live prediction for started match: {f['teams']['home']['name']} vs {f['teams']['away']['name']}"
+                    )
+                    home_xi = get_predicted_lineup(f["teams"]["home"]["name"], df)
+                    away_xi = get_predicted_lineup(f["teams"]["away"]["name"], df)
+                    est_lineups = [{"startXI": home_xi}, {"startXI": away_xi}]
+                    res = predict_match(f, est_lineups, player_model, match_model, df)
+                    log_prediction_to_db(res, has_lineup=False)
 
         # Always update dashboard JSON to keep odds and recommendations fresh!
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -2457,6 +2672,21 @@ def run_daemon():
             print("[+] Artifact updated with latest confirmed lineups.")
 
         update_dashboard_json(fixtures, [])
+
+        # 3. Process Stair AI World Cup Arena bets
+        try:
+            process_stair_ai_world_cup_bets(fixtures, player_model, match_model, df)
+        except Exception as stair_err:
+            print(f"[STAIR AI] Error in prematch loop: {stair_err}")
+
+        # 3b. Run BetArabia Virtual Betting Engine
+        try:
+            print("[*] Running BetArabia Virtual Betting Engine...")
+            from src.betarabia_betting_engine import run_betarabia_engine
+            placed_ba = run_betarabia_engine()
+            print(f"[+] BetArabia Engine Sweep complete. Placed {len(placed_ba)} bets.")
+        except Exception as ba_err:
+            print(f"[BetArabia Engine] Error in loop: {ba_err}")
         
         # 4. Refresh Smart Parlays with the new Value-Chaser logic
         try:

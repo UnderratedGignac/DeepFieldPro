@@ -498,6 +498,29 @@
         }
         .btn-danger:hover { background: rgba(255, 50, 50, 0.2); }
 
+        /* TAB BUTTONS */
+        .tab-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: var(--transition);
+        }
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: var(--surface-hover);
+        }
+        .tab-btn.active {
+            color: var(--bg-color);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-color: transparent;
+            font-weight: 600;
+        }
+
         .match-card {
             cursor: pointer;
         }
@@ -765,8 +788,8 @@
             <a class="nav-item" onclick="switchView('comparison-view', this)">
                 <i class="fa-solid fa-scale-balanced"></i> AI vs Reality
             </a>
-            <a class="nav-item" onclick="switchView('stair-view', this)">
-                <i class="fa-solid fa-robot"></i> Stair AI API Bets
+            <a class="nav-item" onclick="switchView('betarabia-view', this)" style="border-left: 3px solid #f97316; margin-top:4px;">
+                <i class="fa-solid fa-dice" style="color:#f97316;"></i> <span style="color:#f97316; font-weight:700;">BetArabia System</span>
             </a>
             <a class="nav-item" onclick="switchView('settings-view', this)">
                 <i class="fa-solid fa-microchip"></i> Engine Settings
@@ -836,10 +859,13 @@
                     <div class="kpi-title">Total Capital</div>
                     <div class="kpi-value" id="kpi-capital">Loading...</div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-title">Stair AI Vault</div>
+                <div class="kpi-card" style="border: 1px solid rgba(0,255,136,0.3); background: linear-gradient(135deg, rgba(0,255,136,0.05) 0%, rgba(0,20,40,0.5) 100%);">
+                    <div class="kpi-title"><i class="fa-solid fa-vault" style="color:#00ff88;"></i> Stair AI Vault</div>
                     <div class="kpi-value" id="kpi-stair-wallet" style="color: #00ff88;">Loading...</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">Locked in Play: <span id="kpi-stair-locked">$0.00</span></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:8px;">
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">Locked: <span id="kpi-stair-locked" style="color:#E5C158;">$0.00</span></div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">P&amp;L vs $100: <span id="kpi-stair-pnl" style="color:#aaa;">...</span></div>
+                    </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-title">30-Day ROI</div>
@@ -890,24 +916,79 @@
                 
                 <!-- Ledger Table -->
                 <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
-                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-receipt"></i> Active Execution Ledger</h3>
-                    <table class="data-table" id="tracker-table">
-                        <thead>
-                            <tr>
-                                <th>Source</th>
-                                <th>Player / Market</th>
-                                <th>Entry Odds</th>
-                                <th>Stake</th>
-                                <th>CLV (Edge)</th>
-                                <th>PNL</th>
-                                <th>Time Remaining</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td colspan="8" style="text-align: center;">Loading Ledger...</td></tr>
-                        </tbody>
-                    </table>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="color: var(--primary); margin: 0;"><i class="fa-solid fa-receipt"></i> Active Execution Ledger</h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btn-local-tab" class="tab-btn active" onclick="switchTrackerTab('local')">Local Bets</button>
+                            <button id="btn-stair-tab" class="tab-btn" onclick="switchTrackerTab('stair')">Stair AI Bets</button>
+                        </div>
+                    </div>
+                    
+                    <div id="local-bets-container">
+                        <table class="data-table" id="tracker-table">
+                            <thead>
+                                <tr>
+                                    <th>Source</th>
+                                    <th>Player / Market</th>
+                                    <th>Entry Odds</th>
+                                    <th>Stake</th>
+                                    <th>CLV (Edge)</th>
+                                    <th>PNL</th>
+                                    <th>Time Remaining</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="8" style="text-align: center;">Loading Ledger...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="stair-bets-container" style="display: none; overflow-x: auto;">
+                        <!-- Stair AI Summary Stats Bar -->
+                        <div id="stair-summary-bar" style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:18px; padding:14px 18px; background:rgba(0,255,136,0.04); border:1px solid rgba(0,255,136,0.12); border-radius:12px;">
+                            <div style="text-align:center;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Total Bets</div>
+                                <div id="stair-stat-count" style="font-size:1.2rem; font-weight:700; color:#fff;">—</div>
+                            </div>
+                            <div style="width:1px; background:var(--border-color);"></div>
+                            <div style="text-align:center;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Total Staked</div>
+                                <div id="stair-stat-staked" style="font-size:1.2rem; font-weight:700; color:#E5C158;">—</div>
+                            </div>
+                            <div style="width:1px; background:var(--border-color);"></div>
+                            <div style="text-align:center;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Filled</div>
+                                <div id="stair-stat-filled" style="font-size:1.2rem; font-weight:700; color:#00ff88;">—</div>
+                            </div>
+                            <div style="width:1px; background:var(--border-color);"></div>
+                            <div style="text-align:center;">
+                                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Avg Odds</div>
+                                <div id="stair-stat-avgodds" style="font-size:1.2rem; font-weight:700; color:#a78bfa;">—</div>
+                            </div>
+                            <div style="margin-left:auto; align-self:center;">
+                                <a href="https://polymarket.com/profile/0x36aE8F68Ed60Ee70BcF3c35Fa649BcF11336f9Fe" target="_blank"
+                                   style="font-size:0.75rem; color:#00ff88; text-decoration:none; border:1px solid rgba(0,255,136,0.3); padding:6px 12px; border-radius:8px; display:flex; align-items:center; gap:6px; white-space:nowrap;">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> View on Polymarket
+                                </a>
+                            </div>
+                        </div>
+                        <table class="data-table" style="border-collapse:separate; border-spacing:0;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left;">Match</th>
+                                    <th style="text-align:left;">Selection</th>
+                                    <th style="text-align:center;">Polymarket Odds</th>
+                                    <th style="text-align:center;">Staked</th>
+                                    <th style="text-align:center;">Status</th>
+                                    <th style="text-align:left;">Placed At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stair-table-body">
+                                <tr><td colspan="6" style="text-align: center; padding:30px; color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading Stair AI Bets...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -920,32 +1001,7 @@
             </div>
         </div>
 
-        <!-- STAIR AI API BETS VIEW -->
-        <div id="stair-view" class="view-section">
-            <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; margin-bottom: 20px;">
-                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-robot"></i> Stair AI Automated API Bets</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">This ledger displays all betting orders autonomously transmitted and successfully executed by the Capital Engine via the Stair AI production API.</p>
-                <div class="table-container" style="overflow-x: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Placed At</th>
-                                <th>Match</th>
-                                <th>Market (Selection)</th>
-                                <th>Odds</th>
-                                <th>Stake</th>
-                                <th>Status</th>
-                                <th>Stair Order ID</th>
-                                <th>PNL</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stair-table-body">
-                            <!-- Stair Bets populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+
 
         <!-- SETTINGS VIEW -->
         <div id="settings-view" class="view-section">
@@ -1001,8 +1057,7 @@
                         <div class="form-group">
                             <label>Live Data Source</label>
                             <select id="set-datasource">
-                                <option value="sofascore_free">Sofascore Web Scraper (Free)</option>
-                                <option value="api_football">API-Football (Paid Key Required)</option>
+                                <option value="api_football">API-Football + Betarabia</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -1234,6 +1289,93 @@
             </div>
         </div>
 
+        <!-- BETARABIA SYSTEM VIEW -->
+        <div id="betarabia-view" class="view-section">
+            <!-- KPI Row -->
+            <div class="kpi-grid" style="margin-bottom:20px;">
+                <div class="kpi-card" style="border:1px solid rgba(249,115,22,0.4); background:linear-gradient(135deg,rgba(249,115,22,0.06) 0%,rgba(0,10,25,0.5) 100%);">
+                    <div class="kpi-title"><i class="fa-solid fa-sack-dollar" style="color:#f97316;"></i> Virtual Bankroll</div>
+                    <div class="kpi-value" id="ba-balance" style="color:#f97316;">$500.00</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">
+                        Started: $500 &nbsp;|&nbsp; Peak: <span id="ba-peak" style="color:#E5C158;">$500.00</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title"><i class="fa-solid fa-chart-line"></i> All-Time P&amp;L</div>
+                    <div class="kpi-value" id="ba-pnl" style="color:#aaa;">$0.00</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">Today: <span id="ba-daily-pnl">$0.00</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title"><i class="fa-solid fa-bullseye"></i> Win Rate</div>
+                    <div class="kpi-value" id="ba-winrate">0%</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">
+                        <span id="ba-won" style="color:#00ff88;">0W</span> /
+                        <span id="ba-lost" style="color:#ff4d4d;">0L</span> /
+                        <span id="ba-open" style="color:#E5C158;">0 Open</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title"><i class="fa-solid fa-coins"></i> Total Staked</div>
+                    <div class="kpi-value" id="ba-staked">$0.00</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">Total bets: <span id="ba-total-bets">0</span></div>
+                </div>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; align-items:center;">
+                <button onclick="runBetArabiaEngine()" id="ba-run-btn"
+                    style="background:linear-gradient(135deg,#f97316,#ea580c); color:#fff; border:none; padding:10px 22px; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+                    <i class="fa-solid fa-robot"></i> Run AI Engine Now
+                </button>
+                <button onclick="settleBetArabia()" id="ba-settle-btn"
+                    style="background:rgba(0,255,136,0.12); color:#00ff88; border:1px solid rgba(0,255,136,0.3); padding:10px 22px; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+                    <i class="fa-solid fa-check-double"></i> Check & Settle Results
+                </button>
+                <div id="ba-run-status" style="font-size:0.8rem; color:var(--text-muted); padding:8px 14px; background:rgba(255,255,255,0.04); border-radius:8px; display:none;"></div>
+                <div style="margin-left:auto; font-size:0.78rem; color:var(--text-muted);">
+                    <i class="fa-solid fa-info-circle"></i> Odds from BetArabia scraper &nbsp;|&nbsp; Min odds: 1.40 &nbsp;|&nbsp; Kelly ×0.25
+                </div>
+            </div>
+
+            <!-- Bankroll Growth Chart -->
+            <div style="background:var(--surface-color); border:1px solid var(--border-color); border-radius:16px; padding:22px; margin-bottom:20px;">
+                <h3 style="color:#f97316; margin-bottom:16px;"><i class="fa-solid fa-chart-area"></i> Virtual Bankroll Growth</h3>
+                <canvas id="baBankrollChart" height="70"></canvas>
+            </div>
+
+            <!-- Bets Table -->
+            <div style="background:var(--surface-color); border:1px solid var(--border-color); border-radius:16px; padding:22px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+                    <h3 style="color:#f97316; margin:0;"><i class="fa-solid fa-list-ol"></i> BetArabia Bet History</h3>
+                    <button onclick="loadBetArabia()" style="background:rgba(249,115,22,0.1); color:#f97316; border:1px solid rgba(249,115,22,0.3); padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.8rem;">
+                        <i class="fa-solid fa-rotate"></i> Refresh
+                    </button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table" style="border-collapse:separate; border-spacing:0;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Match</th>
+                                <th style="text-align:left;">Market</th>
+                                <th style="text-align:left;">Selection</th>
+                                <th style="text-align:center;">Odds</th>
+                                <th style="text-align:center;">EV%</th>
+                                <th style="text-align:center;">Stake</th>
+                                <th style="text-align:center;">Result</th>
+                                <th style="text-align:right;">P&amp;L</th>
+                                <th style="text-align:left;">Placed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ba-bets-tbody">
+                            <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted);">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script>
@@ -1393,7 +1535,9 @@
             document.getElementById(viewId).classList.add('active');
             
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            element.classList.add('active');
+            if (element) {
+                element.classList.add('active');
+            }
 
             const titles = {
                 'live-view': 'Live Match Radar',
@@ -1402,8 +1546,8 @@
                 'settings-view': 'Engine Configuration',
                 'performance-view': 'User vs AI Performance',
                 'comparison-view': 'AI vs Reality Comparisons',
-                'stair-view': 'Stair AI API Bets',
-                'parlay-view': 'Parlay Intelligence'
+                'parlay-view': 'Parlay Intelligence',
+                'betarabia-view': 'BetArabia System'
             };
             document.getElementById('page-title').innerText = titles[viewId] || 'DeepField';
             
@@ -1414,27 +1558,40 @@
                 'settings-view': '/settings',
                 'performance-view': '/performance',
                 'comparison-view': '/comparison',
-                'stair-view': '/stair',
-                'parlay-view': '/parlays'
+                'parlay-view': '/parlays',
+                'betarabia-view': '/betarabia'
             };
-            if(paths[viewId] && window.location.pathname !== paths[viewId]) {
-                history.pushState(null, '', paths[viewId]);
+            
+            let currentPath = paths[viewId];
+            if (viewId === 'tracker-view') {
+                const stairBtn = document.getElementById('btn-stair-tab');
+                if (stairBtn && stairBtn.classList.contains('active')) {
+                    currentPath = '/stair';
+                }
+            }
+            if(currentPath && window.location.pathname !== currentPath) {
+                history.pushState(null, '', currentPath);
             }
             
             if(viewId === 'performance-view') {
                 loadPerformance();
             } else if(viewId === 'tracker-view') {
-                loadTracker();
+                const stairBtn = document.getElementById('btn-stair-tab');
+                if (stairBtn && stairBtn.classList.contains('active')) {
+                    loadStairBets();
+                } else {
+                    loadTracker();
+                }
             } else if(viewId === 'bankroll-view') {
                 loadBankroll();
             } else if(viewId === 'comparison-view') {
                 loadComparisonList();
-            } else if(viewId === 'stair-view') {
-                loadStairBets();
             } else if(viewId === 'parlay-view') {
                 loadParlays();
             } else if(viewId === 'settled-view') {
                 loadSettledLedger();
+            } else if(viewId === 'betarabia-view') {
+                loadBetArabia();
             }
         }
 
@@ -2135,6 +2292,7 @@
 
         let bankrollChartInstance = null;
         let winLossChartInstance = null;
+        let baBankrollChartInstance = null;
 
         // Fetch Bankroll
         async function loadBankroll() {
@@ -2149,8 +2307,16 @@
                     const stairRes = await fetch('/api/stair_balance');
                     if (stairRes.ok) {
                         const sData = await stairRes.json();
-                        document.getElementById('kpi-stair-wallet').innerText = `$${parseFloat(sData.available).toLocaleString()}`;
-                        document.getElementById('kpi-stair-locked').innerText = `$${parseFloat(sData.locked).toLocaleString()}`;
+                        const avail = parseFloat(sData.available || 0);
+                        const locked = parseFloat(sData.locked || 0);
+                        document.getElementById('kpi-stair-wallet').innerText = `$${avail.toFixed(2)}`;
+                        document.getElementById('kpi-stair-locked').innerText = `$${locked.toFixed(2)}`;
+                        const pnl = avail - 100.0;
+                        const pnlEl = document.getElementById('kpi-stair-pnl');
+                        if (pnlEl) {
+                            pnlEl.innerText = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                            pnlEl.style.color = pnl >= 0 ? '#00ff88' : '#ff4d4d';
+                        }
                     }
                 } catch(e) {}
 
@@ -2358,29 +2524,65 @@
             try {
                 const res = await fetch('/api/stair_bets');
                 const data = await res.json();
+                const bets = data.stair_bets || [];
                 const tbody = document.querySelector('#stair-table-body');
-                tbody.innerHTML = data.stair_bets.map(b => {
-                    let statusColor = 'var(--text-main)';
-                    if(b.status === 'OPEN') statusColor = 'var(--primary)';
-                    if(b.status === 'SETTLED' && b.pnl > 0) statusColor = '#00ff88';
-                    if(b.status === 'SETTLED' && b.pnl < 0) statusColor = '#ff4d4d';
-                    
+
+                // Update summary stats
+                const totalStaked = bets.reduce((s, b) => s + (b.stake || 0), 0);
+                const filledCount = bets.filter(b => b.status === 'FILLED').length;
+                const oddsVals = bets.filter(b => b.entry_odds > 0).map(b => b.entry_odds);
+                const avgOdds = oddsVals.length ? (oddsVals.reduce((a,b)=>a+b,0)/oddsVals.length).toFixed(2) : '—';
+                document.getElementById('stair-stat-count').innerText = bets.length;
+                document.getElementById('stair-stat-staked').innerText = `$${totalStaked.toFixed(2)}`;
+                document.getElementById('stair-stat-filled').innerText = `${filledCount} / ${bets.length}`;
+                document.getElementById('stair-stat-avgodds').innerText = avgOdds + 'x';
+
+                if (!bets.length) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No Stair AI bets recorded yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = bets.map(b => {
+                    // Status badge
+                    let badgeBg = 'rgba(100,100,100,0.15)', badgeColor = '#aaa', badgeIcon = 'fa-circle-question';
+                    if (b.status === 'OPEN')   { badgeBg='rgba(0,200,255,0.12)'; badgeColor='#00c8ff'; badgeIcon='fa-clock'; }
+                    if (b.status === 'FILLED') { badgeBg='rgba(0,255,136,0.12)'; badgeColor='#00ff88'; badgeIcon='fa-circle-check'; }
+                    if (b.status === 'CANCELLED' || b.status === 'REJECTED') { badgeBg='rgba(255,77,77,0.12)'; badgeColor='#ff4d4d'; badgeIcon='fa-ban'; }
+                    if (b.status === 'WON')    { badgeBg='rgba(0,255,136,0.2)'; badgeColor='#00ff88'; badgeIcon='fa-trophy'; }
+                    if (b.status === 'LOST')   { badgeBg='rgba(255,77,77,0.2)'; badgeColor='#ff4d4d'; badgeIcon='fa-xmark'; }
+
+                    const badge = `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; background:${badgeBg}; color:${badgeColor}; font-size:0.75rem; font-weight:600;">
+                        <i class="fa-solid ${badgeIcon}" style="font-size:0.65rem;"></i>${b.status}</span>`;
+
+                    // Selection pill
+                    const sel = (b.side || b.market_type || '').toString();
+                    const isHome = !sel.toLowerCase().includes('draw') && !sel.toLowerCase().includes('away');
+                    const isDraw = sel.toLowerCase().includes('draw');
+                    const selColor = isDraw ? '#E5C158' : (isHome ? '#a78bfa' : '#38bdf8');
+                    const selPill = `<span style="display:inline-block; padding:2px 8px; border-radius:6px; background:${selColor}22; color:${selColor}; font-size:0.72rem; font-weight:700; letter-spacing:0.03em;">${sel || 'N/A'}</span>`;
+
+                    // Format odds nicely
+                    const oddsDisplay = b.entry_odds > 0 ? b.entry_odds.toFixed(3) + 'x' : '—';
+                    const oddsColor = b.entry_odds >= 3.0 ? '#a78bfa' : (b.entry_odds >= 1.5 ? '#00ff88' : '#E5C158');
+
+                    // Date
+                    const dt = new Date(b.placed_at);
+                    const dateStr = dt.toLocaleDateString('en-GB', {day:'2-digit',month:'short'});
+                    const timeStr = dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+
                     return `
-                    <tr>
-                        <td>${new Date(b.placed_at).toLocaleString()}</td>
-                        <td style="font-weight:600;">${b.match_id}</td>
-                        <td>${b.market_type}</td>
-                        <td>${b.entry_odds}</td>
-                        <td>$${b.stake.toFixed(2)}</td>
-                        <td style="color:${statusColor}; font-weight:700;">${b.status}</td>
-                        <td style="font-family:monospace;">${b.order_id || 'N/A'}</td>
-                        <td style="color:${b.pnl > 0 ? '#00ff88' : (b.pnl < 0 ? '#ff4d4d' : 'var(--text-main)')}; font-weight:700;">
-                            ${b.pnl > 0 ? '+' : ''}${b.pnl.toFixed(2)}
-                        </td>
+                    <tr style="transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+                        <td style="font-weight:600; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${b.match_id}</td>
+                        <td>${selPill}</td>
+                        <td style="text-align:center; font-weight:700; color:${oddsColor}; font-family:monospace;">${oddsDisplay}</td>
+                        <td style="text-align:center; font-weight:600;">$${b.stake.toFixed(2)}</td>
+                        <td style="text-align:center;">${badge}</td>
+                        <td style="color:var(--text-muted); font-size:0.8rem; white-space:nowrap;">${dateStr} <span style="color:var(--text-main);">${timeStr}</span></td>
                     </tr>`;
                 }).join('');
             } catch(e) {
                 console.error("Failed to load stair bets", e);
+                document.querySelector('#stair-table-body').innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff4d4d;">Failed to load bets.</td></tr>';
             }
         }
 
@@ -2448,22 +2650,58 @@
 
         function handleRouting() {
             const path = window.location.pathname;
-            const navItems = document.querySelectorAll('.nav-item');
             if (path === '/performance') {
-                switchView('performance-view', navItems[3]);
+                switchView('performance-view', document.querySelector('[onclick*="performance-view"]'));
             } else if (path === '/tracker') {
-                switchView('tracker-view', navItems[2]);
+                switchView('tracker-view', document.querySelector('[onclick*="tracker-view"]'));
+                switchTrackerTab('local');
             } else if (path === '/bankroll') {
-                switchView('bankroll-view', navItems[1]);
+                switchView('bankroll-view', document.querySelector('[onclick*="bankroll-view"]'));
             } else if (path === '/settings') {
-                switchView('settings-view', navItems[6]);
+                switchView('settings-view', document.querySelector('[onclick*="settings-view"]'));
             } else if (path === '/comparison') {
-                switchView('comparison-view', navItems[4]);
+                switchView('comparison-view', document.querySelector('[onclick*="comparison-view"]'));
             } else if (path === '/stair') {
-                switchView('stair-view', navItems[5]);
+                switchView('tracker-view', document.querySelector('[onclick*="tracker-view"]'));
+                switchTrackerTab('stair');
+            } else if (path === '/parlays') {
+                switchView('parlay-view', document.querySelector('[onclick*="parlay-view"]'));
+            } else if (path === '/settled') {
+                switchView('settled-view', document.querySelector('[onclick*="settled-view"]'));
             } else {
-                switchView('live-view', navItems[0]);
+                switchView('live-view', document.querySelector('[onclick*="live-view"]'));
                 connectSSE();
+            }
+        }
+
+        function switchTrackerTab(tab) {
+            const localBtn = document.getElementById('btn-local-tab');
+            const stairBtn = document.getElementById('btn-stair-tab');
+            const localContainer = document.getElementById('local-bets-container');
+            const stairContainer = document.getElementById('stair-bets-container');
+            
+            if (!localBtn || !stairBtn || !localContainer || !stairContainer) return;
+            
+            if (tab === 'stair') {
+                localBtn.classList.remove('active');
+                stairBtn.classList.add('active');
+                localContainer.style.display = 'none';
+                stairContainer.style.display = 'block';
+                loadStairBets();
+                
+                if (window.location.pathname !== '/stair') {
+                    history.pushState(null, '', '/stair');
+                }
+            } else {
+                stairBtn.classList.remove('active');
+                localBtn.classList.add('active');
+                stairContainer.style.display = 'none';
+                localContainer.style.display = 'block';
+                loadTracker();
+                
+                if (window.location.pathname !== '/tracker') {
+                    history.pushState(null, '', '/tracker');
+                }
             }
         }
 
@@ -2974,6 +3212,175 @@
             } catch (e) {
                 console.error(e);
                 detailPanel.innerHTML = `<div style="text-align: center; padding: 100px 20px; color:#ff4d4d;"><i class="fa-solid fa-circle-xmark"></i> Failed to load match comparison. ${e.message}</div>`;
+            }
+        }
+
+        async function loadBetArabia() {
+            try {
+                // Fetch bankroll details
+                const bankrollRes = await fetch('/api/betarabia_bankroll');
+                const bankrollData = await bankrollRes.json();
+                
+                const cur = bankrollData.current || {};
+                const totals = bankrollData.totals || {};
+                
+                // Update KPI card text
+                document.getElementById('ba-balance').innerText = `$${cur.current_balance ? parseFloat(cur.current_balance).toFixed(2) : '500.00'}`;
+                document.getElementById('ba-peak').innerText = `$${cur.peak_balance ? parseFloat(cur.peak_balance).toFixed(2) : '500.00'}`;
+                
+                const pnl = totals.total_pnl || 0;
+                const pnlEl = document.getElementById('ba-pnl');
+                pnlEl.innerText = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+                pnlEl.style.color = pnl > 0 ? '#00ff88' : (pnl < 0 ? '#ff4d4d' : '#aaa');
+                
+                const dailyPnl = cur.daily_pnl || 0;
+                const dailyPnlEl = document.getElementById('ba-daily-pnl');
+                dailyPnlEl.innerText = `${dailyPnl >= 0 ? '+' : ''}$${parseFloat(dailyPnl).toFixed(2)}`;
+                dailyPnlEl.style.color = dailyPnl > 0 ? '#00ff88' : (dailyPnl < 0 ? '#ff4d4d' : 'var(--text-muted)');
+                
+                document.getElementById('ba-winrate').innerText = `${totals.win_rate || 0}%`;
+                document.getElementById('ba-won').innerText = `${totals.won_bets || 0}W`;
+                document.getElementById('ba-lost').innerText = `${totals.lost_bets || 0}L`;
+                document.getElementById('ba-open').innerText = `${totals.open_bets || 0} Open`;
+                document.getElementById('ba-staked').innerText = `$${totals.total_staked ? parseFloat(totals.total_staked).toFixed(2) : '0.00'}`;
+                document.getElementById('ba-total-bets').innerText = totals.total_bets || 0;
+                
+                // Fetch bets list
+                const betsRes = await fetch('/api/betarabia_bets');
+                const betsData = await betsRes.json();
+                const bets = betsData.bets || [];
+                const tbody = document.getElementById('ba-bets-tbody');
+                
+                if (bets.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted);">No BetArabia bets placed yet.</td></tr>`;
+                } else {
+                    tbody.innerHTML = bets.map(b => {
+                        // Status badge styling
+                        let badgeBg = 'rgba(100,100,100,0.15)', badgeColor = '#aaa', badgeIcon = 'fa-circle-question';
+                        if (b.result === 'OPEN')   { badgeBg='rgba(0,200,255,0.12)'; badgeColor='#00c8ff'; badgeIcon='fa-clock'; }
+                        if (b.result === 'WON')    { badgeBg='rgba(0,255,136,0.2)'; badgeColor='#00ff88'; badgeIcon='fa-trophy'; }
+                        if (b.result === 'LOST')   { badgeBg='rgba(255,77,77,0.2)'; badgeColor='#ff4d4d'; badgeIcon='fa-xmark'; }
+                        
+                        const badge = `<span style="display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; background:${badgeBg}; color:${badgeColor}; font-size:0.75rem; font-weight:600;">
+                            <i class="fa-solid ${badgeIcon}" style="font-size:0.65rem;"></i>${b.result}</span>`;
+                        
+                        const pnlVal = parseFloat(b.pnl || 0);
+                        const pnlColor = pnlVal > 0 ? '#00ff88' : (pnlVal < 0 ? '#ff4d4d' : 'var(--text-main)');
+                        const pnlDisplay = pnlVal > 0 ? `+$${pnlVal.toFixed(2)}` : (pnlVal < 0 ? `-$${Math.abs(pnlVal).toFixed(2)}` : '$0.00');
+                        
+                        // Market name styling
+                        const marketType = b.market_type || '';
+                        
+                        // Format Date
+                        const dt = new Date(b.placed_at);
+                        const dateStr = dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+                        const timeStr = dt.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+                        
+                        return `
+                        <tr style="transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+                            <td style="font-weight:600;">${b.match_name}</td>
+                            <td style="font-size:0.8rem; color:var(--text-muted);">${marketType}</td>
+                            <td style="font-weight:700; color:#f97316;">${b.selection}</td>
+                            <td style="text-align:center; font-family:monospace; font-weight:700;">${parseFloat(b.odds).toFixed(2)}x</td>
+                            <td style="text-align:center; font-family:monospace; color:${parseFloat(b.ev_pct) >= 1.0 ? '#ffc107' : 'var(--text-muted)'};">${(parseFloat(b.ev_pct) * 100).toFixed(0)}%</td>
+                            <td style="text-align:center; font-weight:600;">$${parseFloat(b.stake).toFixed(2)}</td>
+                            <td style="text-align:center;">${badge}</td>
+                            <td style="text-align:right; font-weight:700; color:${pnlColor};">${pnlDisplay}</td>
+                            <td style="color:var(--text-muted); font-size:0.75rem;">${dateStr} <span style="color:var(--text-main);">${timeStr}</span></td>
+                        </tr>`;
+                    }).join('');
+                }
+                
+                // Draw Chart
+                if (bankrollData.history && bankrollData.history.length > 0) {
+                    const ctx = document.getElementById('baBankrollChart').getContext('2d');
+                    if (baBankrollChartInstance) baBankrollChartInstance.destroy();
+                    
+                    let gradient = ctx.createLinearGradient(0, 0, 0, 150);
+                    gradient.addColorStop(0, 'rgba(249, 115, 22, 0.4)'); // Orange
+                    gradient.addColorStop(1, 'rgba(10, 25, 16, 0)'); // BG
+                    
+                    const labels = bankrollData.history.map(h => {
+                        const d = new Date(h.date);
+                        return d.toLocaleDateString('en-GB', {day:'2-digit', month:'short'});
+                    });
+                    const balances = bankrollData.history.map(h => parseFloat(h.current_balance));
+                    
+                    baBankrollChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Bankroll',
+                                data: balances,
+                                borderColor: '#f97316',
+                                backgroundColor: gradient,
+                                borderWidth: 3,
+                                pointBackgroundColor: '#0A1910',
+                                pointBorderColor: '#f97316',
+                                pointBorderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { grid: { color: 'rgba(249,115,22,0.1)' }, ticks: { color: '#8E9B93' } },
+                                x: { grid: { display: false }, ticks: { color: '#8E9B93', maxTicksLimit: 10 } }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to load BetArabia data:", e);
+                showToast("Failed to load BetArabia data.", "error");
+            }
+        }
+        
+        async function runBetArabiaEngine() {
+            const btn = document.getElementById('ba-run-btn');
+            const statusEl = document.getElementById('ba-run-status');
+            btn.disabled = true;
+            statusEl.style.display = 'inline-block';
+            statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color:#f97316;"></i> Running AI Engine...`;
+            
+            try {
+                const res = await fetch('/api/betarabia_run', { method: 'POST' });
+                const data = await res.json();
+                btn.disabled = false;
+                if (data.status === 'ok') {
+                    showToast(`BetArabia Engine completed. Placed ${data.placed} bets!`, 'success');
+                    statusEl.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#00ff88;"></i> Placed ${data.placed} bets!`;
+                    loadBetArabia();
+                } else {
+                    showToast(`Error: ${data.message}`, 'error');
+                    statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark" style="color:#ff4d4d;"></i> ${data.message}`;
+                }
+            } catch (e) {
+                btn.disabled = false;
+                showToast("Failed to run BetArabia Engine.", "error");
+                statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark" style="color:#ff4d4d;"></i> Run failed.`;
+            }
+        }
+        
+        async function settleBetArabia() {
+            const btn = document.getElementById('ba-settle-btn');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/betarabia_settle', { method: 'POST' });
+                const data = await res.json();
+                btn.disabled = false;
+                if (data.status === 'ok') {
+                    showToast("Settle complete!", 'success');
+                    loadBetArabia();
+                } else {
+                    showToast(`Error: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                showToast("Failed to settle BetArabia bets.", "error");
             }
         }
 

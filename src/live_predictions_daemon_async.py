@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.models.registry_manager import registry_manager
 from src.execution_engine import place_bet
 from src.data.database_manager import db_manager
-from src.free_scraper_module import get_todays_fixtures_free as get_todays_fixtures
+from src.api_football_client import get_todays_fixtures_api as get_todays_fixtures
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
