@@ -82,7 +82,8 @@ def place_bet(
     )
     
     # Apply the regime adjustment
-    stake = max(10.0, raw_stake * (final_kelly_mult / settings.MODEL_KELLY_FRACTION))
+    # Use Kelly Fraction from settings directly as final_kelly_mult was removed
+    stake = max(10.0, raw_stake)
 
     if stake <= 0:
         stake = 25.0 # FORCE small bet for testing

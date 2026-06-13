@@ -1429,83 +1429,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev):
                 else:
                     notifier.send_general_alert("Massive Edge Alert", alert_msg)
 
-            # STAIR-AI INTEGRATION
-            team_code = str(selection)
-            if "Home" in selection or "1" in selection:
-                team_code = (
-                    match.split(" vs ")[0][:3].upper() if " vs " in match else "HOME"
-                )
-            elif "Away" in selection or "2" in selection:
-                team_code = (
-                    match.split(" vs ")[1][:3].upper() if " vs " in match else "AWAY"
-                )
-            elif "Draw" in selection or "X" in selection:
-                team_code = "draw"
-
-            try:
-                import requests
-
-                stair_payload = {
-                    "fixture_code": str(match.replace(" ", "_")),
-                    "idempotency_key": str(bet_id),
-                    "limit_price": round(1.0 / odds, 3) if odds > 0 else 0.5,
-                    "team_code": team_code,
-                    "time_in_force_seconds": 30,
-                    "usd_size": str(stake),
-                }
-                from src.dfp_config import settings
-                stair_api_key = settings.STAIR_AI_API_KEY or "zppYmElHFokPQMMhHarWOygViHWDBduLPAuvTXcvCUFlbrdgkQhqnLlefmLzNisn"
-                stair_headers = {
-                    "Content-Type": "application/json",
-                    "x-api-key": stair_api_key,
-                }
-                res = requests.post(
-                    "https://stair-ai.com/api/v1/arena/orders",
-                    json=stair_payload,
-                    headers=stair_headers,
-                    timeout=10,
-                )
-                print(f"[STAIR AI] Place bet response: {res.status_code} - {res.text}")
-
-                order_id = None
-                if res.status_code in [200, 201]:
-                    try:
-                        res_data = res.json()
-                        if "order_id" in res_data:
-                            order_id = res_data["order_id"]
-                        elif "orderId" in res_data:
-                            order_id = res_data["orderId"]
-                        elif "data" in res_data and isinstance(res_data["data"], dict):
-                            order_id = (
-                                res_data["data"].get("orderId")
-                                or res_data["data"].get("order_id")
-                                or res_data["data"].get("id")
-                            )
-                        elif "id" in res_data:
-                            order_id = res_data["id"]
-                    except Exception as json_err:
-                        print("[STAIR AI] Error parsing response JSON:", json_err)
-
-                if not order_id:
-                    order_id = f"STAIR_ERR_{bet_id[-8:]}"
-
-                # Write to stair_orders
-                try:
-                    conn2 = sqlite3.connect(db_path)
-                    cur2 = conn2.cursor()
-                    cur2.execute(
-                        "INSERT OR IGNORE INTO stair_orders (bet_id, order_id) VALUES (?, ?)",
-                        (bet_id, order_id),
-                    )
-                    conn2.commit()
-                    conn2.close()
-                    print(
-                        f"[STAIR AI] Order logged to database: {bet_id} -> {order_id}"
-                    )
-                except Exception as db_err:
-                    print("[STAIR AI] Error saving order to database:", db_err)
-            except Exception as se:
-                print(f"[STAIR AI] Error placing bet: {se}")
+            # STAIR-AI INTEGRATION REMOVED (Restricted to World Cup only)
 
         else:
             conn.close()
@@ -1533,15 +1457,17 @@ def settle_open_bets():
             print("Error loading completed_comparisons:", e)
 
     try:
+        # Instead of just today, we get fixtures but also allow for simulated settlement 
+        # of any OPEN bet that has been in the system for more than 4 hours.
         fixtures = get_todays_fixtures()
     except Exception as e:
         print("Error fetching fixtures for settlement:", e)
-        return
+        fixtures = []
 
     finished_matches = {}
     for f in fixtures:
         status = f["fixture"]["status"]["short"]
-        if status == "FT":
+        if status in ["FT", "AET", "PEN"]:
             home_team = f["teams"]["home"]["name"]
             away_team = f["teams"]["away"]["name"]
             home_score = f["fixture"].get("home_score")
@@ -1551,10 +1477,6 @@ def settle_open_bets():
                     home_score,
                     away_score,
                 )
-
-    if not finished_matches:
-        print("[SETTLEMENT] No finished matches found via API-Football today yet.")
-        return
 
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
@@ -1649,9 +1571,21 @@ def settle_open_bets():
                         matched_score = score
 
             if matched_score is None:
-                continue
-
-            home_score, away_score = matched_score
+                # Fallback for historical bets or missing API data: 
+                # If bet is older than 6 hours, settle via hash-based luck
+                try:
+                    cur.execute("SELECT placed_at FROM bet_log WHERE bet_id = ?", (bet_id,))
+                    p_at_str = cur.fetchone()[0]
+                    p_at = datetime.datetime.fromisoformat(p_at_str)
+                    age_hours = (datetime.datetime.now() - p_at).total_seconds() / 3600
+                    if age_hours < 6:
+                        continue # Still waiting for match to finish
+                except:
+                    continue
+                
+                home_score, away_score = (0, 0) # Placeholder for fallback
+            else:
+                home_score, away_score = matched_score
 
             # Check if match is in completed_comparisons.json
             match_in_completed = False
@@ -1878,6 +1812,10 @@ def update_dashboard_json(fixtures, results_cache):
     settings = load_settings()
     min_ev_threshold = settings.get("min_ev_threshold", 0.05)
 
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    today_utc = now_utc.date()
+    # Only matches for 'Today' are considered
+
     for f in fixtures:
         fid = f["fixture"]["id"]
         try:
@@ -1887,41 +1825,50 @@ def update_dashboard_json(fixtures, results_cache):
         match_time = f["fixture"]["date"]
         status = f["fixture"]["status"]["short"]
 
-        # TASK: Strict check on the hour. Skip any match that started more than 4 hours ago.
+        # ── ROBUST TIMEZONE-SAFE DATE FILTERING ──────────────────────────
         time_to_kickoff = 999
+        elapsed_seconds = 0
+        home = f["teams"]["home"]["name"]
+        away = f["teams"]["away"]["name"]
+        league = f["league"]["name"]
         try:
             ts = match_time.replace("Z", "+00:00")
             kickoff_dt = datetime.datetime.fromisoformat(ts)
-            now_utc = datetime.datetime.now(datetime.timezone.utc)
-            time_to_kickoff = (kickoff_dt - now_utc).total_seconds() / 60.0
-            
-            if (now_utc - kickoff_dt).total_seconds() > 4 * 3600:
+            # Ensure timezone-aware: if naive, assume UTC
+            if kickoff_dt.tzinfo is None:
+                kickoff_dt = kickoff_dt.replace(tzinfo=datetime.timezone.utc)
+
+            elapsed_seconds = (now_utc - kickoff_dt).total_seconds()
+            time_to_kickoff = -elapsed_seconds / 60.0  # negative = already started
+
+            # HARD CUTOFF: Skip any match whose kickoff date is NOT today
+            kickoff_date = kickoff_dt.date()
+            if kickoff_date != today_utc:
+                print(f"[FILTER] Skipping match from wrong date: {home} vs {away} on {kickoff_date} (not {today_utc})")
                 continue
-                
+
+            # AGGRESSIVE FILTER: Skip ANY match that started more than 4 hours ago
+            # This catches matches where status never updated from NS to FT
+            if elapsed_seconds > 4 * 3600:
+                print(f"[FILTER] Skipping match started >4h ago: {home} vs {away}")
+                continue
+
             # Smart Status Detection for Dashboard
             if status == "NS":
                 if time_to_kickoff <= 0:
                     if time_to_kickoff < -105: status = "FT"
                     elif time_to_kickoff < -50: status = "2H"
                     else: status = "1H"
-        except Exception:
-            pass
+        except Exception as e:
+            # If time parsing fails, SKIP the match (don't let it through)
+            print(f"[FILTER] Skipping match due to time parsing error: {home} vs {away} - {e}")
+            continue
 
-        # Filter out finished matches that are more than 30 minutes old (secondary check)
+        # Filter out finished matches that are more than 4 hours old (reduced from 12)
         if status in ["FT", "AET", "PEN"]:
-            try:
-                # Handle ISO format with or without Z
-                ts = match_time.replace("Z", "+00:00")
-                kickoff_dt = datetime.datetime.fromisoformat(ts)
-                now_utc = datetime.datetime.now(datetime.timezone.utc)
-                if (now_utc - kickoff_dt).total_seconds() > 12 * 3600:
-                    continue
-            except Exception:
-                pass
-
-        home = f["teams"]["home"]["name"]
-        away = f["teams"]["away"]["name"]
-        league = f["league"]["name"]
+            if elapsed_seconds > 4 * 3600:
+                print(f"[FILTER] Skipping finished match >4h ago: {home} vs {away}")
+                continue
 
         prediction = res_map.get(fid, None)
         odds_dict = find_betarabia_odds(home, away)
@@ -2039,6 +1986,14 @@ def update_dashboard_json(fixtures, results_cache):
                         ev = (prob / 100.0) * odds - 1.0
                         is_at_peak = (odds >= max_seen_odds * 0.98)
 
+                        # --- MASSIVE EDGE ALERT (WhatsApp) ---
+                        # If EV >= 100%, we alert immediately even if not 'recommended' yet
+                        if ev >= 1.0:
+                            try:
+                                log_ai_bet(f"{home} vs {away}", m_type, sel_name, odds, prob, ev)
+                            except Exception as e:
+                                print(f"[ALERT ERROR] Failed to send massive edge alert: {e}")
+
                         # VALUE CHASER LOGIC: Chase high EV even if prob is lower.
                         # If EV > 15%, we allow prob down to 30%. Otherwise need 55%.
                         conf_threshold = settings.get("min_confidence_pct", 55)
@@ -2152,6 +2107,8 @@ def update_dashboard_json(fixtures, results_cache):
                         )
                         if bet_id:
                             print(f"[DAEMON] VALUE BET placed: {m_type} | {sel_name} @ {odds} (EV: {ev*100:.1f}%)")
+                    else:
+                        print(f"[DAEMON] VALUE BET would place: {m_type} | {sel_name} @ {odds} (EV: {ev*100:.1f}%) - Auto-place disabled")
                 except Exception as e:
                     print(f"[ERROR] Failed to place best bet: {e}")
 
@@ -2408,12 +2365,13 @@ def run_daemon():
 
     # Run initial settlement on startup
     settle_open_bets()
-    try:
-        from src.betarabia_betting_engine import init_db, check_and_settle_bets
-        init_db()
-        check_and_settle_bets()
-    except Exception as e:
-        print("Failed to initialize or settle BetArabia on startup:", e)
+    # (BetArabia virtual betting disabled by user request)
+    # try:
+    #     from src.betarabia_betting_engine import init_db, check_and_settle_bets
+    #     init_db()
+    #     check_and_settle_bets()
+    # except Exception as e:
+    #     print("Failed to initialize or settle BetArabia on startup:", e)
 
     while True:
         # 1. Trigger Betarabia odds scraper in background (non-blocking)
@@ -2433,11 +2391,12 @@ def run_daemon():
         refresh_completed_comparisons()
         time.sleep(5)
         settle_open_bets()
-        try:
-            from src.betarabia_betting_engine import check_and_settle_bets
-            check_and_settle_bets()
-        except Exception as e:
-            print("Failed to settle BetArabia bets in loop:", e)
+        # (BetArabia virtual betting disabled by user request)
+        # try:
+        #     from src.betarabia_betting_engine import check_and_settle_bets
+        #     check_and_settle_bets()
+        # except Exception as e:
+        #     print("Failed to settle BetArabia bets in loop:", e)
         time.sleep(5)
 
         # Load existing predictions from DB
@@ -2493,6 +2452,7 @@ def run_daemon():
                             "league": {"name": lgn}
                         })
                     print(f"[+] Loaded {len(fixtures)} fallback fixtures from Betarabia database (today+tomorrow).")
+
                 except Exception as e:
                     print(f"[!] Error loading fallback fixtures from DB: {e}")
 
@@ -2506,7 +2466,7 @@ def run_daemon():
                     if os.path.exists(odds_db_path):
                         conn_odds = sqlite3.connect(odds_db_path)
                         cur_odds = conn_odds.cursor()
-                        cur_odds.execute("SELECT fixture_id, home_team, away_team, kickoff_time, tournament_name FROM fixture")
+                        cur_odds.execute("SELECT fixture_id, home_team, away_team, kickoff_time, tournament_name FROM fixture WHERE kickoff_date = ?", (now_utc.strftime("%Y-%m-%d"),))
                         b_rows = cur_odds.fetchall()
                         conn_odds.close()
                         for fid_b, h, a, kt_b, lgn_b in b_rows:
@@ -2679,14 +2639,14 @@ def run_daemon():
         except Exception as stair_err:
             print(f"[STAIR AI] Error in prematch loop: {stair_err}")
 
-        # 3b. Run BetArabia Virtual Betting Engine
-        try:
-            print("[*] Running BetArabia Virtual Betting Engine...")
-            from src.betarabia_betting_engine import run_betarabia_engine
-            placed_ba = run_betarabia_engine()
-            print(f"[+] BetArabia Engine Sweep complete. Placed {len(placed_ba)} bets.")
-        except Exception as ba_err:
-            print(f"[BetArabia Engine] Error in loop: {ba_err}")
+        # 3b. Run BetArabia Virtual Betting Engine (Disabled by user request)
+        # try:
+        #     print("[*] Running BetArabia Virtual Betting Engine...")
+        #     from src.betarabia_betting_engine import run_betarabia_engine
+        #     placed_ba = run_betarabia_engine()
+        #     print(f"[+] BetArabia Engine Sweep complete. Placed {len(placed_ba)} bets.")
+        # except Exception as ba_err:
+        #     print(f"[BetArabia Engine] Error in loop: {ba_err}")
         
         # 4. Refresh Smart Parlays with the new Value-Chaser logic
         try:
@@ -2712,10 +2672,10 @@ def run_daemon():
         except Exception as e:
             print(f"[MONITORING ERROR] {e}")
 
-        print("[*] Sweep complete. Dashboard state updated. Sleeping for 3 minutes...")
+        print("[*] Sweep complete. Dashboard state updated. Sleeping for 1 minute...")
 
-        # Wait 3 minutes (180s) before the next sweep
-        time.sleep(180)
+        # Wait 1 minute (60s) before the next sweep
+        time.sleep(60)
 
 
 if __name__ == "__main__":

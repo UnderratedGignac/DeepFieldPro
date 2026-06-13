@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="600">
     <title>DeepField - Capital Engine</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -317,12 +318,101 @@
             background: rgba(255, 77, 77, 0.15);
             color: #ff4d4d;
             border: 1px solid rgba(255, 77, 77, 0.3);
-            animation: pulse 2s infinite;
+            animation: livePulse 1.5s infinite;
         }
         .status-badge.finished {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-muted);
-            border: 1px solid var(--border-color);
+            background: rgba(100, 100, 100, 0.15);
+            color: #888;
+            border: 1px solid rgba(100, 100, 100, 0.3);
+        }
+
+        /* LIVE MATCH CARD EFFECTS */
+        .match-card.is-live {
+            border: 1px solid rgba(255, 77, 77, 0.5);
+            box-shadow: 0 0 20px rgba(255, 77, 77, 0.15), 0 4px 15px rgba(0, 0, 0, 0.2);
+            animation: liveCardPulse 3s infinite ease-in-out;
+            position: relative;
+        }
+        .match-card.is-live::before {
+            background: linear-gradient(90deg, #ff4d4d, #ff8c00, #ff4d4d) !important;
+            height: 3px;
+            animation: liveStripe 2s infinite linear;
+            background-size: 200% 100%;
+        }
+        .match-card.is-live::after {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px; right: -1px; bottom: -1px;
+            border-radius: var(--card-radius);
+            border: 2px solid rgba(255, 77, 77, 0.3);
+            animation: liveBorderPulse 2s infinite;
+            pointer-events: none;
+        }
+        .live-banner {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: linear-gradient(135deg, #ff4d4d, #cc0000);
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 2px 10px rgba(255, 77, 77, 0.4);
+            z-index: 2;
+        }
+        .live-banner .live-dot {
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            animation: liveDotBlink 1s infinite;
+        }
+        .live-elapsed {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #ff4d4d;
+            background: rgba(255, 77, 77, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 77, 77, 0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .match-card.is-finished {
+            opacity: 0.6;
+            border-color: rgba(100, 100, 100, 0.3);
+        }
+        .match-card.is-finished:hover {
+            opacity: 0.85;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(255, 77, 77, 0); }
+        }
+        @keyframes liveCardPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 77, 77, 0.15), 0 4px 15px rgba(0, 0, 0, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(255, 77, 77, 0.25), 0 4px 15px rgba(0, 0, 0, 0.2); }
+        }
+        @keyframes liveStripe {
+            0% { background-position: 0% 0; }
+            100% { background-position: 200% 0; }
+        }
+        @keyframes liveBorderPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+        @keyframes liveDotBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
         }
 
         .score-display {
@@ -810,7 +900,7 @@
             <h2 class="page-title" id="page-title">Live Match Radar</h2>
             <div class="system-status">
                 <div class="status-dot"></div>
-                Engine Online - Next Sync: <span id="countdown">30</span>s
+                Engine Online - Next Sync: <span id="countdown">24</span>s
             </div>
         </div>
 
@@ -824,7 +914,7 @@
                     <button class="filter-pill active" onclick="setMatchFilter('all', this)"><i class="fa-solid fa-border-all"></i> All Games</button>
                     <button class="filter-pill" onclick="setMatchFilter('live', this)"><i class="fa-solid fa-satellite-dish"></i> Live Now</button>
                     <button class="filter-pill" onclick="setMatchFilter('upcoming', this)"><i class="fa-solid fa-hourglass-half"></i> Upcoming</button>
-                    <button class="filter-pill" onclick="setMatchFilter('finished', this)"><i class="fa-solid fa-circle-check"></i> Finished</button>
+                    <button class="filter-pill" onclick="setMatchFilter('finished', this)"><i class="fa-solid fa-flag-checkered"></i> Finished</button>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center; flex:1; justify-content:flex-end;">
                     <div style="position:relative; max-width: 250px; width:100%;">
@@ -1792,7 +1882,7 @@
         const dashboard = document.getElementById('dashboard');
         const loader = document.getElementById('loader');
         const countdownEl = document.getElementById('countdown');
-        let refreshTimer = 30;
+        let refreshTimer = 24;
         let currentMatchFilter = 'all';
         let cachedMatches = [];
         let previousMatches = {};
@@ -1957,29 +2047,33 @@
             if (currentMatchFilter === 'all') {
                 console.log("[RENDER] Filtering 'All' tab (pruning finished).");
                 filteredMatches = filteredMatches.filter(m => {
-                    const status = (m.status_code || '').toLowerCase();
-                    const isFinished = ['ft', 'finished', 'completed', 'aet', 'pen'].includes(status) || 
-                                       status.includes('finish') || 
-                                       status.includes('complete');
+                    const status = (m.status_code || '').toUpperCase();
+                    // Statuses indicating match is over
+                    const isFinished = ['FT', 'AET', 'PEN', 'FINISHED', 'COMPLETED', 'POSTPONED', 'CANC', 'CANCELLED', 'ABAN', 'ABD'].includes(status) ||
+                                       status.includes('FINISH') ||
+                                       status.includes('COMPLETE');
                     return !isFinished;
                 });
             } else if (currentMatchFilter === 'live') {
                 console.log("[RENDER] Filtering 'Live' tab.");
                 filteredMatches = filteredMatches.filter(m => {
-                    const status = (m.status_code || '').toLowerCase();
-                    return ['1h', '2h', 'ht', 'live', 'inprogress', 'in_progress', 'live-now'].includes(status) || status.includes('progress');
+                    const status = (m.status_code || '').toUpperCase();
+                    // Match is in progress
+                    return ['1H', '2H', 'HT', 'LIVE', 'ET', 'P', 'BT', 'INT'].includes(status) || status.includes('PROGRESS') || status.includes('LIVE');
                 });
             } else if (currentMatchFilter === 'upcoming') {
                 console.log("[RENDER] Filtering 'Upcoming' tab.");
                 filteredMatches = filteredMatches.filter(m => {
-                    const status = (m.status_code || '').toLowerCase();
-                    return ['ns', 'upcoming', 'not_started', 'not started'].includes(status) || status.includes('upcoming') || status.includes('start');
+                    const status = (m.status_code || '').toUpperCase();
+                    // Match has not started
+                    return ['NS', 'UPCOMING', 'NOT_STARTED', 'NOT STARTED', 'TBD', 'SCHEDULED'].includes(status) || status.includes('UPCOMING') || status.includes('START') || status === '';
                 });
             } else if (currentMatchFilter === 'finished') {
                 console.log("[RENDER] Filtering 'Finished' tab.");
                 filteredMatches = filteredMatches.filter(m => {
-                    const status = (m.status_code || '').toLowerCase();
-                    return ['ft', 'finished', 'completed', 'aet', 'pen'].includes(status) || status.includes('finish') || status.includes('complete');
+                    const status = (m.status_code || '').toUpperCase();
+                    // Match is completed
+                    return ['FT', 'AET', 'PEN', 'FINISHED', 'COMPLETED', 'POSTPONED', 'CANC', 'CANCELLED', 'ABAN', 'ABD'].includes(status) || status.includes('FINISH') || status.includes('COMPLETE');
                 });
             }
 
@@ -2008,6 +2102,14 @@
 
             dashboard.innerHTML = '';
 
+            // Helper: detect match status category
+            const getStatusCategory = (m) => {
+                const status = (m.status_code || '').toUpperCase();
+                if (['1H', '2H', 'HT', 'LIVE', 'ET', 'P'].includes(status) || status.includes('PROGRESS') || status.includes('LIVE')) return 'live';
+                if (['FT', 'AET', 'PEN', 'FINISHED', 'COMPLETED'].includes(status) || status.includes('FINISH') || status.includes('COMPLETE')) return 'finished';
+                return 'upcoming';
+            };
+
             if (sortSelect === 'confidence') {
                 filteredMatches.sort((a, b) => {
                     const confA = a.prediction?.detailed_prediction?.confidence || 0;
@@ -2021,23 +2123,46 @@
             } else if (sortSelect === 'league') {
                 filteredMatches.sort((a, b) => (a.league || '').localeCompare(b.league || ''));
             } else {
-                // Default: Sort by Time (and Lineup presence)
+                // Default: Sort by closest upcoming first, then live, then finished
+                const now = new Date();
                 filteredMatches.sort((a, b) => {
-                    const aHasLineup = a.has_lineup ? 1 : 0;
-                    const bHasLineup = b.has_lineup ? 1 : 0;
-                    if (aHasLineup !== bHasLineup) return bHasLineup - aHasLineup;
-                    
-                    const aHasPred = a.prediction ? 1 : 0;
-                    const bHasPred = b.prediction ? 1 : 0;
-                    if (aHasPred !== bHasPred) return bHasPred - aHasPred;
-                    
-                    return new Date(a.kickoff) - new Date(b.kickoff);
+                    const catA = getStatusCategory(a);
+                    const catB = getStatusCategory(b);
+
+                    // Priority: Live > Upcoming (closest first) > Finished
+                    const priority = { live: 0, upcoming: 1, finished: 2 };
+                    const prioA = priority[catA] ?? 1;
+                    const prioB = priority[catB] ?? 1;
+                    if (prioA !== prioB) return prioA - prioB;
+
+                    // Within same category, sort by kickoff time (closest to now first)
+                    const kickA = new Date(a.kickoff);
+                    const kickB = new Date(b.kickoff);
+                    const diffA = Math.abs(kickA - now);
+                    const diffB = Math.abs(kickB - now);
+
+                    // For upcoming: closest first (smallest positive diff)
+                    if (catA === 'upcoming') {
+                        return kickA - kickB;
+                    }
+                    // For live: most recently started first
+                    if (catA === 'live') {
+                        return kickA - kickB;
+                    }
+                    // For finished: most recently finished first
+                    return kickB - kickA;
                 });
             }
 
             filteredMatches.forEach((match, index) => {
                 const card = document.createElement('div');
+                const statusRaw = (match.status_code || '').toUpperCase();
+                const isLive = ['1H', '2H', 'HT', 'LIVE', 'ET', 'P'].includes(statusRaw) || statusRaw.includes('PROGRESS') || statusRaw.includes('LIVE');
+                const isFinished = ['FT', 'AET', 'PEN', 'FINISHED', 'COMPLETED'].includes(statusRaw) || statusRaw.includes('FINISH') || statusRaw.includes('COMPLETE');
+
                 card.className = 'match-card';
+                if (isLive) card.classList.add('is-live');
+                if (isFinished) card.classList.add('is-finished');
                 card.style.animationDelay = `${index * 0.03}s`;
 
                 let lineupBadge = '';
@@ -2052,10 +2177,21 @@
                 }
 
                 let statusBadge = '';
-                const status = (match.status_code || '').toUpperCase();
-                if (['1H', '2H', 'HT', 'LIVE'].includes(status)) {
-                    statusBadge = `<span class="status-badge live-now"><i class="fa-solid fa-circle-play"></i> LIVE ${status}</span>`;
-                } else if (['FT', 'AET', 'PEN'].includes(status)) {
+                let liveBanner = '';
+                if (isLive) {
+                    // Compute elapsed time
+                    const kickoff = new Date(match.kickoff);
+                    const now = new Date();
+                    const elapsedMin = Math.floor((now - kickoff) / 60000);
+                    let elapsedDisplay = statusRaw;
+                    if (statusRaw === 'HT') elapsedDisplay = 'HT';
+                    else if (statusRaw === '1H') elapsedDisplay = Math.min(elapsedMin, 45) + "'";
+                    else if (statusRaw === '2H') elapsedDisplay = Math.min(45 + Math.max(elapsedMin - 45, 0), 90) + "'";
+                    else if (statusRaw === 'ET' || statusRaw === 'P') elapsedDisplay = '90+';
+
+                    statusBadge = `<span class="live-elapsed"><i class="fa-solid fa-circle-play" style="animation: liveDotBlink 1s infinite;"></i> ${elapsedDisplay}</span>`;
+                    liveBanner = `<div class="live-banner"><span class="live-dot"></span> LIVE NOW</div>`;
+                } else if (isFinished) {
                     statusBadge = `<span class="status-badge finished"><i class="fa-solid fa-flag-checkered"></i> FINISHED</span>`;
                 }
 
@@ -2063,10 +2199,18 @@
                 if (match.fixture && (match.fixture.home_score !== null || match.fixture.away_score !== null)) {
                     const hs = match.fixture.home_score ?? 0;
                     const as = match.fixture.away_score ?? 0;
-                    scoreHTML = `<div class="score-display">${hs} - ${as}</div>`;
+                    scoreHTML = `<div class="score-display" ${isLive ? 'style="border-color:rgba(255,77,77,0.3); text-shadow: 0 0 20px rgba(255,77,77,0.3);"' : ''}>${hs} - ${as}</div>`;
+                }
+
+                let kickoffDisplay = `<div class="kickoff"><i class="fa-solid fa-clock"></i> Kickoff: ${formatTime(match.kickoff)}</div>`;
+                if (isLive) {
+                    kickoffDisplay = `<div class="kickoff" style="color:#ff4d4d;"><i class="fa-solid fa-signal" style="color:#ff4d4d;"></i> In Progress — Started ${formatTime(match.kickoff)}</div>`;
+                } else if (isFinished) {
+                    kickoffDisplay = `<div class="kickoff"><i class="fa-solid fa-circle-check"></i> Final — ${formatTime(match.kickoff)}</div>`;
                 }
 
                 let contentHTML = `
+                    ${liveBanner}
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <div class="league-badge" style="margin:0;">${match.league}</div>
                         <div style="display:flex; gap:8px; align-items:center;">
@@ -2076,7 +2220,7 @@
                     </div>
                     <h2 class="match-title">${match.match}</h2>
                     ${scoreHTML}
-                    <div class="kickoff"><i class="fa-solid fa-clock"></i> Kickoff: ${formatTime(match.kickoff)}</div>
+                    ${kickoffDisplay}
                 `;
 
                 if (match.prediction) {
@@ -2283,7 +2427,7 @@
             if(document.getElementById('live-view').classList.contains('active')) {
                 refreshTimer--;
                 if (refreshTimer <= 0) {
-                    refreshTimer = 30;
+                    refreshTimer = 24;
                     fetchState();
                 }
                 countdownEl.innerText = refreshTimer;
@@ -2597,7 +2741,7 @@
                 document.getElementById('set-confidence').value = data.min_confidence_pct || 55;
                 document.getElementById('set-datasource').value = data.data_source || 'sofascore_free';
                 document.getElementById('set-leagues').value = data.target_leagues || 'All';
-                document.getElementById('set-refresh').value = data.refresh_interval_sec || 30;
+                document.getElementById('set-refresh').value = data.refresh_interval_sec || 24;
                 document.getElementById('set-auto-bet').checked = data.auto_place_bets || false;
                 
                 document.getElementById('set-home-adv').value = data.home_adv_weight || 1.2;
@@ -2863,8 +3007,8 @@
                     const status = (m.status_code || '').toUpperCase();
                     const isFinished = ['FT', 'AET', 'PEN'].includes(status);
                     const isUpcoming = ['NS', 'TBD'].includes(status);
-                    const statusText = isFinished ? 'Finished' : (isUpcoming ? 'Upcoming' : 'Live');
-                    const statusColor = isFinished ? '#00ff88' : (isUpcoming ? '#a0a0a0' : '#ffaa00');
+                    const statusText = isFinished ? 'TBA' : (isUpcoming ? 'Upcoming' : 'Live');
+                    const statusColor = isFinished ? '#a0a0a0' : (isUpcoming ? '#a0a0a0' : '#ffaa00');
                     
                     btn.innerHTML = `
                         <div style="font-size: 0.72rem; color: var(--primary); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between;">
@@ -3282,7 +3426,7 @@
                             <td style="font-size:0.8rem; color:var(--text-muted);">${marketType}</td>
                             <td style="font-weight:700; color:#f97316;">${b.selection}</td>
                             <td style="text-align:center; font-family:monospace; font-weight:700;">${parseFloat(b.odds).toFixed(2)}x</td>
-                            <td style="text-align:center; font-family:monospace; color:${parseFloat(b.ev_pct) >= 1.0 ? '#ffc107' : 'var(--text-muted)'};">${(parseFloat(b.ev_pct) * 100).toFixed(0)}%</td>
+                            <td style="text-align:center; font-family:monospace; color:${parseFloat(b.ev_pct) >= 1.0 ? '#ffc107' : 'var(--text-muted)'};">${parseFloat(b.ev_pct).toFixed(0)}%</td>
                             <td style="text-align:center; font-weight:600;">$${parseFloat(b.stake).toFixed(2)}</td>
                             <td style="text-align:center;">${badge}</td>
                             <td style="text-align:right; font-weight:700; color:${pnlColor};">${pnlDisplay}</td>

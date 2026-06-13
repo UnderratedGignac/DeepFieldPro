@@ -117,13 +117,13 @@ class PipelineDaemon:
             f"[DAEMON] Final Confirmation complete. {executed} orders sent to capital engine."
         )
 
-    def run_daily_settlement(self):
-        """Daily job to settle OPEN bets."""
-        logger.info("[DAEMON] Running daily bet settlement...")
-        from clv_tracker import scan_and_settle
+    def run_hourly_settlement(self):
+        """Hourly job to settle OPEN bets after game end."""
+        logger.info("[DAEMON] Running hourly bet settlement (checking for game end)...")
+        from live_predictions_daemon import settle_open_bets
 
-        scan_and_settle()
-        logger.info("[DAEMON] Daily bet settlement complete.")
+        settle_open_bets()
+        logger.info("[DAEMON] Hourly bet settlement complete.")
 
     def on_lineup_change(self, event):
         """Simulated event listener for LineupConfirmedEvent"""
@@ -170,11 +170,11 @@ class PipelineDaemon:
             replace_existing=True,
         )
 
-        # Daily settlement job
+        # Hourly settlement job (checks for game end)
         self.scheduler.add_job(
-            self.run_daily_settlement,
-            CronTrigger(hour=23, minute=0),  # noqa: F821
-            id="daily_settlement",
+            self.run_hourly_settlement,
+            CronTrigger(minute=0),  # Runs at the top of every hour
+            id="hourly_settlement",
             replace_existing=True,
         )
 
