@@ -1,0 +1,8 @@
+{
+  "type": "platt",
+  "market": "OU25",
+  "a": 0.2325828033500439,
+  "b": 0.6519347592975219,
+  "n_train": 8350,
+  "source": "history (Dixon-Coles, walk-forward)"
+}

@@ -1,0 +1,830 @@
+player_id,player_name,team_id,nation_code,position,age,minutes_played,goals_p90,assists_p90,xg_p90,xa_p90,shots_p90,sot_p90,passes_p90,tackles_p90,fouls_committed_p90,yellow_cards_p90,red_cards_p90,data_source,updated_at,player_norm,matched_fbref_name,match_score
+sb_5503,Lionel Andrés Messi Cuccittini,team_argentina,UNK,FWD,0,630,0.0,0.4286,1.0855,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860907+00:00,lionel andres messi cuccittini,,0.0
+sb_5668,Robert Lewandowski,team_poland,UNK,FWD,0,360,0.0,0.25,0.7815,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858243+00:00,robert lewandowski,Robert Lewandowski,1.0
+sb_8546,Niclas Füllkrug,team_germany,UNK,FWD,0,200,0.0,0.45,0.7599,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859804+00:00,niclas fullkrug,Niclas Füllkrug,1.0
+sb_3009,Kylian Mbappé Lottin,team_france,UNK,MID,0,602,0.0,0.299,0.75,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854980+00:00,kylian mbappe lottin,Kylian Mbappé,0.667
+sb_4320,Neymar da Silva Santos Junior,team_brazil,UNK,MID,0,270,0.0,0.0,0.7098,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862466+00:00,neymar da silva santos junior,Eric da Silva Moreira,0.4
+sb_3289,Romelu Lukaku Menama,team_belgium,UNK,FWD,0,215,0.0,0.0,0.705,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851702+00:00,romelu lukaku menama,Romelu Lukaku,0.667
+sb_28559,Enner Remberto Valencia Lastra,team_ecuador,UNK,MID,0,270,0.0,0.0,0.6415,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853076+00:00,enner remberto valencia lastra,Enner Valencia,0.5
+sb_5545,Breel-Donald Embolo,team_switzerland,UNK,FWD,0,360,0.0,0.0,0.5978,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856622+00:00,breeldonald embolo,,0.0
+sb_5187,Salem Mohammed Al Dawsari,team_saudi_arabia,UNK,MID,0,270,0.0,0.0,0.5214,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858496+00:00,salem mohammed al dawsari,,0.0
+sb_8949,Takuma Asano,team_japan,UNK,FWD,0,225,0.0,0.0,0.5118,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853471+00:00,takuma asano,Takuma Asano,1.0
+sb_4269,Aleksandar Mitrović,team_serbia,UNK,FWD,0,270,0.0,0.0,0.5005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861710+00:00,aleksandar mitrovic,,0.0
+sb_10955,Harry Kane,team_england,UNK,FWD,0,450,0.0,0.6,0.4662,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850972+00:00,harry kane,Harry Kane,1.0
+sb_2941,Ismaïla Sarr,team_senegal,UNK,MID,0,360,0.0,0.0,0.4622,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857671+00:00,ismaila sarr,Ismaila Sarr,1.0
+sb_5226,Mehdi Taremi,team_iran,UNK,FWD,0,270,0.0,0.3333,0.4594,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851131+00:00,mehdi taremi,,0.0
+sb_7426,Jean-Charles Castelletto,team_cameroon,UNK,DEF,0,180,0.0,0.5,0.4473,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855964+00:00,jeancharles castelletto,,0.0
+sb_5207,Cristiano Ronaldo dos Santos Aveiro,team_portugal,UNK,FWD,0,392,0.0,0.0,0.4452,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857365+00:00,cristiano ronaldo dos santos aveiro,Jonathan dos Santos,0.4
+sb_11456,Lautaro Javier Martínez,team_argentina,UNK,MID,0,600,0.0,0.0,0.4358,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861068+00:00,lautaro javier martinez,Lautaro Martínez,0.667
+sb_3604,Olivier Giroud,team_france,UNK,MID,0,630,0.0,0.0,0.4337,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855052+00:00,olivier giroud,Olivier Giroud,1.0
+sb_8966,Kai Havertz,team_germany,UNK,FWD,0,245,0.0,0.0,0.4244,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859872+00:00,kai havertz,Kai Havertz,1.0
+sb_5258,Giorgian Daniel De Arrascaeta Benedetti,team_uruguay,UNK,MID,0,241,0.0,0.0,0.4237,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862947+00:00,giorgian daniel de arrascaeta benedetti,,0.0
+sb_3347,André Ayew Pelé,team_ghana,UNK,FWD,0,270,0.0,0.0,0.4229,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856909+00:00,andre ayew pele,André Ayew,0.667
+sb_39565,Jamal Musiala,team_germany,UNK,MID,0,270,0.0,0.0,0.3842,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860046+00:00,jamal musiala,Jamal Musiala,1.0
+sb_6583,Carlos Soler Barragán,team_spain,UNK,MID,0,298,0.0,0.0,0.384,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853903+00:00,carlos soler barragan,Carlos Soler,0.667
+sb_3477,Álvaro Borja Morata Martín,team_spain,UNK,FWD,0,261,0.0,0.3448,0.3826,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853760+00:00,alvaro borja morata martin,Álvaro Morata,0.5
+sb_10287,İlkay Gündoğan,team_germany,UNK,MID,0,270,0.0,0.0,0.3763,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859889+00:00,ilkay gundogan,İlkay Gündoğan,1.0
+sb_3441,Nikola Vlašić,team_croatia,UNK,MID,0,527,0.0,0.0,0.375,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852018+00:00,nikola vlasic,Nikola Vlašić,1.0
+sb_38803,Gonçalo Matias Ramos,team_portugal,UNK,FWD,0,439,0.0,0.205,0.3426,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857626+00:00,goncalo matias ramos,Gonçalo Ramos,0.667
+sb_5224,Sardar Azmoun,team_iran,UNK,MID,0,256,0.0,0.0,0.3377,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851116+00:00,sardar azmoun,,0.0
+sb_37211,Kaoru Mitoma,team_japan,UNK,DEF,0,225,0.0,0.4,0.3351,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853673+00:00,kaoru mitoma,Kaoru Mitoma,1.0
+sb_22097,Randal Kolo Muani,team_france,UNK,FWD,0,568,0.0,0.0,0.3249,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855418+00:00,randal kolo muani,Randal Kolo Muani,1.0
+sb_5732,Andreas Evald Cornelius,team_denmark,UNK,FWD,0,223,0.0,0.0,0.3235,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859351+00:00,andreas evald cornelius,,0.0
+sb_3280,Richarlison de Andrade,team_brazil,UNK,FWD,0,450,0.0,0.0,0.3235,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860552+00:00,richarlison de andrade,,0.0
+sb_3318,Marcus Rashford,team_england,UNK,MID,0,385,0.0,0.0,0.3232,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850626+00:00,marcus rashford,Marcus Rashford,1.0
+sb_25104,Rodrygo Silva de Goes,team_brazil,UNK,MID,0,353,0.0,0.255,0.3175,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860773+00:00,rodrygo silva de goes,,0.0
+sb_12365,Alphonso Davies,team_canada,UNK,DEF,26,270,0.0,0.0,0.3096,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849947+00:00,alphonso davies,Alphonso Davies,1.0
+sb_23640,Jonathan David,team_canada,UNK,FWD,0,239,0.0,0.0,0.3061,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850142+00:00,jonathan david,Jonathan David,1.0
+sb_29560,Julián Álvarez,team_argentina,UNK,FWD,0,570,0.0,0.0,0.3013,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861247+00:00,julian alvarez,Julián Álvarez,1.0
+sb_8246,Christian Pulisic,team_united_states,UNK,MID,0,360,0.0,0.5,0.2845,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854234+00:00,christian pulisic,Christian Pulisic,1.0
+sb_2988,Memphis Depay,team_netherlands,UNK,FWD,0,376,0.0,0.0,0.2829,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852543+00:00,memphis depay,,0.0
+sb_18015,Dušan Vlahović,team_serbia,UNK,FWD,0,245,0.0,0.0,0.2801,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861981+00:00,dusan vlahovic,Dušan Vlahović,1.0
+sb_6748,Ferrán Torres García,team_spain,UNK,MID,0,326,0.0,0.0,0.2775,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853935+00:00,ferran torres garcia,Ferrán Torres,0.667
+sb_16532,Daniel Olmo Carvajal,team_spain,UNK,MID,0,360,0.0,0.25,0.271,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854024+00:00,daniel olmo carvajal,,0.0
+sb_6399,Gareth Frank Bale,team_wales,UNK,FWD,0,270,0.0,0.0,0.2684,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854713+00:00,gareth frank bale,,0.0
+sb_22041,Marko Livaja,team_croatia,UNK,FWD,33,605,0.0,0.1488,0.2639,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852376+00:00,marko livaja,,0.0
+sb_25305,Pedro Guilherme Abreu dos Santos,team_brazil,UNK,MID,0,416,0.0,0.0,0.263,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860817+00:00,pedro guilherme abreu dos santos,Jonathan dos Santos,0.4
+sb_28263,Gonzalo Ariel Montiel,team_argentina,UNK,DEF,0,544,0.0,0.0,0.2627,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861189+00:00,gonzalo ariel montiel,,0.0
+sb_4354,Phil Foden,team_england,UNK,MID,0,430,0.0,0.2093,0.2619,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850883+00:00,phil foden,Phil Foden,1.0
+sb_3853,Kieffer Roberto Francisco Moore,team_wales,UNK,FWD,0,225,0.0,0.0,0.2561,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854627+00:00,kieffer roberto francisco moore,,0.0
+sb_7745,Steven Berghuis,team_netherlands,UNK,MID,0,358,0.0,0.2514,0.2452,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852650+00:00,steven berghuis,Steven Berghuis,1.0
+sb_16308,Leandro Daniel Paredes,team_argentina,UNK,MID,0,584,0.0,0.0,0.2437,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861083+00:00,leandro daniel paredes,,0.0
+sb_8400,Serge Gnabry,team_germany,UNK,MID,0,270,0.0,0.3333,0.2427,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859761+00:00,serge gnabry,Serge Gnabry,1.0
+sb_24024,Tajon Buchanan,team_canada,UNK,MID,0,270,0.0,0.3333,0.2381,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850424+00:00,tajon buchanan,Tajon Buchanan,1.0
+sb_7891,Teun Koopmeiners,team_netherlands,UNK,MID,0,340,0.0,0.2647,0.2312,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852735+00:00,teun koopmeiners,Teun Koopmeiners,1.0
+sb_26301,Ernesto Alexis Vega Rojas,team_mexico,UNK,MID,0,270,0.0,0.0,0.2307,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860272+00:00,ernesto alexis vega rojas,Alexis Vega,0.5
+sb_28914,Lovro Majer,team_croatia,UNK,MID,28,626,0.0,0.0,0.2289,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852406+00:00,lovro majer,Lovro Majer,1.0
+sb_5539,Carlos Henrique Casimiro,team_brazil,UNK,MID,0,450,0.0,0.0,0.2287,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860610+00:00,carlos henrique casimiro,,0.0
+sb_8776,Takumi Minamino,team_japan,UNK,MID,0,330,0.0,0.0,0.2274,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853457+00:00,takumi minamino,Takumi Minamino,1.0
+sb_7829,Wout Weghorst,team_netherlands,UNK,FWD,0,419,0.0,0.0,0.2256,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852704+00:00,wout weghorst,Wout Weghorst,1.0
+sb_44703,Alistair Johnston,team_canada,UNK,DEF,0,270,0.0,0.0,0.2241,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850518+00:00,alistair johnston,,0.0
+sb_16352,Issam Jebali,team_tunisia,UNK,FWD,0,239,0.0,0.0,0.2233,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855650+00:00,issam jebali,,0.0
+sb_26400,Henry Josué Martín Mex,team_mexico,UNK,FWD,0,270,0.0,0.0,0.2229,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860373+00:00,henry josue martin mex,Henry Martín,0.5
+sb_5203,Sergio Busquets i Burgos,team_spain,UNK,MID,0,360,0.0,0.0,0.2218,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853834+00:00,sergio busquets i burgos,,0.0
+sb_5549,Manuel Obafemi Akanji,team_switzerland,UNK,DEF,0,360,0.0,0.0,0.2207,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856636+00:00,manuel obafemi akanji,Manuel Akanji,0.667
+sb_3167,Antonio Rüdiger,team_germany,UNK,DEF,0,270,0.0,0.0,0.2199,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859627+00:00,antonio rudiger,Antonio Rüdiger,1.0
+sb_17033,Mohammed Kudus,team_ghana,UNK,MID,0,270,0.0,0.0,0.2195,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857085+00:00,mohammed kudus,Mohammed Kudus,1.0
+sb_11174,Vincent Paté Aboubakar,team_cameroon,UNK,FWD,0,217,0.0,0.4147,0.2194,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856151+00:00,vincent pate aboubakar,,0.0
+sb_37726,Moisés Isaac Caicedo Corozo,team_ecuador,UNK,MID,0,270,0.0,0.0,0.2178,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853215+00:00,moises isaac caicedo corozo,Moisés Caicedo,0.5
+sb_23910,Youssef Msakni,team_tunisia,UNK,MID,0,270,0.0,0.0,0.2142,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855665+00:00,youssef msakni,,0.0
+sb_37208,Ao Tanaka,team_japan,UNK,MID,0,375,0.0,0.0,0.2094,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853630+00:00,ao tanaka,Ao Tanaka,1.0
+sb_6302,Kasper Dolberg,team_denmark,UNK,MID,0,220,0.0,0.0,0.2094,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859366+00:00,kasper dolberg,Kasper Dolberg,1.0
+sb_5260,Rodrigo Bentancur Colmán,team_uruguay,UNK,MID,0,270,0.0,0.0,0.207,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862977+00:00,rodrigo bentancur colman,Rodrigo Bentancur,0.667
+sb_3457,Michy Batshuayi Tunga,team_belgium,UNK,MID,0,270,0.0,0.0,0.2069,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851718+00:00,michy batshuayi tunga,Michy Batshuayi,0.667
+sb_6720,Pablo Sarabia García,team_spain,UNK,MID,0,387,0.0,0.0,0.2064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853920+00:00,pablo sarabia garcia,Pablo Garcia,0.667
+sb_5204,Bruno Miguel Borges Fernandes,team_portugal,UNK,MID,0,450,0.0,0.6,0.2063,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857320+00:00,bruno miguel borges fernandes,Bruno Fernandes,0.5
+sb_3300,Maya Yoshida,team_japan,UNK,DEF,0,360,0.0,0.0,0.1959,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853382+00:00,maya yoshida,,0.0
+sb_3669,Virgil van Dijk,team_netherlands,UNK,DEF,0,450,0.0,0.0,0.1956,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852605+00:00,virgil van dijk,Virgil van Dijk,1.0
+sb_5469,Marcelo Brozović,team_croatia,UNK,MID,0,630,0.0,0.0,0.1955,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852240+00:00,marcelo brozovic,,0.0
+sb_48347,Amadou Onana,team_belgium,UNK,MID,0,135,0.0,0.0,0.1946,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860460+00:00,amadou onana,Amadou Onana,1.0
+sb_22008,Haji Wright,team_united_states,UNK,FWD,0,305,0.0,0.0,0.1942,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854431+00:00,haji wright,,0.0
+sb_7472,Nicolas Alexis Julio N'Koulou Ndoubena,team_cameroon,UNK,DEF,0,180,0.0,0.0,0.1912,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856075+00:00,nicolas alexis julio nkoulou ndoubena,,0.0
+sb_10595,Raphael Dias Belloli,team_brazil,UNK,MID,0,438,0.0,0.0,0.1896,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860668+00:00,raphael dias belloli,,0.0
+sb_4372,Marcos Aoás Corrêa,team_brazil,UNK,DEF,0,414,0.0,0.0,0.1873,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860596+00:00,marcos aoas correa,,0.0
+sb_40542,Gue-Sung Cho,team_south_korea,UNK,FWD,0,343,0.0,0.0,0.187,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862705+00:00,guesung cho,,0.0
+sb_20033,Luuk de Jong,team_netherlands,UNK,MID,0,424,0.0,0.0,0.1775,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852851+00:00,luuk de jong,Luuk de Jong,1.0
+sb_5191,Mohammed Al Burayk,team_saudi_arabia,UNK,DEF,0,188,0.0,0.0,0.177,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858541+00:00,mohammed al burayk,,0.0
+sb_8361,Ritsu Doan,team_japan,UNK,MID,0,295,0.0,0.0,0.1761,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853442+00:00,ritsu doan,Ritsu Doan,1.0
+sb_3959,Andreas Christensen,team_denmark,UNK,DEF,0,270,0.0,0.0,0.1751,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859278+00:00,andreas christensen,Andreas Christensen,1.0
+sb_3499,Jean-Eric Maxim Choupo-Moting,team_cameroon,UNK,FWD,0,270,0.0,0.0,0.1745,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855908+00:00,jeaneric maxim choupomoting,,0.0
+sb_5839,Yeltsin Ignacio Tejeda Valverde,team_costa_rica,UNK,MID,0,270,0.0,0.3333,0.174,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861381+00:00,yeltsin ignacio tejeda valverde,,0.0
+sb_5604,Young-Gwon Kim,team_south_korea,UNK,DEF,0,360,0.0,0.0,0.1723,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862513+00:00,younggwon kim,,0.0
+sb_11603,Mario Pašalić,team_croatia,UNK,MID,0,506,0.0,0.0,0.169,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852315+00:00,mario pasalic,Mario Pašalić,1.0
+sb_10481,Aurélien Djani Tchouaméni,team_france,UNK,MID,0,630,0.0,0.0,0.169,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855348+00:00,aurelien djani tchouameni,Aurélien Tchouaméni,0.667
+sb_30714,Jude Bellingham,team_england,UNK,MID,0,450,0.0,0.2,0.1683,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851069+00:00,jude bellingham,Jude Bellingham,1.0
+sb_26280,Orbelín Pineda Alvarado,team_mexico,UNK,MID,0,270,0.0,0.0,0.1683,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860240+00:00,orbelin pineda alvarado,,0.0
+sb_5719,Marco Asensio Willemsen,team_spain,UNK,FWD,0,326,0.0,0.0,0.1679,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853863+00:00,marco asensio willemsen,Marco Asensio,0.667
+sb_6324,Leon Goretzka,team_germany,UNK,MID,0,247,0.0,0.0,0.1679,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859731+00:00,leon goretzka,Leon Goretzka,1.0
+sb_38718,Enzo Fernandez,team_argentina,UNK,MID,0,564,0.0,0.1596,0.1677,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861262+00:00,enzo fernandez,Enzo Fernández,1.0
+sb_20611,Boulaye Dia,team_senegal,UNK,FWD,0,360,0.0,0.0,0.1656,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857897+00:00,boulaye dia,Boulaye Dia,1.0
+sb_18395,Vinícius José Paixão de Oliveira Júnior,team_brazil,UNK,MID,0,450,0.0,0.4,0.1623,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860729+00:00,vinicius jose paixao de oliveira junior,Sergio Antonio De Luiz Junior,0.333
+sb_124495,Almoez Ali Zainalabiddin Abdulla,team_qatar,UNK,FWD,0,270,0.0,0.0,0.1613,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858931+00:00,almoez ali zainalabiddin abdulla,,0.0
+sb_5463,Luka Modrić,team_croatia,UNK,MID,0,630,0.0,0.0,0.1611,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852211+00:00,luka modric,Luka Modrić,1.0
+sb_5237,Hakim Ziyech,team_morocco,UNK,FWD,33,630,0.0,0.1429,0.1565,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848564+00:00,hakim ziyech,,0.0
+sb_5240,Saman Ghoddos,team_iran,UNK,MID,0,225,0.0,0.0,0.1565,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851236+00:00,saman ghoddos,,0.0
+sb_5460,Andrej Kramarić,team_croatia,UNK,MID,0,630,0.0,0.0,0.1553,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852195+00:00,andrej kramaric,Andrej Kramarić,1.0
+sb_16527,Mislav Oršić,team_croatia,UNK,MID,0,617,0.0,0.2917,0.1546,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852345+00:00,mislav orsic,,0.0
+sb_25142,Bruno Guimarães Rodriguez Moura,team_brazil,UNK,MID,0,381,0.0,0.0,0.153,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860788+00:00,bruno guimaraes rodriguez moura,Bruno Guimarães,0.5
+sb_5620,Hee-Chan Hwang,team_south_korea,UNK,MID,0,335,0.0,0.0,0.1526,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862558+00:00,heechan hwang,Hwang Hee-chan,1.0
+sb_9638,Jack Grealish,team_england,UNK,MID,0,373,0.0,0.0,0.1511,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850928+00:00,jack grealish,Jack Grealish,1.0
+sb_6301,Youssef En-Nesyri,team_morocco,UNK,FWD,29,630,0.0,0.0,0.1494,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848619+00:00,youssef ennesyri,Youssef En-Nesyri,1.0
+sb_5660,Piotr Zieliński,team_poland,UNK,MID,0,360,0.0,0.0,0.146,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858198+00:00,piotr zielinski,Piotr Zieliński,1.0
+sb_5507,Nicolás Alejandro Tagliafico,team_argentina,UNK,DEF,0,566,0.0,0.0,0.1451,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860922+00:00,nicolas alejandro tagliafico,Nicolás Tagliafico,0.667
+sb_8118,Frenkie de Jong,team_netherlands,UNK,MID,0,450,0.0,0.2,0.1442,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852764+00:00,frenkie de jong,Frenkie de Jong,1.0
+sb_15452,Carlos Uriel Antuna Romero,team_mexico,UNK,MID,0,193,0.0,0.0,0.144,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860210+00:00,carlos uriel antuna romero,Carlos Romero,0.5
+sb_30519,Mohamed Salisu,team_ghana,UNK,DEF,0,270,0.0,0.0,0.1428,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857129+00:00,mohamed salisu,,0.0
+sb_8217,Kingsley Coman,team_france,UNK,MID,0,553,0.0,0.0,0.1418,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855319+00:00,kingsley coman,,0.0
+sb_22600,Lucas Tolentino Coelho de Lima,team_brazil,UNK,MID,0,450,0.0,0.2,0.1409,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860744+00:00,lucas tolentino coelho de lima,,0.0
+sb_3634,Abdelhamid Sabiri,team_morocco,UNK,MID,30,588,0.0,0.1531,0.1388,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848296+00:00,abdelhamid sabiri,Abdelhamid Sabiri,1.0
+sb_5630,Dries Mertens,team_belgium,UNK,MID,0,239,0.0,0.0,0.1383,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851779+00:00,dries mertens,,0.0
+sb_6983,Remo Freuler,team_switzerland,UNK,MID,0,360,0.0,0.0,0.1362,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856665+00:00,remo freuler,Remo Freuler,1.0
+sb_30628,Daizen Maeda,team_japan,UNK,FWD,0,360,0.0,0.0,0.134,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853587+00:00,daizen maeda,,0.0
+sb_12041,João Félix Sequeira,team_portugal,UNK,MID,0,450,0.0,0.4,0.1338,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857481+00:00,joao felix sequeira,,0.0
+sb_88123,Cheikh Ahmadou Bamba Mbacke Dieng,team_senegal,UNK,FWD,0,260,0.0,0.0,0.1329,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858062+00:00,cheikh ahmadou bamba mbacke dieng,Bamba Dieng,0.4
+sb_5245,Achraf Hakimi Mouh,team_morocco,UNK,DEF,28,630,0.0,0.1429,0.1314,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848581+00:00,achraf hakimi mouh,Achraf Hakimi,0.667
+sb_5246,Luis Alberto Suárez Díaz,team_uruguay,UNK,FWD,0,252,0.0,0.3571,0.1292,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862885+00:00,luis alberto suarez diaz,Luis Díaz,0.5
+sb_3086,Ben Davies,team_wales,UNK,DEF,0,270,0.0,0.0,0.1281,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854566+00:00,ben davies,Ben Davies,1.0
+sb_3026,Adrien Rabiot,team_france,UNK,MID,0,512,0.0,0.1758,0.128,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854995+00:00,adrien rabiot,Adrien Rabiot,1.0
+sb_3533,Xherdan Shaqiri,team_switzerland,UNK,MID,0,360,0.0,0.25,0.1237,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856495+00:00,xherdan shaqiri,,0.0
+sb_27569,Jesper Lindstrøm,team_denmark,UNK,MID,0,244,0.0,0.0,0.1233,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859596+00:00,jesper lindstrm,Jesper Lindstrøm,1.0
+sb_8804,Jonas Hofmann,team_germany,UNK,MID,0,240,0.0,0.0,0.1225,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859819+00:00,jonas hofmann,Jonas Hofmann,1.0
+sb_3202,Gabriel Fernando de Jesus,team_brazil,UNK,FWD,0,240,0.0,0.0,0.1215,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860521+00:00,gabriel fernando de jesus,Gabriel Jesus,0.5
+sb_124899,Ismaeel Mohammad Mohammad,team_qatar,UNK,DEF,0,270,0.0,0.3333,0.1193,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859088+00:00,ismaeel mohammad mohammad,,0.0
+sb_3244,John Stones,team_england,UNK,DEF,0,450,0.0,0.0,0.1175,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850596+00:00,john stones,John Stones,1.0
+sb_67700,Badr Banoun,team_morocco,UNK,MID,0,606,0.0,0.0,0.1164,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849227+00:00,badr banoun,,0.0
+sb_22084,Bukayo Saka,team_england,UNK,MID,0,450,0.0,0.0,0.1159,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851003+00:00,bukayo saka,Bukayo Saka,1.0
+sb_3083,Heung-Min Son,team_south_korea,UNK,MID,0,360,0.0,0.25,0.1135,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862482+00:00,heungmin son,,0.0
+sb_20750,Cody Mathès Gakpo,team_netherlands,UNK,FWD,0,450,0.0,0.0,0.1125,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852866+00:00,cody mathes gakpo,Cody Gakpo,0.667
+sb_5579,Joshua Kimmich,team_germany,UNK,MID,0,270,0.0,0.0,0.1115,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859700+00:00,joshua kimmich,Joshua Kimmich,1.0
+sb_3436,Idrissa Gana Gueye,team_senegal,UNK,MID,0,270,0.0,0.0,0.1108,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857704+00:00,idrissa gana gueye,Idrissa Gana Gueye,1.0
+sb_3377,Timothy Weah,team_united_states,UNK,FWD,0,360,0.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854156+00:00,timothy weah,Timothy Weah,1.0
+sb_5743,Paulo Bruno Exequiel Dybala,team_argentina,UNK,MID,0,643,0.0,0.0,0.1097,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860937+00:00,paulo bruno exequiel dybala,Paulo Dybala,0.5
+sb_3196,Wahbi Khazri,team_tunisia,UNK,FWD,0,246,0.0,0.0,0.1089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855451+00:00,wahbi khazri,,0.0
+sb_5474,Ivan Perišić,team_croatia,UNK,MID,0,630,0.0,0.4286,0.1079,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852255+00:00,ivan perisic,Ivan Perišić,1.0
+sb_5713,Mohammed Kanoo,team_saudi_arabia,UNK,MID,0,270,0.0,0.0,0.1065,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858556+00:00,mohammed kanoo,,0.0
+sb_44225,Osman Bukari,team_ghana,UNK,MID,0,210,0.0,0.0,0.1055,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857201+00:00,osman bukari,,0.0
+sb_9411,Daichi Kamada,team_japan,UNK,MID,0,360,0.0,0.0,0.1053,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853485+00:00,daichi kamada,Daichi Kamada,1.0
+sb_3311,Daley Blind,team_netherlands,UNK,DEF,0,450,0.0,0.2,0.1043,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852590+00:00,daley blind,Daley Blind,1.0
+sb_17042,Andreas Skov Olsen,team_denmark,UNK,MID,0,270,0.0,0.0,0.1039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859495+00:00,andreas skov olsen,Andreas Skov Olsen,1.0
+sb_130185,Keysher Fuller Spence,team_costa_rica,UNK,DEF,0,270,0.0,0.0,0.1039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861486+00:00,keysher fuller spence,,0.0
+sb_9236,Mohamed Dräger,team_tunisia,UNK,MID,0,270,0.0,0.0,0.1012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855635+00:00,mohamed drager,,0.0
+sb_10868,Ricardo Jorge Luz Horta,team_portugal,UNK,MID,0,420,0.0,0.0,0.0983,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857451+00:00,ricardo jorge luz horta,Ricardo Horta,0.5
+sb_3336,Harry Maguire,team_england,UNK,DEF,0,450,0.0,0.2,0.098,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850643+00:00,harry maguire,Harry Maguire,1.0
+sb_21736,Zakaria Aboukhlal,team_morocco,UNK,FWD,26,551,0.0,0.0,0.0975,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849145+00:00,zakaria aboukhlal,Zakaria Aboukhlal,1.0
+sb_57620,Sultan Abdullah Salim Al Ghannam,team_saudi_arabia,UNK,DEF,0,231,0.0,0.0,0.0954,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858796+00:00,sultan abdullah salim al ghannam,,0.0
+sb_4447,Martin Braithwaite Christensen,team_denmark,UNK,FWD,0,225,0.0,0.0,0.0951,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859293+00:00,martin braithwaite christensen,,0.0
+sb_16459,Cyle Larin,team_canada,UNK,FWD,0,237,0.0,0.0,0.0949,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850108+00:00,cyle larin,Cyle Larin,1.0
+sb_8526,Weston McKennie,team_united_states,UNK,MID,0,360,0.0,0.0,0.0939,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854248+00:00,weston mckennie,Weston McKennie,1.0
+sb_9904,Frederico Rodrigues Santos,team_brazil,UNK,MID,0,449,0.0,0.0,0.0936,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860654+00:00,frederico rodrigues santos,,0.0
+sb_22168,Joshua Sargent,team_united_states,UNK,FWD,0,352,0.0,0.0,0.0926,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854445+00:00,joshua sargent,,0.0
+sb_124494,Abdelkarim Hassan Al Haj Fadlalla,team_qatar,UNK,DEF,0,270,0.0,0.0,0.0916,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858916+00:00,abdelkarim hassan al haj fadlalla,,0.0
+sb_24085,Pervis Josué Estupiñán Tenorio,team_ecuador,UNK,DEF,0,270,0.0,0.0,0.09,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853017+00:00,pervis josue estupinan tenorio,Pervis Estupiñán,0.5
+sb_5562,Thomas Müller,team_germany,UNK,MID,0,270,0.0,0.0,0.09,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859672+00:00,thomas muller,,0.0
+sb_5209,Raphaël Adelino José Guerreiro,team_portugal,UNK,DEF,0,401,0.0,0.4489,0.0897,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857379+00:00,raphael adelino jose guerreiro,Raphaël Guerreiro,0.5
+sb_5220,Morteza Pouraliganji,team_iran,UNK,DEF,0,270,0.0,0.0,0.0896,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851084+00:00,morteza pouraliganji,,0.0
+sb_4318,Davy Klaassen,team_netherlands,UNK,MID,0,438,0.0,0.411,0.0887,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852620+00:00,davy klaassen,Davy Klaassen,1.0
+sb_29966,Ui-Jo Hwang,team_south_korea,UNK,FWD,0,328,0.0,0.0,0.0887,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862662+00:00,uijo hwang,Hwang Ui-jo,1.0
+sb_59493,Abderrazak Hamdallah,team_morocco,UNK,FWD,36,561,0.0,0.0,0.0871,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849211+00:00,abderrazak hamdallah,,0.0
+sb_29976,Gabriel Teodoro Martinelli Silva,team_brazil,UNK,MID,0,427,0.0,0.0,0.0855,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860845+00:00,gabriel teodoro martinelli silva,Gabriel Martinelli,0.5
+sb_5239,Alireza Jahanbakhsh,team_iran,UNK,MID,0,165,0.0,0.0,0.0845,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851221+00:00,alireza jahanbakhsh,,0.0
+sb_5543,Haris Seferović,team_switzerland,UNK,FWD,0,288,0.0,0.0,0.0845,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856591+00:00,haris seferovic,,0.0
+sb_5490,Jackson Irvine,team_australia,UNK,FWD,0,360,0.0,0.0,0.0831,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862146+00:00,jackson irvine,Jackson Irvine,1.0
+sb_31955,Jakub Kamiński,team_poland,UNK,MID,0,287,0.0,0.0,0.0823,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858438+00:00,jakub kaminski,Jakub Kamiński,1.0
+sb_34396,Michael Steveen Estrada Martínez,team_ecuador,UNK,FWD,0,270,0.0,0.0,0.0821,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853150+00:00,michael steveen estrada martinez,,0.0
+sb_7797,Rodrigo Javier De Paul,team_argentina,UNK,MID,0,630,0.0,0.0,0.0814,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861054+00:00,rodrigo javier de paul,,0.0
+sb_16022,Christian Fassnacht,team_switzerland,UNK,MID,0,352,0.0,0.0,0.081,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856739+00:00,christian fassnacht,,0.0
+sb_5219,Romain Saïss,team_morocco,UNK,DEF,36,630,0.0,0.0,0.0807,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848351+00:00,romain saiss,,0.0
+sb_5571,Hirving Rodrigo Lozano Bahena,team_mexico,UNK,MID,0,270,0.0,0.0,0.0801,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860122+00:00,hirving rodrigo lozano bahena,,0.0
+sb_124901,Mohammed Muntari,team_qatar,UNK,FWD,0,209,0.0,0.0,0.0797,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859116+00:00,mohammed muntari,,0.0
+sb_6383,Thomas Teye Partey,team_ghana,UNK,MID,0,270,0.0,0.0,0.0786,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856953+00:00,thomas teye partey,Thomas Partey,0.667
+sb_5235,Ramin Rezaeian,team_iran,UNK,MID,0,270,0.0,0.0,0.0768,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851205+00:00,ramin rezaeian,,0.0
+sb_8259,Steven Bergwijn,team_netherlands,UNK,FWD,0,405,0.0,0.0,0.0755,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852807+00:00,steven bergwijn,,0.0
+sb_3530,Hiroki Sakai,team_japan,UNK,MID,0,343,0.0,0.0,0.0755,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853397+00:00,hiroki sakai,,0.0
+sb_30401,Ruben Vargas,team_switzerland,UNK,MID,0,360,0.0,0.25,0.074,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856835+00:00,ruben vargas,Ruben Vargas,1.0
+sb_3500,Granit Xhaka,team_switzerland,UNK,MID,0,360,0.0,0.0,0.0739,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856478+00:00,granit xhaka,Granit Xhaka,1.0
+sb_4319,Edinson Roberto Cavani Gómez,team_uruguay,UNK,FWD,0,218,0.0,0.0,0.0739,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862868+00:00,edinson roberto cavani gomez,,0.0
+sb_2995,Ángel Fabián Di María Hernández,team_argentina,UNK,DEF,0,651,0.0,0.1382,0.0738,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860876+00:00,angel fabian di maria hernandez,,0.0
+sb_5487,Antoine Griezmann,team_france,UNK,MID,0,612,0.0,0.4412,0.073,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855190+00:00,antoine griezmann,Antoine Griezmann,1.0
+sb_29201,Nahuel Molina Lucero,team_argentina,UNK,DEF,0,602,0.0,0.1495,0.0726,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861233+00:00,nahuel molina lucero,Nahuel Molina,0.667
+sb_32478,Darwin Gabriel Núñez Ribeiro,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0723,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863189+00:00,darwin gabriel nunez ribeiro,,0.0
+sb_28825,Luis Gerardo Chávez Magallón,team_mexico,UNK,MID,0,270,0.0,0.0,0.0719,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860431+00:00,luis gerardo chavez magallon,,0.0
+sb_11493,Gleison Bremer Silva Nascimento,team_brazil,UNK,MID,0,431,0.0,0.0,0.0719,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860698+00:00,gleison bremer silva nascimento,Gleison Bremer,0.5
+sb_27886,Alexis Mac Allister,team_argentina,UNK,MID,0,630,0.0,0.1429,0.0717,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861173+00:00,alexis mac allister,Alexis Mac Allister,1.0
+sb_40538,Jin-Su Kim,team_south_korea,UNK,DEF,0,360,0.0,0.25,0.0713,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862690+00:00,jinsu kim,,0.0
+sb_56755,Abdulelah Saad Hameed Al-Malki,team_saudi_arabia,UNK,MID,0,180,0.0,0.0,0.0697,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858780+00:00,abdulelah saad hameed almalki,,0.0
+sb_5633,Yannick Ferreira Carrasco,team_belgium,UNK,MID,0,270,0.0,0.0,0.0674,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851809+00:00,yannick ferreira carrasco,,0.0
+sb_20016,Kléper Laveran Lima Ferreira,team_portugal,UNK,MID,0,450,0.0,0.0,0.067,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857582+00:00,kleper laveran lima ferreira,,0.0
+sb_3551,Karl Brillant Toko Ekambi,team_cameroon,UNK,MID,0,243,0.0,0.0,0.0668,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855922+00:00,karl brillant toko ekambi,,0.0
+sb_5589,Sergej Milinković-Savić,team_serbia,UNK,MID,0,270,0.0,0.0,0.0668,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861725+00:00,sergej milinkovicsavic,,0.0
+sb_3053,Leroy Sané,team_germany,UNK,MID,0,249,0.0,0.3614,0.0663,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859612+00:00,leroy sane,Leroy Sané,1.0
+sb_227697,Garang Kuol,team_australia,UNK,FWD,0,323,0.0,0.0,0.0652,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862451+00:00,garang kuol,,0.0
+sb_18242,Tim Ream,team_united_states,UNK,DEF,0,360,0.0,0.0,0.0646,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854384+00:00,tim ream,,0.0
+sb_33492,Mitchell Thomas Duke,team_australia,UNK,FWD,0,360,0.0,0.0,0.0637,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862363+00:00,mitchell thomas duke,,0.0
+sb_8814,Nico Elvedi,team_switzerland,UNK,DEF,0,270,0.0,0.0,0.0633,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856709+00:00,nico elvedi,Nico Elvedi,1.0
+sb_139016,Achraf Dari,team_morocco,UNK,DEF,27,596,0.0,0.0,0.0631,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849664+00:00,achraf dari,,0.0
+sb_21881,Sergino Dest,team_united_states,UNK,DEF,0,360,0.0,0.25,0.063,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854415+00:00,sergino dest,Sergiño Dest,1.0
+sb_13314,Famara Diedhiou,team_senegal,UNK,MID,0,341,0.0,0.0,0.0628,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857840+00:00,famara diedhiou,,0.0
+sb_29377,Brennan Johnson,team_wales,UNK,DEF,0,179,0.0,0.0,0.0625,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854876+00:00,brennan johnson,Brennan Johnson,1.0
+sb_12623,Pierre Kunde Malong,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0624,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856208+00:00,pierre kunde malong,,0.0
+sb_18360,Rafael Alexandre Conceição Leão,team_portugal,UNK,MID,0,362,0.0,0.0,0.0618,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857553+00:00,rafael alexandre conceicao leao,Rafael Leão,0.5
+sb_27163,Juan Pablo Vargas Campos,team_costa_rica,UNK,DEF,0,270,0.0,0.0,0.0614,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861441+00:00,juan pablo vargas campos,Juan Pablo Vargas,0.75
+sb_3089,Kevin De Bruyne,team_belgium,UNK,MID,0,270,0.0,0.0,0.0593,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851672+00:00,kevin de bruyne,Kevin De Bruyne,1.0
+sb_27719,Strahinja Pavlović,team_serbia,UNK,DEF,0,270,0.0,0.0,0.0593,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862041+00:00,strahinja pavlovic,Strahinja Pavlović,1.0
+sb_5573,Héctor Alfredo Moreno Herrera,team_mexico,UNK,DEF,0,270,0.0,0.0,0.0589,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860136+00:00,hector alfredo moreno herrera,Héctor Herrera,0.5
+sb_5675,Kalidou Koulibaly,team_senegal,UNK,DEF,0,360,0.0,0.0,0.0586,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857766+00:00,kalidou koulibaly,,0.0
+sb_31295,Yahia Attiyat allah,team_morocco,UNK,DEF,31,522,0.0,0.1724,0.0572,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849178+00:00,yahia attiyat allah,,0.0
+sb_8125,Denzel Dumfries,team_netherlands,UNK,DEF,0,450,0.0,0.4,0.0567,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852793+00:00,denzel dumfries,Denzel Dumfries,1.0
+sb_27768,Lisandro Martínez,team_argentina,UNK,DEF,0,528,0.0,0.0,0.0565,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861158+00:00,lisandro martinez,Lisandro Martínez,1.0
+sb_8346,Craig Goodwin,team_australia,UNK,MID,0,327,0.0,0.0,0.0564,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862161+00:00,craig goodwin,,0.0
+sb_11187,Stephen Antunes Eustáquio,team_canada,UNK,MID,30,270,0.0,0.0,0.0548,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849858+00:00,stephen antunes eustaquio,Stephen Eustáquio,0.667
+sb_3471,Dejan Lovren,team_croatia,UNK,DEF,0,630,0.0,0.1429,0.0545,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852034+00:00,dejan lovren,,0.0
+sb_29595,Ko Itakura,team_japan,UNK,DEF,0,270,0.0,0.3333,0.0541,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853572+00:00,ko itakura,Ko Itakura,1.0
+sb_5477,Ousmane Dembélé,team_france,UNK,MID,0,618,0.0,0.2913,0.0528,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855161+00:00,ousmane dembele,Ousmane Dembélé,1.0
+sb_54144,Nawaf Shaker Al Abid,team_saudi_arabia,UNK,MID,0,182,0.0,0.0,0.0525,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858749+00:00,nawaf shaker al abid,,0.0
+sb_13620,Éder Gabriel Militão,team_brazil,UNK,DEF,0,450,0.0,0.0,0.0518,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860713+00:00,eder gabriel militao,Éder Militão,0.667
+sb_3043,Christian Dannemann Eriksen,team_denmark,UNK,MID,0,270,0.0,0.0,0.0514,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859233+00:00,christian dannemann eriksen,Christian Eriksen,0.667
+sb_30111,Felix Eduardo Torres Caicedo,team_ecuador,UNK,DEF,0,270,0.0,0.0,0.0513,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853091+00:00,felix eduardo torres caicedo,,0.0
+sb_3557,Naïm Sliti,team_tunisia,UNK,MID,0,246,0.0,0.0,0.0513,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855468+00:00,naim sliti,,0.0
+sb_31684,Atiba Hutchinson,team_canada,UNK,MID,0,239,0.0,0.0,0.0502,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850473+00:00,atiba hutchinson,,0.0
+sb_38792,Yunus Dimoara Musah,team_united_states,UNK,MID,0,360,0.0,0.0,0.0494,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854551+00:00,yunus dimoara musah,Yunus Musah,0.667
+sb_23763,In-Beom Hwang,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0494,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862647+00:00,inbeom hwang,Hwang In-beom,1.0
+sb_5456,Mateo Kovačić,team_croatia,UNK,MID,0,630,0.0,0.0,0.0493,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852179+00:00,mateo kovacic,Mateo Kovačić,1.0
+sb_51469,Saleh Khalid Al Shehri,team_saudi_arabia,UNK,FWD,0,270,0.0,0.0,0.049,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858661+00:00,saleh khalid al shehri,,0.0
+sb_3233,Raheem Sterling,team_england,UNK,MID,0,348,0.0,0.0,0.0488,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850580+00:00,raheem sterling,Raheem Sterling,1.0
+sb_8247,Joachim Andersen,team_denmark,UNK,DEF,0,270,0.0,0.0,0.0483,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859410+00:00,joachim andersen,Joachim Andersen,1.0
+sb_3176,Thomas Meunier,team_belgium,UNK,DEF,0,225,0.0,0.0,0.0477,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851687+00:00,thomas meunier,Thomas Meunier,1.0
+sb_37221,Hidemasa Morita,team_japan,UNK,MID,0,360,0.0,0.0,0.0476,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853702+00:00,hidemasa morita,Hidemasa Morita,1.0
+sb_348757,Kevin José Rodríguez Cortez,team_ecuador,UNK,FWD,0,268,0.0,0.0,0.0465,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853352+00:00,kevin jose rodriguez cortez,José Antonio Rodríguez,0.5
+sb_23721,Wataru Endo,team_japan,UNK,MID,0,356,0.0,0.0,0.0459,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853515+00:00,wataru endo,Wataru Endo,1.0
+sb_12803,Romario Andrés Ibarra Mina,team_ecuador,UNK,MID,0,269,0.0,0.0,0.0457,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852972+00:00,romario andres ibarra mina,,0.0
+sb_3625,Sofiane Boufal,team_morocco,UNK,MID,33,630,0.0,0.0,0.0452,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.842030+00:00,sofiane boufal,Sofiane Boufal,1.0
+sb_4935,Bryan Mbeumo,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0448,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855949+00:00,bryan mbeumo,Bryan Mbeumo,1.0
+sb_296254,Walid Cheddira,team_morocco,UNK,FWD,28,504,0.0,0.0,0.0445,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849710+00:00,walid cheddira,Walid Cheddira,1.0
+sb_9922,David Junior Hoilett,team_canada,UNK,MID,36,241,0.0,0.0,0.0445,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849830+00:00,david junior hoilett,,0.0
+sb_37215,Shogo Taniguchi,team_japan,UNK,DEF,0,360,0.0,0.0,0.0436,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853688+00:00,shogo taniguchi,,0.0
+sb_5259,José María Giménez de Vargas,team_uruguay,UNK,DEF,0,270,0.0,0.0,0.0431,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862962+00:00,jose maria gimenez de vargas,José María Giménez,0.6
+sb_9286,Antoine Semenyo,team_ghana,UNK,DEF,0,252,0.0,0.0,0.0429,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856998+00:00,antoine semenyo,Antoine Semenyo,1.0
+sb_6704,Theo Bernard François Hernández,team_france,UNK,MID,0,552,0.0,0.3261,0.0423,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855204+00:00,theo bernard francois hernandez,,0.0
+sb_124161,Mehdi Torabi,team_iran,UNK,DEF,0,207,0.0,0.0,0.0421,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851343+00:00,mehdi torabi,,0.0
+sb_6393,Iñaki Williams Arthuer,team_ghana,UNK,FWD,0,270,0.0,0.0,0.042,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856968+00:00,inaki williams arthuer,Iñaki Williams,0.667
+sb_12149,Nayef Aguerd,team_morocco,UNK,DEF,30,540,0.0,0.0,0.0419,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848873+00:00,nayef aguerd,Nayef Aguerd,1.0
+sb_11737,Krystian Bielik,team_poland,UNK,MID,0,295,0.0,0.0,0.0417,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858380+00:00,krystian bielik,,0.0
+sb_3295,Thiago Emiliano da Silva,team_brazil,UNK,DEF,0,450,0.0,0.2,0.0416,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860567+00:00,thiago emiliano da silva,Eric da Silva Moreira,0.5
+sb_51099,Firas Tariq Nasser Al Albirakan,team_saudi_arabia,UNK,MID,0,270,0.0,0.3333,0.0413,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858631+00:00,firas tariq nasser al albirakan,,0.0
+sb_30016,Martin Hongla Yma II,team_cameroon,UNK,MID,0,180,0.0,0.0,0.0412,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856388+00:00,martin hongla yma ii,,0.0
+sb_5603,Nikola Milenković,team_serbia,UNK,DEF,0,270,0.0,0.0,0.0411,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861754+00:00,nikola milenkovic,Nikola Milenković,1.0
+sb_6328,Kendall Jamaal Waston Manley,team_costa_rica,UNK,DEF,0,225,0.0,0.0,0.0397,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861396+00:00,kendall jamaal waston manley,,0.0
+sb_6773,Federico Santiago Valverde Dipetta,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0389,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863100+00:00,federico santiago valverde dipetta,Federico Valverde,0.5
+sb_7843,Mason Mount,team_england,UNK,MID,0,423,0.0,0.0,0.0387,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850913+00:00,mason mount,Mason Mount,1.0
+sb_5485,Raphaël Varane,team_france,UNK,DEF,0,630,0.0,0.0,0.0378,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855176+00:00,raphael varane,,0.0
+sb_3034,Kamil Glik,team_poland,UNK,DEF,0,360,0.0,0.0,0.0377,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858092+00:00,kamil glik,,0.0
+sb_16026,Djibril Sow,team_switzerland,UNK,MID,0,360,0.0,0.25,0.0376,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856758+00:00,djibril sow,Djibril Sow,1.0
+sb_36288,Facundo Pellistri Rebollo,team_uruguay,UNK,MID,0,241,0.0,0.0,0.0372,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863231+00:00,facundo pellistri rebollo,,0.0
+sb_46258,Azzedine Ounahi,team_morocco,UNK,MID,26,595,0.0,0.0,0.037,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849195+00:00,azzedine ounahi,Azzedine Ounahi,1.0
+sb_5665,Arkadiusz Milik,team_poland,UNK,FWD,0,330,0.0,0.0,0.0369,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858213+00:00,arkadiusz milik,Arkadiusz Milik,1.0
+sb_22740,Kang-In Lee,team_south_korea,UNK,MID,0,293,0.0,0.3072,0.0362,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862616+00:00,kangin lee,Lee Kang-in,1.0
+sb_25363,Antony Matheus dos Santos,team_brazil,UNK,MID,0,386,0.0,0.0,0.036,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860831+00:00,antony matheus dos santos,Jonathan dos Santos,0.5
+sb_3077,Jan Vertonghen,team_belgium,UNK,DEF,0,270,0.0,0.0,0.0359,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851656+00:00,jan vertonghen,,0.0
+sb_31152,Gonzalo Jordy Plata Jiménez,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0351,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853106+00:00,gonzalo jordy plata jimenez,,0.0
+sb_35658,Kamaldeen Sulemana,team_ghana,UNK,MID,0,212,0.0,0.0,0.0345,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857172+00:00,kamaldeen sulemana,Kamaldeen Sulemana,1.0
+sb_11184,Otávio Edmilson da Silva Monteiro,team_portugal,UNK,MID,0,270,0.0,0.0,0.0345,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857466+00:00,otavio edmilson da silva monteiro,Eric da Silva Moreira,0.4
+sb_6300,Sebastián Coates Nión,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0344,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863048+00:00,sebastian coates nion,,0.0
+sb_51096,Ali Al Hassan,team_saudi_arabia,UNK,MID,0,270,0.0,0.0,0.0338,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858616+00:00,ali al hassan,,0.0
+sb_37122,Yuki Soma,team_japan,UNK,MID,0,360,0.0,0.0,0.0337,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853616+00:00,yuki soma,,0.0
+sb_24243,Brenden Aaronson,team_united_states,UNK,MID,0,252,0.0,0.0,0.0337,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854491+00:00,brenden aaronson,Brenden Aaronson,1.0
+sb_3767,Ellyes Joris Skhiri,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0337,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855487+00:00,ellyes joris skhiri,Ellyes Skhiri,0.667
+sb_35592,Anis Ben Slimane,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0336,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855733+00:00,anis ben slimane,,0.0
+sb_26368,César Jasib Montes Castro,team_mexico,UNK,DEF,0,270,0.0,0.3333,0.033,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860315+00:00,cesar jasib montes castro,,0.0
+sb_3264,Vincent Janssen,team_netherlands,UNK,MID,0,425,0.0,0.0,0.0329,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852559+00:00,vincent janssen,,0.0
+sb_20758,Krépin Diatta,team_senegal,UNK,MID,0,360,0.0,0.0,0.0322,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857912+00:00,krepin diatta,Krépin Diatta,1.0
+sb_5479,Aziz Eraltay Behich,team_australia,UNK,DEF,0,360,0.0,0.0,0.0317,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862115+00:00,aziz eraltay behich,,0.0
+sb_3532,Jordan Brian Henderson,team_england,UNK,MID,0,428,0.0,0.0,0.0313,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850823+00:00,jordan brian henderson,Jordan Henderson,0.667
+sb_44166,Jakub Piotr Kiwior,team_poland,UNK,DEF,0,360,0.0,0.0,0.0311,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858453+00:00,jakub piotr kiwior,Jakub Kiwior,0.667
+sb_15890,Noussair Mazraoui,team_morocco,UNK,DEF,29,450,0.0,0.0,0.0303,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849104+00:00,noussair mazraoui,Noussair Mazraoui,1.0
+sb_6331,Leander Dendoncker,team_belgium,UNK,MID,0,270,0.0,0.0,0.0296,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851838+00:00,leander dendoncker,Leander Dendoncker,1.0
+sb_23527,Junya Ito,team_japan,UNK,DEF,0,336,0.0,0.2679,0.0296,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853500+00:00,junya ito,,0.0
+sb_6297,Maximiliano Gómez González,team_uruguay,UNK,MID,0,240,0.0,0.0,0.0292,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863034+00:00,maximiliano gomez gonzalez,,0.0
+sb_21026,Pape Gueye,team_senegal,UNK,MID,0,298,0.0,0.0,0.0285,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857927+00:00,pape gueye,Pape Gueye,1.0
+sb_5481,Mathew Leckie,team_australia,UNK,MID,0,360,0.0,0.25,0.0284,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862130+00:00,mathew leckie,,0.0
+sb_33602,Tariq Lamptey,team_ghana,UNK,DEF,0,245,0.0,0.0,0.0274,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857158+00:00,tariq lamptey,Tariq Lamptey,1.0
+sb_44955,Aïssa Bilal Laïdouni,team_tunisia,UNK,MID,0,270,0.0,0.3333,0.027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855747+00:00,aissa bilal laidouni,,0.0
+sb_7104,Mathías Olivera Miramontes,team_uruguay,UNK,DEF,0,270,0.0,0.0,0.027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863136+00:00,mathias olivera miramontes,Mathías Olivera,0.667
+sb_124167,Ahmad Nourollahi,team_iran,UNK,MID,0,270,0.0,0.0,0.0268,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851526+00:00,ahmad nourollahi,,0.0
+sb_33018,Joško Gvardiol,team_croatia,UNK,DEF,0,630,0.0,0.0,0.0266,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852483+00:00,josko gvardiol,Joško Gvardiol,1.0
+sb_43565,Min Jae Kim,team_south_korea,UNK,DEF,0,360,0.0,0.0,0.0265,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862839+00:00,min jae kim,,0.0
+sb_5537,Fabian Lukas Schär,team_switzerland,UNK,MID,0,360,0.0,0.0,0.0259,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856560+00:00,fabian lukas schar,Fabian Schär,0.667
+sb_50498,Pape Matar Sarr,team_senegal,UNK,MID,0,301,0.0,0.0,0.0257,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858031+00:00,pape matar sarr,Pape Matar Sarr,1.0
+sb_8227,Mario Götze,team_germany,UNK,MID,0,233,0.0,0.0,0.0257,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859746+00:00,mario gotze,Mario Götze,1.0
+sb_4324,Daniel Alves da Silva,team_brazil,UNK,MID,0,422,0.0,0.0,0.0256,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860581+00:00,daniel alves da silva,Eric da Silva Moreira,0.5
+sb_6322,Niklas Süle,team_germany,UNK,DEF,0,270,0.0,0.0,0.0254,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859716+00:00,niklas sule,Niklas Süle,1.0
+sb_34339,Giovanni Reyna,team_united_states,UNK,FWD,0,307,0.0,0.0,0.0252,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854521+00:00,giovanni reyna,,0.0
+sb_34794,Neco Williams,team_wales,UNK,DEF,0,270,0.0,0.0,0.0252,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854919+00:00,neco williams,Neco Williams,1.0
+sb_3450,Jordan Ayew,team_ghana,UNK,FWD,0,256,0.0,0.3516,0.0251,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856924+00:00,jordan ayew,,0.0
+sb_11135,Ibrahima Konaté,team_france,UNK,DEF,0,635,0.0,0.0,0.0249,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855364+00:00,ibrahima konate,Ibrahima Konaté,1.0
+sb_11990,Youssouf Fofana,team_france,UNK,MID,0,598,0.0,0.0,0.0249,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855379+00:00,youssouf fofana,Youssouf Fofana,1.0
+sb_5231,Karim Ansarifard,team_iran,UNK,MID,0,233,0.0,0.0,0.0247,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851190+00:00,karim ansarifard,,0.0
+sb_5722,Saeid Ezatolahi Afagh,team_iran,UNK,MID,0,225,0.0,0.0,0.0245,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851282+00:00,saeid ezatolahi afagh,,0.0
+sb_4506,Nampalys Mendy,team_senegal,UNK,MID,0,343,0.0,0.0,0.0245,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857751+00:00,nampalys mendy,,0.0
+sb_4445,Jules Koundé,team_france,UNK,MID,0,628,0.0,0.0,0.0243,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855110+00:00,jules kounde,Jules Koundé,1.0
+sb_37737,Angelo Smit Preciado Quiñónez,team_ecuador,UNK,DEF,0,270,0.0,0.3333,0.0236,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853230+00:00,angelo smit preciado quinonez,,0.0
+sb_5230,Ehsan Hajsafi,team_iran,UNK,MID,0,270,0.0,0.0,0.0227,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851174+00:00,ehsan hajsafi,,0.0
+sb_26318,Rogelio Gabriel Funes Mori,team_mexico,UNK,MID,0,265,0.0,0.0,0.0226,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860286+00:00,rogelio gabriel funes mori,Rogelio Funes Mori,0.75
+sb_10931,Joe Allen,team_wales,UNK,MID,0,256,0.0,0.0,0.0224,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854771+00:00,joe allen,,0.0
+sb_24547,Alexander Hartmann Bah,team_denmark,UNK,DEF,0,226,0.0,0.0,0.0224,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859567+00:00,alexander hartmann bah,Alexander Bah,0.667
+sb_6319,Luka Jović,team_serbia,UNK,FWD,0,234,0.0,0.0,0.0224,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861798+00:00,luka jovic,,0.0
+sb_3193,Bernardo Mota Veiga de Carvalho e Silva,team_portugal,UNK,MID,0,441,0.0,0.0,0.0223,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857289+00:00,bernardo mota veiga de carvalho e silva,Bernardo Silva,0.286
+sb_5833,Nemanja Radonjić,team_serbia,UNK,DEF,0,210,0.0,0.0,0.0221,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861768+00:00,nemanja radonjic,,0.0
+sb_5255,Matías Vecino Falero,team_uruguay,UNK,MID,0,213,0.0,0.0,0.0221,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862930+00:00,matias vecino falero,Matías Vecino,0.667
+sb_9540,Harry Wilson,team_wales,UNK,MID,0,256,0.0,0.0,0.0216,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854728+00:00,harry wilson,Harry Wilson,1.0
+sb_5576,Jesús Daniel Gallardo Vasconcelos,team_mexico,UNK,DEF,0,270,0.0,0.0,0.0214,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860165+00:00,jesus daniel gallardo vasconcelos,Jesús Gallardo,0.5
+sb_39161,Alejandro Balde Martínez,team_spain,UNK,DEF,0,331,0.0,0.0,0.0211,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854096+00:00,alejandro balde martinez,Alejandro Balde,0.667
+sb_16120,Richie Laryea,team_canada,UNK,MID,0,245,0.0,0.0,0.0208,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850066+00:00,richie laryea,,0.0
+sb_3831,Dušan Tadić,team_serbia,UNK,MID,0,270,0.0,0.6667,0.0206,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861695+00:00,dusan tadic,,0.0
+sb_2972,Marcus Thuram,team_france,UNK,MID,0,509,0.0,0.3536,0.0205,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854965+00:00,marcus thuram,Marcus Thuram,1.0
+sb_23774,Selim Amallah,team_morocco,UNK,MID,30,510,0.0,0.0,0.0202,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849162+00:00,selim amallah,,0.0
+sb_33477,Riley McGree,team_australia,UNK,MID,0,360,0.0,0.25,0.02,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862334+00:00,riley mcgree,,0.0
+sb_5655,Dylan Daniel Mahmoud Bronn,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0197,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855590+00:00,dylan daniel mahmoud bronn,,0.0
+sb_80484,Iliman Ndiaye,team_senegal,UNK,MID,0,343,0.0,0.2624,0.0194,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858046+00:00,iliman ndiaye,Iliman Ndiaye,1.0
+sb_74588,Christopher Wooh,team_cameroon,UNK,MID,0,270,0.0,0.0,0.019,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856448+00:00,christopher wooh,Christopher Wooh,1.0
+sb_7693,Bruno Petković,team_croatia,UNK,FWD,0,488,0.0,0.0,0.0184,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852270+00:00,bruno petkovic,Bruno Petković,1.0
+sb_5249,Diego Roberto Godín Leal,team_uruguay,UNK,DEF,0,270,0.0,0.0,0.0182,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862915+00:00,diego roberto godin leal,,0.0
+sb_51969,Jackson Gabriel Porozo Vernaza,team_ecuador,UNK,DEF,0,264,0.0,0.0,0.0179,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853322+00:00,jackson gabriel porozo vernaza,Jackson Porozo,0.5
+sb_18722,Mathias Jensen,team_denmark,UNK,MID,0,243,0.0,0.0,0.0179,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859524+00:00,mathias jensen,Mathias Jensen,1.0
+sb_9927,Rúben Diogo Da Silva Neves,team_portugal,UNK,MID,0,440,0.0,0.0,0.0178,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857436+00:00,ruben diogo da silva neves,Eric da Silva Moreira,0.4
+sb_23874,Ali Gholizadeh,team_iran,UNK,MID,0,225,0.0,0.4,0.0171,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851327+00:00,ali gholizadeh,,0.0
+sb_7796,Silvan Widmer,team_switzerland,UNK,DEF,0,270,0.0,0.3333,0.0171,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856680+00:00,silvan widmer,Silvan Widmer,1.0
+sb_5581,Joel Nathaniel Campbell Samuels,team_costa_rica,UNK,MID,0,270,0.0,0.0,0.0171,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861276+00:00,joel nathaniel campbell samuels,,0.0
+sb_41711,Sang-Ho Na,team_south_korea,UNK,MID,0,315,0.0,0.0,0.0171,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862824+00:00,sangho na,,0.0
+sb_22293,Harry Souttar,team_australia,UNK,DEF,0,360,0.0,0.0,0.017,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862247+00:00,harry souttar,,0.0
+sb_3382,Luke Shaw,team_england,UNK,DEF,0,450,0.0,0.2,0.0169,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850658+00:00,luke shaw,Luke Shaw,1.0
+sb_28729,Diego Nicolás De La Cruz Arcosa,team_uruguay,UNK,MID,0,232,0.0,0.0,0.0167,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863175+00:00,diego nicolas de la cruz arcosa,Adrián de la Fuente,0.333
+sb_12770,Jonathan Osorio,team_canada,UNK,MID,0,215,0.0,0.0,0.016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849966+00:00,jonathan osorio,,0.0
+sb_51705,Abdulrahman Al-Obood,team_saudi_arabia,UNK,MID,0,235,0.0,0.0,0.016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858720+00:00,abdulrahman alobood,,0.0
+sb_3141,André-Frank Zambo Anguissa,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0155,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855893+00:00,andrefrank zambo anguissa,Andre-Frank Zambo Anguissa,1.0
+sb_5651,Yassine Meriah,team_tunisia,UNK,DEF,0,270,0.0,0.0,0.0154,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855530+00:00,yassine meriah,,0.0
+sb_132728,Jewison Bennette,team_costa_rica,UNK,MID,0,227,0.0,0.0,0.015,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861561+00:00,jewison bennette,,0.0
+sb_8654,Ante Budimir,team_croatia,UNK,MID,0,620,0.0,0.0,0.0147,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852284+00:00,ante budimir,Ante Budimir,1.0
+sb_28370,Fran Karačić,team_australia,UNK,DEF,0,341,0.0,0.0,0.0146,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862290+00:00,fran karacic,,0.0
+sb_12524,Walker Zimmerman,team_united_states,UNK,DEF,0,351,0.0,0.0,0.0145,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854279+00:00,walker zimmerman,,0.0
+sb_40211,Jeremy Leonel Sarmiento Morante,team_ecuador,UNK,FWD,0,185,0.0,0.0,0.0142,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853292+00:00,jeremy leonel sarmiento morante,Jeremy Sarmiento,0.5
+sb_133353,Pablo Martín Páez Gavira,team_spain,UNK,MID,0,360,0.0,0.0,0.0141,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854140+00:00,pablo martin paez gavira,,0.0
+sb_16554,Joakim Mæhle,team_denmark,UNK,DEF,0,270,0.0,0.0,0.0141,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859468+00:00,joakim mhle,Joakim Mæhle,1.0
+sb_19597,Marcos Javier Acuña,team_argentina,UNK,DEF,0,493,0.0,0.0,0.0139,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861098+00:00,marcos javier acuna,,0.0
+sb_6687,Saša Lukić,team_serbia,UNK,MID,0,270,0.0,0.0,0.0132,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861828+00:00,sasa lukic,Saša Lukić,1.0
+sb_16252,Mark Anthony Kaye,team_canada,UNK,MID,0,270,0.0,0.0,0.013,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850082+00:00,mark anthony kaye,,0.0
+sb_51094,Abdulelah Al Amri,team_saudi_arabia,UNK,DEF,0,267,0.0,0.0,0.0127,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858601+00:00,abdulelah al amri,,0.0
+sb_5538,Denis Lemi Zakaria Lako Lado,team_switzerland,UNK,MID,0,301,0.0,0.0,0.0125,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856576+00:00,denis lemi zakaria lako lado,Denis Zakaria,0.4
+sb_29006,Noah Okafor,team_switzerland,UNK,MID,0,231,0.0,0.0,0.0125,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856805+00:00,noah okafor,Noah Okafor,1.0
+sb_124506,Pedro Miguel Correia,team_qatar,UNK,DEF,0,270,0.0,0.0,0.0124,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859016+00:00,pedro miguel correia,,0.0
+sb_5211,Jordi Alba Ramos,team_spain,UNK,DEF,0,338,0.0,0.5325,0.0122,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853848+00:00,jordi alba ramos,,0.0
+sb_10530,Jules Olivier Ntcham,team_cameroon,UNK,MID,0,247,0.0,0.0,0.0121,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856136+00:00,jules olivier ntcham,Olivier Ntcham,0.667
+sb_7005,João Pedro Cavaco Cancelo,team_portugal,UNK,DEF,0,410,0.0,0.0,0.012,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857422+00:00,joao pedro cavaco cancelo,João Cancelo,0.5
+sb_34639,Vitor Machado Ferreira,team_portugal,UNK,MID,0,411,0.0,0.0,0.0118,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857611+00:00,vitor machado ferreira,,0.0
+sb_7979,Przemysław Frankowski,team_poland,UNK,MID,0,341,0.0,0.0,0.0115,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858289+00:00,przemysaw frankowski,Przemysław Frankowski,1.0
+sb_5222,Roozbeh Cheshmi,team_iran,UNK,DEF,0,257,0.0,0.0,0.0114,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851100+00:00,roozbeh cheshmi,,0.0
+sb_36148,José Adoni Cifuentes Charcopa,team_ecuador,UNK,MID,0,210,0.0,0.0,0.0108,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853185+00:00,jose adoni cifuentes charcopa,,0.0
+sb_5214,William Silva de Carvalho,team_portugal,UNK,MID,0,406,0.0,0.0,0.0108,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857393+00:00,william silva de carvalho,Mathys De Carvalho,0.5
+sb_33488,Keanu Baccus,team_australia,UNK,MID,0,303,0.0,0.0,0.0105,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862349+00:00,keanu baccus,,0.0
+sb_4353,Aymeric Laporte,team_spain,UNK,MID,0,360,0.0,0.0,0.0104,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853804+00:00,aymeric laporte,Aymeric Laporte,1.0
+sb_6318,Andrija Živković,team_serbia,UNK,DEF,0,270,0.0,0.6667,0.01,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861783+00:00,andrija zivkovic,,0.0
+sb_8859,Ajdin Hrustic,team_australia,UNK,MID,0,298,0.0,0.0,0.01,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862175+00:00,ajdin hrustic,Ajdin Hrustic,1.0
+sb_3281,Aaron Mooy,team_australia,UNK,MID,0,360,0.0,0.0,0.0098,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862100+00:00,aaron mooy,,0.0
+sb_7459,Jawad El Yamiq,team_morocco,UNK,DEF,34,596,0.0,0.0,0.0097,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848854+00:00,jawad el yamiq,,0.0
+sb_40784,Akram Hassan Afif,team_qatar,UNK,FWD,0,270,0.0,0.0,0.0097,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858841+00:00,akram hassan afif,,0.0
+sb_149714,Abdessamad Ezzalzouli,team_morocco,UNK,MID,25,566,0.0,0.0,0.0095,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849679+00:00,abdessamad ezzalzouli,,0.0
+sb_3512,Marko Grujić,team_serbia,UNK,MID,0,258,0.0,0.0,0.0095,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861679+00:00,marko grujic,,0.0
+sb_3308,Kieran Trippier,team_england,UNK,DEF,0,424,0.0,0.0,0.0091,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850611+00:00,kieran trippier,Kieran Trippier,1.0
+sb_31029,Salis Abdul Samed,team_ghana,UNK,MID,0,270,0.0,0.0,0.0089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857143+00:00,salis abdul samed,Salis Abdul Samed,1.0
+sb_8553,Abdou Diallo,team_senegal,UNK,DEF,0,360,0.0,0.0,0.0089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857795+00:00,abdou diallo,,0.0
+sb_124514,Abdulaziz Hatem Mohammed Abdullah,team_qatar,UNK,MID,0,248,0.0,0.0,0.0089,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859059+00:00,abdulaziz hatem mohammed abdullah,,0.0
+sb_7993,Filip Mladenović,team_serbia,UNK,MID,0,270,0.0,0.0,0.0088,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861924+00:00,filip mladenovic,Filip Mladenović,1.0
+sb_82257,Rubin Colwill,team_wales,UNK,MID,0,260,0.0,0.0,0.0087,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854950+00:00,rubin colwill,,0.0
+sb_3913,Edimilson Fernandes,team_switzerland,UNK,MID,0,304,0.0,0.0,0.0087,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856510+00:00,edimilson fernandes,,0.0
+sb_3517,Aaron Ramsey,team_wales,UNK,MID,0,270,0.0,0.0,0.0085,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854597+00:00,aaron ramsey,Aaron Ramsey,1.0
+sb_5642,Axel Witsel,team_belgium,UNK,MID,0,270,0.0,0.0,0.0084,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851823+00:00,axel witsel,Axel Witsel,1.0
+sb_7439,Axel Disasi,team_france,UNK,DEF,0,661,0.0,0.0,0.0083,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855305+00:00,axel disasi,Axel Disasi,1.0
+sb_31751,Pathé Ismaël Ciss,team_senegal,UNK,MID,0,333,0.0,0.0,0.0083,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857942+00:00,pathe ismael ciss,Pathé Ciss,0.667
+sb_5650,Ferjani Sassi,team_tunisia,UNK,MID,0,222,0.0,0.0,0.0082,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855515+00:00,ferjani sassi,,0.0
+sb_12625,Borna Sosa,team_croatia,UNK,DEF,0,540,0.0,0.0,0.0081,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852330+00:00,borna sosa,Borna Sosa,1.0
+sb_3063,Danilo Luiz da Silva,team_brazil,UNK,MID,0,360,0.0,0.0,0.0081,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860476+00:00,danilo luiz da silva,Eric da Silva Moreira,0.5
+sb_3570,Pierre-Emile Højbjerg,team_denmark,UNK,MID,0,270,0.0,0.0,0.008,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859248+00:00,pierreemile hjbjerg,,0.0
+sb_12493,Krzysztof Piątek,team_poland,UNK,FWD,0,332,0.0,0.0,0.0076,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858395+00:00,krzysztof piatek,,0.0
+sb_28453,Michał Skóraś,team_poland,UNK,MID,0,315,0.0,0.0,0.0076,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858424+00:00,micha skoras,,0.0
+sb_5206,Rúben Santos Gato Alves Dias,team_portugal,UNK,DEF,0,450,0.0,0.0,0.0075,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857350+00:00,ruben santos gato alves dias,Rúben Dias,0.4
+sb_22067,Woo-Yeong Jeong,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0075,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862601+00:00,wooyeong jeong,Jeong Woo-yeong,1.0
+sb_16028,José Diogo Dalot Teixeira,team_portugal,UNK,MID,0,450,0.0,0.2,0.0073,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857538+00:00,jose diogo dalot teixeira,Diogo Dalot,0.5
+sb_28268,Exequiel Alejandro Palacios,team_argentina,UNK,MID,0,580,0.0,0.0,0.0072,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861204+00:00,exequiel alejandro palacios,Exequiel Palacios,0.667
+sb_5600,Francisco Javier Calvo Quesada,team_costa_rica,UNK,DEF,0,180,0.0,0.0,0.0071,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861664+00:00,francisco javier calvo quesada,,0.0
+sb_6945,Alex Sandro Lobo Silva,team_brazil,UNK,DEF,0,285,0.0,0.0,0.0069,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860640+00:00,alex sandro lobo silva,,0.0
+sb_3090,Nicolás Hernán Otamendi,team_argentina,UNK,DEF,0,630,0.0,0.1429,0.0069,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860892+00:00,nicolas hernan otamendi,Nicolás Otamendi,0.667
+sb_49337,Josip Stanišić,team_croatia,UNK,MID,0,540,0.0,0.0,0.0068,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852527+00:00,josip stanisic,Josip Stanišić,1.0
+sb_7145,Darko Lazović,team_serbia,UNK,MID,0,245,0.0,0.0,0.0067,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861909+00:00,darko lazovic,,0.0
+sb_7161,Germán Alejandro Pezzella,team_argentina,UNK,DEF,0,630,0.0,0.0,0.0064,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861038+00:00,german alejandro pezzella,,0.0
+sb_23264,Seung-Ho Paik,team_south_korea,UNK,MID,0,334,0.0,0.0,0.0062,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862632+00:00,seungho paik,,0.0
+sb_6840,Marcos Llorente Moreno,team_spain,UNK,MID,0,360,0.0,0.0,0.0061,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853964+00:00,marcos llorente moreno,Marcos Llorente,0.667
+sb_29163,Josip Juranović,team_croatia,UNK,DEF,31,630,0.0,0.1429,0.0059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852424+00:00,josip juranovic,Josip Juranović,1.0
+sb_4734,Matty Cash,team_poland,UNK,DEF,0,360,0.0,0.0,0.0059,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858183+00:00,matty cash,Matty Cash,1.0
+sb_3637,Grzegorz Krychowiak,team_poland,UNK,MID,0,360,0.0,0.0,0.0054,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858108+00:00,grzegorz krychowiak,,0.0
+sb_5623,Jae-Sung Lee,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0053,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862572+00:00,jaesung lee,Lee Jae-sung,1.0
+sb_124488,Hassan Khalid Al Heidos,team_qatar,UNK,MID,0,270,0.0,0.0,0.0052,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858856+00:00,hassan khalid al heidos,,0.0
+sb_45047,Alidu Seidu,team_ghana,UNK,DEF,0,270,0.0,0.0,0.0051,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857216+00:00,alidu seidu,Alidu Seidu,1.0
+sb_12751,Tyler Adams,team_united_states,UNK,MID,0,360,0.0,0.0,0.005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854309+00:00,tyler adams,Tyler Adams,1.0
+sb_128793,Taha Yassine Khenissi,team_tunisia,UNK,MID,0,242,0.0,0.0,0.0048,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855852+00:00,taha yassine khenissi,,0.0
+sb_4934,Ethan Ampadu,team_wales,UNK,MID,0,270,0.0,0.0,0.0046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854699+00:00,ethan ampadu,Ethan Ampadu,1.0
+sb_12169,João Maria Lobo Alves Palhinha Gonçalves,team_portugal,UNK,MID,0,413,0.0,0.0,0.0046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857496+00:00,joao maria lobo alves palhinha goncalves,João Gonçalves,0.333
+sb_5567,Edson Omar Álvarez Velázquez,team_mexico,UNK,MID,0,270,0.0,0.0,0.0046,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860093+00:00,edson omar alvarez velazquez,Edson Álvarez,0.5
+sb_3404,Youssouf Sabaly,team_senegal,UNK,DEF,0,360,0.0,0.0,0.0045,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857688+00:00,youssouf sabaly,,0.0
+sb_132497,Gerson Torres Barrantes,team_costa_rica,UNK,MID,0,270,0.0,0.0,0.0045,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861546+00:00,gerson torres barrantes,,0.0
+sb_32450,Montassar Omar Talbi,team_tunisia,UNK,DEF,0,270,0.0,0.0,0.0041,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855711+00:00,montassar omar talbi,Montassar Talbi,0.667
+sb_5591,Filip Kostić,team_serbia,UNK,DEF,0,270,0.0,0.0,0.004,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861740+00:00,filip kostic,Filip Kostić,1.0
+sb_32915,Ismail Jakobs,team_senegal,UNK,DEF,0,331,0.0,0.2719,0.0039,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857957+00:00,ismail jakobs,Ismail Jakobs,1.0
+sb_7006,Alejandro Darío Gómez,team_argentina,UNK,MID,0,540,0.0,0.0,0.0038,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861024+00:00,alejandro dario gomez,Alejandro Gómez,0.667
+sb_16346,Ngoran Suiru Fai Collins,team_cameroon,UNK,DEF,0,270,0.0,0.0,0.0032,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856340+00:00,ngoran suiru fai collins,,0.0
+sb_3621,Eden Hazard,team_belgium,UNK,DEF,0,266,0.0,0.0,0.0031,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851762+00:00,eden hazard,,0.0
+sb_5234,Sofyan Amrabat,team_morocco,UNK,MID,30,630,0.0,0.0,0.003,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848543+00:00,sofyan amrabat,Sofyan Amrabat,1.0
+sb_5618,Woo-Young Jung,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0027,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862528+00:00,wooyoung jung,,0.0
+sb_3639,Georges-Kévin Nkoudou Mbida,team_cameroon,UNK,MID,0,243,0.0,0.0,0.0026,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855936+00:00,georgeskevin nkoudou mbida,,0.0
+sb_26406,Jorge Eduardo Sánchez Ramos,team_mexico,UNK,DEF,0,270,0.0,0.0,0.0023,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860388+00:00,jorge eduardo sanchez ramos,Jorge Sánchez,0.5
+sb_11127,Borna Barišić,team_croatia,UNK,MID,0,630,0.0,0.0,0.0022,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852299+00:00,borna barisic,,0.0
+sb_51710,Saud Abdullah Abdul Hamid,team_saudi_arabia,UNK,DEF,0,270,0.0,0.0,0.002,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858735+00:00,saud abdullah abdul hamid,,0.0
+sb_40874,Matheus Luiz Nunes,team_portugal,UNK,MID,0,442,0.0,0.0,0.0016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857641+00:00,matheus luiz nunes,Matheus Nunes,0.667
+sb_6765,Rodrigo Hernández Cascante,team_spain,UNK,DEF,0,360,0.0,0.0,0.0014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853950+00:00,rodrigo hernandez cascante,,0.0
+sb_40564,Kyung-Won Kwon,team_south_korea,UNK,MID,0,361,0.0,0.0,0.0014,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862749+00:00,kyungwon kwon,,0.0
+sb_5233,Munir Mohand Mohamedi,team_morocco,UNK,GK,37,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848521+00:00,munir mohand mohamedi,,0.0
+sb_6785,Yassine Bounou,team_morocco,UNK,GK,35,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.848829+00:00,yassine bounou,,0.0
+sb_21214,Ilias Chair,team_morocco,UNK,MID,29,585,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849127+00:00,ilias chair,,0.0
+sb_102668,Yahya Jabrane,team_morocco,UNK,MID,35,614,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849610+00:00,yahya jabrane,,0.0
+sb_131037,Anass Zaroury,team_morocco,UNK,MID,26,603,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849631+00:00,anass zaroury,,0.0
+sb_139011,Ahmed Reda Tagnaouti,team_morocco,UNK,GK,30,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849648+00:00,ahmed reda tagnaouti,,0.0
+sb_156734,Bilal El Khannous,team_morocco,UNK,MID,22,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849695+00:00,bilal el khannous,Bilal El Khannouss,0.667
+sb_4106,Ike Ugbo,team_canada,UNK,FWD,28,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849787+00:00,ike ugbo,,0.0
+sb_9036,David Wallace Wotherspoon,team_canada,UNK,MID,0,255,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849808+00:00,david wallace wotherspoon,,0.0
+sb_11846,Steven de Sousa Vitoria,team_canada,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849925+00:00,steven de sousa vitoria,,0.0
+sb_12779,Samuel Piette,team_canada,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.849993+00:00,samuel piette,,0.0
+sb_13885,Liam Fraser,team_canada,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850008+00:00,liam fraser,,0.0
+sb_15958,Milan Borjan,team_canada,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850050+00:00,milan borjan,,0.0
+sb_23363,Liam Millar,team_canada,UNK,MID,0,260,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850125+00:00,liam millar,,0.0
+sb_23760,Derek Cornelius,team_canada,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850375+00:00,derek cornelius,Derek Cornelius,1.0
+sb_23828,Kamal Miller,team_canada,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850396+00:00,kamal miller,,0.0
+sb_26348,Lucas Daniel Cavallini,team_canada,UNK,MID,0,252,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850441+00:00,lucas daniel cavallini,Lucas Cavallini,0.667
+sb_29758,Sam Adekugbe,team_canada,UNK,DEF,0,235,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850456+00:00,sam adekugbe,,0.0
+sb_35707,Joel Waterman,team_canada,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850488+00:00,joel waterman,,0.0
+sb_36794,Dayne Tristan St. Clair,team_canada,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850503+00:00,dayne tristan st clair,,0.0
+sb_49259,James Pantemis,team_canada,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850533+00:00,james pantemis,,0.0
+sb_133229,Ismael Koné,team_canada,UNK,DEF,0,162,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850548+00:00,ismael kone,Ismaël Koné,1.0
+sb_3205,Kyle Walker,team_england,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850564+00:00,kyle walker,Kyle Walker,1.0
+sb_3468,Jordan Pickford,team_england,UNK,GK,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850673+00:00,jordan pickford,Jordan Pickford,1.0
+sb_3474,Nick Pope,team_england,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850806+00:00,nick pope,Nick Pope,1.0
+sb_3616,Callum Wilson,team_england,UNK,FWD,0,402,0.0,0.2239,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850838+00:00,callum wilson,Callum Wilson,1.0
+sb_3664,Trent Alexander-Arnold,team_england,UNK,MID,0,416,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850853+00:00,trent alexanderarnold,Trent Alexander-Arnold,1.0
+sb_3943,Declan Rice,team_england,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850868+00:00,declan rice,Declan Rice,1.0
+sb_4706,Kalvin Phillips,team_england,UNK,MID,0,408,0.0,0.2206,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850898+00:00,kalvin phillips,,0.0
+sb_9905,James Maddison,team_england,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850943+00:00,james maddison,James Maddison,1.0
+sb_9928,Conor Coady,team_england,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850957+00:00,conor coady,,0.0
+sb_10956,Eric Dier,team_england,UNK,DEF,0,416,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.850988+00:00,eric dier,Eric Dier,1.0
+sb_22783,Aaron Ramsdale,team_england,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851019+00:00,aaron ramsdale,Aaron Ramsdale,1.0
+sb_22809,Ben White,team_england,UNK,MID,0,180,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851034+00:00,ben white,Ben White,1.0
+sb_29399,Conor Gallagher,team_england,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851049+00:00,conor gallagher,Conor Gallagher,1.0
+sb_5227,Alireza Safar Beiranvand,team_iran,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851145+00:00,alireza safar beiranvand,,0.0
+sb_5228,Seyed Majid Hosseini,team_iran,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851160+00:00,seyed majid hosseini,Majid Hosseini,0.667
+sb_5241,Vahid Amiri,team_iran,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851252+00:00,vahid amiri,,0.0
+sb_5720,Milad Mohammadi,team_iran,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851267+00:00,milad mohammadi,,0.0
+sb_11224,Amir Abedzadeh,team_iran,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851297+00:00,amir abedzadeh,,0.0
+sb_23538,Sadegh Moharrami,team_iran,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851312+00:00,sadegh moharrami,,0.0
+sb_124175,Mohammad Hossein Kanani Zadegan,team_iran,UNK,DEF,0,225,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851542+00:00,mohammad hossein kanani zadegan,,0.0
+sb_124177,Shoja Khalilzadeh,team_iran,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851557+00:00,shoja khalilzadeh,,0.0
+sb_124183,Payam Niazmand,team_iran,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851572+00:00,payam niazmand,,0.0
+sb_125818,Ali Karimi,team_iran,UNK,MID,0,219,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851593+00:00,ali karimi,Ali Karimi,1.0
+sb_125823,Seyed Hossein Hosseini,team_iran,UNK,GK,0,199,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851608+00:00,seyed hossein hosseini,,0.0
+sb_326758,Abolfazl Jalali,team_iran,UNK,MID,0,251,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851623+00:00,abolfazl jalali,,0.0
+sb_2954,Youri Tielemans,team_belgium,UNK,MID,0,220,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851640+00:00,youri tielemans,Youri Tielemans,1.0
+sb_3509,Thibaut Courtois,team_belgium,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851733+00:00,thibaut courtois,Thibaut Courtois,1.0
+sb_3539,Simon Mignolet,team_belgium,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851747+00:00,simon mignolet,,0.0
+sb_5632,Thorgan Hazard,team_belgium,UNK,MID,0,238,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851794+00:00,thorgan hazard,,0.0
+sb_6989,Timothy Castagne,team_belgium,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851853+00:00,timothy castagne,Timothy Castagne,1.0
+sb_8240,Koen Casteels,team_belgium,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851868+00:00,koen casteels,,0.0
+sb_8854,Wout Faes,team_belgium,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851882+00:00,wout faes,Wout Faes,1.0
+sb_16275,Ikoma Loïs Openda,team_belgium,UNK,MID,0,257,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851898+00:00,ikoma lois openda,Loïs Openda,0.667
+sb_16281,Hans Vanaken,team_belgium,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851913+00:00,hans vanaken,,0.0
+sb_16559,Leandro Trossard,team_belgium,UNK,FWD,0,225,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851928+00:00,leandro trossard,Leandro Trossard,1.0
+sb_20005,Toby Alderweireld,team_belgium,UNK,DEF,0,270,0.0,0.3333,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851942+00:00,toby alderweireld,,0.0
+sb_23650,Jeremy Doku,team_belgium,UNK,MID,0,251,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851958+00:00,jeremy doku,Jeremy Doku,1.0
+sb_32688,Charles De Ketelaere,team_belgium,UNK,MID,0,254,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851973+00:00,charles de ketelaere,Charles De Ketelaere,1.0
+sb_43913,Arthur Theate,team_belgium,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.851988+00:00,arthur theate,Arthur Theate,1.0
+sb_114832,Zeno Debast,team_belgium,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852003+00:00,zeno debast,Zeno Debast,1.0
+sb_5468,Domagoj Vida,team_croatia,UNK,MID,0,540,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852226+00:00,domagoj vida,,0.0
+sb_16531,Dominik Livaković,team_croatia,UNK,GK,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852360+00:00,dominik livakovic,Dominik Livaković,1.0
+sb_28835,Ivica Ivušić,team_croatia,UNK,GK,31,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852391+00:00,ivica ivusic,,0.0
+sb_29342,Ivo Grbić,team_croatia,UNK,GK,30,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852439+00:00,ivo grbic,Ivo Grbić,1.0
+sb_32602,Kristijan Jakić,team_croatia,UNK,MID,29,634,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852454+00:00,kristijan jakic,Kristijan Jakić,1.0
+sb_32689,Martin Erlić,team_croatia,UNK,DEF,28,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852468+00:00,martin erlic,,0.0
+sb_37148,Josip Šutalo,team_croatia,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852497+00:00,josip sutalo,Josip Šutalo,1.0
+sb_39490,Luka Sučić,team_croatia,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852512+00:00,luka sucic,Luka Sučić,1.0
+sb_3306,Nathan Aké,team_netherlands,UNK,DEF,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852574+00:00,nathan ake,Nathan Aké,1.0
+sb_6994,Marten de Roon,team_netherlands,UNK,MID,0,442,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852635+00:00,marten de roon,Marten de Roon,1.0
+sb_7787,Stefan de Vrij,team_netherlands,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852664+00:00,stefan de vrij,Stefan de Vrij,1.0
+sb_7838,Remko Pasveer,team_netherlands,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852720+00:00,remko pasveer,Remko Pasveer,1.0
+sb_8069,Matthijs de Ligt,team_netherlands,UNK,MID,0,452,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852749+00:00,matthijs de ligt,Matthijs de Ligt,1.0
+sb_8124,Tyrell Malacia,team_netherlands,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852778+00:00,tyrell malacia,Tyrell Malacia,1.0
+sb_8326,Andries Noppert,team_netherlands,UNK,GK,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852821+00:00,andries noppert,Andries Noppert,1.0
+sb_16185,Justin Bijlow,team_netherlands,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852835+00:00,justin bijlow,Justin Bijlow,1.0
+sb_21547,Noa Lang,team_netherlands,UNK,MID,0,472,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852881+00:00,noa lang,Noa Lang,1.0
+sb_21809,Jurriën David Norman Timber,team_netherlands,UNK,DEF,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852895+00:00,jurrien david norman timber,Jurriën Timber,0.5
+sb_21879,Kenneth Taylor,team_netherlands,UNK,MID,0,445,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852910+00:00,kenneth taylor,Kenneth Taylor,1.0
+sb_32712,Jeremie Frimpong,team_netherlands,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852927+00:00,jeremie frimpong,Jeremie Frimpong,1.0
+sb_39167,Xavi Simons,team_netherlands,UNK,MID,0,442,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852942+00:00,xavi simons,Xavi Simons,1.0
+sb_12583,Carlos Armando Gruezo Arboleda,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852957+00:00,carlos armando gruezo arboleda,Carlos Gruezo,0.5
+sb_15486,Diego José Palacios Espinoza,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.852987+00:00,diego jose palacios espinoza,,0.0
+sb_23830,Jhegson Sebastián Méndez Carabalí,team_ecuador,UNK,MID,0,180,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853002+00:00,jhegson sebastian mendez carabali,,0.0
+sb_25083,Xavier Ricardo Arreaga Bermello,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853032+00:00,xavier ricardo arreaga bermello,,0.0
+sb_25352,Robert Abel Arboleda Escobar,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853046+00:00,robert abel arboleda escobar,,0.0
+sb_28511,Ángel Israel Mena Delgado,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853061+00:00,angel israel mena delgado,,0.0
+sb_32677,Alexander Domínguez Carabalí,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853121+00:00,alexander dominguez carabali,,0.0
+sb_34194,Eduar Ayrton Preciado García,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853135+00:00,eduar ayrton preciado garcia,,0.0
+sb_37522,Hernán Ismael Galíndez,team_ecuador,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853200+00:00,hernan ismael galindez,,0.0
+sb_37742,Wellington Moisés Ramírez Preciado,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853245+00:00,wellington moises ramirez preciado,,0.0
+sb_37945,Alan Steven Franco Palma,team_ecuador,UNK,MID,0,269,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853259+00:00,alan steven franco palma,,0.0
+sb_38004,Piero Martín Hincapié Reyna,team_ecuador,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853275+00:00,piero martin hincapie reyna,Piero Hincapié,0.5
+sb_41593,Willian Joel Pacho Tenorio,team_ecuador,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853307+00:00,willian joel pacho tenorio,Willian Pacho,0.5
+sb_91090,Djorkaeff Neicer Reasco González,team_ecuador,UNK,MID,0,243,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853337+00:00,djorkaeff neicer reasco gonzalez,,0.0
+sb_3175,Eiji Kawashima,team_japan,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853367+00:00,eiji kawashima,,0.0
+sb_5690,Yuto Nagatomo,team_japan,UNK,DEF,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853414+00:00,yuto nagatomo,,0.0
+sb_5693,Gaku Shibasaki,team_japan,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853428+00:00,gaku shibasaki,,0.0
+sb_23730,Takehiro Tomiyasu,team_japan,UNK,MID,0,293,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853529+00:00,takehiro tomiyasu,Takehiro Tomiyasu,1.0
+sb_25719,Shūichi Gonda,team_japan,UNK,GK,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853543+00:00,shuichi gonda,,0.0
+sb_29366,Daniel Schmidt,team_japan,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853558+00:00,daniel schmidt,,0.0
+sb_31090,Takefusa Kubo,team_japan,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853601+00:00,takefusa kubo,Takefusa Kubo,1.0
+sb_37209,Miki Yamane,team_japan,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853644+00:00,miki yamane,,0.0
+sb_38285,Ayase Ueda,team_japan,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853716+00:00,ayase ueda,Ayase Ueda,1.0
+sb_95272,Hiroki Ito,team_japan,UNK,MID,0,315,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853730+00:00,hiroki ito,Hiroki Ito,1.0
+sb_100436,Shuto Machino,team_japan,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853745+00:00,shuto machino,Shuto Machino,1.0
+sb_3957,César Azpilicueta Tanco,team_spain,UNK,DEF,0,360,0.0,0.25,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853775+00:00,cesar azpilicueta tanco,César Azpilicueta,0.667
+sb_4127,David Raya Martin,team_spain,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853789+00:00,david raya martin,David Raya,0.667
+sb_5199,Jorge Resurrección Merodio,team_spain,UNK,MID,0,308,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853819+00:00,jorge resurreccion merodio,,0.0
+sb_5721,Daniel Carvajal Ramos,team_spain,UNK,DEF,0,315,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853887+00:00,daniel carvajal ramos,,0.0
+sb_6892,Pau Francisco Torres,team_spain,UNK,DEF,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853978+00:00,pau francisco torres,Pau Torres,0.667
+sb_9843,Robert Lynch Sanchez,team_spain,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.853993+00:00,robert lynch sanchez,Robert Sánchez,0.667
+sb_11748,Unai Simón Mendibil,team_spain,UNK,GK,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854008+00:00,unai simon mendibil,Unai Simón,0.667
+sb_30486,Pedro González López,team_spain,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854038+00:00,pedro gonzalez lopez,,0.0
+sb_30756,Anssumane Fati,team_spain,UNK,MID,0,344,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854053+00:00,anssumane fati,,0.0
+sb_31953,Eric García Martret,team_spain,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854067+00:00,eric garcia martret,Eric García,0.667
+sb_35641,Hugo Guillamón Sanmartín,team_spain,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854082+00:00,hugo guillamon sanmartin,,0.0
+sb_50494,Yeremy Jesús Pino Santos,team_spain,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854111+00:00,yeremy jesus pino santos,,0.0
+sb_68574,Nicholas Williams Arthuer,team_spain,UNK,MID,0,298,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854125+00:00,nicholas williams arthuer,,0.0
+sb_3658,DeAndre Yedlin,team_united_states,UNK,MID,0,328,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854186+00:00,deandre yedlin,,0.0
+sb_4614,Antonee Robinson,team_united_states,UNK,DEF,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854203+00:00,antonee robinson,Antonee Robinson,1.0
+sb_6806,Shaquell Moore,team_united_states,UNK,DEF,0,338,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854218+00:00,shaquell moore,,0.0
+sb_12352,Matthew Charles Turner,team_united_states,UNK,GK,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854263+00:00,matthew charles turner,,0.0
+sb_12746,Sean Johnson,team_united_states,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854294+00:00,sean johnson,,0.0
+sb_12757,Aaron Long,team_united_states,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854325+00:00,aaron long,,0.0
+sb_13035,Kellyn Kai Perry-Acosta,team_united_states,UNK,MID,0,318,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854339+00:00,kellyn kai perryacosta,,0.0
+sb_13442,Cristian Roldán León,team_united_states,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854354+00:00,cristian roldan leon,,0.0
+sb_15971,Cameron Carter-Vickers,team_united_states,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854368+00:00,cameron cartervickers,,0.0
+sb_21201,Ethan Horvath,team_united_states,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854398+00:00,ethan horvath,,0.0
+sb_22433,Jesus Ferreira,team_united_states,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854461+00:00,jesus ferreira,,0.0
+sb_23789,Jordan Morris,team_united_states,UNK,MID,0,358,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854476+00:00,jordan morris,,0.0
+sb_33274,Luca de la Torre,team_united_states,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854506+00:00,luca de la torre,Adrián de la Fuente,0.5
+sb_36830,Joseph Scally,team_united_states,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854536+00:00,joseph scally,,0.0
+sb_3488,Wayne Hennessey,team_wales,UNK,GK,0,180,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854581+00:00,wayne hennessey,,0.0
+sb_3839,Tom Lockyer,team_wales,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854612+00:00,tom lockyer,,0.0
+sb_4584,Adam Davies,team_wales,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854642+00:00,adam davies,,0.0
+sb_4767,Chris Mepham,team_wales,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854657+00:00,chris mepham,,0.0
+sb_4774,Connor Roberts,team_wales,UNK,DEF,0,215,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854684+00:00,connor roberts,,0.0
+sb_9914,Daniel Ward,team_wales,UNK,GK,0,266,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854742+00:00,daniel ward,,0.0
+sb_10928,Chris Gunter,team_wales,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854756+00:00,chris gunter,,0.0
+sb_10932,Jonathan Williams,team_wales,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854786+00:00,jonathan williams,,0.0
+sb_11250,Joe Rodon,team_wales,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854800+00:00,joe rodon,Joe Rodon,1.0
+sb_11252,Daniel James,team_wales,UNK,MID,0,236,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854814+00:00,daniel james,Daniel James,1.0
+sb_12014,Mark Thomas Harris,team_wales,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854832+00:00,mark thomas harris,,0.0
+sb_21446,Matthew Robert Smith,team_wales,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854847+00:00,matthew robert smith,,0.0
+sb_22074,Joseff Morrell,team_wales,UNK,MID,0,242,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854861+00:00,joseff morrell,,0.0
+sb_33121,Benjamin Cabango,team_wales,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854891+00:00,benjamin cabango,,0.0
+sb_33144,Dylan Levitt,team_wales,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854905+00:00,dylan levitt,,0.0
+sb_50528,Sorba Thomas,team_wales,UNK,MID,0,272,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.854935+00:00,sorba thomas,,0.0
+sb_3099,Hugo Lloris,team_france,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855009+00:00,hugo lloris,,0.0
+sb_3379,Alphonse Areola,team_france,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855024+00:00,alphonse areola,Alphonse Areola,1.0
+sb_3543,Steve Mandanda,team_france,UNK,GK,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855038+00:00,steve mandanda,,0.0
+sb_5476,Benjamin Pavard,team_france,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855141+00:00,benjamin pavard,Benjamin Pavard,1.0
+sb_7153,Jordan Veretout,team_france,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855218+00:00,jordan veretout,,0.0
+sb_7345,Mattéo Guendouzi Olié,team_france,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855277+00:00,matteo guendouzi olie,Mattéo Guendouzi,0.667
+sb_8519,Dayotchanculle Upamecano,team_france,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855334+00:00,dayotchanculle upamecano,,0.0
+sb_17592,William Saliba,team_france,UNK,DEF,0,602,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855393+00:00,william saliba,William Saliba,1.0
+sb_24778,Eduardo Camavinga,team_france,UNK,DEF,0,610,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855435+00:00,eduardo camavinga,Eduardo Camavinga,1.0
+sb_5647,Ali Maâloul,team_tunisia,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855501+00:00,ali maaloul,,0.0
+sb_5653,Mouez Hassen,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855575+00:00,mouez hassen,,0.0
+sb_6342,Aymen Mathlouthi,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855603+00:00,aymen mathlouthi,,0.0
+sb_6347,Ghilane Chalali,team_tunisia,UNK,MID,0,253,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855620+00:00,ghilane chalali,,0.0
+sb_25582,Nader Ghandri,team_tunisia,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855680+00:00,nader ghandri,,0.0
+sb_30681,Ali Abdi,team_tunisia,UNK,MID,0,262,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855695+00:00,ali abdi,Ali Abdi,1.0
+sb_50988,Hannibal Mejbri,team_tunisia,UNK,MID,0,259,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855764+00:00,hannibal mejbri,Hannibal Mejbri,1.0
+sb_68749,Seifeddine Jaziri,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855778+00:00,seifeddine jaziri,,0.0
+sb_102816,Mohamed Ali Ben Romdhane,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855792+00:00,mohamed ali ben romdhane,Mohamed Ali Cho,0.5
+sb_105943,Aymen Dahmen,team_tunisia,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855806+00:00,aymen dahmen,,0.0
+sb_105944,Wajdi Kechrida,team_tunisia,UNK,DEF,0,249,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855819+00:00,wajdi kechrida,,0.0
+sb_136296,Bechir Ben Said,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855866+00:00,bechir ben said,,0.0
+sb_163049,Bilel Ifa,team_tunisia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.855879+00:00,bilel ifa,,0.0
+sb_7551,Enzo Ebosse,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856090+00:00,enzo ebosse,Enzo Ebosse,1.0
+sb_8064,André Onana,team_cameroon,UNK,GK,0,90,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856105+00:00,andre onana,André Onana,1.0
+sb_8591,Samuel Yves Oum Gwet,team_cameroon,UNK,MID,0,260,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856120+00:00,samuel yves oum gwet,,0.0
+sb_13454,Nouhou Tolo,team_cameroon,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856272+00:00,nouhou tolo,,0.0
+sb_15326,Devis Rogers Epassy Mboka,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856292+00:00,devis rogers epassy mboka,,0.0
+sb_16014,Jean Pierre Nsamé,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856309+00:00,jean pierre nsame,,0.0
+sb_16015,Nicolas Moumi Ngamaleu,team_cameroon,UNK,MID,0,260,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856324+00:00,nicolas moumi ngamaleu,,0.0
+sb_21456,Olivier Mbaissidara Mbaizo,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856355+00:00,olivier mbaissidara mbaizo,,0.0
+sb_28966,Gaël Ondoua,team_cameroon,UNK,MID,0,224,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856371+00:00,gael ondoua,,0.0
+sb_33813,Jerome Ngom Mbekeli,team_cameroon,UNK,MID,0,264,0.0,0.3409,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856403+00:00,jerome ngom mbekeli,,0.0
+sb_44842,Simon Brady Ngapandouetnbu,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856418+00:00,simon brady ngapandouetnbu,,0.0
+sb_46903,Christian Mougang Bassogog,team_cameroon,UNK,MID,0,246,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856433+00:00,christian mougang bassogog,,0.0
+sb_349913,Souaibou Marou,team_cameroon,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856463+00:00,souaibou marou,,0.0
+sb_5544,Ricardo Iván Rodríguez Araya,team_switzerland,UNK,DEF,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856606+00:00,ricardo ivan rodriguez araya,José Iván Rodríguez,0.5
+sb_5550,Yann Sommer,team_switzerland,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856650+00:00,yann sommer,Yann Sommer,1.0
+sb_8561,Fabian Frei,team_switzerland,UNK,MID,0,335,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856695+00:00,fabian frei,,0.0
+sb_16016,Michel Aebischer,team_switzerland,UNK,MID,0,344,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856724+00:00,michel aebischer,Michel Aebischer,1.0
+sb_17974,Gregor Kobel,team_switzerland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856772+00:00,gregor kobel,Gregor Kobel,1.0
+sb_29003,Jonas Omlin,team_switzerland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856790+00:00,jonas omlin,,0.0
+sb_29012,Eray Ervin Cömert,team_switzerland,UNK,DEF,0,314,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856821+00:00,eray ervin comert,Eray Cömert,0.667
+sb_41655,Ardon Jashari,team_switzerland,UNK,MID,0,358,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856850+00:00,ardon jashari,Ardon Jashari,1.0
+sb_46313,Philipp Köhn,team_switzerland,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856864+00:00,philipp kohn,Philipp Köhn,1.0
+sb_50436,Fabian Rieder,team_switzerland,UNK,MID,0,350,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856879+00:00,fabian rieder,Fabian Rieder,1.0
+sb_2989,Alexander Djiku,team_ghana,UNK,DEF,0,262,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856894+00:00,alexander djiku,Alexander Djiku,1.0
+sb_3709,Daniel Amartey,team_ghana,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856939+00:00,daniel amartey,,0.0
+sb_8108,Lawrence Ati-Zigi,team_ghana,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.856983+00:00,lawrence atizigi,,0.0
+sb_9859,Elisha Owusu,team_ghana,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857012+00:00,elisha owusu,Elisha Owusu,1.0
+sb_12259,Denis Odoi,team_ghana,UNK,MID,0,257,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857026+00:00,denis odoi,Denis Odoi,1.0
+sb_12325,Abdul Rahman Baba,team_ghana,UNK,DEF,0,267,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857055+00:00,abdul rahman baba,,0.0
+sb_16555,Joseph Aidoo,team_ghana,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857070+00:00,joseph aidoo,Joseph Aidoo,1.0
+sb_23615,Gideon Mensah,team_ghana,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857100+00:00,gideon mensah,Gideon Mensah,1.0
+sb_28616,Daniel-Kofi Kyereh,team_ghana,UNK,MID,0,240,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857114+00:00,danielkofi kyereh,,0.0
+sb_43891,Kamal Sowah,team_ghana,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857187+00:00,kamal sowah,Kamal Sowah,1.0
+sb_52091,Abdul Manaf Nurudeen,team_ghana,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857230+00:00,abdul manaf nurudeen,,0.0
+sb_136305,Daniel Afriyie Barnieh,team_ghana,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857245+00:00,daniel afriyie barnieh,,0.0
+sb_136306,Abdul Fatawu Issahaku,team_ghana,UNK,MID,0,277,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857260+00:00,abdul fatawu issahaku,,0.0
+sb_147563,Ibrahim Danlad,team_ghana,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857274+00:00,ibrahim danlad,,0.0
+sb_4272,João Mário Naval da Costa Eduardo,team_portugal,UNK,MID,0,447,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857305+00:00,joao mario naval da costa eduardo,Coba da Costa,0.333
+sb_5205,Rui Pedro dos Santos Patrício,team_portugal,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857335+00:00,rui pedro dos santos patricio,Jonathan dos Santos,0.4
+sb_5218,André Miguel Valente Silva,team_portugal,UNK,MID,0,424,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857408+00:00,andre miguel valente silva,André Silva,0.5
+sb_13621,Danilo Luís Hélio Pereira,team_portugal,UNK,DEF,0,90,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857510+00:00,danilo luis helio pereira,,0.0
+sb_18866,José Pedro Malheiro de Sá,team_portugal,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857567+00:00,jose pedro malheiro de sa,José Sá,0.4
+sb_32975,Diogo Meireles Costa,team_portugal,UNK,GK,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857596+00:00,diogo meireles costa,Diogo Costa,0.667
+sb_143854,António João Pereira Albuquerque Tavares Silva,team_portugal,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857656+00:00,antonio joao pereira albuquerque tavares silva,António Silva,0.333
+sb_3675,Fodé Ballo Touré,team_senegal,UNK,MID,0,353,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857718+00:00,fode ballo toure,,0.0
+sb_3684,Cheikhou Kouyaté,team_senegal,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857734+00:00,cheikhou kouyate,,0.0
+sb_7379,Edouard Mendy,team_senegal,UNK,GK,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857780+00:00,edouard mendy,,0.0
+sb_8870,Alfred Benjamin Gomis,team_senegal,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857810+00:00,alfred benjamin gomis,,0.0
+sb_10603,Mamadou Loum N'Diaye,team_senegal,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857825+00:00,mamadou loum ndiaye,,0.0
+sb_15970,Pape Abou Cissé,team_senegal,UNK,DEF,0,350,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857856+00:00,pape abou cisse,,0.0
+sb_17456,Timothy Dieng,team_senegal,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857882+00:00,timothy dieng,,0.0
+sb_34893,Moustapha Name,team_senegal,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857972+00:00,moustapha name,,0.0
+sb_39595,Formose Mendy,team_senegal,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.857986+00:00,formose mendy,Formose Mendy,1.0
+sb_50497,Nicolas Jackson,team_senegal,UNK,MID,0,343,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858001+00:00,nicolas jackson,Nicolas Jackson,1.0
+sb_312414,Moussa N''Diaye,team_senegal,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858077+00:00,moussa ndiaye,,0.0
+sb_4626,Jan Bednarek,team_poland,UNK,MID,0,356,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858124+00:00,jan bednarek,Jan Bednarek,1.0
+sb_4664,Sebastian Szymański,team_poland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858139+00:00,sebastian szymanski,Sebastian Szymański,1.0
+sb_4682,Robert Gumny,team_poland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858154+00:00,robert gumny,,0.0
+sb_4685,Artur Jędrzejczyk,team_poland,UNK,MID,0,342,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858169+00:00,artur jedrzejczyk,,0.0
+sb_5667,Kamil Grosicki,team_poland,UNK,MID,0,356,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858228+00:00,kamil grosicki,,0.0
+sb_5669,Wojciech Szczęsny,team_poland,UNK,GK,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858257+00:00,wojciech szczesny,Wojciech Szczęsny,1.0
+sb_5673,Bartosz Bereszyński,team_poland,UNK,DEF,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858274+00:00,bartosz bereszynski,,0.0
+sb_8021,Szymon Żurkowski,team_poland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858307+00:00,szymon zurkowski,,0.0
+sb_8704,Mateusz Wieteska,team_poland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858321+00:00,mateusz wieteska,Mateusz Wieteska,1.0
+sb_8714,Damian Szymański,team_poland,UNK,MID,0,331,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858336+00:00,damian szymanski,,0.0
+sb_8836,Karol Świderski,team_poland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858351+00:00,karol swiderski,,0.0
+sb_11508,Łukasz Skorupski,team_poland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858365+00:00,ukasz skorupski,Łukasz Skorupski,1.0
+sb_24413,Kamil Grabara,team_poland,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858409+00:00,kamil grabara,Kamil Grabara,1.0
+sb_50502,Nicola Zalewski,team_poland,UNK,MID,0,340,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858467+00:00,nicola zalewski,Nicola Zalewski,1.0
+sb_5173,Abdullah Ibrahim Otayf,team_saudi_arabia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858481+00:00,abdullah ibrahim otayf,,0.0
+sb_5188,Hattan Babhir,team_saudi_arabia,UNK,MID,0,271,0.0,0.3321,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858512+00:00,hattan babhir,,0.0
+sb_5714,Mohammed Khalil Al Owais,team_saudi_arabia,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858571+00:00,mohammed khalil al owais,,0.0
+sb_5715,Ali Albulayhi,team_saudi_arabia,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858586+00:00,ali albulayhi,,0.0
+sb_51103,Abdullah Mohammed Madu,team_saudi_arabia,UNK,MID,0,225,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858646+00:00,abdullah mohammed madu,,0.0
+sb_51546,Hassan Mohammed Al-Tambakti,team_saudi_arabia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858676+00:00,hassan mohammed altambakti,,0.0
+sb_51632,Sami Khalil Al Naji,team_saudi_arabia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858690+00:00,sami khalil al naji,,0.0
+sb_51663,Mohammed Al Rubaie Al Yami,team_saudi_arabia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858705+00:00,mohammed al rubaie al yami,,0.0
+sb_54149,Nawaf Alaqidi,team_saudi_arabia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858766+00:00,nawaf alaqidi,,0.0
+sb_74623,Nasser Al Dawsari,team_saudi_arabia,UNK,FWD,0,265,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858811+00:00,nasser al dawsari,,0.0
+sb_121539,Haitham Mohammed Asiri,team_saudi_arabia,UNK,MID,0,268,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858825+00:00,haitham mohammed asiri,,0.0
+sb_124490,Ahmed Alaa Eldin Abdelmotaal,team_qatar,UNK,MID,0,264,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858871+00:00,ahmed alaa eldin abdelmotaal,,0.0
+sb_124492,Karim Boudiaf,team_qatar,UNK,MID,0,243,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858887+00:00,karim boudiaf,,0.0
+sb_124493,Boualem Khoukhi,team_qatar,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858901+00:00,boualem khoukhi,,0.0
+sb_124496,Saad Abdullah Al Sheeb,team_qatar,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858946+00:00,saad abdullah al sheeb,,0.0
+sb_124500,Assim Omer Al Haj Madibo,team_qatar,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858960+00:00,assim omer al haj madibo,,0.0
+sb_124503,Bassam Hisham Al Rawi,team_qatar,UNK,MID,0,180,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858975+00:00,bassam hisham al rawi,,0.0
+sb_124504,Tarek Salman Salman,team_qatar,UNK,MID,0,262,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.858989+00:00,tarek salman salman,,0.0
+sb_124510,Meshaal Aissa Barsham,team_qatar,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859031+00:00,meshaal aissa barsham,,0.0
+sb_124512,Mosaab Khoder Jibril,team_qatar,UNK,DEF,0,264,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859045+00:00,mosaab khoder jibril,,0.0
+sb_124526,Salem Ali Al Hajri,team_qatar,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859073+00:00,salem ali al hajri,,0.0
+sb_124900,Homam Alamin Ahmed,team_qatar,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859102+00:00,homam alamin ahmed,,0.0
+sb_124909,Mohammed Waed Abdulwahhab Al Bayati,team_qatar,UNK,MID,0,243,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859131+00:00,mohammed waed abdulwahhab al bayati,,0.0
+sb_126962,Jassem Gaber Abdulsallam,team_qatar,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859145+00:00,jassem gaber abdulsallam,,0.0
+sb_130272,Yousef Hassan Mohamed Ali,team_qatar,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859160+00:00,yousef hassan mohamed ali,Mohamed Ali Cho,0.5
+sb_146267,Khalid Muneer Mazeed,team_qatar,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859174+00:00,khalid muneer mazeed,,0.0
+sb_149463,Ali Assadalla Thaimn Qambar,team_qatar,UNK,MID,0,243,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859189+00:00,ali assadalla thaimn qambar,,0.0
+sb_150429,Mostafa Taerk Mashaal,team_qatar,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859203+00:00,mostafa taerk mashaal,,0.0
+sb_157455,Naif Abdulraheem Al Hadhrami,team_qatar,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859217+00:00,naif abdulraheem al hadhrami,,0.0
+sb_3815,Kasper Schmeichel,team_denmark,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859263+00:00,kasper schmeichel,,0.0
+sb_5524,Jens Stryger Larsen,team_denmark,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859308+00:00,jens stryger larsen,,0.0
+sb_5534,Simon Thorup Kjær,team_denmark,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859322+00:00,simon thorup kjr,,0.0
+sb_5536,Yussuf Yurary Poulsen,team_denmark,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859336+00:00,yussuf yurary poulsen,Yussuf Poulsen,0.667
+sb_6797,Daniel Wass,team_denmark,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859381+00:00,daniel wass,,0.0
+sb_7097,Christian Nørgaard,team_denmark,UNK,MID,0,264,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859395+00:00,christian nrgaard,Christian Nørgaard,1.0
+sb_12420,Frederik Rønnow,team_denmark,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859424+00:00,frederik rnnow,Frederik Rønnow,1.0
+sb_16190,Rasmus Nissen Kristensen,team_denmark,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859439+00:00,rasmus nissen kristensen,Rasmus Kristensen,0.667
+sb_16294,Robert Skov,team_denmark,UNK,MID,0,248,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859454+00:00,robert skov,Robert Skov,1.0
+sb_17043,Victor Nelsson,team_denmark,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859510+00:00,victor nelsson,Victor Nelsson,1.0
+sb_21261,Jonas Older Wind,team_denmark,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859538+00:00,jonas older wind,Jonas Wind,0.667
+sb_24443,Mikkel Damsgaard,team_denmark,UNK,MID,0,193,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859553+00:00,mikkel damsgaard,Mikkel Damsgaard,1.0
+sb_27038,Oliver Christensen,team_denmark,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859582+00:00,oliver christensen,Oliver Christensen,1.0
+sb_4440,Kevin Trapp,team_germany,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859642+00:00,kevin trapp,Kevin Trapp,1.0
+sb_5555,Julian Brandt,team_germany,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859657+00:00,julian brandt,Julian Brandt,1.0
+sb_5570,Manuel Neuer,team_germany,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859686+00:00,manuel neuer,Manuel Neuer,1.0
+sb_8507,Lukas Klostermann,team_germany,UNK,MID,0,204,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859775+00:00,lukas klostermann,Lukas Klostermann,1.0
+sb_8511,Thilo Kehrer,team_germany,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859790+00:00,thilo kehrer,Thilo Kehrer,1.0
+sb_8808,Matthias Ginter,team_germany,UNK,MID,0,273,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859836+00:00,matthias ginter,Matthias Ginter,1.0
+sb_8945,Christian Günter,team_germany,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859851+00:00,christian gunter,Christian Günter,1.0
+sb_12034,David Raum,team_germany,UNK,DEF,0,270,0.0,0.3333,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859905+00:00,david raum,David Raum,1.0
+sb_20055,Marc-André ter Stegen,team_germany,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859919+00:00,marcandre ter stegen,Marc-André ter Stegen,1.0
+sb_24118,Nico Schlotterbeck,team_germany,UNK,DEF,0,266,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859934+00:00,nico schlotterbeck,Nico Schlotterbeck,1.0
+sb_24916,Armel Bella-Kotchap,team_germany,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859948+00:00,armel bellakotchap,,0.0
+sb_35609,Karim-David Adeyemi,team_germany,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.859962+00:00,karimdavid adeyemi,,0.0
+sb_38837,Youssoufa Moukoko,team_germany,UNK,MID,0,269,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860031+00:00,youssoufa moukoko,,0.0
+sb_5527,Thomas Delaney,team_denmark,UNK,MID,0,90,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860061+00:00,thomas delaney,,0.0
+sb_5563,José Andrés Guardado Hernández,team_mexico,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860077+00:00,jose andres guardado hernandez,José Santiago Hernández,0.5
+sb_5568,Raúl Alonso Jiménez Rodríguez,team_mexico,UNK,FWD,0,211,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860107+00:00,raul alonso jimenez rodriguez,Raúl Jiménez,0.5
+sb_5575,Héctor Miguel Herrera López,team_mexico,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860151+00:00,hector miguel herrera lopez,Héctor Herrera,0.5
+sb_5577,Francisco Guillermo Ochoa Magaña,team_mexico,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860180+00:00,francisco guillermo ochoa magana,,0.0
+sb_11388,Néstor Alejandro Araújo Razo,team_mexico,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860194+00:00,nestor alejandro araujo razo,,0.0
+sb_15872,Érick Gabriel Gutiérrez Galaviz,team_mexico,UNK,MID,0,220,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860225+00:00,erick gabriel gutierrez galaviz,Erick Gutiérrez,0.5
+sb_26297,Carlos Alberto Rodríguez Gómez,team_mexico,UNK,MID,0,236,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860257+00:00,carlos alberto rodriguez gomez,,0.0
+sb_26336,Johan Felipe Vásquez Ibarra,team_mexico,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860300+00:00,johan felipe vasquez ibarra,Johan Vásquez,0.5
+sb_26375,Roberto Carlos Alvarado Hernández,team_mexico,UNK,MID,0,252,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860330+00:00,roberto carlos alvarado hernandez,Roberto Alvarado,0.5
+sb_26386,Luis Francisco Romo Barrón,team_mexico,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860344+00:00,luis francisco romo barron,Luis Romo,0.5
+sb_26389,Alfredo Talavera Díaz,team_mexico,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860358+00:00,alfredo talavera diaz,,0.0
+sb_27896,Gerardo Daniel Arteaga Zamora,team_mexico,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860402+00:00,gerardo daniel arteaga zamora,Gerardo Arteaga,0.5
+sb_28522,Rodolfo Cota Robles,team_mexico,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860417+00:00,rodolfo cota robles,Rodolfo Cota,0.667
+sb_30500,Kevin Nahin Álvarez Campos,team_mexico,UNK,MID,0,265,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860445+00:00,kevin nahin alvarez campos,Kevin Álvarez,0.5
+sb_3067,Ederson Santana de Moraes,team_brazil,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860505+00:00,ederson santana de moraes,,0.0
+sb_3247,Fábio Henrique Tavares,team_brazil,UNK,MID,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860536+00:00,fabio henrique tavares,,0.0
+sb_5547,Alisson Ramsés Becker,team_brazil,UNK,GK,0,450,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860625+00:00,alisson ramses becker,,0.0
+sb_11183,Alex Nicolao Telles,team_brazil,UNK,DEF,0,265,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860683+00:00,alex nicolao telles,,0.0
+sb_25101,Weverton Pereira da Silva,team_brazil,UNK,MID,0,439,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860758+00:00,weverton pereira da silva,Eric da Silva Moreira,0.5
+sb_25154,Éverton Augusto de Barros Ribeiro,team_brazil,UNK,MID,0,414,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860802+00:00,everton augusto de barros ribeiro,,0.0
+sb_12326,Renato Steffen,team_switzerland,UNK,MID,0,238,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860860+00:00,renato steffen,,0.0
+sb_6312,Franco Armani,team_argentina,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860965+00:00,franco armani,,0.0
+sb_6377,Ángel Martín Correa,team_argentina,UNK,MID,0,625,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860980+00:00,angel martin correa,Ángel Correa,0.667
+sb_6694,Gerónimo Rulli,team_argentina,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.860994+00:00,geronimo rulli,Gerónimo Rulli,1.0
+sb_6909,Damián Emiliano Martínez,team_argentina,UNK,GK,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861009+00:00,damian emiliano martinez,Emiliano Martínez,0.667
+sb_20572,Cristian Gabriel Romero,team_argentina,UNK,DEF,0,608,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861114+00:00,cristian gabriel romero,Cristian Romero,0.667
+sb_21081,Juan Marcos Foyth,team_argentina,UNK,MID,0,625,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861129+00:00,juan marcos foyth,Juan Foyth,0.667
+sb_26404,Guido Rodríguez,team_argentina,UNK,MID,0,630,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861143+00:00,guido rodriguez,Guido Rodríguez,1.0
+sb_28637,Thiago Ezequiel Almada,team_argentina,UNK,MID,0,622,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861218+00:00,thiago ezequiel almada,Thiago Almada,0.667
+sb_5582,Celso Borges Mora,team_costa_rica,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861292+00:00,celso borges mora,,0.0
+sb_5592,Bryan Ruiz González,team_costa_rica,UNK,MID,0,240,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861308+00:00,bryan ruiz gonzalez,Bryan González,0.667
+sb_5595,Johan Alberto Venegas Ulloa,team_costa_rica,UNK,FWD,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861323+00:00,johan alberto venegas ulloa,,0.0
+sb_5597,Keylor Navas Gamboa,team_costa_rica,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861337+00:00,keylor navas gamboa,Keylor Navas,0.667
+sb_5598,Óscar Esau Duarte Gaitán,team_costa_rica,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861352+00:00,oscar esau duarte gaitan,,0.0
+sb_5836,Bryan Oviedo,team_costa_rica,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861366+00:00,bryan oviedo,,0.0
+sb_15477,Ronald Alberto Matarrita Ulate,team_costa_rica,UNK,MID,0,244,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861426+00:00,ronald alberto matarrita ulate,,0.0
+sb_97291,Patrick Gilmar Sequeira Mejías,team_costa_rica,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861456+00:00,patrick gilmar sequeira mejias,Patrick Sequeira,0.5
+sb_108340,Brandon Aguilera Zamora,team_costa_rica,UNK,MID,0,225,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861471+00:00,brandon aguilera zamora,Brandon Aguilera,0.667
+sb_130194,Esteban Alvarado Brown,team_costa_rica,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861501+00:00,esteban alvarado brown,,0.0
+sb_132271,Carlos Manuel Martínez Castro,team_costa_rica,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861516+00:00,carlos manuel martinez castro,,0.0
+sb_132296,Anthony Daniel Contreras Enríquez,team_costa_rica,UNK,DEF,0,272,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861531+00:00,anthony daniel contreras enriquez,,0.0
+sb_132743,Douglas Andrey López Araya,team_costa_rica,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861576+00:00,douglas andrey lopez araya,,0.0
+sb_132756,Youstin Delfin Salas Gómez,team_costa_rica,UNK,DEF,0,223,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861590+00:00,youstin delfin salas gomez,,0.0
+sb_132772,Daniel Alonso Chacón Salas,team_costa_rica,UNK,MID,0,274,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861605+00:00,daniel alonso chacon salas,,0.0
+sb_135271,Roan Roberto Wilson Gordon,team_costa_rica,UNK,MID,0,272,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861619+00:00,roan roberto wilson gordon,,0.0
+sb_184468,Álvaro José Zamora Mata,team_costa_rica,UNK,MID,0,240,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861635+00:00,alvaro jose zamora mata,,0.0
+sb_283799,Anthony William Hernández González,team_costa_rica,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861650+00:00,anthony william hernandez gonzalez,,0.0
+sb_6321,Milos Veljkovic,team_serbia,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861812+00:00,milos veljkovic,,0.0
+sb_6698,Marko Dmitrović,team_serbia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861842+00:00,marko dmitrovic,Marko Dmitrović,1.0
+sb_6901,Nemanja Maksimović,team_serbia,UNK,MID,0,238,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861856+00:00,nemanja maksimovic,,0.0
+sb_7117,Filip Đuričić,team_serbia,UNK,MID,0,257,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861877+00:00,filip uricic,,0.0
+sb_10477,Stefan Mitrović,team_serbia,UNK,MID,0,235,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861938+00:00,stefan mitrovic,Stefan Mitrović,1.0
+sb_15731,Predrag Rajković,team_serbia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861953+00:00,predrag rajkovic,,0.0
+sb_16489,Nemanja Gudelj,team_serbia,UNK,DEF,0,234,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861967+00:00,nemanja gudelj,Nemanja Gudelj,1.0
+sb_18737,Srđan Babić,team_serbia,UNK,MID,0,257,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.861996+00:00,sran babic,,0.0
+sb_20600,Vanja Milinković Savić,team_serbia,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862010+00:00,vanja milinkovic savic,,0.0
+sb_24267,Uroš Račić,team_serbia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862025+00:00,uros racic,,0.0
+sb_30179,Ivan Ilić,team_serbia,UNK,MID,0,236,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862056+00:00,ivan ilic,Ivan Ilić,1.0
+sb_43666,Strahinja Eraković,team_serbia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862071+00:00,strahinja erakovic,,0.0
+sb_3240,Mathew Ryan,team_australia,UNK,GK,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862085+00:00,mathew ryan,Mathew Ryan,1.0
+sb_9430,Jason Cummings,team_australia,UNK,MID,0,325,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862189+00:00,jason cummings,,0.0
+sb_9980,Jamie MacLaren,team_australia,UNK,FWD,0,305,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862203+00:00,jamie maclaren,,0.0
+sb_15957,Miloš Degenek,team_australia,UNK,DEF,0,338,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862217+00:00,milos degenek,,0.0
+sb_16549,Danny Vuković,team_australia,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862232+00:00,danny vukovic,,0.0
+sb_22371,Bailey Wright,team_australia,UNK,MID,0,343,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862261+00:00,bailey wright,,0.0
+sb_24475,Awer Mabil,team_australia,UNK,MID,0,336,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862276+00:00,awer mabil,,0.0
+sb_33446,Thomas Deng,team_australia,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862305+00:00,thomas deng,,0.0
+sb_33465,Joel King,team_australia,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862320+00:00,joel king,,0.0
+sb_33495,Kye Rowles,team_australia,UNK,DEF,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862377+00:00,kye rowles,,0.0
+sb_33502,Cameron Peter Devlin,team_australia,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862392+00:00,cameron peter devlin,,0.0
+sb_33564,Andrew Redmayne,team_australia,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862408+00:00,andrew redmayne,,0.0
+sb_33572,Nathaniel Atkinson,team_australia,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862423+00:00,nathaniel atkinson,,0.0
+sb_36158,Marco Tilio,team_australia,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862436+00:00,marco tilio,,0.0
+sb_3135,Chang-Hoon Kwon,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862497+00:00,changhoon kwon,,0.0
+sb_5619,Hyeon-Woo Jo,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862543+00:00,hyeonwoo jo,,0.0
+sb_5986,Chul Hong,team_south_korea,UNK,MID,0,315,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862587+00:00,chul hong,,0.0
+sb_37641,Seung-Gyu Kim,team_south_korea,UNK,GK,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862676+00:00,seunggyu kim,,0.0
+sb_40550,Bum-Keun Song,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862720+00:00,bumkeun song,,0.0
+sb_40558,Jun-Ho Son,team_south_korea,UNK,MID,0,288,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862734+00:00,junho son,,0.0
+sb_40578,Tae-Hwan Kim,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862763+00:00,taehwan kim,,0.0
+sb_40664,Min-Kyu Song,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862777+00:00,minkyu song,,0.0
+sb_40672,Moon-Hwan Kim,team_south_korea,UNK,DEF,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862792+00:00,moonhwan kim,,0.0
+sb_41495,Jong-Gyu Yoon,team_south_korea,UNK,MID,0,360,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862808+00:00,jonggyu yoon,,0.0
+sb_99479,Yu-Min Cho,team_south_korea,UNK,MID,0,362,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862853+00:00,yumin cho,,0.0
+sb_5248,José Martín Cáceres Silva,team_uruguay,UNK,DEF,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862900+00:00,jose martin caceres silva,José Silva,0.5
+sb_5264,Guillermo Varela Olivera,team_uruguay,UNK,MID,0,267,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.862991+00:00,guillermo varela olivera,,0.0
+sb_5266,Lucas Torreira Di Pascua,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863005+00:00,lucas torreira di pascua,Lucas Di Yorio,0.5
+sb_5267,Néstor Fernando Muslera Micol,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863020+00:00,nestor fernando muslera micol,,0.0
+sb_26323,Carlos Sebastián Sosa Silva,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863152+00:00,carlos sebastian sosa silva,,0.0
+sb_33099,José Luis Rodríguez Bebanz,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863203+00:00,jose luis rodriguez bebanz,José Luis Rodríguez,0.75
+sb_34476,Matías Nicolás Viña Susperreguy,team_uruguay,UNK,DEF,0,253,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863217+00:00,matias nicolas vina susperreguy,,0.0
+sb_36659,Manuel Ugarte Ribeiro,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863244+00:00,manuel ugarte ribeiro,Manuel Ugarte,0.667
+sb_36666,Agustín Canobbio Graviz,team_uruguay,UNK,MID,0,259,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863258+00:00,agustin canobbio graviz,,0.0
+sb_36710,Sergio Rochet Álvarez,team_uruguay,UNK,GK,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863271+00:00,sergio rochet alvarez,,0.0
+sb_44649,Facundo Daniel Torres Pérez,team_uruguay,UNK,MID,0,270,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863285+00:00,facundo daniel torres perez,,0.0
+sb_51470,Riyadh Sharahili,team_saudi_arabia,UNK,DEF,0,126,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863299+00:00,riyadh sharahili,,0.0
+sb_41092,Nuno Mendes,team_portugal,UNK,DEF,0,90,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863314+00:00,nuno mendes,Nuno Mendes,1.0
+sb_5178,Salman Mohammed Al Faraj,team_saudi_arabia,UNK,MID,0,90,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863329+00:00,salman mohammed al faraj,,0.0
+sb_5183,Yasir Gharsan Al Shahrani,team_saudi_arabia,UNK,DEF,0,90,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863343+00:00,yasir gharsan al shahrani,,0.0
+sb_5484,Lucas Hernández Pi,team_france,UNK,DEF,0,90,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,statsbomb_wc2022,2026-06-04T13:19:41.863357+00:00,lucas hernandez pi,Lucas Hernández,0.667

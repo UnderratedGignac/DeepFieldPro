@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  daemon:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: deepfield_daemon
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    command: python src/live_predictions_daemon.py
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  dashboard:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: deepfield_dashboard
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    command: python src/live_dashboard_server.py
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEEPFIELD_DISABLE_DAEMON=1

@@ -1,0 +1,8 @@
+{
+  "type": "platt",
+  "market": "1X2",
+  "a": -0.022830367415721725,
+  "b": 0.9645905466499288,
+  "n_train": 22878,
+  "source": "history (Dixon-Coles, walk-forward)"
+}

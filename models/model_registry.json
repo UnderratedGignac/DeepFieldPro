@@ -1,0 +1,45 @@
+{
+    "models": [
+        {
+            "model_name": "expected_minutes_v1",
+            "version": "1.0.0",
+            "file_path": "models/lgbm_minutes_v1.pkl",
+            "target_variable": "minutes_played",
+            "expected_features": [
+                "started_last_match",
+                "started_last_3",
+                "minutes_last_5",
+                "Pos",
+                "Comp",
+                "days_rest"
+            ],
+            "status": "production"
+        },
+        {
+            "model_name": "shots_on_target_v1",
+            "version": "1.0.0",
+            "file_path": "models/lgbm_shots_on_target.pkl",
+            "target_variable": "shots_on_target",
+            "expected_features": [
+                "avg_sot_last_10",
+                "opponent_conceded_sot_avg",
+                "is_home",
+                "minutes_predicted"
+            ],
+            "status": "production"
+        },
+        {
+            "model_name": "match_outcome_bottom_up",
+            "version": "1.2.0",
+            "file_path": "models/bottom_up_match_model.pkl",
+            "target_variable": "match_result",
+            "expected_features": [
+                "home_agg_impact",
+                "away_agg_impact",
+                "home_recent_form",
+                "away_recent_form"
+            ],
+            "status": "production"
+        }
+    ]
+}

@@ -1,0 +1,2 @@
+bet_id,timestamp,player_name,market,entry_odds,stake,fair_prob,target_threshold,closing_odds,clv,outcome,profit_loss,status
+ba290911,2026-06-07T19:06:39.040917,Test Player,sot_over_0.5,2.0,100.0,0.6,1.8,1.9,0.05263157894736836,WIN,100.0,SETTLED

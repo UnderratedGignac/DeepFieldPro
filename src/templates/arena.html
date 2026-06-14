@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>World Cup Arena · Autopilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root{
+    --bg:#0A1910; --surface:#12261B; --surface2:#0d1f15; --hover:#183123;
+    --border:#1B3B2B; --primary:#E5C158; --secondary:#C5A03A; --tertiary:#9E8231;
+    --text:#F4F6F5; --muted:#8E9B93; --green:#3FB950; --red:#E5534B; --amber:#D29922;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; padding:22px;
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(27,59,43,.6), transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(27,59,43,.4), transparent 40%);
+  }
+  h1{font-family:'Outfit',sans-serif; font-size:1.4rem; font-weight:800; color:var(--primary);
+     display:flex; align-items:center; gap:10px; letter-spacing:-.3px;}
+  h1 i{color:var(--secondary);}
+  .topbar{display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:20px;}
+  .spacer{flex:1;}
+  .status-pill{display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:.82rem;
+     padding:7px 14px; border-radius:30px; border:1px solid var(--border); background:var(--surface);}
+  .dot{width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green);}
+  .dot.paused{background:var(--amber); box-shadow:0 0 8px var(--amber); animation:none;}
+  .dot{animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+  .btn{border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer;
+     font:600 .82rem 'Inter'; padding:8px 16px; border-radius:8px; transition:all .2s;}
+  .btn:hover{background:var(--hover);}
+  .btn.pause{border-color:var(--amber); color:var(--amber);}
+  .btn.resume{border-color:var(--green); color:var(--green);}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:22px;}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px;}
+  .card .lbl{font-size:.7rem; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-bottom:8px;}
+  .card .val{font-family:'Outfit',sans-serif; font-size:1.5rem; font-weight:800; color:var(--primary);}
+  .card .sub{font-size:.74rem; color:var(--muted); margin-top:4px;}
+  .val.green{color:var(--green);} .val.amber{color:var(--amber);}
+  .panel{background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:22px; overflow:hidden;}
+  .panel h2{font-family:'Outfit',sans-serif; font-size:.95rem; color:var(--text); padding:14px 18px;
+     border-bottom:1px solid var(--border); display:flex; align-items:center; gap:9px; font-weight:600;}
+  .panel h2 .count{margin-left:auto; font-size:.74rem; color:var(--muted); font-family:'Inter';}
+  table{width:100%; border-collapse:collapse; font-size:.84rem;}
+  th,td{text-align:left; padding:11px 18px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  th{color:var(--secondary); font-weight:600; font-size:.68rem; text-transform:uppercase; letter-spacing:.6px;}
+  tbody tr:hover{background:var(--surface2);}
+  tbody tr:last-child td{border-bottom:0;}
+  .pos{color:var(--green);} .neg{color:var(--red);} .gold{color:var(--primary); font-weight:600;}
+  .tag{font-size:.7rem; padding:3px 9px; border-radius:20px; font-weight:600;}
+  .tag.ok{background:rgba(63,185,80,.16); color:var(--green);}
+  .tag.fail{background:rgba(229,83,75,.16); color:var(--red);}
+  .empty{padding:26px 18px; color:var(--muted); text-align:center; font-size:.85rem;}
+  .note{font-size:.78rem; color:var(--muted); margin:-8px 0 18px;}
+  .err{color:var(--red); font-size:.8rem;}
+  .bal{color:var(--green); font-weight:700;}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1><i class="fa-solid fa-futbol"></i> World Cup Arena · Autopilot</h1>
+    <div class="spacer"></div>
+    <span class="status-pill" id="pill"><span class="dot" id="dot"></span><span id="pillTxt">connecting…</span></span>
+    <span class="status-pill">wallet&nbsp;<span class="bal" id="bal">…</span>&nbsp;USDC</span>
+    <button class="btn pause" id="toggle" onclick="toggle()">Pause</button>
+  </div>
+  <p class="note"><i class="fa-solid fa-robot"></i> Autonomous engine. Once armed (click <b>Resume</b>), the AI scans World Cup fixtures and places real-money bets on its own — only on high-conviction value picks, only before kickoff — with no further input. Starts paused for safety.</p>
+
+  <div class="cards">
+    <div class="card"><div class="lbl">Engine</div><div class="val" id="cEngine">—</div><div class="sub" id="cSummary"></div></div>
+    <div class="card"><div class="lbl">Next scan</div><div class="val" id="cNext">—</div><div class="sub">every <span id="cInterval">5</span> min</div></div>
+    <div class="card"><div class="lbl">Bets placed</div><div class="val gold" id="cPlaced">0</div><div class="sub">all-time (this wallet)</div></div>
+    <div class="card"><div class="lbl">Staked today</div><div class="val green" id="cDaily">$0</div><div class="sub">cap $<span id="cCap">25</span> / day</div></div>
+    <div class="card"><div class="lbl">Filter</div><div class="val" id="cFilter">—</div><div class="sub">prob & edge required</div></div>
+  </div>
+
+  <div class="panel">
+    <h2><i class="fa-solid fa-bolt" style="color:var(--primary)"></i> Live Auto-Bets <span class="count" id="placedCount"></span></h2>
+    <div id="placedWrap"><div class="empty">No bets placed yet.</div></div>
+  </div>
+
+  <div class="panel">
+    <h2><i class="fa-solid fa-crosshairs" style="color:var(--secondary)"></i> Watching — Qualifying Picks <span class="count" id="candCount"></span></h2>
+    <div id="candWrap"><div class="empty">Waiting for the first scan…</div></div>
+  </div>
+
+  <p class="err" id="err"></p>
+
+<script>
+const $=id=>document.getElementById(id);
+let nextScanTs=null, enabled=true;
+
+function pct(x){ return (x==null?'—':(x*100).toFixed(1)+'%'); }
+function money(x){ return '$'+(Number(x)||0).toFixed(2); }
+function fmtCountdown(sec){
+  if(sec==null) return '—';
+  if(sec<=0) return 'now…';
+  const m=Math.floor(sec/60), s=Math.floor(sec%60);
+  return m>0?`${m}m ${s}s`:`${s}s`;
+}
+
+function rowsPlaced(list){
+  if(!list||!list.length) return '<div class="empty">No bets placed yet.</div>';
+  let h='<table><thead><tr><th>Time (UTC)</th><th>Match</th><th>Pick</th><th>Model</th><th>Market</th><th>Edge</th><th>Stake</th><th>Status</th></tr></thead><tbody>';
+  for(const x of list){
+    h+=`<tr><td>${x.ts||''}</td><td>${x.match||''}</td>
+      <td class="gold">${x.team_code}</td><td>${pct(x.model_prob)}</td><td>${pct(x.market_mid)}</td>
+      <td class="pos">+${x.edge_pp}pp</td><td>${money(x.staked_usd)}</td>
+      <td><span class="tag ${x.ok?'ok':'fail'}">${x.ok?'PLACED':'order '+(x.order_status||'?')}</span></td></tr>`;
+  }
+  return h+'</tbody></table>';
+}
+function rowsCand(list){
+  if(!list||!list.length) return '<div class="empty">No qualifying picks right now — the AI is holding (no value edge meets the bar).</div>';
+  let h='<table><thead><tr><th>Match</th><th>Kickoff</th><th>Pick</th><th>Model</th><th>Market</th><th>Edge</th><th>Would stake</th></tr></thead><tbody>';
+  for(const c of list){
+    h+=`<tr><td>${c.match||''}</td><td>${c.kickoff||''}</td>
+      <td class="gold">${c.team_code}</td><td>${pct(c.model_prob)}</td><td>${pct(c.market_mid)}</td>
+      <td class="pos">+${c.edge_pp}pp</td><td>${c.suggested_usd?money(c.suggested_usd):'—'}</td></tr>`;
+  }
+  return h+'</tbody></table>';
+}
+
+async function refresh(){
+  try{
+    const s=await (await fetch('/arena/api/status')).json();
+    enabled=s.enabled;
+    nextScanTs=s.next_scan_ts;
+    // pill
+    $('dot').className='dot'+(enabled?'':' paused');
+    $('pillTxt').textContent=enabled?'AUTOPILOT ACTIVE':'PAUSED';
+    const tg=$('toggle');
+    tg.textContent=enabled?'Pause':'Resume';
+    tg.className='btn '+(enabled?'pause':'resume');
+    // wallet
+    if(s.wallet){ $('bal').textContent=(s.wallet.available_balance_usdc??0).toFixed(2); }
+    // cards
+    $('cEngine').textContent=enabled?'Active':'Paused';
+    $('cEngine').className='val '+(enabled?'green':'amber');
+    $('cSummary').textContent=s.last_summary||'';
+    $('cPlaced').textContent=s.total_placed??0;
+    $('cInterval').textContent=Math.round((s.scan_interval||300)/60);
+    $('cDaily').textContent=money(s.daily?.spent||0);
+    $('cCap').textContent=s.daily_cap??25;
+    $('cFilter').textContent=`≥${Math.round((s.conf_min||0)*100)}% · +${Math.round((s.edge_min||0)*100)}pp`;
+    // tables
+    $('placedWrap').innerHTML=rowsPlaced(s.placed);
+    $('placedCount').textContent=(s.placed?.length||0)+' shown';
+    $('candWrap').innerHTML=rowsCand(s.candidates);
+    $('candCount').textContent=(s.candidates?.length||0)+' qualifying';
+    $('err').textContent=s.last_error?('Last error: '+s.last_error):'';
+  }catch(e){ $('err').textContent='Status fetch failed: '+e; }
+}
+
+function tickCountdown(){
+  if(nextScanTs==null){ $('cNext').textContent='—'; return; }
+  const sec=nextScanTs - (Date.now()/1000);
+  $('cNext').textContent=fmtCountdown(sec);
+}
+
+async function toggle(){
+  try{
+    const r=await (await fetch('/arena/api/toggle',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({enabled:!enabled})})).json();
+    enabled=r.enabled; refresh();
+  }catch(e){ $('err').textContent='Toggle failed: '+e; }
+}
+
+refresh();
+setInterval(refresh, 12000);
+setInterval(tickCountdown, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "enabled": false,
+  "last_scan_ts": 1781455063.573824,
+  "next_scan_ts": 1781455363.573824,
+  "last_summary": "paused (real-money gate off)",
+  "last_error": null,
+  "daily": {
+    "date": "2026-06-14",
+    "spent": 0.0
+  },
+  "placed_keys": [],
+  "placed": [],
+  "last_candidates": []
+}

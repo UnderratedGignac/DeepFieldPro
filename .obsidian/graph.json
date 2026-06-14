@@ -1,0 +1,58 @@
+{
+  "collapse-filter": true,
+  "search": "",
+  "showTags": false,
+  "showAttachments": true,
+  "hideUnresolved": true,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "tag:#moc OR tag:#entrypoint OR file:index OR file:AGENTS",
+      "color": {
+        "a": 1,
+        "rgb": 11225020
+      }
+    },
+    {
+      "query": "tag:#architecture OR tag:#data-flow OR tag:#entrypoints",
+      "color": {
+        "a": 1,
+        "rgb": 2201331
+      }
+    },
+    {
+      "query": "tag:#ops OR tag:#config OR tag:#data",
+      "color": {
+        "a": 1,
+        "rgb": 5025616
+      }
+    },
+    {
+      "query": "tag:#safety OR tag:#issues",
+      "color": {
+        "a": 1,
+        "rgb": 16740419
+      }
+    },
+    {
+      "query": "path:\".md\" -path:ai-knowledge -file:index -file:AGENTS -file:CLAUDE",
+      "color": {
+        "a": 1,
+        "rgb": 8421504
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": 3,
+  "nodeSizeMultiplier": 3.5,
+  "lineSizeMultiplier": 2,
+  "collapse-forces": false,
+  "centerStrength": 0.12,
+  "repelStrength": 20,
+  "linkStrength": 0.4,
+  "linkDistance": 450,
+  "scale": 0.0078125,
+  "close": true
+}

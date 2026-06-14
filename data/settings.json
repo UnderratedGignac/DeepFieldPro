@@ -1,0 +1,27 @@
+{
+  "kelly_multiplier": 0.2,
+  "min_ev_threshold": 0.08,
+  "max_exposure_pct": 0.05,
+  "min_confidence_pct": 60,
+  "allowed_markets": [
+    "1X2"
+  ],
+  "exclude_draws": true,
+  "league_blocklist": [],
+  "market_blend_weight": 0.5,
+  "data_source": "sofascore_free",
+  "target_leagues": "All",
+  "refresh_interval_sec": 30,
+  "auto_place_bets": true,
+  "home_adv_weight": 1.2,
+  "fatigue_penalty": 0.8,
+  "max_daily_loss_pct": 10,
+  "stop_win_pct": 25,
+  "preferred_bookie": "Pinnacle",
+  "platt_scaling": true,
+  "edge_cap_pct": 10.0,
+  "steam_min_move_pct": 3.0,
+  "require_steam_confirm": false,
+  "steam_betting_enabled": true,
+  "steam_flat_stake": 25.0
+}
