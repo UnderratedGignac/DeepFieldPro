@@ -1729,6 +1729,15 @@ def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=Non
              round(steam_move_pct, 1), stake, "OPEN", 0.0,
              datetime.datetime.now().isoformat(), "STEAM", 1, 2.5, selection,
              str(fixture_id) if fixture_id is not None else None, league))
+        # Line-shop: record the BEST price across Betarabia + Kambi (metadata only — the bet
+        # still books at Betarabia). Quantifies the +1.9% line-shopping edge before we act on it.
+        try:
+            from src.line_shop import best_1x2
+            ls = best_1x2(match, selection, odds)
+            cur.execute("UPDATE bet_log SET best_odds=?, best_book=? WHERE bet_id=?",
+                        (ls["best_odds"], ls["best_book"], bet_id))
+        except Exception:
+            pass
         conn.commit()
         conn.close()
         print(f"[STEAM BET] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
