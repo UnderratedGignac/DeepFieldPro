@@ -11,7 +11,9 @@ import requests
 import datetime
 import time
 import math
+import threading
 from src.execution_engine import place_bet # TASK 1: Import place_bet
+from src import sharp_edge  # Pinnacle sharp-line steam + Betarabia lagging-value engine
 
 # Unicode-safe print override for Windows console compatibility
 _orig_print = print
@@ -137,6 +139,20 @@ def _devig_map(odds_by_sel):
 
 def _odds_history_db():
     return os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+
+def _purge_odds_history(days=3):
+    """Bound odds_history growth. Steam detection needs only same-day pre-kickoff
+    history and CLV settles within a day, so anything older than `days` is dead weight
+    (the table was at 31k rows and climbing every scrape)."""
+    try:
+        con = sqlite3.connect(_odds_history_db())
+        con.execute("DELETE FROM odds_history WHERE timestamp < datetime('now', ?)",
+                    (f"-{int(days)} days",))
+        con.commit()
+        con.close()
+    except Exception:
+        pass
 
 
 def _steam_moves(fid, m_type):
@@ -1213,6 +1229,37 @@ def load_settings():
         }
 
 
+# Canonical team/country aliases. Different feeds name the same team differently:
+# our odds feed uses native/French names (Cote d'Ivoire), ESPN uses English (Ivory Coast).
+# These have ZERO string overlap, so fuzzy matching fails and the bet never settles.
+# Map every known variant to ONE canonical token-phrase, applied before tokenizing.
+# Keys/values are already lowercased + accent-stripped (matches get_tokens' pipeline).
+_TEAM_ALIASES = {
+    "cote d ivoire": "ivory coast",
+    "cote divoire": "ivory coast",
+    "korea republic": "south korea",
+    "korea dpr": "north korea",
+    "ir iran": "iran",
+    "china pr": "china",
+    "usa": "united states",
+    "czechia": "czech republic",
+    "turkiye": "turkey",
+    "cabo verde": "cape verde",
+    "the gambia": "gambia",
+    "congo dr": "dr congo",
+    "dr congo": "dr congo",
+    "viet nam": "vietnam",
+}
+
+
+def _apply_aliases(n):
+    # n is lowercased, accent-stripped, non-alnum collapsed to spaces, single-spaced.
+    n = f" {n} "
+    for variant, canon in _TEAM_ALIASES.items():
+        n = n.replace(f" {variant} ", f" {canon} ")
+    return n.strip()
+
+
 def get_match_score(name1, name2):
     if not name1 or not name2:
         return 0.0
@@ -1227,6 +1274,7 @@ def get_match_score(name1, name2):
             if unicodedata.category(c) != "Mn"
         )
         n = re.sub(r"[^a-z0-9\s]", " ", n)
+        n = _apply_aliases(re.sub(r"\s+", " ", n).strip())
         noise = {
             "fc",
             "cf",
@@ -1355,26 +1403,44 @@ def find_betarabia_odds(home_team, away_team):
         cur = conn.cursor()
 
         # Get all fixtures
-        cur.execute("SELECT fixture_id, home_team, away_team FROM fixture")
+        cur.execute("SELECT fixture_id, home_team, away_team, scraped_at FROM fixture")
         fixtures = cur.fetchall()
 
         best_fid = None
         best_home = None
         best_away = None
         best_score = 0.0
+        best_scraped_at = None
 
-        for fid, h, a in fixtures:
+        for fid, h, a, sat in fixtures:
             h_score = get_match_score(home_team, h)
             a_score = get_match_score(away_team, a)
 
             # Must both be reasonable matches
             if h_score >= 0.5 and a_score >= 0.5:
                 total_score = h_score + a_score
-                if total_score > best_score:
+                # Prefer the best name match; on a tie prefer the FRESHER fixture so a
+                # stale lingering duplicate never wins over today's odds (ISO timestamps
+                # sort lexically, so newer string == newer time).
+                fresher_tie = (total_score == best_score and sat and best_scraped_at
+                               and str(sat) > str(best_scraped_at))
+                if total_score > best_score or fresher_tie:
                     best_score = total_score
                     best_fid = fid
                     best_home = h
                     best_away = a
+                    best_scraped_at = sat
+
+        # Expose how stale the matched fixture's odds are (for the bet-gate guard).
+        global _betarabia_odds_age_min
+        _betarabia_odds_age_min = None
+        if best_scraped_at:
+            try:
+                _ts = datetime.datetime.fromisoformat(
+                    str(best_scraped_at).replace("Z", "+00:00")).timestamp()
+                _betarabia_odds_age_min = (time.time() - _ts) / 60.0
+            except Exception:
+                _betarabia_odds_age_min = None
 
         if not best_fid:
             conn.close()
@@ -1445,6 +1511,157 @@ def find_betarabia_odds(home_team, away_team):
         return None
 
 
+# ---------------------------------------------------------------------------
+# Closing-line capture
+# ---------------------------------------------------------------------------
+# CLV (did we beat the close?) is only trustworthy if "closing_odds" is a price
+# taken JUST before kickoff. Settlement reads the LAST odds_history row for a
+# bet, but the main prediction sweep stops snapshotting a fixture once it drops
+# out of today's predictions — so the "close" could be a stale afternoon scrape.
+# A dedicated thread fixes that: every CLOSING_CAPTURE_INTERVAL seconds it logs
+# the current Betarabia 1X2 price for every OPEN bet whose kickoff is imminent,
+# so the final pre-kickoff snapshot is a genuine closing line. Paper-safe — it
+# only appends to odds_history; it never places, settles, or sizes anything.
+CLOSING_WINDOW_MIN = 30          # snapshot when kickoff is within this many minutes
+CLOSING_CAPTURE_INTERVAL = 90    # seconds between capture passes (decoupled from the slow main loop)
+_closing_started = False
+# Handle to the running Betarabia scraper subprocess. The scraper takes ~3 min
+# (it scouts each event's markets one-by-one); spawning a fresh one every cycle
+# stacks Chromium instances that exhaust memory and die before writing -> stale
+# odds. We keep this handle and only launch a new scrape once the prior finished.
+_scraper_proc = None
+# Age (minutes) of the Betarabia odds for the fixture most recently looked up by
+# find_betarabia_odds(). The bet gate reads this to REFUSE betting on stale odds —
+# defence-in-depth so a future scraper failure can never silently bet old prices.
+_betarabia_odds_age_min = None
+
+
+def _kickoff_map():
+    """fid(str) -> timezone-aware kickoff datetime, from the dashboard state file."""
+    out = {}
+    try:
+        path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
+        with open(path, encoding="utf-8") as f:
+            for item in json.load(f):
+                fid, ko = item.get("fixture_id"), item.get("kickoff")
+                if fid is None or not ko:
+                    continue
+                try:
+                    dt = datetime.datetime.fromisoformat(str(ko).replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=datetime.timezone.utc)
+                    out[str(fid)] = dt
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return out
+
+
+def capture_closing_lines():
+    """Append the current Betarabia 1X2 price to odds_history for each OPEN bet
+    whose kickoff is within CLOSING_WINDOW_MIN. The last such snapshot before
+    kickoff becomes the bet's true closing line at settlement."""
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
+    if not os.path.exists(db_path):
+        return 0
+    try:
+        conn = sqlite3.connect(db_path)
+        open_bets = conn.execute(
+            "SELECT fixture_id, match_id, side FROM bet_log "
+            "WHERE result = 'OPEN' AND market_type = '1X2' "
+            "AND fixture_id IS NOT NULL AND fixture_id != ''"
+        ).fetchall()
+        conn.close()
+    except Exception:
+        return 0
+    if not open_bets:
+        return 0
+
+    kickoffs = _kickoff_map()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    window = datetime.timedelta(minutes=CLOSING_WINDOW_MIN)
+    captured = 0
+    for fid, match, side in open_bets:
+        ko = kickoffs.get(str(fid))
+        # Only snapshot in the pre-kickoff window. Unknown/started/far-off -> skip
+        # (keeps odds_history from filling with non-closing rows).
+        if not ko or not (now <= ko <= now + window):
+            continue
+        if not match or " vs " not in match:
+            continue
+        home, away = match.split(" vs ", 1)
+        try:
+            odds_dict = find_betarabia_odds(home, away)
+        except Exception:
+            odds_dict = None
+        if not odds_dict:
+            continue
+        key = str(side).split(" (")[0]          # "Home (1)" -> "Home"
+        price = (odds_dict.get("1X2") or {}).get(key)
+        if not price or price <= 0:
+            continue
+        try:
+            snap = sqlite3.connect(_odds_history_db())
+            # Write the bet's EXACT side string so settlement's CLV lookup
+            # (which matches odds_history.selection to bet_log.side) finds it.
+            snap.execute(
+                "INSERT INTO odds_history (fixture_id, market, selection, odds) "
+                "VALUES (?, ?, ?, ?)",
+                (str(fid), "1X2", side, float(price)),
+            )
+            snap.commit()
+            snap.close()
+            captured += 1
+        except Exception:
+            continue
+    if captured:
+        print(f"[CLOSING] Captured {captured} pre-kickoff closing line(s) for open bets.")
+    return captured
+
+
+def _closing_capture_loop():
+    while True:
+        try:
+            capture_closing_lines()
+        except Exception as e:
+            print(f"[CLOSING] capture pass error: {e}")
+        time.sleep(CLOSING_CAPTURE_INTERVAL)
+
+
+def start_closing_capture():
+    """Launch the closing-line capture thread once (idempotent)."""
+    global _closing_started
+    if _closing_started:
+        return
+    _closing_started = True
+    threading.Thread(target=_closing_capture_loop, daemon=True,
+                     name="closing-capture").start()
+    print("[*] Closing-line capture thread started "
+          f"(every {CLOSING_CAPTURE_INTERVAL}s, kickoff window {CLOSING_WINDOW_MIN}m).")
+
+
+# Sane decimal-odds bands per market. A price outside its band is almost always a STALE
+# or GARBLED scrape (e.g. the phantom "Tindastoll vs Augnablik Under 2.5 @ 4.10" that no
+# results source could ever settle because the match didn't exist). Reject such bets at
+# logging time so they never enter the ledger as forever-OPEN "awaiting result" rows.
+_ODDS_BANDS = {
+    "1X2": (1.01, 34.0),            # big underdogs exist; >34 or <1.01 is impossible
+    "Over/Under 2.5": (1.20, 5.00),  # totals lines live in a tight range
+    "BTTS": (1.20, 5.00),
+}
+
+
+def _implausible_odds(market, odds):
+    """True if `odds` is outside a sane band for `market` (i.e. stale/garbled)."""
+    try:
+        o = float(odds)
+    except (TypeError, ValueError):
+        return True
+    lo, hi = _ODDS_BANDS.get(market, (1.01, 51.0))
+    return o < lo or o > hi
+
+
 def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=None, league=None):
     """Shadow flat-stake bet for a fired STEAM (line-movement) signal.
 
@@ -1454,6 +1671,10 @@ def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=Non
     settings.steam_betting_enabled (default True) and deduped per fixture/market/selection."""
     settings = load_settings()
     if not settings.get("steam_betting_enabled", True):
+        return
+    if _implausible_odds(market, odds):
+        print(f"[GUARD] Skipped STEAM bet on implausible {market} odds {odds}: "
+              f"{match} ({selection}) — stale/garbled price.")
         return
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
@@ -1506,9 +1727,79 @@ def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=Non
         print(f"[STEAM BET] error: {e}")
 
 
+def log_sharp_bet(match, market, selection, odds, sharp_move_pct, fixture_id=None,
+                  league=None, source="SHARP"):
+    """Shadow flat-stake bet for a sharp-reference signal vs Betarabia. Two sub-strategies,
+    each its own bet_source so they're judged separately:
+      'SHARP'  - Pinnacle line steamed toward this side AND Betarabia still pays more.
+      'SHARPV' - Betarabia is +EV vs Pinnacle's de-vigged fair price (capped band).
+    Paper only; gated by settings.sharp_betting_enabled; deduped per pick/source."""
+    settings = load_settings()
+    if not settings.get("sharp_betting_enabled", True):
+        return
+    if _implausible_odds(market, odds):
+        print(f"[GUARD] Skipped {source} bet on implausible {market} odds {odds}: "
+              f"{match} ({selection}) — stale/garbled price.")
+        return
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
+    if not os.path.exists(db_path):
+        return
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
+            "AND bet_source=?", (match, market, selection, source))
+        if cur.fetchone()[0] > 0:
+            conn.close()
+            return
+
+        try:
+            br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
+            balance = br_conn.execute(
+                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1").fetchone()[0]
+            br_conn.close()
+        except Exception:
+            balance = 10000.0
+
+        stake = float(settings.get("sharp_flat_stake", 25.0))
+        if stake > balance:
+            stake = balance
+        if stake <= 0:
+            conn.close()
+            return
+
+        from src.bankroll_tracker import register_bet
+        if not register_bet(stake):
+            conn.close()
+            return
+
+        bet_id = f"{source}_" + uuid.uuid4().hex[:12]
+        cur.execute(
+            """INSERT INTO bet_log
+               (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
+                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (bet_id, match, f"{match} ({selection})", market, odds, odds,
+             round(sharp_move_pct, 1), stake, "OPEN", 0.0,
+             datetime.datetime.now().isoformat(), source, 1, 2.5, selection,
+             str(fixture_id) if fixture_id is not None else None, league))
+        conn.commit()
+        conn.close()
+        _tag = "sharp move" if source == "SHARP" else "value EV"
+        print(f"[{source} BET] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
+              f"{_tag} +{sharp_move_pct:.1f}% stake {stake}")
+    except Exception as e:
+        print(f"[{source} BET] error: {e}")
+
+
 def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None):
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
+        return
+    if _implausible_odds(market, odds):
+        print(f"[GUARD] Skipped AI bet on implausible {market} odds {odds}: "
+              f"{match} ({selection}) — stale/garbled price.")
         return
 
     try:
@@ -1602,22 +1893,26 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
             conn.commit()
             conn.close()
 
-            # Massive Edge Alert
+            # Massive Edge Alert — best-effort only. WhatsApp is an EXTERNAL, keyed
+            # dependency; it must never break or stall the bet path, so isolate it fully.
             if ev >= 1.0:
-                from src.services.alerting import notifier
-                edge_pct_val = round(ev * 100, 1)
-                alert_msg = (
-                    f"🚨 *MASSIVE EDGE ALERT (+{edge_pct_val}%)* 🚨\n\n"
-                    f"*Match:* {match}\n"
-                    f"*Selection:* {selection}\n"
-                    f"*Odds:* {odds}\n"
-                    f"*Stake:* ${stake:.2f}\n\n"
-                    f"_The AI just sniped this mispriced line!_"
-                )
-                if hasattr(notifier, '_send_whatsapp'):
-                    notifier._send_whatsapp(alert_msg)
-                else:
-                    notifier.send_general_alert("Massive Edge Alert", alert_msg)
+                try:
+                    from src.services.alerting import notifier
+                    edge_pct_val = round(ev * 100, 1)
+                    alert_msg = (
+                        f"🚨 *MASSIVE EDGE ALERT (+{edge_pct_val}%)* 🚨\n\n"
+                        f"*Match:* {match}\n"
+                        f"*Selection:* {selection}\n"
+                        f"*Odds:* {odds}\n"
+                        f"*Stake:* ${stake:.2f}\n\n"
+                        f"_The AI just sniped this mispriced line!_"
+                    )
+                    if hasattr(notifier, '_send_whatsapp'):
+                        notifier._send_whatsapp(alert_msg)
+                    else:
+                        notifier.send_general_alert("Massive Edge Alert", alert_msg)
+                except Exception as alert_err:
+                    print(f"[ALERT] WhatsApp alert skipped (non-fatal): {alert_err}")
 
             # STAIR-AI INTEGRATION
             team_code = str(selection)
@@ -1710,11 +2005,20 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
         print("Error in log_ai_bet:", e)
 
 
+# API-Football is a FREE tier: 100 requests/day. The settlement loop runs every cycle,
+# so calling it uncached burned the whole daily quota in ~25 min — which is why it was
+# always "limit reached" and never actually settled anything. Cache per-date with a long
+# TTL so we spend only ~48 calls/day (2 dates x hourly), leaving the free source usable
+# all day. It has deep league coverage (often incl. Brazilian Serie C) that ESPN lacks.
+_apifootball_cache = {}          # date_str -> (epoch_fetched, {match: (hs, as)})
+_APIFOOTBALL_TTL = 3600          # 1 hour
+
+
 def fetch_api_football_results():
     """
     Finished results (today + yesterday UTC) from API-Football, keyed by 'Home vs Away'
-    -> (home_score, away_score). Used as the settlement results source because Sofascore
-    returns empty. Coverage depends on API-Football including the league that was bet on.
+    -> (home_score, away_score). Cached (1h TTL) to protect the free 100/day quota.
+    Coverage depends on API-Football including the league that was bet on.
     """
     key = os.getenv("API_FOOTBALL_KEY")
     if not key:
@@ -1734,12 +2038,23 @@ def fetch_api_football_results():
     now = datetime.datetime.now(datetime.timezone.utc)
     for delta in (0, 1):
         day = (now - datetime.timedelta(days=delta)).strftime("%Y-%m-%d")
+        cached = _apifootball_cache.get(day)
+        if cached and (time.time() - cached[0]) < _APIFOOTBALL_TTL:
+            results.update(cached[1])
+            continue
+        day_results = {}
         try:
             r = requests.get(
                 "https://v3.football.api-sports.io/fixtures",
                 headers=headers, params={"date": day}, timeout=20,
             )
-            data = r.json().get("response", [])
+            payload = r.json()
+            if payload.get("errors"):
+                # Quota exhausted or auth error — don't cache an empty (so it retries
+                # next hour after the daily reset), just skip this date for now.
+                print(f"[SETTLEMENT] API-Football skipped for {day}: {payload['errors']}")
+                continue
+            data = payload.get("response", [])
         except Exception as e:
             print(f"[SETTLEMENT] API-Football fetch failed for {day}: {e}")
             continue
@@ -1753,7 +2068,9 @@ def fetch_api_football_results():
             away = (teams.get("away") or {}).get("name")
             hs, as_ = goals.get("home"), goals.get("away")
             if home and away and hs is not None and as_ is not None:
-                results[f"{home} vs {away}"] = (hs, as_)
+                day_results[f"{home} vs {away}"] = (hs, as_)
+        _apifootball_cache[day] = (time.time(), day_results)
+        results.update(day_results)
     if results:
         print(f"[SETTLEMENT] API-Football provided {len(results)} finished results.")
     return results
@@ -1807,6 +2124,16 @@ def settle_open_bets():
         print(f"[SETTLEMENT] Free results scraper provided {len(free_results)} finished matches.")
     except Exception as e:
         print("[SETTLEMENT] free results scraper failed:", e)
+
+    # Flashscore (keyless, deep coverage down to Brazilian Serie D) — catches the obscure
+    # lower-division matches ESPN/TheSportsDB miss. Plain requests, cached, no browser.
+    try:
+        from src.flashscore_scraper import get_finished_results as fs_results
+        flash = fs_results()
+        finished_matches.update(flash)
+        print(f"[SETTLEMENT] Flashscore provided {len(flash)} finished matches.")
+    except Exception as e:
+        print("[SETTLEMENT] Flashscore scraper failed:", e)
 
     # API-Football as an extra source when its daily quota still allows.
     try:
@@ -1892,9 +2219,7 @@ def settle_open_bets():
             except Exception:
                 continue
 
-            best_score = 0.0
-            matched_score = None
-
+            candidates = []   # (total_name_score, result_score, finished_name)
             for finished_name, score in finished_matches.items():
                 try:
                     f_parts = finished_name.split(" vs ")
@@ -1907,13 +2232,27 @@ def settle_open_bets():
                 a_score = get_match_score(bet_away, fin_away)
 
                 if h_score >= 0.5 and a_score >= 0.5:
-                    total_score = h_score + a_score
-                    if total_score > best_score:
-                        best_score = total_score
-                        matched_score = score
+                    candidates.append((h_score + a_score, score, finished_name))
 
-            if matched_score is None:
+            if not candidates:
                 continue
+
+            candidates.sort(key=lambda c: c[0], reverse=True)
+            best_total, matched_score, best_name = candidates[0]
+
+            # AMBIGUITY GUARD: if a DIFFERENT finished match is nearly as good a name
+            # match AND reports a DIFFERENT score, refuse to settle this cycle rather
+            # than grade the bet against possibly the wrong game. (Loose 0.5 name
+            # matching with no date check can otherwise settle on the wrong fixture —
+            # the same false-match class as the sharp engine's Iraq->Iran bug.) The bet
+            # stays OPEN and retries next cycle; a wrong settlement would corrupt ROI/CLV.
+            if len(candidates) > 1:
+                second_total, second_score, second_name = candidates[1]
+                if (best_total - second_total) < 0.30 and second_score != matched_score:
+                    print(f"[SETTLEMENT] Ambiguous result match for '{match_name}': "
+                          f"'{best_name}'{matched_score} vs '{second_name}'{second_score} "
+                          f"— skipping to avoid wrong settlement.")
+                    continue
 
             home_score, away_score = matched_score
 
@@ -1966,8 +2305,9 @@ def settle_open_bets():
                     won = home_score == 0 or away_score == 0
             elif market_type == "Corners":
                 if act_corners is None:
-                    h = hash(bet_id)
-                    act_corners = (h % 6) + 7
+                    # No real corner data → leave OPEN. Never fabricate from hash(bet_id):
+                    # that manufactures fake W/L and inflates the record (the "mirage").
+                    continue
 
                 line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
                 line_val = float(line_match.group(1)) if line_match else 8.5
@@ -1977,8 +2317,8 @@ def settle_open_bets():
                     won = act_corners < line_val
             elif market_type == "Total Cards":
                 if act_cards is None:
-                    h = hash(bet_id)
-                    act_cards = (h % 5) + 2
+                    # No real card data → leave OPEN rather than fabricate from hash(bet_id).
+                    continue
 
                 line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
                 line_val = float(line_match.group(1)) if line_match else 3.5
@@ -2016,10 +2356,11 @@ def settle_open_bets():
                         home_score > 0 if player_team == "Home" else away_score > 0
                     )
                     if team_scored:
-                        h = hash(bet_id)
-                        prob_est = (1.0 / entry_odds) if entry_odds > 0 else 0.3
-                        won = (h % 100) / 100.0 < prob_est
+                        # Team scored but we lack per-player goal data → genuinely unknown.
+                        # Leave OPEN rather than fabricate a win from hash(bet_id).
+                        continue
                     else:
+                        # Team scored 0 → the player provably did not score. Real settle.
                         won = False
             elif market_type == "Player Shots":
                 player_name_extracted = selection.split(" Over ")[0].strip()
@@ -2036,9 +2377,8 @@ def settle_open_bets():
                             break
                     won = shots_val > line_val
                 else:
-                    h = hash(bet_id)
-                    prob_est = (1.0 / entry_odds) if entry_odds > 0 else 0.4
-                    won = (h % 100) / 100.0 < prob_est
+                    # No real per-player shot data → leave OPEN, never fabricate from hash.
+                    continue
 
             result = "W" if won else "L"
             pnl = stake * (entry_odds - 1) if won else -stake
@@ -2127,8 +2467,10 @@ def settle_open_bets():
                         if 'over' in leg_selection: leg_won = (h_score + a_score) > line
                         else: leg_won = (h_score + a_score) < line
                     else:
-                        # Fallback for other markets in parlays (random for demo if not in completed_data)
-                        leg_won = (hash(p_id + leg_match_name) % 100) < 70 
+                        # No real data for this leg's market → leave the parlay OPEN rather
+                        # than fabricate a leg result from hash (the old "random for demo").
+                        parlay_finished = False
+                        continue
 
                     leg['result'] = 'W' if leg_won else 'L'
                     if not leg_won: any_leg_lost = True
@@ -2191,6 +2533,12 @@ def update_dashboard_json(fixtures, results_cache):
 
         prediction = res_map.get(fid, None)
         odds_dict = find_betarabia_odds(home, away)
+        # Freshness guard: refuse to bet on STALE Betarabia odds (defence-in-depth so a
+        # future scraper regression can never silently bet old prices). Age was set by
+        # the find_betarabia_odds call just above for this exact fixture.
+        _max_stale_min = load_settings().get("max_odds_staleness_min", 60)
+        odds_fresh = (_betarabia_odds_age_min is None
+                      or _betarabia_odds_age_min <= _max_stale_min)
 
         # Prepare pre-match markets if available from Betarabia, regardless of lineups
         prematch_markets = None
@@ -2364,6 +2712,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 steam_move >= steam_min
                                 and odds and odds >= dfp_settings.MODEL_MIN_ODDS
                                 and market_allowed and not league_blocked and not draw_excluded
+                                and odds_fresh
                             )
                             if steam_fired:
                                 _record_steam_signal(fid, league, f"{home} vs {away}",
@@ -2372,6 +2721,45 @@ def update_dashboard_json(fixtures, results_cache):
                                 # strategy from the model; paper only; deduped internally).
                                 log_steam_bet(f"{home} vs {away}", m_type, sel_name, odds,
                                               steam_move * 100.0, fid, league)
+                            # SHARP EDGE (Pinnacle): the strongest validated play — bet
+                            # Betarabia when the SHARP line steamed toward this side AND
+                            # Betarabia still offers a better price than Pinnacle (lagging
+                            # value). Separate strategy (bet_source='SHARP'); paper only.
+                            if (market_allowed and not league_blocked and not draw_excluded
+                                    and odds and odds_fresh):
+                                try:
+                                    _ko = None
+                                    try:
+                                        _dt = datetime.datetime.fromisoformat(
+                                            str(match_time).replace("Z", "+00:00"))
+                                        if _dt.tzinfo is None:
+                                            _dt = _dt.replace(tzinfo=datetime.timezone.utc)
+                                        _ko = _dt.timestamp()
+                                    except Exception:
+                                        _ko = None
+                                    _sharp_min = settings.get("steam_min_move_pct", 5.0)
+                                    _sh = sharp_edge.qualifies(
+                                        home, away, sel_name, odds, _sharp_min, _ko)
+                                    sel["sharp_move"] = _sh.get("sharp_move", 0.0)
+                                    sel["sharp_lagging"] = _sh.get("lagging", False)
+                                    if _sh.get("qualifies"):
+                                        log_sharp_bet(f"{home} vs {away}", m_type, sel_name,
+                                                      odds, _sh["sharp_move"], fid, league)
+                                    # Pure value vs the sharp fair line (separate SHARPV
+                                    # strategy; fires on mispricing without needing a move).
+                                    if settings.get("sharp_value_enabled", True):
+                                        _min_ev = settings.get("sharp_value_min_ev", 0.02)
+                                        _max_ev = settings.get("sharp_value_max_ev", 0.10)
+                                        _v = sharp_edge.qualifies_value(
+                                            home, away, sel_name, odds, _min_ev, _max_ev, _ko)
+                                        sel["sharp_ev"] = round((_v.get("ev") or 0.0) * 100.0, 1)
+                                        if _v.get("qualifies"):
+                                            log_sharp_bet(f"{home} vs {away}", m_type, sel_name,
+                                                          odds, (_v["ev"] or 0.0) * 100.0,
+                                                          fid, league, source="SHARPV")
+                                except Exception as _she:
+                                    pass
+
                             # Opt-in: require the market to be moving toward a model pick.
                             require_steam = settings.get("require_steam_confirm", False)
                             steam_ok = (not require_steam) or (steam_move >= steam_min)
@@ -2386,8 +2774,9 @@ def update_dashboard_json(fixtures, results_cache):
                                 and not draw_excluded
                                 and conviction_ok
                                 and steam_ok
+                                and odds_fresh
                             )
-                            
+
                             sel.update({"odds": odds, "max_seen_odds": max_seen_odds, "ev": ev, "m_type": m_type, "all_odds": all_market_odds})
                             # Only stake when official lineups are confirmed; odds above
                             # are still attached for display on estimated-XI matches.
@@ -2744,22 +3133,41 @@ def run_daemon():
     df = load_player_database()
     initialize_caches(df)
 
-    # Run initial settlement on startup
+    # Start background telemetry threads FIRST (independent of settlement, which
+    # can be slow) so they begin accumulating data immediately on startup:
+    #  - closing-line capture: true pre-kickoff prices for open bets (honest CLV)
+    #  - sharp snapshots: Pinnacle line history for sharp-steam + lagging-value
+    start_closing_capture()
+    try:
+        sharp_edge.start_sharp_snapshots()
+    except Exception as _sse:
+        print(f"[!] Sharp snapshot thread not started: {_sse}")
+
+    # Run initial settlement on startup (may be slow — network result fetch).
     settle_open_bets()
 
     while True:
-        # 1. Trigger Betarabia odds scraper in background (non-blocking)
-        # We start it only after a delay to avoid driver conflicts during initial sweep
+        # 1. Trigger Betarabia odds scraper in background — but ONLY if the previous
+        # scrape has finished. The scrape takes ~3 min; overlapping runs stack
+        # Chromium and crash before writing, which is what left odds_stream.db stale.
         try:
             import subprocess
             import sys
 
-            scraper_path = os.path.join(os.path.dirname(__file__), "betarabia_scraper.py")
-            subprocess.Popen(
-                [sys.executable, scraper_path], close_fds=True
-            )
+            global _scraper_proc
+            if _scraper_proc is not None and _scraper_proc.poll() is None:
+                print("[SCRAPER] Previous Betarabia scrape still running; skipping (no stacking).")
+            else:
+                scraper_path = os.path.join(os.path.dirname(__file__), "betarabia_scraper.py")
+                _scraper_proc = subprocess.Popen(
+                    [sys.executable, scraper_path], close_fds=True
+                )
+                print("[SCRAPER] Launched fresh Betarabia scrape.")
         except Exception as e:
             print("Failed to start background scraper:", e)
+
+        # Bound odds_history growth once per cycle (keeps steam/CLV queries fast).
+        _purge_odds_history()
 
         # 2. Run post-match settlement and reality data completion
         refresh_completed_comparisons()
@@ -2921,12 +3329,16 @@ def run_daemon():
 
         update_dashboard_json(fixtures, [])
         
-        # 4. Refresh Smart Parlays with the new Value-Chaser logic
-        try:
-            parlay_script = os.path.join(os.path.dirname(__file__), "parlay_intelligence_v2.py")
-            subprocess.Popen([sys.executable, parlay_script], close_fds=True)
-        except Exception as e:
-            print("Failed to start parlay engine:", e)
+        # 4. Smart Parlays DISABLED (2026-06-15). Parlays compound per-leg edge, and the
+        #    project has no proven +EV single bet (1X2 has no edge, props are -EV), so every
+        #    parlay is structurally more -EV than its legs. Live record was 22% hit / ~-31% ROI,
+        #    partly hash-settled noise. Generation is off; settlement below still grades the
+        #    7 open parlays out. Do NOT re-enable until a single-bet strategy proves positive CLV.
+        # try:
+        #     parlay_script = os.path.join(os.path.dirname(__file__), "parlay_intelligence_v2.py")
+        #     subprocess.Popen([sys.executable, parlay_script], close_fds=True)
+        # except Exception as e:
+        #     print("Failed to start parlay engine:", e)
 
         # 5. Institutional Monitoring (Momentum, News, Audits)
         try:

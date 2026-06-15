@@ -913,4 +913,9 @@ if __name__ == "__main__":
         )
     _port = int(os.getenv("DEEPFIELD_PORT", "5050"))
     print(f"[*] Starting DeepFieldPro Live UI on http://127.0.0.1:{_port}")
-    app.run(host="0.0.0.0", port=_port, debug=False)
+    # threaded=True is REQUIRED: the prediction daemon runs in a background thread in
+    # this same process and its cycles are long (3-min scrapes, model inference). Without
+    # a threaded server, Werkzeug handles one request at a time and the dashboard hangs
+    # (HTTP timeouts) the entire time the daemon is busy. Threaded serving lets HTTP
+    # requests be answered concurrently (the daemon's I/O releases the GIL).
+    app.run(host="0.0.0.0", port=_port, debug=False, threaded=True)

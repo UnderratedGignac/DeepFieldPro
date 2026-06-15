@@ -110,6 +110,28 @@ def init_db():
     Conn_V.close()
 
 
+def purge_old_data(DaysOld_P: int = 3):
+    """Delete fixtures/markets whose kickoff is more than DaysOld_P days in the past.
+    Bounds DB growth and removes stale lingering duplicates. Safe: those matches are
+    long finished and never bet again; today's and future data are untouched."""
+    Cutoff_V = (
+        datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=DaysOld_P)
+    ).strftime("%Y-%m-%d")
+    Conn_V = sqlite3.connect(DB_PATH)
+    Cursor_V = Conn_V.cursor()
+    Cursor_V.execute("SELECT fixture_id FROM fixture WHERE kickoff_date < ?", (Cutoff_V,))
+    OldIds_V = [row[0] for row in Cursor_V.fetchall()]
+    if OldIds_V:
+        Placeholders_V = ",".join("?" for _ in OldIds_V)
+        Cursor_V.execute(
+            f"DELETE FROM market WHERE fixture_id IN ({Placeholders_V})", OldIds_V
+        )
+        Cursor_V.execute("DELETE FROM fixture WHERE kickoff_date < ?", (Cutoff_V,))
+        logger.info(f"Purged {len(OldIds_V)} fixtures older than {Cutoff_V}.")
+    Conn_V.commit()
+    Conn_V.close()
+
+
 def clear_todays_data(TodayStr_P: str):
     """
     Remove all fixture/market rows where kickoff_date matches today.
@@ -910,10 +932,12 @@ async def scrape_fixture_list_html(Page_P) -> list:
 async def run_scraper():
     """Main scraper entry point."""
     init_db()
+    purge_old_data()   # drop long-finished fixtures (safe; bounds DB + kills stale dupes)
 
     TodayStr_V = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
-    # Clear stale today data before fresh scrape
-    clear_todays_data(TodayStr_V)
+    # NOTE: today's data is cleared AFTER a successful scrape (just before the write
+    # loop below), never up front. Clearing first wiped all of today's odds whenever a
+    # scrape failed / was killed before finishing — the root cause of the stale-odds bug.
 
     Conn_V = sqlite3.connect(DB_PATH)
     Cursor_V = Conn_V.cursor()
@@ -1063,6 +1087,12 @@ async def run_scraper():
 
             # ── Step 4: Upsert fixtures + markets to DB ──────────────────────
             ScrapedAt_V = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+            # Only NOW, with fresh data in hand, replace today's old rows. If the scrape
+            # had failed or been killed before reaching here, the existing odds stay
+            # intact instead of being wiped (this is the stale-odds fix).
+            if TodayEvents_V:
+                clear_todays_data(TodayStr_V)
 
             for EventId_V, Fix_V in TodayEvents_V.items():
                 # Only store football (sport_id=2) or generic fixture from HTML fallback

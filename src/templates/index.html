@@ -472,6 +472,9 @@
         .tag-win { background: rgba(0,255,100,0.1); color: #00ff88; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;}
         .tag-loss { background: rgba(255,0,50,0.1); color: #ff4d4d; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;}
         .tag-open { background: rgba(229, 193, 88, 0.1); color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;}
+        .live-min { color:#00ff88; font-weight:700; display:inline-flex; align-items:center; gap:6px; }
+        .live-dot { width:8px; height:8px; border-radius:50%; background:#00ff88; display:inline-block; animation: livePulse 1.2s infinite; }
+        @keyframes livePulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,136,0.6); opacity:1; } 70% { box-shadow: 0 0 0 7px rgba(0,255,136,0); opacity:0.6; } 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); opacity:1; } }
 
         /* FORMS */
         .settings-card {
@@ -2171,6 +2174,23 @@
             } catch(e) {}
         }
 
+        // Live match clock — turns minutes-since-kickoff into a football match minute.
+        // Estimated & keyless (no live feed): 1st half 0-45', ~15m halftime, 2nd half to ~90',
+        // then full time / awaiting settlement. elapsed = whole minutes since kickoff.
+        function matchClock(elapsed) {
+            const live = (txt) => `<span class="live-min"><span class="live-dot"></span> ${txt}</span>`;
+            if (elapsed <= 45) {
+                return live(`${Math.max(1, elapsed)}'`);            // 1st half
+            } else if (elapsed <= 60) {
+                return live(`HT`);                                  // half-time window
+            } else if (elapsed <= 105) {
+                return live(`${elapsed - 15}'`);                    // 2nd half (less ~15m HT)
+            } else if (elapsed <= 140) {
+                return `<span style="color:#E5C158; font-weight:600;"><i class="fa-solid fa-flag-checkered"></i> FT · settling</span>`;
+            }
+            return `<span style="color:#E5C158; font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> awaiting result</span>`;
+        }
+
         // Fetch Tracker
         async function loadTracker() {
             try {
@@ -2246,7 +2266,9 @@
                             const diffMins = Math.floor((diffMs % 3600000) / 60000);
                             timeRemaining = `<span style="color:var(--primary); font-weight:600;"><i class="fa-solid fa-clock"></i> ${diffHrs}h ${diffMins}m</span>`;
                         } else {
-                            timeRemaining = `<span style="color:#00ff88; font-weight:600;"><i class="fa-solid fa-bolt"></i> LIVE / SETTLING</span>`;
+                            // Live match clock — estimated minute from kickoff (keyless).
+                            // Football wall-clock: 1st half 0-45', ~15m halftime, 2nd half to ~90'.
+                            timeRemaining = matchClock(Math.floor(-diffMs / 60000));
                         }
                     } else if (b.result !== 'OPEN') {
                         timeRemaining = `<span style="color:var(--text-muted);">Resolved</span>`;
