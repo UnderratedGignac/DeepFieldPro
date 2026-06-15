@@ -55,3 +55,17 @@ NOT done (deliberately — uncertain/large, flagged for daylight):
   or be discarded — likely -EV like other model signals).
 TRAPS confirmed to AVOID (from research): player props, real Pinnacle↔Betarabia "arb",
 full Kelly, keyed aggregator APIs, raw understat via requests, DNB/double-chance recombinations.
+
+### Overnight pass 1 (06-16 ~02:55) — autonomous, guardrailed
+- Health GREEN. No new actionable signal yet: STEAM 8 settled (-9.4% ROI, tiny sample),
+  0 sharp-CLV / 0 line-shop data (steam fired only on obscure non-Pinnacle/non-Kambi leagues
+  + low overnight volume). No bug — recording code verified correct, just no qualifying bets.
+- **#7 xG groundwork DONE + verified:** confirmed free historical xG IS accessible via the
+  `soccerdata` package (Understat, tls-client; raw requests is Cloudflare-stripped). Built
+  `tools/ingest_xg_understat.py` (standalone data/xg_history.db, hard null-guard) — verified
+  380 EPL matches with real xG ingested. Does NOT touch the live system.
+- **NEXT (daylight):** `tools/backtest_xg_regression.py` — join xg_history with history.db
+  closing odds (match by date+teams), compute each team's trailing (goals-xG) over prior
+  matches (walk-forward, prior-only), back the under-performer at best soft early price.
+  GATE: deploy ONLY if the selectivity sweep is monotone-positive; else discard (likely -EV
+  like goals-DC). Ingest more leagues/seasons first (`python tools/ingest_xg_understat.py`).
