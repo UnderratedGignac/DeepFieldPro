@@ -108,8 +108,16 @@ def _espn_day(date_str):
     return out
 
 
+# TheSportsDB only reports FINISHED matches here. It also returns LIVE matches with a
+# current score (strStatus '1H'/'2H'/'HT'/...), and treating those as final settles bets
+# mid-match (the "Spain 0-0 Cape Verde settled while live in the 57'" bug). Whitelist only
+# genuinely-finished statuses; anything else (live, scheduled, unknown) is excluded.
+_TSDB_FINISHED = {"FT", "AET", "PEN", "AP", "AWD", "MATCH FINISHED",
+                  "AFTER EXTRA TIME", "AFTER PENALTIES", "FINISHED"}
+
+
 def _tsdb_day(date_str):
-    """TheSportsDB soccer results for a date -> {match: (hs, as)}."""
+    """TheSportsDB FINISHED soccer results for a date -> {match: (hs, as)}."""
     out = {}
     try:
         r = requests.get(f"{_TSDB_BASE}/eventsday.php",
@@ -118,6 +126,9 @@ def _tsdb_day(date_str):
     except Exception:
         return out
     for e in events:
+        status = str(e.get("strStatus") or "").strip().upper()
+        if status not in _TSDB_FINISHED:
+            continue  # skip live / scheduled / unknown — never settle a non-final match
         hs, as_ = e.get("intHomeScore"), e.get("intAwayScore")
         h, a = e.get("strHomeTeam"), e.get("strAwayTeam")
         if h and a and hs not in (None, "") and as_ not in (None, ""):

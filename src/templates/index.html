@@ -1877,10 +1877,19 @@
 
                 let statusBadge = '';
                 const status = (match.status_code || '').toUpperCase();
-                if (['1H', '2H', 'HT', 'LIVE'].includes(status)) {
+                if (['1H', '2H', 'HT', 'LIVE', 'ET'].includes(status)) {
                     statusBadge = `<span class="status-badge live-now"><i class="fa-solid fa-circle-play"></i> LIVE ${status}</span>`;
                 } else if (['FT', 'AET', 'PEN'].includes(status)) {
                     statusBadge = `<span class="status-badge finished"><i class="fa-solid fa-flag-checkered"></i> FINISHED</span>`;
+                } else {
+                    // Feed left status as NS even though kickoff has passed — estimate the live
+                    // minute from kickoff so live matches are tracked on the first tab too.
+                    const ls = liveStateFromKickoff(match.kickoff);
+                    if (ls && ls.live) {
+                        statusBadge = `<span class="status-badge live-now"><i class="fa-solid fa-circle-play"></i> LIVE ${ls.text}</span>`;
+                    } else if (ls && ls.text === 'FT') {
+                        statusBadge = `<span class="status-badge finished"><i class="fa-solid fa-flag-checkered"></i> FT</span>`;
+                    }
                 }
 
                 let scoreHTML = '';
@@ -2174,20 +2183,31 @@
             } catch(e) {}
         }
 
-        // Live match clock — turns minutes-since-kickoff into a football match minute.
-        // Estimated & keyless (no live feed): 1st half 0-45', ~15m halftime, 2nd half to ~90',
-        // then full time / awaiting settlement. elapsed = whole minutes since kickoff.
+        // Estimated football match minute from minutes-since-kickoff (keyless, no live feed):
+        // 1st half 0-45', ~15m halftime, 2nd half to ~90', then full time. Returns {text, live}.
+        function footballMinute(elapsed) {
+            if (elapsed < 0) return { text: '', live: false, pre: true };
+            if (elapsed <= 45) return { text: `${Math.max(1, elapsed)}'`, live: true };
+            if (elapsed <= 60) return { text: `HT`, live: true };
+            if (elapsed <= 105) return { text: `${elapsed - 15}'`, live: true };
+            if (elapsed <= 140) return { text: `FT`, live: false };
+            return { text: '', live: false };
+        }
+
+        // Compute live state for a fixture from its kickoff (used by the first-tab badge).
+        // Prefers the feed's real status_code when it provides one.
+        function liveStateFromKickoff(kickoff) {
+            if (!kickoff) return null;
+            const elapsed = Math.floor((Date.now() - new Date(kickoff)) / 60000);
+            if (elapsed < 0 || elapsed > 140) return null;
+            return footballMinute(elapsed);
+        }
+
+        // Live match clock for the bet tracker — styled span.
         function matchClock(elapsed) {
-            const live = (txt) => `<span class="live-min"><span class="live-dot"></span> ${txt}</span>`;
-            if (elapsed <= 45) {
-                return live(`${Math.max(1, elapsed)}'`);            // 1st half
-            } else if (elapsed <= 60) {
-                return live(`HT`);                                  // half-time window
-            } else if (elapsed <= 105) {
-                return live(`${elapsed - 15}'`);                    // 2nd half (less ~15m HT)
-            } else if (elapsed <= 140) {
-                return `<span style="color:#E5C158; font-weight:600;"><i class="fa-solid fa-flag-checkered"></i> FT · settling</span>`;
-            }
+            const fm = footballMinute(elapsed);
+            if (fm.live) return `<span class="live-min"><span class="live-dot"></span> ${fm.text}</span>`;
+            if (fm.text === 'FT') return `<span style="color:#E5C158; font-weight:600;"><i class="fa-solid fa-flag-checkered"></i> FT · settling</span>`;
             return `<span style="color:#E5C158; font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> awaiting result</span>`;
         }
 
