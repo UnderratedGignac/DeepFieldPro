@@ -1649,6 +1649,8 @@ _ODDS_BANDS = {
     "1X2": (1.01, 34.0),            # big underdogs exist; >34 or <1.01 is impossible
     "Over/Under 2.5": (1.20, 5.00),  # totals lines live in a tight range
     "BTTS": (1.20, 5.00),
+    "Corners": (1.15, 7.00),
+    "Total Cards": (1.15, 7.00),
 }
 
 
@@ -2164,6 +2166,21 @@ def settle_open_bets():
 
         print(f"[SETTLEMENT] Found {len(open_bets)} OPEN bets. Settling...")
 
+        # REAL prop stats (corners/cards) from Flashscore — only for matches that actually
+        # have an open Corners/Total Cards bet (keeps it cheap). Replaces the old hash()
+        # fabrication: a prop bet settles only from a real stat, else it stays OPEN.
+        prop_stats = {}
+        prop_match_ids = {mid for (_, mid, _, mt, *_ ) in open_bets
+                          if mt in ("Corners", "Total Cards") and mid}
+        if prop_match_ids:
+            try:
+                from src.flashscore_stats import stats_for_matches
+                prop_stats = stats_for_matches(prop_match_ids)
+                print(f"[SETTLEMENT] Flashscore stats for {len(prop_stats)}/{len(prop_match_ids)} "
+                      f"prop match(es).")
+            except Exception as e:
+                print("[SETTLEMENT] Flashscore stats fetch failed:", e)
+
         # Load existing predictions mapping to lookup detailed stats
         res_map = load_predictions_from_db()
 
@@ -2305,9 +2322,12 @@ def settle_open_bets():
                     won = home_score == 0 or away_score == 0
             elif market_type == "Corners":
                 if act_corners is None:
-                    # No real corner data → leave OPEN. Never fabricate from hash(bet_id):
-                    # that manufactures fake W/L and inflates the record (the "mirage").
-                    continue
+                    # Fall back to REAL Flashscore corner stats; never fabricate.
+                    ps = prop_stats.get(match_id)
+                    if ps and ps.get("corners_total") is not None:
+                        act_corners = ps["corners_total"]
+                    else:
+                        continue  # no real corner data yet → leave OPEN
 
                 line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
                 line_val = float(line_match.group(1)) if line_match else 8.5
@@ -2317,8 +2337,12 @@ def settle_open_bets():
                     won = act_corners < line_val
             elif market_type == "Total Cards":
                 if act_cards is None:
-                    # No real card data → leave OPEN rather than fabricate from hash(bet_id).
-                    continue
+                    # Fall back to REAL Flashscore card stats; never fabricate.
+                    ps = prop_stats.get(match_id)
+                    if ps and ps.get("cards_total") is not None:
+                        act_cards = ps["cards_total"]
+                    else:
+                        continue  # no real card data yet → leave OPEN
 
                 line_match = re.search(r"(\d+\.\d+|\d+)", sel_lower)
                 line_val = float(line_match.group(1)) if line_match else 3.5
