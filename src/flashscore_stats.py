@@ -86,6 +86,14 @@ def _to_int(s):
     return int(m.group(1)) if m else None
 
 
+def _to_float(s):
+    m = re.match(r"\s*([\d.]+)", s or "")
+    try:
+        return float(m.group(1)) if m else None
+    except ValueError:
+        return None
+
+
 def _match_stats(event_id):
     """Parse the Statistics feed -> {corners_total, cards_total, shots_home, shots_away}."""
     try:
@@ -100,7 +108,11 @@ def _match_stats(event_id):
         if name and name not in vals:
             vals[name] = (f.get("SH"), f.get("SI"))
     res = {"corners_total": None, "cards_total": None,
-           "shots_home": None, "shots_away": None}
+           "shots_home": None, "shots_away": None,
+           "xg_home": None, "xg_away": None}
+    if "Expected goals (xG)" in vals:
+        res["xg_home"] = _to_float(vals["Expected goals (xG)"][0])
+        res["xg_away"] = _to_float(vals["Expected goals (xG)"][1])
     if "Corner kicks" in vals:
         h, a = _to_int(vals["Corner kicks"][0]), _to_int(vals["Corner kicks"][1])
         if h is not None and a is not None:

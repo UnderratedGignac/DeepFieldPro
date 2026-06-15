@@ -2181,6 +2181,14 @@ def settle_open_bets():
             except Exception as e:
                 print("[SETTLEMENT] Flashscore stats fetch failed:", e)
 
+        # Kickoff map (fixture_id -> kickoff dt) so CLV uses the last PRE-KICKOFF price.
+        # Without this, CLV picks the absolute-last odds_history row, which can be an
+        # IN-PLAY price (favourite scores -> odds crash), producing a fake +CLV mirage.
+        try:
+            ko_map = _kickoff_map()
+        except Exception:
+            ko_map = {}
+
         # Load existing predictions mapping to lookup detailed stats
         res_map = load_predictions_from_db()
 
@@ -2416,20 +2424,41 @@ def settle_open_bets():
             clv = None
             try:
                 if bet_fixture_id:
+                    # Use the last snapshot taken BEFORE kickoff (odds_history.timestamp is
+                    # UTC). This excludes in-play prices that would fake a huge CLV.
+                    ko = ko_map.get(str(bet_fixture_id))
                     snap = sqlite3.connect(
                         os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
                     )
                     sc = snap.cursor()
-                    sc.execute(
-                        "SELECT odds FROM odds_history WHERE fixture_id = ? AND market = ? "
-                        "AND selection = ? ORDER BY rowid DESC LIMIT 1",
-                        (str(bet_fixture_id), market_type, bet_side),
-                    )
-                    row = sc.fetchone()
+                    if ko is not None:
+                        ko_utc = ko.astimezone(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                        sc.execute(
+                            "SELECT odds FROM odds_history WHERE fixture_id = ? AND market = ? "
+                            "AND selection = ? AND timestamp <= ? ORDER BY timestamp DESC LIMIT 1",
+                            (str(bet_fixture_id), market_type, bet_side, ko_utc),
+                        )
+                        row = sc.fetchone()
+                    else:
+                        row = None
+                    if not row:  # no kickoff or no pre-kickoff snapshot -> best available
+                        sc.execute(
+                            "SELECT odds FROM odds_history WHERE fixture_id = ? AND market = ? "
+                            "AND selection = ? ORDER BY rowid DESC LIMIT 1",
+                            (str(bet_fixture_id), market_type, bet_side),
+                        )
+                        row = sc.fetchone()
                     snap.close()
                     if row and row[0] and float(row[0]) > 0:
-                        closing_odds = float(row[0])
-                        clv = round(entry_odds / closing_odds - 1.0, 4)
+                        c_odds = float(row[0])
+                        c_clv = round(entry_odds / c_odds - 1.0, 4)
+                        # Sanity guard: real CLV is rarely beyond +-40%. A larger value means a
+                        # stale/garbled/in-play close, not edge — record price but drop the CLV.
+                        if abs(c_clv) <= 0.40:
+                            closing_odds = c_odds
+                            clv = c_clv
+                        else:
+                            closing_odds = c_odds  # keep the observed close for the record
             except Exception:
                 pass
 
