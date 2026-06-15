@@ -2873,6 +2873,27 @@ def update_dashboard_json(fixtures, results_cache):
         }
         dashboard_data.append(item)
 
+    # Inject currently LIVE matches (DISPLAY-ONLY, no odds) so in-play games are visible.
+    # Betarabia's feed is pre-match only and drops matches at kickoff, so live games (e.g. a
+    # World Cup match in play) otherwise vanish. Source: Flashscore (keyless). These cards
+    # carry a real score + LIVE status but no odds/prediction — the AI never bets them.
+    if settings.get("show_live_matches", True):
+        try:
+            from src.live_matches import get_live_matches
+            def _nm(s):
+                return "".join(c for c in (s or "").lower() if c.isalnum())
+            existing = {_nm(d.get("match", "")) for d in dashboard_data}
+            added = 0
+            for lm in get_live_matches():
+                if _nm(lm["match"]) not in existing:
+                    dashboard_data.append(lm)
+                    existing.add(_nm(lm["match"]))
+                    added += 1
+            if added:
+                print(f"[LIVE] Injected {added} in-play match(es) into the dashboard.")
+        except Exception as e:
+            print("[LIVE] inject failed:", e)
+
     with open(
         os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8"
     ) as f:
