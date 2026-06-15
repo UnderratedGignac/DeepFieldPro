@@ -2475,9 +2475,30 @@ def settle_open_bets():
             except Exception:
                 pass
 
+            # CLV vs the SHARP (Pinnacle) close — the TRUSTWORTHY scoreboard. The Betarabia-self
+            # CLV above is self-referential (entry vs same book's later price); beating the SHARP
+            # de-vigged fair line is what actually predicts profit. Only fires for 1X2 bets that
+            # overlap Pinnacle (NULL otherwise). edge_status.py gates real money on this.
+            clv_sharp = None
+            if market_type == "1X2" and bet_side:
+                try:
+                    parts = (match_id or "").split(" vs ")
+                    if len(parts) == 2:
+                        ko = ko_map.get(str(bet_fixture_id))
+                        ko_ts = ko.timestamp() if ko is not None else None
+                        vs = sharp_edge.value_signal(parts[0].strip(), parts[1].strip(),
+                                                     bet_side, entry_odds, ko_ts)
+                        if vs.get("matched") and vs.get("sharp_fair_prob"):
+                            cs = round(entry_odds * vs["sharp_fair_prob"] - 1.0, 4)
+                            if abs(cs) <= 0.40:
+                                clv_sharp = cs
+                except Exception:
+                    pass
+
             cur.execute(
-                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ? WHERE bet_id = ?",
-                (result, pnl, closing_odds, clv, bet_id),
+                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ?, clv_sharp = ? "
+                "WHERE bet_id = ?",
+                (result, pnl, closing_odds, clv, clv_sharp, bet_id),
             )
             _clv_str = f" CLV {clv*100:+.1f}%" if clv is not None else ""
             print(f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f}){_clv_str}")

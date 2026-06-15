@@ -107,11 +107,16 @@ def main():
         grp = [r for r in rows if (r.get("bet_source") == src
                                    and r.get("market_type") == mkt)]
         settled = _settled(grp)
-        with_clv = [r for r in settled if r.get("clv") is not None]
-        clvs = [float(r["clv"]) for r in with_clv]
+        # PRIMARY scoreboard = CLV vs the SHARP (Pinnacle) close (clv_sharp). The Betarabia
+        # self-CLV (clv) is self-referential and shown only as a secondary diagnostic. The
+        # verdict does NOT fall back to self-CLV when sharp CLV is missing.
+        with_clv = [r for r in settled if r.get("clv_sharp") is not None]
+        clvs = [float(r["clv_sharp"]) for r in with_clv]
         clv_mean, clv_half = _mean_ci(clvs)
         clv_lo = clv_mean - clv_half if clvs else 0.0
         beat = (sum(1 for v in clvs if v > 0) / len(clvs)) if clvs else 0.0
+        self_clvs = [float(r["clv"]) for r in settled if r.get("clv") is not None]
+        self_mean = (sum(self_clvs) / len(self_clvs)) if self_clvs else None
         roi, staked, pnl = _roi(settled)
         wr = (sum(1 for r in settled if str(r["result"]).upper().startswith("W"))
               / len(settled)) if settled else 0.0
@@ -121,12 +126,14 @@ def main():
 
         print(f"\n[{tag}]  {label}   (source={src})")
         print(f"   settled bets ........ {len(settled)}   (open excluded)")
-        print(f"   with CLV ............ {len(with_clv)}")
+        print(f"   with SHARP CLV ...... {len(with_clv)}   (vs Pinnacle close - the real test)")
         if clvs:
             ci = (f"(95% CI {clv_lo:+.2%} .. {clv_mean + clv_half:+.2%})"
                   if math.isfinite(clv_half) else "(CI n/a - need >=2 bets)")
-            print(f"   avg CLV ............. {clv_mean:+.2%}   {ci}")
+            print(f"   avg SHARP CLV ....... {clv_mean:+.2%}   {ci}")
             print(f"   beat-close rate ..... {beat:.1%}")
+        if self_mean is not None:
+            print(f"   (self-CLV vs Betarabia: {self_mean:+.2%}  [diagnostic only, {len(self_clvs)} bets])")
         print(f"   realized ROI ........ {roi:+.1%}   "
               f"(staked ${staked:,.0f}, pnl ${pnl:+,.0f})")
         print(f"   win rate ............ {wr:.1%}")
