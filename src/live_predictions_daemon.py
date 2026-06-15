@@ -1699,7 +1699,15 @@ def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=Non
         except Exception:
             balance = 10000.0
 
-        stake = float(settings.get("steam_flat_stake", 25.0))
+        # Bankroll-proportional stake (a small fixed fraction ~ 1/8-1/4 Kelly), floored/capped.
+        # Auto-scales with the bankroll instead of a flat $ that drifts from 2% to 5% as the
+        # balance moves. Falls back to the flat stake if steam_kelly_frac is unset.
+        frac = settings.get("steam_kelly_frac", 0.02)
+        if frac and frac > 0:
+            stake = round(balance * frac, 2)
+            stake = max(1.0, min(stake, balance * 0.03))  # floor $1, cap 3% of bankroll
+        else:
+            stake = float(settings.get("steam_flat_stake", 25.0))
         if stake > balance:
             stake = balance
         if stake <= 0:
@@ -1852,14 +1860,19 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
             if stake > balance:
                 stake = balance
 
-            if stake <= 0:
-                return
+            # The AI/1X2 model has NO proven edge (it failed its own 2,386-bet out-of-sample
+            # test) and is the vast majority of bets — REAL-staking it just bleeds the bankroll.
+            # Default: log AI picks as ZERO-stake SHADOW bets (visible + CLV-tracked, zero
+            # bankroll impact). Flip ai_real_staking_enabled=true ONLY when edge_status.py shows
+            # AI = GO on CLV. STEAM/SHARP (the validated edges) keep their real stakes.
+            if not settings.get("ai_real_staking_enabled", False):
+                stake = 0.0
 
             from src.bankroll_tracker import register_bet
-
-            if not register_bet(stake):
-                print(f"[!] Bankroll tracker blocked bet {bet_id} for ${stake:.2f}")
-                return
+            if stake > 0:
+                if not register_bet(stake):
+                    print(f"[!] Bankroll tracker blocked bet {bet_id} for ${stake:.2f}")
+                    return
 
             cur.execute(
                 """

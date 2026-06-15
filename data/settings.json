@@ -32,5 +32,7 @@
   "sharp_value_min_ev": 0.02,
   "sharp_value_max_ev": 0.10,
   "max_odds_staleness_min": 60,
-  "show_live_matches": true
+  "show_live_matches": true,
+  "ai_real_staking_enabled": false,
+  "steam_kelly_frac": 0.02
 }

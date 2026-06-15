@@ -25,9 +25,11 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "bankroll.db")
 # Configuration — Edit these to match your actual bankroll
 # ─────────────────────────────────────────────────────────
 STARTING_BANKROLL = 300.0  # Your initial capital
-MAX_DAILY_EXPOSURE_PCT = 1.0  # Max 100% of today's starting balance at risk at once
-MAX_DRAWDOWN_PCT = 1.0  # -100% from peak → full global halt
-DAILY_STOP_LOSS_PCT = 1.0  # -100% in one day  → halt for the day
+# Real circuit-breakers (were 1.0 = disabled). Survival lets a small edge compound;
+# a noisy/over-estimated edge can't run the bankroll to zero before halting.
+MAX_DAILY_EXPOSURE_PCT = 0.50  # daily VOLUME cap (cumulative stakes); daily stop-loss is the real brake
+MAX_DRAWDOWN_PCT = 0.30  # halt globally at -30% from peak
+DAILY_STOP_LOSS_PCT = 0.10  # halt for the day at -10% of today's start
 
 
 def init_bankroll_db():
