@@ -94,3 +94,17 @@ full Kelly, keyed aggregator APIs, raw understat via requests, DNB/double-chance
   project's core truth: edge is in line-movement / soft pricing, not better models. Did NOT
   build the odds-join backtest (saved the larger effort). Focus stays on steam-coverage
   (pass 2) + line-shopping + CLV measurement — the only paths with a real basis.
+
+### "Add corners/stats models" request (06-16 ~07:50)
+- Corners/cards: NO free odds source (verified — Kambi event markets have totals/correct-score
+  but NO corners/cards; Betarabia none) AND -EV in backtests → dead end. Settlement already
+  built; left dormant.
+- Built the HONEST stats path instead: `sharp_scraper.fetch_pinnacle_totals()` (Pinnacle
+  de-vigged O/U 2.5 = the sharp totals "model", best free predictor; 161 fixtures) +
+  `tools/totals_value_report.py` (the CHECK).
+- **RESULT: Total Goals does NOT make money on Betarabia.** 28 fixtures overlapped Pinnacle;
+  best-side EV median -6.7%, min -9.4%; only "+EV" was a single +46.5% (stale-price trap).
+  Soft-book totals vig too high to beat the sharp line. Same as 1X2 SHARPV + the O/U backtest.
+- Net: stats MODELS/markets confirmed -EV again. The scraper (Pinnacle totals) is kept — it's
+  the foundation IF a totals-STEAM (line-movement) signal is ever built (different from value;
+  steam is the one validated mechanism). Did NOT wire totals into the bet path (no edge).

@@ -87,8 +87,60 @@ def fetch_pinnacle_1x2():
     return out
 
 
+def fetch_pinnacle_totals(line=2.5):
+    """Return 'Home vs Away' -> sharp Over/Under at `line`, de-vigged. Pinnacle's de-vigged
+    total-goals probability is the best free PREDICTOR of totals (better than any homegrown
+    model — the project's model-on-totals lost). Used as the sharp fair line that soft books
+    (Betarabia/Kambi) lag. Full match (period 0) only."""
+    matchups = _get(f"/sports/{SOCCER}/matchups")
+    markets = _get(f"/sports/{SOCCER}/markets/straight")
+    key = f"s;0;ou;{line}"
+
+    tot = {}
+    for mk in markets:
+        if mk.get("type") == "total" and mk.get("period") == 0 and mk.get("key") == key:
+            o = u = None
+            for p in (mk.get("prices") or []):
+                if p.get("designation") == "over":
+                    o = american_to_decimal(p.get("price"))
+                elif p.get("designation") == "under":
+                    u = american_to_decimal(p.get("price"))
+            if o and u:
+                io_, iu = 1.0 / o, 1.0 / u
+                tot[mk.get("matchupId")] = {
+                    "over_odds": o, "under_odds": u,
+                    "over_prob": round(io_ / (io_ + iu), 4),
+                    "under_prob": round(iu / (io_ + iu), 4),
+                }
+
+    out = {}
+    for m in matchups:
+        if m.get("type") != "matchup" or m.get("parent"):
+            continue
+        parts = m.get("participants") or []
+        if len(parts) != 2:
+            continue
+        home = next((p.get("name") for p in parts if p.get("alignment") == "home"), None)
+        away = next((p.get("name") for p in parts if p.get("alignment") == "away"), None)
+        if not (home and away):
+            continue
+        t = tot.get(m.get("id"))
+        if not t:
+            continue
+        out[f"{home} vs {away}"] = {**t, "line": line, "home_team": home,
+                                    "away_team": away, "matchup_id": m.get("id"),
+                                    "starts": m.get("startTime"),
+                                    "league": (m.get("league") or {}).get("name")}
+    return out
+
+
 if __name__ == "__main__":
     data = fetch_pinnacle_1x2()
     print(f"Pinnacle soccer fixtures with 1X2: {len(data)}")
-    for k, v in list(data.items())[:8]:
+    for k, v in list(data.items())[:5]:
         print(f"  {k:45s} H={v['home']} D={v['draw']} A={v['away']}  [{v['league']}]")
+    tot = fetch_pinnacle_totals()
+    print(f"\nPinnacle fixtures with O/U 2.5: {len(tot)}")
+    for k, v in list(tot.items())[:5]:
+        print(f"  {k:45s} O2.5={v['over_odds']} U2.5={v['under_odds']} "
+              f"P(over)={v['over_prob']:.0%}")
