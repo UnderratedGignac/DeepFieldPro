@@ -117,3 +117,13 @@ full Kelly, keyed aggregator APIs, raw understat via requests, DNB/double-chance
   steam_covered_only=true. Verified: obscure (Arba Minch) skipped, covered (WC, Pinnacle
   leagues) allowed. Removes the noise-loss tail; keeps steam where it was validated (+ now
   every steam bet is clv_sharp-measurable). Restarted, health GREEN.
+
+### CRITICAL: restarts weren't taking (06-16 ~08:42)
+- DISCOVERED: `cmd /c RESTART_CLEAN.bat` via the tool silently fails — daemon ran ~21h-old code
+  while health checks (served by the old server) still passed. So recent CODE changes
+  (steam coverage gate, proportional staking, CLV fix, AI shadow) were committed but NOT live;
+  only settings the already-loaded code reads took effect. Tonight's STEAM was flat $25 (old
+  code), no coverage gate -> the obscure-league losses. AI placed 0 bets (no un-shadowed bleed).
+- FIX: killed all python via PowerShell (Stop-Process), relaunched ONE fresh instance via
+  PowerShell -> current code now LIVE (steam coverage gate active, etc.). Added RESTART_CLEAN.ps1
+  (reliable launcher) and a memory note. ALWAYS restart via PowerShell + verify process StartTime.
