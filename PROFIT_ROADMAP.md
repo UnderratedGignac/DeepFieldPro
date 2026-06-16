@@ -83,3 +83,14 @@ full Kelly, keyed aggregator APIs, raw understat via requests, DNB/double-chance
   clv_sharp. DO NOT change the live gate on a 20-bet sample; first backtest steam-on-covered
   vs steam-on-obscure. Candidate: add a default-OFF `steam_covered_only` setting + a gate
   check `sharp_edge._match_key(home,away,ko) is not None` so the user can enable after review.
+
+### Overnight pass 3 (06-16 ~06:45) — autonomous, guardrailed
+- Health GREEN. Built + ran tools/backtest_xg_regression.py (signal-validity gate, read-only
+  on xg_history, no odds, no live change).
+- **RESULT: xG-regression is a DEAD END for betting — DISCARD #7.** n=1320 team-matches:
+  UNLUCKY next-PPG = 1.407, LUCKY next-PPG = 1.407 (diff +0.000). xG over/under-performance
+  mean-reverts slightly in xG terms (lucky next-luck -0.140 vs unlucky -0.088) but produces
+  ZERO difference in next-match POINTS — the market already prices fundamentals. Confirms the
+  project's core truth: edge is in line-movement / soft pricing, not better models. Did NOT
+  build the odds-join backtest (saved the larger effort). Focus stays on steam-coverage
+  (pass 2) + line-shopping + CLV measurement — the only paths with a real basis.
