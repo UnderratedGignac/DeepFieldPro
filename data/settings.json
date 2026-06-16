@@ -34,5 +34,6 @@
   "max_odds_staleness_min": 60,
   "show_live_matches": true,
   "ai_real_staking_enabled": false,
-  "steam_kelly_frac": 0.02
+  "steam_kelly_frac": 0.02,
+  "steam_covered_only": true
 }

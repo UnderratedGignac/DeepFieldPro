@@ -1678,6 +1678,16 @@ def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=Non
         print(f"[GUARD] Skipped STEAM bet on implausible {market} odds {odds}: "
               f"{match} ({selection}) — stale/garbled price.")
         return
+    # COVERAGE GATE: the validated +20.9% steam edge is on LIQUID markets. Live, steam was
+    # firing on obscure non-Pinnacle leagues where line moves are NOISE (stale/thin-market
+    # artifacts), losing money and unmeasurable (no sharp close to grade against). Only fire
+    # steam when the match also exists on Pinnacle (a real, liquid market). This removes the
+    # losing tail while keeping steam where it was validated. Toggle: steam_covered_only.
+    if settings.get("steam_covered_only", True):
+        parts = (match or "").split(" vs ")
+        if len(parts) != 2 or sharp_edge._match_key(parts[0].strip(), parts[1].strip()) is None:
+            print(f"[STEAM] Skipped (not Pinnacle-covered — thin-market noise): {match} ({selection})")
+            return
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return

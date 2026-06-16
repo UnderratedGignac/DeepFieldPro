@@ -108,3 +108,12 @@ full Kelly, keyed aggregator APIs, raw understat via requests, DNB/double-chance
 - Net: stats MODELS/markets confirmed -EV again. The scraper (Pinnacle totals) is kept — it's
   the foundation IF a totals-STEAM (line-movement) signal is ever built (different from value;
   steam is the one validated mechanism). Did NOT wire totals into the bet path (no edge).
+
+### Removed the losing feature (06-16 ~08:30, user request)
+- STEAM was bleeding the bankroll ($1075->$875) by firing on obscure non-Pinnacle leagues
+  where line moves are NOISE (the pass-2 finding, now acted on at user request).
+- Added a COVERAGE GATE in log_steam_bet: steam only fires when the match exists on Pinnacle
+  (sharp_edge._match_key is not None) = a liquid market with a sharp benchmark. settings
+  steam_covered_only=true. Verified: obscure (Arba Minch) skipped, covered (WC, Pinnacle
+  leagues) allowed. Removes the noise-loss tail; keeps steam where it was validated (+ now
+  every steam bet is clv_sharp-measurable). Restarted, health GREEN.
