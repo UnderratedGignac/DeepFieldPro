@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "deepfieldpro": {
+      "command": ".venv\\Scripts\\python.exe",
+      "args": ["src/mcp_server.py"],
+      "cwd": "C:\\Users\\Elie\\DeepFieldPro"
+    }
+  }
+}

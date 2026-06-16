@@ -38,3 +38,4 @@ ruff==0.15.15
 mypy
 Flask
 joblib
+mcp>=1.0.0

@@ -84,12 +84,30 @@ def get_state():
     try:
         if os.path.exists(state_path):
             with open(state_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return jsonify(data)
+                state = json.load(f)
         else:
-            return jsonify([])  # Return empty if no state file
+            state = []
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+    try:
+        from src.a2ui_builder import build_dashboard_ui
+        _bk = 0.0
+        try:
+            import sqlite3 as _sq2
+            _bkdb = os.path.join(DATA_DIR, "bankroll.db")
+            _bkc = _sq2.connect(_bkdb)
+            _bkr = _bkc.execute(
+                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1"
+            ).fetchone()
+            _bkc.close()
+            if _bkr:
+                _bk = float(_bkr[0])
+        except Exception:
+            pass
+        return jsonify({"data": state, "ui": build_dashboard_ui(state or [], {}, _bk), "ui_available": True})
+    except Exception as _ui_err:
+        return jsonify({"data": state, "ui": None, "ui_available": False})
 
 @app.route("/api/stream")
 def stream_state():
@@ -105,8 +123,13 @@ def stream_state():
                     if mtime > last_mtime:
                         last_mtime = mtime
                         with open(state_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-                        yield f"data: {content}\n\n"
+                            state = json.load(f)
+                        try:
+                            from src.a2ui_builder import build_dashboard_ui as _bdu
+                            _pl = {"data": state, "ui": _bdu(state or [], {}, 0.0), "ui_available": True}
+                        except Exception:
+                            _pl = {"data": state, "ui": None, "ui_available": False}
+                        yield f"data: {json.dumps(_pl)}\n\n"
             except Exception:
                 pass
             time.sleep(2)  # Check file every 2 seconds
@@ -885,15 +908,26 @@ def init_databases():
 
 
 def start_background_prediction_worker():
-    try:
-        import threading
-        from live_predictions_daemon import run_daemon
-
-        thread = threading.Thread(target=run_daemon, daemon=True)
-        thread.start()
-        print("[*] Background prediction worker thread started successfully.")
-    except Exception as e:
-        print("[!] Failed to start background prediction worker thread:", e)
+    import threading
+    if os.getenv("DEEPFIELD_USE_AGENTS") == "1":
+        # A2A agent-based orchestrator — replaces the legacy monolithic daemon
+        try:
+            from src.agents.daemon_orchestrator import DaemonOrchestrator
+            orch = DaemonOrchestrator()
+            interval = int(os.getenv("DEEPFIELD_AGENT_INTERVAL", "300"))
+            thread = threading.Thread(target=orch.run_loop, kwargs={"interval": interval}, daemon=True)
+            thread.start()
+            print(f"[*] A2A orchestrator thread started (interval={interval}s).")
+        except Exception as e:
+            print(f"[!] Failed to start A2A orchestrator thread: {e}")
+    else:
+        try:
+            from live_predictions_daemon import run_daemon
+            thread = threading.Thread(target=run_daemon, daemon=True)
+            thread.start()
+            print("[*] Background prediction worker thread started successfully.")
+        except Exception as e:
+            print("[!] Failed to start background prediction worker thread:", e)
 
 
 if __name__ == "__main__":

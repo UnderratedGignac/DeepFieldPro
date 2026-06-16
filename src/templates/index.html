@@ -1720,9 +1720,14 @@
         }
 
         function processNewData(data) {
+            // Handle hybrid {data, ui, ui_available} response from A2UI layer
+            const matches = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
+            if (data && data.ui_available && data.ui) {
+                renderA2UISummary(data.ui);
+            }
             let needsRender = false;
-            
-            data.forEach(m => {
+
+            matches.forEach(m => {
                 const matchId = m.match;
                 const prev = previousMatches[matchId];
                 
@@ -1763,8 +1768,40 @@
                 previousMatches[matchId] = m;
             });
             
-            cachedMatches = data;
+            cachedMatches = matches;
             renderDashboard(cachedMatches);
+        }
+
+        function renderA2UISummary(ui) {
+            // Extract the summary Text component from the A2UI v0.9 message and
+            // display it in the dashboard header area.
+            try {
+                const components = ui?.updateComponents?.components || [];
+                const summaryComp = components.find(c => c.id === 'summary');
+                if (!summaryComp || !summaryComp.text) return;
+                let bar = document.getElementById('a2ui-summary-bar');
+                if (!bar) {
+                    bar = document.createElement('div');
+                    bar.id = 'a2ui-summary-bar';
+                    bar.style.cssText = [
+                        'background:rgba(229,193,88,0.08)',
+                        'border:1px solid rgba(229,193,88,0.2)',
+                        'border-radius:8px',
+                        'padding:8px 14px',
+                        'font-size:0.78rem',
+                        'color:var(--primary)',
+                        'margin-bottom:12px',
+                        'display:flex',
+                        'align-items:center',
+                        'gap:8px',
+                        'width:100%',
+                        'box-sizing:border-box',
+                    ].join(';');
+                    const grid = document.getElementById('match-grid') || document.getElementById('dashboard');
+                    if (grid && grid.parentNode) grid.parentNode.insertBefore(bar, grid);
+                }
+                bar.innerHTML = `<i class="fa-solid fa-robot" style="opacity:0.7"></i> <span>${summaryComp.text}</span>`;
+            } catch (e) { /* non-critical */ }
         }
 
         function setMatchFilter(filterType, element) {
