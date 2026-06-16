@@ -69,3 +69,17 @@ full Kelly, keyed aggregator APIs, raw understat via requests, DNB/double-chance
   matches (walk-forward, prior-only), back the under-performer at best soft early price.
   GATE: deploy ONLY if the selectivity sweep is monotone-positive; else discard (likely -EV
   like goals-DC). Ingest more leagues/seasons first (`python tools/ingest_xg_understat.py`).
+
+### Overnight pass 2 (06-16 ~04:45) — autonomous, guardrailed
+- Health GREEN. xG ingest extended + verified: La Liga added → 760 rows (EPL+La Liga) in
+  data/xg_history.db. Multi-league path works.
+- **KEY FINDING (needs daylight backtest before acting):** all 20 clean-era STEAM bets have
+  0 sharp-CLV AND 0 line-shop data — steam is firing ONLY on obscure leagues with NO
+  Pinnacle/Kambi coverage, where it's losing (~-$31) and is UNMEASURABLE (no sharp close to
+  beat). The +20.9% steam backtest was on LIQUID major leagues; thin-market line moves on
+  obscure Betarabia fixtures are likely NOISE (stale/garbled-odds artifacts), not informed
+  money. HYPOTHESIS: restrict steam to Pinnacle-covered (liquid) matches only — this aligns
+  the live strategy with the backtest's domain AND makes every steam bet measurable via
+  clv_sharp. DO NOT change the live gate on a 20-bet sample; first backtest steam-on-covered
+  vs steam-on-obscure. Candidate: add a default-OFF `steam_covered_only` setting + a gate
+  check `sharp_edge._match_key(home,away,ko) is not None` so the user can enable after review.
