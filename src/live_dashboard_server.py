@@ -222,7 +222,7 @@ def get_stair_balance():
 def get_settled_ledger():
     singles = query_db(
         "bet_log.db",
-        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source FROM bet_log WHERE result != 'OPEN' ORDER BY placed_at DESC"
+        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source FROM bet_log ORDER BY placed_at DESC"
     )
     return jsonify({
         "singles": [dict(r) for r in (singles or [])],

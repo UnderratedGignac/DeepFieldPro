@@ -473,6 +473,12 @@
         .tag-win { background: rgba(0,255,100,0.1); color: #00ff88; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;}
         .tag-loss { background: rgba(255,0,50,0.1); color: #ff4d4d; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;}
         .tag-open { background: rgba(229, 193, 88, 0.1); color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;}
+        .ledger-filter-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 6px 18px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
+        .ledger-filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .ledger-filter-btn.active { background: var(--primary); border-color: var(--primary); color: #0a1910; }
+        .ledger-day-header { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 0 6px; border-bottom: 1px solid var(--border-color); margin: 18px 0 4px; display: flex; justify-content: space-between; align-items: center; }
+        .ledger-day-header span.day-summary { font-weight: 400; color: var(--text-muted); font-size: 0.75rem; }
+        #ledger-prev:disabled, #ledger-next:disabled { opacity: 0.35; cursor: default; }
         .live-min { color:#00ff88; font-weight:700; display:inline-flex; align-items:center; gap:6px; }
         .live-dot { width:8px; height:8px; border-radius:50%; background:#00ff88; display:inline-block; animation: livePulse 1.2s infinite; }
         @keyframes livePulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,136,0.6); opacity:1; } 70% { box-shadow: 0 0 0 7px rgba(0,255,136,0); opacity:0.6; } 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); opacity:1; } }
@@ -1012,42 +1018,46 @@
 
         <!-- SETTLED LEDGER VIEW -->
         <div id="settled-view" class="view-section">
+            <!-- KPI cards -->
             <div class="kpi-grid">
                 <div class="kpi-card" style="border-left: 4px solid var(--primary);">
-                    <div class="kpi-title">Total Profit / Loss</div>
+                    <div class="kpi-title">Profit / Loss</div>
                     <div class="kpi-value" id="ledger-total-pnl">$0.00</div>
                 </div>
                 <div class="kpi-card" style="border-left: 4px solid #00ff88;">
-                    <div class="kpi-title">Total Wins</div>
+                    <div class="kpi-title">Wins</div>
                     <div class="kpi-value" id="ledger-total-wins">0</div>
                 </div>
                 <div class="kpi-card" style="border-left: 4px solid #ff4d4d;">
-                    <div class="kpi-title">Total Losses</div>
+                    <div class="kpi-title">Losses</div>
                     <div class="kpi-value" id="ledger-total-losses">0</div>
                 </div>
                 <div class="kpi-card" style="border-left: 4px solid var(--secondary);">
-                    <div class="kpi-title">Total Turn-Over</div>
+                    <div class="kpi-title">Turnover</div>
                     <div class="kpi-value" id="ledger-total-turnover">$0.00</div>
                 </div>
             </div>
 
             <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
-                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-bolt"></i> Settled Bets</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Placed At</th>
-                            <th>Match / Selection</th>
-                            <th>Odds</th>
-                            <th>Stake</th>
-                            <th>Result</th>
-                            <th>PNL</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ledger-single-body">
-                        <tr><td colspan="6" style="text-align:center;">No settled bets found.</td></tr>
-                    </tbody>
-                </table>
+                <!-- Filter bar -->
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+                    <h3 style="color: var(--primary); margin:0;"><i class="fa-solid fa-bolt"></i> Bet Ledger</h3>
+                    <div id="ledger-filter-bar" style="display:flex; gap:8px;">
+                        <button class="ledger-filter-btn active" data-filter="all"    onclick="setLedgerFilter('all')">All</button>
+                        <button class="ledger-filter-btn"        data-filter="open"   onclick="setLedgerFilter('open')">Open</button>
+                        <button class="ledger-filter-btn"        data-filter="won"    onclick="setLedgerFilter('won')">Won</button>
+                        <button class="ledger-filter-btn"        data-filter="lost"   onclick="setLedgerFilter('lost')">Lost</button>
+                    </div>
+                </div>
+
+                <div id="ledger-days-container"></div>
+
+                <!-- Pagination -->
+                <div id="ledger-pagination" style="display:flex; align-items:center; justify-content:center; gap:16px; margin-top:20px;">
+                    <button id="ledger-prev" onclick="ledgerPage(-1)" style="background:var(--surface-color);border:1px solid var(--border-color);color:var(--text-main);padding:6px 16px;border-radius:8px;cursor:pointer;">&#8592; Prev</button>
+                    <span id="ledger-page-label" style="color:var(--text-muted);font-size:0.9rem;"></span>
+                    <button id="ledger-next" onclick="ledgerPage(1)"  style="background:var(--surface-color);border:1px solid var(--border-color);color:var(--text-main);padding:6px 16px;border-radius:8px;cursor:pointer;">Next &#8594;</button>
+                </div>
             </div>
         </div>
 
@@ -1268,53 +1278,123 @@
             }
         }
 
+        // Ledger state
+        let _ledgerAllBets = [];
+        let _ledgerFilter = 'all';
+        let _ledgerPage = 1;
+        const LEDGER_PER_PAGE = 25;
+
         async function loadSettledLedger() {
             try {
                 const res = await fetch('/api/settled_ledger');
                 const data = await res.json();
-                const singleBody = document.getElementById('ledger-single-body');
-
-                let totalPnL = 0, wins = 0, losses = 0, turnover = 0;
-
-                const bets = data.singles || [];
-                if (bets.length === 0) {
-                    singleBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No settled bets found.</td></tr>';
-                } else {
-                    singleBody.innerHTML = bets.map(s => {
-                        const pnl = s.pnl || 0;
-                        const stake = s.stake || 0;
-                        totalPnL += pnl;
-                        turnover += stake;
-                        if (s.result === 'W') wins++;
-                        else if (s.result === 'L') losses++;
-
-                        let tag;
-                        if (s.result === 'W') tag = `<span class="tag-win">WIN</span>`;
-                        else if (s.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
-                        else tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1);color:#aaa;">${s.result}</span>`;
-
-                        const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`;
-                        const src = s.bet_source ? `<span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;">${s.bet_source}</span>` : '';
-                        return `<tr>
-                            <td>${new Date(s.placed_at).toLocaleString()}</td>
-                            <td><strong>${s.match_id}</strong>${src}<br><span style="font-size:0.75rem;color:var(--text-muted);">${s.player_id || s.market_type}</span></td>
-                            <td>@ ${s.entry_odds}</td>
-                            <td>$${stake.toFixed(2)}</td>
-                            <td>${tag}</td>
-                            <td style="color:${pnl >= 0 ? '#00ff88' : '#ff4d4d'};font-weight:700;">${pnlStr}</td>
-                        </tr>`;
-                    }).join('');
-                }
-
-                const pnlEl = document.getElementById('ledger-total-pnl');
-                pnlEl.innerText = `${totalPnL >= 0 ? '+' : ''}$${totalPnL.toFixed(2)}`;
-                pnlEl.style.color = totalPnL >= 0 ? '#00ff88' : '#ff4d4d';
-                document.getElementById('ledger-total-wins').innerText = wins;
-                document.getElementById('ledger-total-losses').innerText = losses;
-                document.getElementById('ledger-total-turnover').innerText = `$${turnover.toFixed(2)}`;
+                _ledgerAllBets = data.singles || [];
+                _ledgerPage = 1;
+                renderLedger();
             } catch(e) {
                 console.error('Ledger load error:', e);
             }
+        }
+
+        function setLedgerFilter(f) {
+            _ledgerFilter = f;
+            _ledgerPage = 1;
+            document.querySelectorAll('.ledger-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+            renderLedger();
+        }
+
+        function ledgerPage(dir) {
+            const filtered = _ledgerFiltered();
+            const totalPages = Math.max(1, Math.ceil(filtered.length / LEDGER_PER_PAGE));
+            _ledgerPage = Math.min(Math.max(1, _ledgerPage + dir), totalPages);
+            renderLedger();
+        }
+
+        function _ledgerFiltered() {
+            return _ledgerAllBets.filter(s => {
+                if (_ledgerFilter === 'open') return s.result === 'OPEN';
+                if (_ledgerFilter === 'won')  return s.result === 'W';
+                if (_ledgerFilter === 'lost') return s.result === 'L';
+                return true;
+            });
+        }
+
+        function renderLedger() {
+            const filtered = _ledgerFiltered();
+            const totalPages = Math.max(1, Math.ceil(filtered.length / LEDGER_PER_PAGE));
+            _ledgerPage = Math.min(_ledgerPage, totalPages);
+
+            const start = (_ledgerPage - 1) * LEDGER_PER_PAGE;
+            const pageBets = filtered.slice(start, start + LEDGER_PER_PAGE);
+
+            // KPIs reflect current filter
+            let totalPnL = 0, wins = 0, losses = 0, turnover = 0;
+            filtered.forEach(s => {
+                totalPnL += s.pnl || 0;
+                turnover += s.stake || 0;
+                if (s.result === 'W') wins++;
+                else if (s.result === 'L') losses++;
+            });
+            const pnlEl = document.getElementById('ledger-total-pnl');
+            pnlEl.innerText = `${totalPnL >= 0 ? '+' : ''}$${totalPnL.toFixed(2)}`;
+            pnlEl.style.color = totalPnL >= 0 ? '#00ff88' : '#ff4d4d';
+            document.getElementById('ledger-total-wins').innerText = wins;
+            document.getElementById('ledger-total-losses').innerText = losses;
+            document.getElementById('ledger-total-turnover').innerText = `$${turnover.toFixed(2)}`;
+
+            // Group page bets by date
+            const byDay = {};
+            pageBets.forEach(s => {
+                const d = s.placed_at ? s.placed_at.slice(0, 10) : 'Unknown';
+                if (!byDay[d]) byDay[d] = [];
+                byDay[d].push(s);
+            });
+
+            const container = document.getElementById('ledger-days-container');
+            if (pageBets.length === 0) {
+                container.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:30px 0;">No bets found.</p>`;
+            } else {
+                container.innerHTML = Object.entries(byDay).map(([day, bets]) => {
+                    const dayPnl = bets.reduce((a, b) => a + (b.pnl || 0), 0);
+                    const dayPnlStr = `${dayPnl >= 0 ? '+' : ''}$${dayPnl.toFixed(2)}`;
+                    const dayDate = new Date(day + 'T12:00:00').toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+                    const rows = bets.map(s => {
+                        const pnl = s.pnl || 0;
+                        const stake = s.stake || 0;
+                        let tag;
+                        if (s.result === 'W')    tag = `<span class="tag-win">WIN</span>`;
+                        else if (s.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
+                        else if (s.result === 'OPEN') tag = `<span class="tag-open">OPEN</span>`;
+                        else tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.08);color:#888;">${s.result}</span>`;
+                        const pnlStr = pnl >= 0 ? `<span style="color:#00ff88;font-weight:700;">+$${pnl.toFixed(2)}</span>` : `<span style="color:#ff4d4d;font-weight:700;">-$${Math.abs(pnl).toFixed(2)}</span>`;
+                        const src = s.bet_source ? `<span style="font-size:0.62rem;background:rgba(255,255,255,0.06);color:var(--text-muted);padding:1px 5px;border-radius:3px;margin-left:5px;vertical-align:middle;">${s.bet_source}</span>` : '';
+                        const time = s.placed_at ? new Date(s.placed_at).toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit'}) : '';
+                        return `<tr>
+                            <td style="color:var(--text-muted);font-size:0.8rem;white-space:nowrap;">${time}</td>
+                            <td><strong>${s.match_id || ''}</strong>${src}<br><span style="font-size:0.75rem;color:var(--text-muted);">${s.player_id || s.market_type || ''}</span></td>
+                            <td>@ ${s.entry_odds || '—'}</td>
+                            <td>$${stake.toFixed(2)}</td>
+                            <td>${tag}</td>
+                            <td>${pnlStr}</td>
+                        </tr>`;
+                    }).join('');
+                    return `
+                        <div class="ledger-day-header">
+                            <span>${dayDate}</span>
+                            <span class="day-summary">${bets.length} bet${bets.length !== 1 ? 's' : ''} &nbsp;·&nbsp; <span style="color:${dayPnl >= 0 ? '#00ff88' : '#ff4d4d'}">${dayPnlStr}</span></span>
+                        </div>
+                        <table class="data-table" style="margin-bottom:4px;">
+                            <thead><tr><th>Time</th><th>Match / Selection</th><th>Odds</th><th>Stake</th><th>Result</th><th>PNL</th></tr></thead>
+                            <tbody>${rows}</tbody>
+                        </table>`;
+                }).join('');
+            }
+
+            // Pagination controls
+            document.getElementById('ledger-page-label').innerText = `Page ${_ledgerPage} of ${totalPages}  (${filtered.length} bets)`;
+            document.getElementById('ledger-prev').disabled = _ledgerPage <= 1;
+            document.getElementById('ledger-next').disabled = _ledgerPage >= totalPages;
+            document.getElementById('ledger-pagination').style.display = totalPages <= 1 ? 'none' : 'flex';
         }
 
         // Live Dashboard Logic
