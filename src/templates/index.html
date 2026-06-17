@@ -229,6 +229,7 @@
             position: relative;
             transition: var(--transition);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.4s ease both;
         }
 
         .match-card:hover {
@@ -756,20 +757,11 @@
             <a class="nav-item" onclick="switchView('tracker-view', this)">
                 <i class="fa-solid fa-list-check"></i> Bet Tracker
             </a>
-            <a class="nav-item" onclick="switchView('performance-view', this)">
-                <i class="fa-solid fa-chart-line"></i> Performance (AI vs User)
-            </a>
-            <a class="nav-item" onclick="switchView('parlay-view', this)">
-                <i class="fa-solid fa-layer-group"></i> Smart Parlays
-            </a>
             <a class="nav-item" onclick="switchView('settled-view', this)">
                 <i class="fa-solid fa-file-invoice-dollar"></i> P&L Ledger
             </a>
             <a class="nav-item" onclick="switchView('comparison-view', this)">
                 <i class="fa-solid fa-scale-balanced"></i> AI vs Reality
-            </a>
-            <a class="nav-item" onclick="switchView('stair-view', this)">
-                <i class="fa-solid fa-robot"></i> Stair AI API Bets
             </a>
             <a class="nav-item" onclick="switchView('arena-view', this)">
                 <i class="fa-solid fa-futbol"></i> World Cup Arena
@@ -917,40 +909,6 @@
                 </div>
             </div>
 
-            <!-- ACTIVE PARLAYS SECTION -->
-            <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; margin-top: 20px;">
-                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-layer-group"></i> Active Smart Parlays</h3>
-                <div id="active-parlays-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
-                    <div style="text-align: center; width: 100%; padding: 20px; color: var(--text-muted);">Syncing parlays...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- STAIR AI API BETS VIEW -->
-        <div id="stair-view" class="view-section">
-            <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; margin-bottom: 20px;">
-                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-robot"></i> Stair AI Automated API Bets</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">This ledger displays all betting orders autonomously transmitted and successfully executed by the Capital Engine via the Stair AI production API.</p>
-                <div class="table-container" style="overflow-x: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Placed At</th>
-                                <th>Match</th>
-                                <th>Market (Selection)</th>
-                                <th>Odds</th>
-                                <th>Stake</th>
-                                <th>Status</th>
-                                <th>Stair Order ID</th>
-                                <th>PNL</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stair-table-body">
-                            <!-- Stair Bets populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
 
         <!-- WORLD CUP ARENA VIEW (Stair AI real-money value betting) -->
@@ -1049,117 +1007,6 @@
                     <button class="btn-primary" onclick="saveSettings()"><i class="fa-solid fa-save"></i> Save Configuration</button>
                 </div>
                 
-                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 30px 0;">
-                
-                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-brain"></i> Model Recalibration</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Manually trigger the Platt Scaler to recalibrate probability confidence based on the last 30 days of results.</p>
-                <button class="btn-danger" onclick="triggerPlatt()"><i class="fa-solid fa-fire"></i> Trigger Platt Scaler Recalibration</button>
-            </div>
-        </div>
-
-        <!-- PARLAY VIEW -->
-        <div id="parlay-view" class="view-section">
-            <div class="kpi-grid">
-                <div class="kpi-card" style="border-left: 4px solid var(--primary); background: rgba(229, 193, 88, 0.05);">
-                    <div class="kpi-title">Parlay Capital Staked</div>
-                    <div class="kpi-value" id="parlay-kpi-staked">$0.00</div>
-                </div>
-                <div class="kpi-card" style="border-left: 4px solid #ff4d4d; background: rgba(255, 77, 77, 0.05);">
-                    <div class="kpi-title">Total Parlay Losses</div>
-                    <div class="kpi-value" id="parlay-kpi-lost">$0.00</div>
-                </div>
-                <div class="kpi-card" style="border-left: 4px solid #00ff88; background: rgba(0, 255, 136, 0.05);">
-                    <div class="kpi-title">Potential Parlay Return</div>
-                    <div class="kpi-value" id="parlay-kpi-return">$0.00</div>
-                </div>
-                <div class="kpi-card" style="border-left: 4px solid var(--secondary); background: rgba(197, 160, 58, 0.05);">
-                    <div class="kpi-title">Active (Pending) Parlays</div>
-                    <div class="kpi-value" id="parlay-kpi-pending">0</div>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
-                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
-                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-chart-pie"></i> Parlay Profit/Loss Distribution</h3>
-                    <div style="height: 250px;"><canvas id="parlayPnLChart"></canvas></div>
-                </div>
-                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
-                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-chart-bar"></i> Parlay Trust vs EV Analysis</h3>
-                    <div style="height: 250px;"><canvas id="parlayTrustChart"></canvas></div>
-                </div>
-            </div>
-
-            <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-layer-group"></i> Smart Generated Parlays (Current Momentum)</h3>
-            <div id="parlay-grid" class="dashboard">
-                <div style="text-align: center; width: 100%; padding: 40px; color: var(--text-muted);">
-                    <i class="fa-solid fa-circle-notch fa-spin"></i> Generating high-confidence combinations...
-                </div>
-            </div>
-        </div>
-
-        <!-- PERFORMANCE VIEW -->
-        <div id="performance-view" class="view-section">
-            <div class="kpi-grid">
-                <div class="kpi-card" style="border-left: 4px solid var(--primary);">
-                    <div class="kpi-title">AI PNL (Recommendations)</div>
-                    <div class="kpi-value" id="perf-ai-pnl">Loading...</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="perf-ai-winrate">Win Rate: Loading...</div>
-                </div>
-                <div class="kpi-card" style="border-left: 4px solid var(--secondary);">
-                    <div class="kpi-title">My Total PNL</div>
-                    <div class="kpi-value" id="perf-user-pnl">Loading...</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="perf-user-winrate">Win Rate: Loading...</div>
-                </div>
-                <div class="kpi-card" style="border-left: 4px solid #00ff88;">
-                    <div class="kpi-title">My PNL (Following AI)</div>
-                    <div class="kpi-value" style="color: #00ff88;" id="perf-user-rec-pnl">Loading...</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="perf-user-rec-stats">Loading...</div>
-                </div>
-                <div class="kpi-card" style="border-left: 4px solid #ff4d4d;">
-                    <div class="kpi-title">My PNL (Going Rogue)</div>
-                    <div class="kpi-value" style="color: #ff4d4d;" id="perf-user-own-pnl">Loading...</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;" id="perf-user-own-stats">Loading...</div>
-                </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px;">
-                <!-- AI Recommended Ledger -->
-                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
-                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-brain"></i> AI Recommended Ledger</h3>
-                    <table class="data-table" id="perf-ai-table">
-                        <thead>
-                            <tr>
-                                <th>Match / Market</th>
-                                <th>Odds</th>
-                                <th>Stake</th>
-                                <th>PNL</th>
-                                <th>Result</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td colspan="5" style="text-align: center;">Loading AI Ledger...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- User Placed Ledger -->
-                <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
-                    <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-user"></i> My Placed Bets</h3>
-                    <table class="data-table" id="perf-user-table">
-                        <thead>
-                            <tr>
-                                <th>Match / Market</th>
-                                <th>Odds</th>
-                                <th>Stake</th>
-                                <th>PNL</th>
-                                <th>Result</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td colspan="5" style="text-align: center;">Loading User Ledger...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
 
@@ -1184,27 +1031,8 @@
                 </div>
             </div>
 
-            <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; margin-bottom: 24px;">
-                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-layer-group"></i> Settled Parlays</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Placed At</th>
-                            <th>Legs</th>
-                            <th>Total Odds</th>
-                            <th>Stake</th>
-                            <th>Result</th>
-                            <th>PNL</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ledger-parlay-body">
-                        <tr><td colspan="6" style="text-align:center;">No settled parlays found.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
             <div style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px;">
-                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-bolt"></i> Settled Regular Bets</h3>
+                <h3 style="color: var(--primary); margin-bottom: 20px;"><i class="fa-solid fa-bolt"></i> Settled Bets</h3>
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -1412,40 +1240,29 @@
                 'bankroll-view': 'Capital Overview',
                 'tracker-view': 'Execution Ledger',
                 'settings-view': 'Engine Configuration',
-                'performance-view': 'User vs AI Performance',
                 'comparison-view': 'AI vs Reality Comparisons',
-                'stair-view': 'Stair AI API Bets',
                 'arena-view': 'World Cup Arena (Stair AI)',
-                'parlay-view': 'Parlay Intelligence'
+                'settled-view': 'P&L Ledger'
             };
             document.getElementById('page-title').innerText = titles[viewId] || 'DeepField';
-            
+
             const paths = {
                 'live-view': '/',
                 'bankroll-view': '/bankroll',
                 'tracker-view': '/tracker',
                 'settings-view': '/settings',
-                'performance-view': '/performance',
-                'comparison-view': '/comparison',
-                'stair-view': '/stair',
-                'parlay-view': '/parlays'
+                'comparison-view': '/comparison'
             };
             if(paths[viewId] && window.location.pathname !== paths[viewId]) {
                 history.pushState(null, '', paths[viewId]);
             }
             
-            if(viewId === 'performance-view') {
-                loadPerformance();
-            } else if(viewId === 'tracker-view') {
+            if(viewId === 'tracker-view') {
                 loadTracker();
             } else if(viewId === 'bankroll-view') {
                 loadBankroll();
             } else if(viewId === 'comparison-view') {
                 loadComparisonList();
-            } else if(viewId === 'stair-view') {
-                loadStairBets();
-            } else if(viewId === 'parlay-view') {
-                loadParlays();
             } else if(viewId === 'settled-view') {
                 loadSettledLedger();
             }
@@ -1455,192 +1272,48 @@
             try {
                 const res = await fetch('/api/settled_ledger');
                 const data = await res.json();
-                
-                const parlayBody = document.getElementById('ledger-parlay-body');
                 const singleBody = document.getElementById('ledger-single-body');
-                
-                let totalPnL = 0;
-                let wins = 0;
-                let losses = 0;
-                let turnover = 0;
 
-                // Render Parlays
-                if(data.parlays.length === 0) {
-                    parlayBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No settled parlays found.</td></tr>';
-                } else {
-                    parlayBody.innerHTML = data.parlays.map(p => {
-                        totalPnL += p.pnl || 0;
-                        turnover += p.stake || 0;
-                        if(p.result === 'W') wins++; else losses++;
-                        
-                        const legs = JSON.parse(p.legs_json);
-                        const legsList = legs.map(l => {
-                            const resTag = l.result === 'W' ? '<span style="color:#00ff88; font-weight:800; font-size:0.65rem;">[W]</span>' : (l.result === 'L' ? '<span style="color:#ff4d4d; font-weight:800; font-size:0.65rem;">[L]</span>' : '');
-                            return `<div style="font-size:0.75rem; margin-bottom:4px; border-left:2px solid ${l.result==='W'?'#00ff88':(l.result==='L'?'#ff4d4d':'var(--border-color)')}; padding-left:8px;">${resTag} ${l.match}<br><span style="color:var(--text-muted); font-size:0.7rem;">${l.selection}</span></div>`;
-                        }).join('');
-                        
-                        return `<tr>
-                            <td>${new Date(p.placed_at).toLocaleString()}</td>
-                            <td>${legsList}</td>
-                            <td>@ ${p.total_odds}</td>
-                            <td>$${p.stake.toFixed(2)}</td>
-                            <td><span class="${p.result === 'W' ? 'tag-win' : 'tag-loss'}">${p.result === 'W' ? 'PARLAY WON' : 'PARLAY LOST'}</span></td>
-                            <td style="color:${p.pnl >= 0 ? '#00ff88' : '#ff4d4d'}; font-weight:700;">$${(p.pnl || 0).toFixed(2)}</td>
-                        </tr>`;
-                    }).join('');
-                }
+                let totalPnL = 0, wins = 0, losses = 0, turnover = 0;
 
-                // Render Singles
-                if(data.singles.length === 0) {
+                const bets = data.singles || [];
+                if (bets.length === 0) {
                     singleBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No settled bets found.</td></tr>';
                 } else {
-                    singleBody.innerHTML = data.singles.map(s => {
-                        totalPnL += s.pnl || 0;
-                        turnover += s.stake || 0;
-                        if(s.result === 'W') wins++; else losses++;
-                        
+                    singleBody.innerHTML = bets.map(s => {
+                        const pnl = s.pnl || 0;
+                        const stake = s.stake || 0;
+                        totalPnL += pnl;
+                        turnover += stake;
+                        if (s.result === 'W') wins++;
+                        else if (s.result === 'L') losses++;
+
+                        let tag;
+                        if (s.result === 'W') tag = `<span class="tag-win">WIN</span>`;
+                        else if (s.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
+                        else tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1);color:#aaa;">${s.result}</span>`;
+
+                        const pnlStr = pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`;
+                        const src = s.bet_source ? `<span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;">${s.bet_source}</span>` : '';
                         return `<tr>
                             <td>${new Date(s.placed_at).toLocaleString()}</td>
-                            <td><strong>${s.match_id}</strong><br><span style="font-size:0.75rem;">${s.player_id || s.market_type}</span></td>
+                            <td><strong>${s.match_id}</strong>${src}<br><span style="font-size:0.75rem;color:var(--text-muted);">${s.player_id || s.market_type}</span></td>
                             <td>@ ${s.entry_odds}</td>
-                            <td>$${s.stake.toFixed(2)}</td>
-                            <td><span class="${s.result === 'W' ? 'tag-win' : 'tag-loss'}">${s.result}</span></td>
-                            <td style="color:${s.pnl >= 0 ? '#00ff88' : '#ff4d4d'}; font-weight:700;">$${(s.pnl || 0).toFixed(2)}</td>
+                            <td>$${stake.toFixed(2)}</td>
+                            <td>${tag}</td>
+                            <td style="color:${pnl >= 0 ? '#00ff88' : '#ff4d4d'};font-weight:700;">${pnlStr}</td>
                         </tr>`;
                     }).join('');
                 }
 
-                document.getElementById('ledger-total-pnl').innerText = `$${totalPnL.toFixed(2)}`;
-                document.getElementById('ledger-total-pnl').style.color = totalPnL >= 0 ? '#00ff88' : '#ff4d4d';
+                const pnlEl = document.getElementById('ledger-total-pnl');
+                pnlEl.innerText = `${totalPnL >= 0 ? '+' : ''}$${totalPnL.toFixed(2)}`;
+                pnlEl.style.color = totalPnL >= 0 ? '#00ff88' : '#ff4d4d';
                 document.getElementById('ledger-total-wins').innerText = wins;
                 document.getElementById('ledger-total-losses').innerText = losses;
                 document.getElementById('ledger-total-turnover').innerText = `$${turnover.toFixed(2)}`;
-
             } catch(e) {
-                console.error(e);
-            }
-        }
-
-        async function doPlaceParlay(parlayData) {
-            if(!confirm(`Confirm placement of this ${parlayData.size}-leg parlay with $${parlayData.recommended_stake} stake?`)) return;
-            try {
-                const res = await fetch('/api/place_parlay', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(parlayData)
-                });
-                if(res.ok) {
-                    showToast("Parlay successfully logged to P&L Ledger!", "success");
-                    loadParlays();
-                }
-            } catch(e) {
-                showToast("Failed to log parlay.", "error");
-            }
-        }
-
-        let parlayPnLChartInstance = null;
-        let parlayTrustChartInstance = null;
-
-        async function loadParlays() {
-            const grid = document.getElementById('parlay-grid');
-            try {
-                const res = await fetch('/api/smart_parlays');
-                const data = await res.json();
-                
-                if (!data.top_parlays || data.top_parlays.length === 0) {
-                    grid.innerHTML = '<div class="placeholder-box" style="width:100%;"><h3>No parlays found</h3><p>Run the parlay intelligence model to generate new combinations.</p></div>';
-                    return;
-                }
-
-                grid.innerHTML = '';
-                
-                // Real KPI Updates
-                const totalStaked = data.top_parlays.reduce((acc, p) => acc + (p.recommended_stake || 0), 0);
-                const potentialReturn = data.top_parlays.reduce((acc, p) => acc + (p.recommended_stake * p.total_odds), 0);
-                
-                document.getElementById('parlay-kpi-staked').innerText = `$${totalStaked.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('parlay-kpi-pending').innerText = data.top_parlays.length;
-                document.getElementById('parlay-kpi-return').innerText = `$${potentialReturn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
-                data.top_parlays.forEach((p, idx) => {
-                    const card = document.createElement('div');
-                    card.className = 'match-card';
-                    card.style.borderLeft = `5px solid ${p.parlay_trust_score > 70 ? '#00ff88' : 'var(--primary)'}`;
-                    
-                    let legsHTML = p.legs.map(l => `
-                        <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border-color);">
-                            <div style="font-size:0.75rem; color:var(--text-muted);">${l.match}</div>
-                            <div style="font-weight:700; display:flex; justify-content:space-between;">
-                                <span>${l.selection} (${l.market})</span>
-                                <span style="color:var(--primary);">@ ${l.odds.toFixed(2)}</span>
-                            </div>
-                            <div style="font-size:0.65rem; color:var(--secondary);">Trust: ${l.trust}%</div>
-                        </div>
-                    `).join('');
-
-                    card.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px;">
-                            <span style="background:var(--primary); color:var(--bg-color); padding:4px 10px; border-radius:4px; font-weight:800; font-size:0.75rem;">${p.size}-LEG SMART PARLAY</span>
-                            <span style="color:var(--primary); font-weight:900; font-size:1.2rem;">@ ${p.total_odds}</span>
-                        </div>
-                        ${legsHTML}
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">
-                            <div class="stat-item" style="background:rgba(0,0,0,0.2);">
-                                <div class="stat-label">Trust Score</div>
-                                <div class="stat-value" style="color:#00ff88;">${p.parlay_trust_score}%</div>
-                            </div>
-                            <div class="stat-item" style="background:rgba(0,0,0,0.2);">
-                                <div class="stat-label">Expected EV</div>
-                                <div class="stat-value" style="color:var(--primary);">${p.combined_ev}%</div>
-                            </div>
-                        </div>
-                        <div style="margin-top:15px; font-weight:700; color:var(--text-muted); font-size:0.8rem; display: flex; justify-content: space-between; align-items: center;">
-                            <span>Recommended Stake: <span style="color:var(--text-main); font-size:1rem;">$${p.recommended_stake}</span></span>
-                            <span style="color:#00ff88;">Pot. Payout: $${(p.recommended_stake * p.total_odds).toFixed(2)}</span>
-                        </div>
-                        <button class="btn-primary" style="width:100%; margin-top:15px; padding:10px;" onclick='doPlaceParlay(${JSON.stringify(p)})'>
-                            <i class="fa-solid fa-bolt"></i> PLACE PARLAY
-                        </button>
-                    `;
-                    grid.appendChild(card);
-                });
-
-                // Charts
-                const ctxPnL = document.getElementById('parlayPnLChart').getContext('2d');
-                if(parlayPnLChartInstance) parlayPnLChartInstance.destroy();
-                parlayPnLChartInstance = new Chart(ctxPnL, {
-                    type: 'line',
-                    data: {
-                        labels: ['Start', ...data.top_parlays.map((_, i) => `P${i+1}`)],
-                        datasets: [{
-                            label: 'Equity Curve (Simulated)',
-                            data: [0, ...data.top_parlays.map((p, i) => (i + 1) * 25)], // Still simulated until we have history, but labeled as such
-                            borderColor: '#00ff88',
-                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                            fill: true,
-                            tension: 0.4
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                });
-
-                const ctxTrust = document.getElementById('parlayTrustChart').getContext('2d');
-                if(parlayTrustChartInstance) parlayTrustChartInstance.destroy();
-                parlayTrustChartInstance = new Chart(ctxTrust, {
-                    type: 'bar',
-                    data: {
-                        labels: data.top_parlays.map((_, i) => `P${i+1}`),
-                        datasets: [
-                            { label: 'Trust', data: data.top_parlays.map(p => p.parlay_trust_score), backgroundColor: '#E5C158' },
-                            { label: 'EV %', data: data.top_parlays.map(p => p.combined_ev), backgroundColor: '#1B3B2B' }
-                        ]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-
-            } catch(e) {
-                console.error(e);
-                grid.innerHTML = '<div style="color:#ff4d4d; padding:20px;">Failed to load parlays.</div>';
+                console.error('Ledger load error:', e);
             }
         }
 
@@ -1951,7 +1624,7 @@
 
                 if (match.prediction) {
                     const p = match.prediction;
-                    const formatPlayers = (players) => players.map(pl => `${pl.name} (${pl.impact})`).join(', ');
+                    const formatPlayers = (players) => players.slice(0, 3).map(pl => `${pl.name} <span style="color:var(--tertiary);font-size:0.7rem;">(xG ${typeof pl.impact === 'number' ? pl.impact.toFixed(2) : pl.impact})</span>`).join(', ');
 
                     contentHTML += `
                         <div class="prediction-box">
@@ -1985,30 +1658,30 @@
                     `;
 
                     if(p.markets) {
-                        contentHTML += `<div class="market-section"><h4 style="color:var(--secondary);margin-bottom:10px;"><i class="fa-solid fa-store"></i> Betarabia Markets</h4>`;
+                        contentHTML += `<div class="market-section"><h4 style="color:var(--secondary);margin-bottom:10px;"><i class="fa-solid fa-brain"></i> AI Model Probabilities</h4>`;
                         for(const [marketName, selections] of Object.entries(p.markets)) {
                             contentHTML += `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; margin-bottom:4px;">${marketName}</div>`;
                             selections.forEach(sel => {
+                                // Determine top pick: highest prob in this market
+                                const maxProb = Math.max(...selections.map(s => s.prob || 0));
+                                const isTopPick = sel.prob >= maxProb && selections.length > 1;
                                 let recBadge = '';
-                                if(sel.recommended) {
+                                if (sel.recommended) {
                                     recBadge = `<span style="background:linear-gradient(135deg, var(--primary), var(--secondary)); color:var(--bg-color); font-weight:700; padding:2px 6px; border-radius:4px; font-size:0.65rem; text-transform:uppercase; margin-left:8px;">RECOMMENDED</span>`;
-                                } else if (sel.is_top_pick) {
-                                    recBadge = `<span style="background:rgba(255,255,255,0.1); color:var(--text-muted); font-weight:600; padding:2px 6px; border-radius:4px; font-size:0.65rem; text-transform:uppercase; margin-left:8px; border:1px solid rgba(255,255,255,0.2);">AI PICK</span>`;
+                                } else if (sel.is_top_pick || isTopPick) {
+                                    recBadge = `<span style="background:rgba(229,193,88,0.15); color:var(--primary); font-weight:600; padding:2px 6px; border-radius:4px; font-size:0.65rem; text-transform:uppercase; margin-left:8px; border:1px solid rgba(229,193,88,0.3);">TOP PICK</span>`;
                                 }
-                                let skipReasonHTML = '';
-                                if(!sel.recommended && sel.skip_reason) {
-                                    skipReasonHTML = `<div style="font-size: 0.65rem; color: #ff4d4d; margin-top: 2px; text-align: right; padding-right: 5px; opacity: 0.8;"><i class="fa-solid fa-triangle-exclamation"></i> AI Skipped: ${sel.skip_reason}</div>`;
-                                }
+                                const matchSafe = encodeURIComponent(p.match || match.match || '');
+                                const selSafe = encodeURIComponent(sel.selection || '');
+                                const mktSafe = encodeURIComponent(marketName);
                                 contentHTML += `
                                 <div class="market-row ${sel.flashClass || ''}" style="margin-bottom: 6px; display: flex; flex-direction: column; width: 100%;">
-                                    <button class="market-btn" onclick="addToSlip('${p.match}', '${marketName}', '${sel.selection}', ${sel.prob}, ${sel.odds || 0}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
+                                    <button class="market-btn" onclick="addToSlip(decodeURIComponent('${matchSafe}'), decodeURIComponent('${mktSafe}'), decodeURIComponent('${selSafe}'), ${sel.prob}, ${sel.odds || 0}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
                                         <span style="display:flex; align-items:center;">${sel.selection} ${recBadge}</span>
-                                        <span style="font-family:'Outfit',sans-serif; font-weight:700;">
-                                            <span style="color:var(--text-muted); font-size:0.8rem; margin-right:8px;">${sel.prob}%</span>
-                                            <span style="color:var(--primary);">@ ${(sel.odds || 0).toFixed(2)}</span>
+                                        <span style="font-family:'Outfit',sans-serif; font-weight:700; color:var(--primary);">
+                                            ${sel.prob}%${sel.odds ? ` <span style="color:var(--text-muted); font-size:0.8rem; margin-left:6px;">@ ${sel.odds.toFixed(2)}</span>` : ''}
                                         </span>
                                     </button>
-                                    ${skipReasonHTML}
                                 </div>`;
                             });
                         }
@@ -2028,9 +1701,12 @@
                             if (selections && selections.length > 0) {
                                 contentHTML += `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; margin-bottom:4px;">${marketName}</div>`;
                                 selections.forEach(sel => {
+                                    const pmMatchSafe = encodeURIComponent(match.match || '');
+                                    const pmMktSafe = encodeURIComponent(marketName);
+                                    const pmSelSafe = encodeURIComponent(sel.selection || '');
                                     contentHTML += `
                                     <div class="market-row ${sel.flashClass || ''}" style="margin-bottom: 6px;">
-                                        <button class="market-btn" onclick="addToSlip('${match.match}', '${marketName}', '${sel.selection}', 0.0, ${sel.odds}, 0)" style="display:flex; justify-content:space-between; align-items:center;">
+                                        <button class="market-btn" onclick="addToSlip(decodeURIComponent('${pmMatchSafe}'), decodeURIComponent('${pmMktSafe}'), decodeURIComponent('${pmSelSafe}'), 0.0, ${sel.odds}, 0)" style="display:flex; justify-content:space-between; align-items:center;">
                                             <span>${sel.selection}</span>
                                             <span style="font-family:'Outfit',sans-serif; font-weight:700; color:var(--primary);">@ ${sel.odds.toFixed(2)}</span>
                                         </button>
@@ -2074,80 +1750,6 @@
             }
         }
 
-
-        async function loadPerformance() {
-            try {
-                const res = await fetch('/api/performance');
-                const data = await res.json();
-                
-                document.getElementById('perf-ai-pnl').innerText = `$${data.ai.pnl.toLocaleString()}`;
-                document.getElementById('perf-ai-pnl').style.color = data.ai.pnl >= 0 ? 'var(--primary)' : '#ff4d4d';
-                document.getElementById('perf-ai-winrate').innerText = `Win Rate: ${data.ai.win_rate}% (${data.ai.wins}W - ${data.ai.losses}L)`;
-                
-                document.getElementById('perf-user-pnl').innerText = `$${data.user.pnl.toLocaleString()}`;
-                document.getElementById('perf-user-pnl').style.color = data.user.pnl >= 0 ? 'var(--primary)' : '#ff4d4d';
-                document.getElementById('perf-user-winrate').innerText = `Win Rate: ${data.user.win_rate}% (${data.user.wins}W - ${data.user.losses}L)`;
-                
-                document.getElementById('perf-user-rec-pnl').innerText = `$${data.user_rec.pnl.toLocaleString()}`;
-                document.getElementById('perf-user-rec-pnl').style.color = data.user_rec.pnl >= 0 ? '#00ff88' : '#ff4d4d';
-                document.getElementById('perf-user-rec-stats').innerText = `Win Rate: ${data.user_rec.win_rate}% | Total: ${data.user_rec.total} bets`;
-                
-                document.getElementById('perf-user-own-pnl').innerText = `$${data.user_own.pnl.toLocaleString()}`;
-                document.getElementById('perf-user-own-pnl').style.color = data.user_own.pnl >= 0 ? '#00ff88' : '#ff4d4d';
-                document.getElementById('perf-user-own-stats').innerText = `Win Rate: ${data.user_own.win_rate}% | Total: ${data.user_own.total} bets`;
-                
-                const aiBody = document.querySelector('#perf-ai-table tbody');
-                if (data.raw_ai_bets.length === 0) {
-                    aiBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No AI recommended bets yet.</td></tr>';
-                } else {
-                    aiBody.innerHTML = data.raw_ai_bets.map(b => {
-                        let tag = `<span class="tag-open">OPEN</span>`;
-                        let actionButtons = '';
-                        if (b.result === 'W') tag = `<span class="tag-win">WIN</span>`;
-                        else if (b.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
-                        else if (b.result === 'VOID') tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1); color:#aaa;">VOID</span>`;
-                        else {
-                            actionButtons = '';
-                        }
-                        let pnlVal = b.pnl ? (b.pnl >= 0 ? `+$${b.pnl.toFixed(2)}` : `-$${Math.abs(b.pnl).toFixed(2)}`) : '-';
-                        return `<tr>
-                            <td><strong>${b.player_id}</strong><br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
-                            <td>${b.entry_odds}</td>
-                            <td>$${b.stake}</td>
-                            <td style="color: ${b.pnl >= 0 ? '#00ff88' : '#ff4d4d'}">${pnlVal}</td>
-                            <td>${tag}${actionButtons}</td>
-                        </tr>`;
-                    }).join('');
-                }
-                
-                const userBody = document.querySelector('#perf-user-table tbody');
-                if (data.raw_user_bets.length === 0) {
-                    userBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No bets placed by you yet.</td></tr>';
-                } else {
-                    userBody.innerHTML = data.raw_user_bets.map(b => {
-                        let tag = `<span class="tag-open">OPEN</span>`;
-                        let actionButtons = '';
-                        if (b.result === 'W') tag = `<span class="tag-win">WIN</span>`;
-                        else if (b.result === 'L') tag = `<span class="tag-loss">LOSS</span>`;
-                        else if (b.result === 'VOID') tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.1); color:#aaa;">VOID</span>`;
-                        else {
-                            actionButtons = '';
-                        }
-                        let pnlVal = b.pnl ? (b.pnl >= 0 ? `+$${b.pnl.toFixed(2)}` : `-$${Math.abs(b.pnl).toFixed(2)}`) : '-';
-                        let followTag = b.is_recommended ? `<span style="background:rgba(229,193,88,0.15); color:var(--primary); font-size:0.65rem; padding:1px 4px; border-radius:3px; font-weight:600; margin-left:5px; border: 1px solid rgba(229,193,88,0.3)">AI RECOMMENDED</span>` : `<span style="background:rgba(255,77,77,0.1); color:#ff4d4d; font-size:0.65rem; padding:1px 4px; border-radius:3px; font-weight:600; margin-left:5px; border: 1px solid rgba(255,77,77,0.2)">MY CHOICE</span>`;
-                        return `<tr>
-                            <td><strong>${b.player_id}</strong> ${followTag}<br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
-                            <td>${b.entry_odds}</td>
-                            <td>$${b.stake}</td>
-                            <td style="color: ${b.pnl >= 0 ? '#00ff88' : '#ff4d4d'}">${pnlVal}</td>
-                            <td>${tag}${actionButtons}</td>
-                        </tr>`;
-                    }).join('');
-                }
-            } catch (e) {
-                console.error("Error loading performance stats:", e);
-            }
-        }
 
         setInterval(() => {
             if(document.getElementById('live-view').classList.contains('active')) {
@@ -2343,102 +1945,7 @@
                     </tr>`;
                 }).join('');
                 
-                // Also load active parlays
-                loadActiveParlays();
             } catch(e) {}
-        }
-
-        async function loadActiveParlays() {
-            const container = document.getElementById('active-parlays-container');
-            try {
-                const res = await fetch('/api/active_parlays');
-                const data = await res.json();
-                
-                if(data.length === 0) {
-                    container.innerHTML = '<div style="text-align: center; width: 100%; padding: 20px; color: var(--text-muted);">No active parlays currently in play.</div>';
-                    return;
-                }
-                
-                container.innerHTML = data.map(p => {
-                    const legs = JSON.parse(p.legs_json);
-                    const legsHTML = legs.map(l => {
-                        let statusIcon = '<i class="fa-solid fa-hourglass-half" style="color:var(--text-muted);"></i>';
-                        let statusText = 'Pending';
-                        let rowStyle = '';
-                        
-                        if(l.result === 'W') {
-                            statusIcon = '<i class="fa-solid fa-circle-check" style="color:#00ff88;"></i>';
-                            statusText = 'WON';
-                            rowStyle = 'background: rgba(0,255,100,0.05);';
-                        } else if(l.result === 'L') {
-                            statusIcon = '<i class="fa-solid fa-circle-xmark" style="color:#ff4d4d;"></i>';
-                            statusText = 'LOSS';
-                            rowStyle = 'background: rgba(255,77,77,0.05);';
-                        }
-                        
-                        return `
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); ${rowStyle}">
-                                <div style="flex: 1;">
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);">${l.match}</div>
-                                    <div style="font-weight: 600; font-size: 0.85rem;">${l.selection} <span style="color: var(--primary); font-size: 0.75rem;">@ ${l.odds.toFixed(2)}</span></div>
-                                </div>
-                                <div style="text-align: right; min-width: 70px;">
-                                    ${statusIcon} <span style="font-size: 0.7rem; font-weight: 700; margin-left: 4px;">${statusText}</span>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                    
-                    return `
-                        <div style="background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;">
-                            <div style="padding: 15px; background: rgba(229, 193, 88, 0.05); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                                <div style="font-weight: 800; color: var(--primary); font-size: 0.85rem;">${legs.length}-LEG SMART PARLAY</div>
-                                <div style="font-weight: 900; color: var(--primary); font-size: 1.1rem;">@ ${p.total_odds.toFixed(2)}</div>
-                            </div>
-                            <div style="flex: 1;">
-                                ${legsHTML}
-                            </div>
-                            <div style="padding: 15px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                                <div style="font-size: 0.8rem; color: var(--text-muted);">Stake: <span style="color: var(--text-main); font-weight: 700;">$${p.stake.toFixed(2)}</span></div>
-                                <div style="font-size: 0.8rem; color: #00ff88; font-weight: 700;">Pot. Payout: $${(p.stake * p.total_odds).toFixed(2)}</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch(e) {
-                container.innerHTML = '<div style="color: #ff4d4d;">Error loading active parlays.</div>';
-            }
-        }
-
-        // Fetch Stair AI Bets
-        async function loadStairBets() {
-            try {
-                const res = await fetch('/api/stair_bets');
-                const data = await res.json();
-                const tbody = document.querySelector('#stair-table-body');
-                tbody.innerHTML = data.stair_bets.map(b => {
-                    let statusColor = 'var(--text-main)';
-                    if(b.status === 'OPEN') statusColor = 'var(--primary)';
-                    if(b.status === 'SETTLED' && b.pnl > 0) statusColor = '#00ff88';
-                    if(b.status === 'SETTLED' && b.pnl < 0) statusColor = '#ff4d4d';
-                    
-                    return `
-                    <tr>
-                        <td>${new Date(b.placed_at).toLocaleString()}</td>
-                        <td style="font-weight:600;">${b.match_id}</td>
-                        <td>${b.market_type}</td>
-                        <td>${b.entry_odds}</td>
-                        <td>$${b.stake.toFixed(2)}</td>
-                        <td style="color:${statusColor}; font-weight:700;">${b.status}</td>
-                        <td style="font-family:monospace;">${b.order_id || 'N/A'}</td>
-                        <td style="color:${b.pnl > 0 ? '#00ff88' : (b.pnl < 0 ? '#ff4d4d' : 'var(--text-main)')}; font-weight:700;">
-                            ${b.pnl > 0 ? '+' : ''}${b.pnl.toFixed(2)}
-                        </td>
-                    </tr>`;
-                }).join('');
-            } catch(e) {
-                console.error("Failed to load stair bets", e);
-            }
         }
 
         // Fetch Settings
@@ -2493,31 +2000,20 @@
             refreshTimer = payload.refresh_interval_sec;
         }
 
-        async function triggerPlatt() {
-            if(confirm("Initiate Platt Scaler Recalibration? This requires historical data processing.")) {
-                await fetch('/api/trigger_recalibration', {method: 'POST'});
-                showToast("Platt Scaler triggered in the background.", "success");
-            }
-        }
-
         // Initialize and Route
         window.addEventListener('popstate', handleRouting);
 
         function handleRouting() {
             const path = window.location.pathname;
             const navItems = document.querySelectorAll('.nav-item');
-            if (path === '/performance') {
-                switchView('performance-view', navItems[3]);
-            } else if (path === '/tracker') {
+            if (path === '/tracker') {
                 switchView('tracker-view', navItems[2]);
             } else if (path === '/bankroll') {
                 switchView('bankroll-view', navItems[1]);
             } else if (path === '/settings') {
-                switchView('settings-view', navItems[6]);
+                switchView('settings-view', navItems[5]);
             } else if (path === '/comparison') {
-                switchView('comparison-view', navItems[4]);
-            } else if (path === '/stair') {
-                switchView('stair-view', navItems[5]);
+                switchView('comparison-view', navItems[3]);
             } else {
                 switchView('live-view', navItems[0]);
                 connectSSE();
@@ -2673,12 +2169,6 @@
                         margin-bottom: 8px;
                     `;
                     
-                    const isKarlstad = m.fixture_id === 15458376;
-                    if (isKarlstad) {
-                        btn.style.borderColor = 'var(--primary)';
-                        btn.style.background = 'rgba(229,193,88,0.04)';
-                    }
-                    
                     const status = (m.status_code || '').toUpperCase();
                     const isFinished = ['FT', 'AET', 'PEN'].includes(status);
                     const isUpcoming = ['NS', 'TBD'].includes(status);
@@ -2698,7 +2188,7 @@
                         btn.style.background = 'rgba(255,255,255,0.08)';
                     });
                     btn.addEventListener('mouseleave', () => {
-                        btn.style.background = isKarlstad ? 'rgba(229,193,88,0.04)' : 'rgba(255,255,255,0.03)';
+                        btn.style.background = 'rgba(255,255,255,0.03)';
                     });
                     
                     btn.addEventListener('click', () => {
@@ -2708,17 +2198,14 @@
                         });
                         btn.style.background = 'rgba(229,193,88,0.12)';
                         btn.style.fontWeight = 'bold';
-                        loadComparisonDetail(m.fixture_id, false);
+                        loadComparisonDetail(m.fixture_id);
                     });
                     
                     listContainer.appendChild(btn);
                 });
                 
-                const karlstadMatch = matches.find(m => m.fixture_id === 15458376);
-                if (karlstadMatch) {
-                    loadComparisonDetail(15458376, false);
-                } else if (matches.length > 0) {
-                    loadComparisonDetail(matches[0].fixture_id, false);
+                if (matches.length > 0) {
+                    loadComparisonDetail(matches[0].fixture_id);
                 }
                 
             } catch(e) {
@@ -2726,12 +2213,12 @@
             }
         }
 
-        async function loadComparisonDetail(fixtureId, isDemo) {
+        async function loadComparisonDetail(fixtureId) {
             const detailPanel = document.getElementById('comparison-detail-panel');
             detailPanel.innerHTML = '<div style="text-align: center; padding: 100px 20px;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i> Loading comparison...</div>';
-            
+
             try {
-                const url = `/api/comparison/${fixtureId}` + (isDemo ? '?demo=true' : '');
+                const url = `/api/comparison/${fixtureId}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error("Failed to load");
                 const data = await res.json();
@@ -2801,15 +2288,6 @@
                     return false;
                 };
 
-                let demoBtnHTML = '';
-                if (fixtureId === 15458376) {
-                    demoBtnHTML = `
-                        <button onclick="loadComparisonDetail(15458376, ${!isDemo})" class="btn" style="background:${isDemo ? '#ff4d4d' : 'var(--primary)'}; color:var(--bg-color); font-weight:700; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">
-                            ${isDemo ? '<i class="fa-solid fa-satellite-dish"></i> Exit Demo Mode' : '<i class="fa-solid fa-gamepad"></i> Activate Simulated Demo'}
-                        </button>
-                    `;
-                }
-
                 let headerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:15px; margin-bottom:10px;">
                         <div>
@@ -2817,8 +2295,7 @@
                             <h2 style="color:var(--text-main); margin-top:5px; font-size:1.4rem;">${pred.match}</h2>
                         </div>
                         <div style="display:flex; align-items:center; gap:15px;">
-                            ${demoBtnHTML}
-                            <span style="font-weight:700; font-size:1.1rem; color:${act.is_simulated ? '#ffaa00' : '#00ff88'}">${act.status}</span>
+                            <span style="font-weight:700; font-size:1.1rem; color:#00ff88">${act.status}</span>
                         </div>
                     </div>
                 `;
