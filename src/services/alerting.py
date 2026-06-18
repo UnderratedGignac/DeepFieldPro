@@ -101,5 +101,58 @@ class NotificationManager:
         self._send_discord({"embeds": [{"title": title, "description": message, "color": 15844367}]})
         self._send_whatsapp(f"*🔔 {title}*\n\n{message}")
 
+    def send_bet_alert(self, home: str, away: str, selection: str, league: str,
+                       odds: float, prob: float, ev: float,
+                       steam_move: float = 0.0, sharp_move: float = 0.0,
+                       bankroll: float = 10.0, kelly_mult: float = 0.25,
+                       max_exp: float = 0.05):
+        """
+        Send a clean, actionable bet recommendation via WhatsApp.
+        Formats as: "Team A vs Team B : Team A to win"
+        Includes Kelly stake sized for the given bankroll.
+        """
+        # Human-readable pick label
+        if selection.lower() == "draw":
+            pick_label = "Draw"
+        elif selection.lower() in (home.lower(), "home"):
+            pick_label = f"{home} to win"
+        elif selection.lower() in (away.lower(), "away"):
+            pick_label = f"{away} to win"
+        else:
+            pick_label = f"{selection} to win"
+
+        # Kelly stake for the provided bankroll
+        p = prob / 100.0
+        b = odds - 1.0
+        if b > 0 and p > 0:
+            kf = max(0.0, (p * odds - 1.0) / b) * kelly_mult
+            kf = min(kf, max_exp)
+        else:
+            kf = 0.01
+        stake = round(kf * bankroll, 2)
+        stake_str = f"${stake:.2f}" if stake >= 0.01 else "<$0.01"
+
+        # Steam / sharp badge
+        signals = []
+        if steam_move >= 3.0:
+            signals.append(f"Steam +{steam_move:.1f}%")
+        if sharp_move >= 3.0:
+            signals.append(f"Sharp +{sharp_move:.1f}%")
+        signal_line = f"\nSignals: {', '.join(signals)}" if signals else ""
+
+        msg = (
+            f"*DeepField Best Bet*\n\n"
+            f"*{home} vs {away} : {pick_label}*\n\n"
+            f"League: {league or 'Unknown'}\n"
+            f"Odds: {odds:.2f}\n"
+            f"Confidence: {prob:.1f}%\n"
+            f"EV: +{ev*100:.1f}%"
+            f"{signal_line}\n\n"
+            f"*Stake (${bankroll:.0f} bankroll): {stake_str}*\n"
+            f"(fractional Kelly x{kelly_mult}, max {max_exp*100:.0f}%)\n\n"
+            f"_Research tool — bet responsibly_"
+        )
+        self._send_whatsapp(msg)
+
 # Singleton instance
 notifier = NotificationManager()

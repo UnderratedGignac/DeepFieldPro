@@ -3113,6 +3113,24 @@ def update_dashboard_json(fixtures, results_cache):
 
                     log_ai_bet(f"{home} vs {away}", m_type, sel_name, odds, prob, ev, fid, league)
 
+                    # WhatsApp alert — send immediately when a new bet is recommended
+                    try:
+                        from src.services.alerting import notifier
+                        _steam_pct = best_bet.get("steam_move", 0.0)
+                        _sharp_pct = best_bet.get("sharp_move", 0.0) or 0.0
+                        _kelly_mult = settings.get("kelly_multiplier", 0.25)
+                        _max_exp = settings.get("max_exposure_pct", 0.05)
+                        notifier.send_bet_alert(
+                            home=home, away=away, selection=sel_name,
+                            league=league or "Unknown",
+                            odds=odds, prob=prob, ev=ev,
+                            steam_move=_steam_pct, sharp_move=_sharp_pct,
+                            bankroll=10.0,
+                            kelly_mult=_kelly_mult, max_exp=_max_exp,
+                        )
+                    except Exception as _alert_err:
+                        print(f"[ALERT] WhatsApp bet alert skipped: {_alert_err}")
+
         item = {
             "fixture_id": fid,
             "match": f"{home} vs {away}",
