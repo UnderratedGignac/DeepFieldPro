@@ -3427,6 +3427,25 @@ def update_dashboard_json(fixtures, results_cache):
                                 and odds_fresh
                             )
 
+                            # ASIAN HANDICAP paper bet gate (opt-in; off by default)
+                            # AH -0.5 = home must WIN outright. AH +0.5 = home must not LOSE.
+                            # Probs come directly from DC/LightGBM 1X2; no separate model needed.
+                            if (settings.get("ah_betting_enabled", False)
+                                    and m_type == "Asian Handicap"
+                                    and not league_blocked
+                                    and odds and odds_fresh
+                                    and odds >= dfp_settings.MODEL_MIN_ODDS):
+                                _ah_sel = sel_name  # e.g. "Arsenal -0.5"
+                                _ah_prob = prob_used  # already set from the iteration over selections
+                                _min_ev = settings.get("min_ev_threshold", 0.03)
+                                _ah_ev = _ah_prob * odds - 1.0
+                                if _ah_ev >= _min_ev and _ah_prob >= 0.50:
+                                    log_ai_bet(
+                                        f"{home} vs {away}", "Asian Handicap", _ah_sel,
+                                        odds, _ah_ev, _ah_prob * 100, fid, league,
+                                        source="AI_AH"
+                                    )
+
                             sel.update({"odds": odds, "max_seen_odds": max_seen_odds, "ev": ev, "m_type": m_type, "all_odds": all_market_odds})
                             # Only stake when official lineups are confirmed; odds above
                             # are still attached for display on estimated-XI matches.

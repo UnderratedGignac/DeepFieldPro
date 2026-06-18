@@ -342,6 +342,7 @@
         }
 
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(229, 193, 88, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(229, 193, 88, 0); } 100% { box-shadow: 0 0 0 0 rgba(229, 193, 88, 0); } }
+        @keyframes pulse-gold { 0%, 100% { box-shadow: 0 0 0 0 rgba(229,193,88,0.6); } 50% { box-shadow: 0 0 0 4px rgba(229,193,88,0); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .filter-bar {
@@ -1737,6 +1738,20 @@
                     scoreHTML = `<div class="score-display">${hs} - ${as}</div>`;
                 }
 
+                // --- Signal strip (fatigue / weather / referee) ---
+                const p0 = match.prediction;
+                let signalChips = '';
+                if (p0) {
+                    const chipStyle = (bg, col) => `style="background:${bg}; color:${col}; font-size:0.62rem; font-weight:700; padding:2px 7px; border-radius:10px; display:inline-flex; align-items:center; gap:3px;"`;
+                    if (p0.fatigue?.home_fatigued) signalChips += `<span ${chipStyle('rgba(255,140,0,0.18)','#ffaa33')}><i class="fa-solid fa-fire"></i> HOME FATIGUED ${p0.fatigue.home_games_7d}G</span>`;
+                    if (p0.fatigue?.away_fatigued) signalChips += `<span ${chipStyle('rgba(255,140,0,0.18)','#ffaa33')}><i class="fa-solid fa-fire"></i> AWAY FATIGUED ${p0.fatigue.away_games_7d}G</span>`;
+                    if (p0.weather?.rain) signalChips += `<span ${chipStyle('rgba(80,140,220,0.18)','#7eb8f7')}><i class="fa-solid fa-cloud-rain"></i> RAIN ${p0.weather.precipitation_mm?.toFixed(1)}mm</span>`;
+                    if (p0.weather?.heavy_wind) signalChips += `<span ${chipStyle('rgba(80,140,220,0.18)','#7eb8f7')}><i class="fa-solid fa-wind"></i> WIND ${Math.round(p0.weather.wind_kmh)}km/h</span>`;
+                    if (p0.referee?.is_high_card) signalChips += `<span ${chipStyle('rgba(220,50,50,0.18)','#f47878')}><i class="fa-solid fa-square"></i> HIGH CARD REF ${p0.referee.booking_rate?.toFixed(2)}/g</span>`;
+                    if (p0.referee?.is_low_card) signalChips += `<span ${chipStyle('rgba(0,180,160,0.18)','#40d4c8')}><i class="fa-regular fa-square"></i> LOW CARD REF ${p0.referee.booking_rate?.toFixed(2)}/g</span>`;
+                }
+                const signalStrip = signalChips ? `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;">${signalChips}</div>` : '';
+
                 let contentHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <div class="league-badge" style="margin:0;">${match.league}</div>
@@ -1745,6 +1760,7 @@
                             ${lineupBadge}
                         </div>
                     </div>
+                    ${signalStrip}
                     <h2 class="match-title">${match.match}</h2>
                     ${scoreHTML}
                     <div class="kickoff"><i class="fa-solid fa-clock"></i> Kickoff: ${formatTime(match.kickoff)}</div>
@@ -1802,12 +1818,18 @@
                                 const matchSafe = encodeURIComponent(p.match || match.match || '');
                                 const selSafe = encodeURIComponent(sel.selection || '');
                                 const mktSafe = encodeURIComponent(marketName);
+                                // per-selection signal badges
+                                let selBadges = '';
+                                if (sel.steam_move >= 3.0) selBadges += `<span style="background:rgba(229,193,88,0.2); color:var(--primary); font-size:0.62rem; font-weight:700; padding:2px 7px; border-radius:10px; display:inline-flex; align-items:center; gap:3px; animation:pulse-gold 1.4s infinite; margin-left:5px;"><i class="fa-solid fa-bolt"></i> STEAM +${sel.steam_move.toFixed(1)}%</span>`;
+                                if ((sel.line_shop_gain || 0) >= 1.5) selBadges += `<span style="background:rgba(0,220,100,0.15); color:#40e080; font-size:0.62rem; font-weight:700; padding:2px 7px; border-radius:10px; display:inline-flex; align-items:center; gap:3px; margin-left:5px;"><i class="fa-solid fa-tag"></i> LINE-SHOP +${sel.line_shop_gain.toFixed(1)}% @ ${sel.best_odds?.toFixed(2)}</span>`;
+                                if (sel.arb_status === 'ARB') selBadges += `<span style="background:rgba(0,255,80,0.18); color:#00ff55; font-size:0.62rem; font-weight:700; padding:2px 7px; border-radius:10px; display:inline-flex; align-items:center; gap:3px; margin-left:5px;"><i class="fa-solid fa-rotate"></i> ARB</span>`;
+                                if (sel.arb_status === 'NEAR-ARB') selBadges += `<span style="background:rgba(0,200,180,0.15); color:#40d4c8; font-size:0.62rem; font-weight:700; padding:2px 7px; border-radius:10px; display:inline-flex; align-items:center; gap:3px; margin-left:5px;"><i class="fa-solid fa-rotate"></i> NEAR-ARB</span>`;
                                 contentHTML += `
                                 <div class="market-row ${sel.flashClass || ''}" style="margin-bottom: 6px; display: flex; flex-direction: column; width: 100%;">
                                     <button class="market-btn" onclick="addToSlip(decodeURIComponent('${matchSafe}'), decodeURIComponent('${mktSafe}'), decodeURIComponent('${selSafe}'), ${sel.prob}, ${sel.odds || 0}, ${sel.recommended ? 1 : 0})" style="display:flex; justify-content:space-between; align-items:center; width: 100%;">
                                         <span style="display:flex; align-items:center;">${sel.selection} ${recBadge}</span>
-                                        <span style="font-family:'Outfit',sans-serif; font-weight:700; color:var(--primary);">
-                                            ${sel.prob}%${sel.odds ? ` <span style="color:var(--text-muted); font-size:0.8rem; margin-left:6px;">@ ${sel.odds.toFixed(2)}</span>` : ''}
+                                        <span style="font-family:'Outfit',sans-serif; font-weight:700; color:var(--primary); display:flex; align-items:center; flex-wrap:wrap; gap:4px; justify-content:flex-end;">
+                                            ${sel.prob}%${sel.odds ? ` <span style="color:var(--text-muted); font-size:0.8rem; margin-left:6px;">@ ${sel.odds.toFixed(2)}</span>` : ''}${selBadges}
                                         </span>
                                     </button>
                                 </div>`;
