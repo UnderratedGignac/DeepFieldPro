@@ -13,6 +13,18 @@ import json
 import time
 import math
 import threading
+
+# LightGBM ensemble + form cache (best-practice upgrades)
+try:
+    from src.models.lgbm_predictor import predict_1x2 as _lgbm_predict_1x2
+    from src.models.form_cache import get_form as _get_form, get_h2h as _get_h2h, build_cache as _build_form_cache
+    _LGBM_AVAILABLE = True
+except Exception:
+    _lgbm_predict_1x2 = None
+    _get_form = None
+    _get_h2h = None
+    _build_form_cache = None
+    _LGBM_AVAILABLE = False
 from src.execution_engine import place_bet # TASK 1: Import place_bet
 from src import sharp_edge  # Pinnacle sharp-line steam + Betarabia lagging-value engine
 
@@ -1027,6 +1039,34 @@ def predict_match(fixture, lineups, player_model, match_model, df):
     prob_1 /= total_1x2
     prob_x /= total_1x2
     prob_2 /= total_1x2
+
+    # ── LightGBM ensemble (best practice: DC + form + market as features) ──
+    # Uses form from history.db + de-vigged market odds to refine DC probs.
+    # Falls back silently to DC if model not trained or team unknown.
+    _lgbm_result = None
+    if _LGBM_AVAILABLE and _lgbm_predict_1x2 is not None:
+        try:
+            import datetime as _dt
+            _today_ord = _dt.datetime.now().toordinal()
+            _hform = _get_form(home_team, _today_ord) if _get_form else {}
+            _aform = _get_form(away_team, _today_ord) if _get_form else {}
+            _h2h   = _get_h2h(home_team, away_team, _today_ord) if _get_h2h else {}
+            _lgbm_result = _lgbm_predict_1x2(
+                dc_home_prob=prob_1,
+                dc_draw_prob=prob_x,
+                dc_away_prob=prob_2,
+                dc_exp_h=exp_h,
+                dc_exp_a=exp_a,
+                home_form=_hform,
+                away_form=_aform,
+                h2h=_h2h,
+            )
+        except Exception:
+            _lgbm_result = None
+
+    if _lgbm_result is not None:
+        prob_1, prob_x, prob_2 = _lgbm_result
+        print(f"[LGBM] {home_team} vs {away_team}: {prob_1:.3f}/{prob_x:.3f}/{prob_2:.3f}")
 
     total_ou = prob_over_25 + prob_under_25
     prob_over_25 /= total_ou

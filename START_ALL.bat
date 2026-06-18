@@ -76,6 +76,12 @@ if not exist "models\dixon_coles.json" (
     )
 )
 
+if not exist "models\lgbm_1x2.pkl" (
+    echo   - Training LightGBM ensemble model (first run, ~2 min)...
+    ".venv\Scripts\python.exe" tools\train_lgbm_model.py
+    if errorlevel 1 echo     [warn] LightGBM training failed (daemon falls back to DC model).
+)
+
 echo   - Training 1X2 calibrator...
 ".venv\Scripts\python.exe" tools\train_1x2_calibrator.py
 if errorlevel 1 echo     [warn] calibrator step had an issue ^(daemon falls back to raw probs^).
