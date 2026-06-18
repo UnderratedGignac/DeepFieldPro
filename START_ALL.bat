@@ -221,12 +221,14 @@ echo.
 echo   Active signals:
 echo     Fatigue ^| Weather ^| Referee ^| Arb ^| Steam ^| LightGBM ^| DC
 echo.
-echo   To STOP the server:  run STOP_ALL.bat
-echo   This window will close in 5 seconds.
+echo   To STOP the server : run STOP_ALL.bat
+echo   This window        : safe to close -- server keeps running
 echo ================================================================
 echo.
 start "" "http://localhost:!PORT!/"
 
-:: Close this launcher after 5 seconds -- server runs independently
-timeout /t 5 /nobreak >nul
+echo   Press any key to close this window.
+echo   ^(The server will keep running in the background.^)
+echo.
+pause >nul
 exit /b 0
