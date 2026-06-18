@@ -5,7 +5,7 @@ cd /d "%~dp0"
 
 echo.
 echo ================================================================
-echo   DeepFieldPro  ^|  Smart Launcher
+echo   DeepFieldPro  ^|  ML Betting Research System  ^|  PAPER ONLY
 echo ================================================================
 echo.
 
@@ -13,7 +13,7 @@ echo.
 :: 1. Kill every existing Python process and any leftover cmd windows.
 ::    This clears orphaned listening sockets on 5050-5060.
 :: ----------------------------------------------------------------
-echo [1/5] Cleaning up old processes...
+echo [1/6] Cleaning up old processes...
 powershell -NoProfile -Command "Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
 powershell -NoProfile -Command "Get-Process cmd -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -like '*DeepFieldPro*'} | Stop-Process -Force -ErrorAction SilentlyContinue"
 timeout /t 2 /nobreak >nul
@@ -23,7 +23,7 @@ echo.
 :: ----------------------------------------------------------------
 :: 2. Validate the venv interpreter
 :: ----------------------------------------------------------------
-echo [2/5] Checking Python environment...
+echo [2/6] Checking Python environment...
 if not exist ".venv\Scripts\python.exe" (
     echo.
     echo [ERROR] .venv\Scripts\python.exe not found.
@@ -41,9 +41,8 @@ echo.
 
 :: ----------------------------------------------------------------
 :: 3. Find the first free port starting at 5050.
-::    findstr sets errorlevel 1 when it finds nothing (port free).
 :: ----------------------------------------------------------------
-echo [3/5] Finding a free port...
+echo [3/6] Finding a free port...
 set PORT=
 for %%p in (5050 5051 5052 5053 5054 5055 5056 5057 5058 5059 5060) do (
     if not defined PORT (
@@ -60,12 +59,34 @@ echo !PORT!>current_port.txt
 echo.
 
 :: ----------------------------------------------------------------
-:: 4. Use Python to write a clean launcher script — avoids all
-::    batch redirection-escaping bugs. The launcher uses cmd /c
-::    (not /k) so cmd exits when Python exits, releasing socket
-::    handles and preventing the orphaned-port problem.
+:: 4. One-time / idempotent setup steps
 :: ----------------------------------------------------------------
-echo [4/5] Launching dashboard + daemon...
+echo [4/6] Running setup steps...
+
+echo   - Applying bet_log migration ^(idempotent^)...
+".venv\Scripts\python.exe" tools\migrate_bet_log.py
+if errorlevel 1 echo     [warn] migration step had an issue ^(continuing^).
+
+if not exist "models\dixon_coles.json" (
+    if exist "data\history.db" (
+        echo   - Training Dixon-Coles model ^(first run^)...
+        ".venv\Scripts\python.exe" tools\train_dixon_coles.py
+    ) else (
+        echo   [info] No history.db yet. Run tools\ingest_history.py then tools\train_dixon_coles.py.
+    )
+)
+
+echo   - Training 1X2 calibrator...
+".venv\Scripts\python.exe" tools\train_1x2_calibrator.py
+if errorlevel 1 echo     [warn] calibrator step had an issue ^(daemon falls back to raw probs^).
+
+echo [OK] Setup done.
+echo.
+
+:: ----------------------------------------------------------------
+:: 5. Launch dashboard + daemon
+:: ----------------------------------------------------------------
+echo [5/6] Launching dashboard + daemon...
 if not exist "logs" mkdir logs >nul 2>&1
 
 set DEEPFIELD_PORT=!PORT!
@@ -81,10 +102,9 @@ echo      Log file  : %~dp0logs\server.log
 echo.
 
 :: ----------------------------------------------------------------
-:: 5. Poll /api/state until the server responds, then open the
-::    browser. Gives up after 40 s and opens anyway.
+:: 6. Poll /api/state until the server responds, then open browser.
 :: ----------------------------------------------------------------
-echo [5/5] Waiting for server to be ready...
+echo [6/6] Waiting for server to be ready...
 set /a TRIES=0
 :poll
 timeout /t 2 /nobreak >nul
@@ -110,11 +130,12 @@ echo ================================================================
 echo   DeepFieldPro is LIVE
 echo   Dashboard : http://localhost:!PORT!
 echo   Log       : %~dp0logs\server.log
+echo   Mode      : SHADOW ^(paper^) - real-money Arena stays PAUSED
 echo ================================================================
 echo.
 start "" "http://localhost:!PORT!/"
 echo   Press any key to stop all services and exit.
-echo   (Close this window to leave everything running.)
+echo   (Close this window to leave everything running in the background.)
 echo.
 pause >nul
 
