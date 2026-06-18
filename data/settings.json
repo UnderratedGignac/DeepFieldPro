@@ -4,7 +4,13 @@
   "max_exposure_pct": 0.05,
   "min_confidence_pct": 60,
   "allowed_markets": [
-    "1X2"
+    "1X2",
+    "BTTS",
+    "Double Chance",
+    "Draw No Bet",
+    "Over/Under 2.5",
+    "Over/Under 3.0",
+    "Over/Under 2.0"
   ],
   "exclude_draws": true,
   "league_blocklist": [],

@@ -1012,6 +1012,16 @@ def predict_match(fixture, lineups, player_model, match_model, df):
             if (i + j) > 3.5:
                 prob_over_35 += p
 
+    # Extra lines needed for new markets
+    prob_over_30 = sum(
+        poisson_prob(exp_h, i) * poisson_prob(exp_a, j)
+        for i in range(8) for j in range(8) if (i + j) > 3.0
+    )
+    prob_over_20 = sum(
+        poisson_prob(exp_h, i) * poisson_prob(exp_a, j)
+        for i in range(8) for j in range(8) if (i + j) > 2.0
+    )
+
     # Normalize due to truncation at 7 goals
     total_1x2 = prob_1 + prob_x + prob_2
     prob_1 /= total_1x2
@@ -1253,6 +1263,48 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                 }
                 for p in shots_sorted[:3]
                 if p["exp_shots"] > 1.5
+            ],
+            # ── New markets (derived from DC xG) ─────────────────────────────
+            "Double Chance": [
+                {"selection": "1X", "prob": round((prob_1 + prob_x) * 100, 1)},
+                {"selection": "X2", "prob": round((prob_x + prob_2) * 100, 1)},
+                {"selection": "12", "prob": round((prob_1 + prob_2) * 100, 1)},
+            ],
+            "Draw No Bet": [
+                {"selection": "Home",
+                 "prob": round(prob_1 / max(prob_1 + prob_2, 0.001) * 100, 1)},
+                {"selection": "Away",
+                 "prob": round(prob_2 / max(prob_1 + prob_2, 0.001) * 100, 1)},
+            ],
+            "Over/Under 3.0": [
+                {"selection": "Over 3.0", "prob": round(prob_over_30 * 100, 1)},
+                {"selection": "Under 3.0", "prob": round((1.0 - prob_over_30) * 100, 1)},
+            ],
+            "Over/Under 2.0": [
+                {"selection": "Over 2.0", "prob": round(prob_over_20 * 100, 1)},
+                {"selection": "Under 2.0", "prob": round((1.0 - prob_over_20) * 100, 1)},
+            ],
+            "Team Total Home": [
+                {"selection": f"Home Over 0.5",
+                 "prob": round((1.0 - poisson_prob(exp_h, 0)) * 100, 1)},
+                {"selection": f"Home Over 1.5",
+                 "prob": round((1.0 - poisson_prob(exp_h, 0) - poisson_prob(exp_h, 1)) * 100, 1)},
+            ],
+            "Team Total Away": [
+                {"selection": f"Away Over 0.5",
+                 "prob": round((1.0 - poisson_prob(exp_a, 0)) * 100, 1)},
+                {"selection": f"Away Over 1.5",
+                 "prob": round((1.0 - poisson_prob(exp_a, 0) - poisson_prob(exp_a, 1)) * 100, 1)},
+            ],
+            "Asian Handicap": [
+                {"selection": f"{home_team} -0.5",
+                 "prob": round(prob_1 * 100, 1)},
+                {"selection": f"{home_team} +0.5",
+                 "prob": round((prob_1 + prob_x) * 100, 1)},
+                {"selection": f"{away_team} -0.5",
+                 "prob": round(prob_2 * 100, 1)},
+                {"selection": f"{away_team} +0.5",
+                 "prob": round((prob_2 + prob_x) * 100, 1)},
             ],
         },
     }
@@ -1570,7 +1622,11 @@ def find_betarabia_odds(home_team, away_team):
         odds_dict = {
             "1X2": {},
             "Over/Under 2.5": {},
+            "Over/Under 3.0": {},
+            "Over/Under 2.0": {},
             "BTTS": {},
+            "Double Chance": {},
+            "Draw No Bet": {},
             "Corners": {},
             "Total Cards": {},
             "Goalscorer": {},
@@ -1603,17 +1659,48 @@ def find_betarabia_odds(home_team, away_team):
             elif ("card" in mname_lower or "booking" in mname_lower or "yellow" in mname_lower) and "total" in mname_lower:
                 odds_dict["Total Cards"][sname] = price
 
-            # Total Goals Over/Under
-            elif "total" in mname_lower and "goal" in mname_lower:
+            # Total Goals Over/Under — route by line value in selection name
+            elif ("total" in mname_lower and "goal" in mname_lower) or \
+                 (("total" in mname_lower or "goals" in mname_lower) and "total" in sname_lower):
+                import re as _re
+                _line_m = _re.search(r"(\d+\.?\d*)", sname)
+                _line_v = float(_line_m.group(1)) if _line_m else 2.5
                 if "over" in sname_lower:
-                    odds_dict["Over/Under 2.5"]["Over"] = price
+                    if abs(_line_v - 2.5) < 0.01:
+                        odds_dict["Over/Under 2.5"]["Over"] = price
+                    elif abs(_line_v - 3.0) < 0.01:
+                        odds_dict["Over/Under 3.0"]["Over"] = price
+                    elif abs(_line_v - 2.0) < 0.01:
+                        odds_dict["Over/Under 2.0"]["Over"] = price
+                    else:
+                        odds_dict["Over/Under 2.5"].setdefault("Over", price)
                 elif "under" in sname_lower:
-                    odds_dict["Over/Under 2.5"]["Under"] = price
-            elif ("total" in mname_lower or "goals" in mname_lower) and ("2.5" in sname or "total" in sname_lower):
-                if "over" in sname_lower:
-                    odds_dict["Over/Under 2.5"]["Over"] = price
-                elif "under" in sname_lower:
-                    odds_dict["Over/Under 2.5"]["Under"] = price
+                    if abs(_line_v - 2.5) < 0.01:
+                        odds_dict["Over/Under 2.5"]["Under"] = price
+                    elif abs(_line_v - 3.0) < 0.01:
+                        odds_dict["Over/Under 3.0"]["Under"] = price
+                    elif abs(_line_v - 2.0) < 0.01:
+                        odds_dict["Over/Under 2.0"]["Under"] = price
+                    else:
+                        odds_dict["Over/Under 2.5"].setdefault("Under", price)
+
+            # Double Chance
+            elif "double chance" in mname_lower or "double_chance" in mname_lower:
+                if "1x" in sname_lower or "home or draw" in sname_lower:
+                    odds_dict["Double Chance"]["1X"] = price
+                elif "x2" in sname_lower or "draw or away" in sname_lower:
+                    odds_dict["Double Chance"]["X2"] = price
+                elif "12" in sname_lower or "home or away" in sname_lower:
+                    odds_dict["Double Chance"]["12"] = price
+
+            # Draw No Bet
+            elif "draw no bet" in mname_lower or "dnb" in mname_lower:
+                h_score_dnb = get_match_score(sname, best_home)
+                a_score_dnb = get_match_score(sname, best_away)
+                if h_score_dnb >= 0.5 and h_score_dnb > a_score_dnb:
+                    odds_dict["Draw No Bet"]["Home"] = price
+                elif a_score_dnb >= 0.5 and a_score_dnb > h_score_dnb:
+                    odds_dict["Draw No Bet"]["Away"] = price
 
             # BTTS
             elif "both teams" in mname_lower or "btts" in mname_lower:
@@ -2514,12 +2601,51 @@ def settle_open_bets():
                     won = home_score == away_score
                 elif "away" in sel_lower or "2" in sel_lower:
                     won = away_score > home_score
-            elif market_type == "Over/Under 2.5":
+            elif market_type in ("Over/Under 2.5", "Over/Under 3.0", "Over/Under 2.0",
+                                 "Over/Under 1.5", "Over/Under 0.5"):
+                import re as _sre
                 total_goals = home_score + away_score
+                _lm = _sre.search(r"(\d+\.?\d*)", market_type)
+                _line = float(_lm.group(1)) if _lm else 2.5
                 if "over" in sel_lower:
-                    won = total_goals > 2.5
+                    if total_goals == _line:
+                        # Push on exact integer line — void the bet
+                        cur_bet.execute(
+                            "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?", (bet_id,)
+                        )
+                        conn_bet.commit()
+                        continue
+                    won = total_goals > _line
                 elif "under" in sel_lower:
-                    won = total_goals < 2.5
+                    if total_goals == _line:
+                        cur_bet.execute(
+                            "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?", (bet_id,)
+                        )
+                        conn_bet.commit()
+                        continue
+                    won = total_goals < _line
+            elif market_type == "Double Chance":
+                home_won = home_score > away_score
+                draw = home_score == away_score
+                away_won = away_score > home_score
+                if sel_lower == "1x":
+                    won = home_won or draw
+                elif sel_lower == "x2":
+                    won = draw or away_won
+                elif sel_lower == "12":
+                    won = home_won or away_won
+            elif market_type == "Draw No Bet":
+                if home_score == away_score:
+                    # Push — void and refund
+                    cur_bet.execute(
+                        "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?", (bet_id,)
+                    )
+                    conn_bet.commit()
+                    continue
+                elif "home" in sel_lower:
+                    won = home_score > away_score
+                elif "away" in sel_lower:
+                    won = away_score > home_score
             elif market_type == "BTTS":
                 if "yes" in sel_lower:
                     won = home_score > 0 and away_score > 0
@@ -2822,7 +2948,11 @@ def update_dashboard_json(fixtures, results_cache):
                     break
 
             if has_odds:
-                prematch_markets = {"1X2": [], "Over/Under 2.5": [], "BTTS": []}
+                prematch_markets = {
+                    "1X2": [], "Over/Under 2.5": [], "Over/Under 3.0": [],
+                    "Over/Under 2.0": [], "BTTS": [], "Double Chance": [],
+                    "Draw No Bet": [],
+                }
                 if "Home" in odds_dict.get("1X2", {}):
                     prematch_markets["1X2"].append(
                         {"selection": "Home (1)", "odds": odds_dict["1X2"]["Home"]}
@@ -2860,6 +2990,34 @@ def update_dashboard_json(fixtures, results_cache):
                         {"selection": "No", "odds": odds_dict["BTTS"]["No"]}
                     )
 
+                # Over/Under 3.0
+                for _dc_sel, _dc_key in (("Over 3.0", "Over"), ("Under 3.0", "Under")):
+                    if _dc_key in odds_dict.get("Over/Under 3.0", {}):
+                        prematch_markets["Over/Under 3.0"].append(
+                            {"selection": _dc_sel, "odds": odds_dict["Over/Under 3.0"][_dc_key]}
+                        )
+
+                # Over/Under 2.0
+                for _dc_sel, _dc_key in (("Over 2.0", "Over"), ("Under 2.0", "Under")):
+                    if _dc_key in odds_dict.get("Over/Under 2.0", {}):
+                        prematch_markets["Over/Under 2.0"].append(
+                            {"selection": _dc_sel, "odds": odds_dict["Over/Under 2.0"][_dc_key]}
+                        )
+
+                # Double Chance
+                for _sel in ("1X", "X2", "12"):
+                    if _sel in odds_dict.get("Double Chance", {}):
+                        prematch_markets["Double Chance"].append(
+                            {"selection": _sel, "odds": odds_dict["Double Chance"][_sel]}
+                        )
+
+                # Draw No Bet
+                for _sel in ("Home", "Away"):
+                    if _sel in odds_dict.get("Draw No Bet", {}):
+                        prematch_markets["Draw No Bet"].append(
+                            {"selection": _sel, "odds": odds_dict["Draw No Bet"][_sel]}
+                        )
+
         if prediction and "markets" in prediction:
             # Always attach the real Betarabia price to each market selection so the
             # dashboard shows actual odds (not "@ 0.00"), even for estimated XI.
@@ -2878,12 +3036,18 @@ def update_dashboard_json(fixtures, results_cache):
                             if "Home" in sel_name or "1" in sel_name: key = "Home"
                             elif "Draw" in sel_name or "X" in sel_name: key = "Draw"
                             elif "Away" in sel_name or "2" in sel_name: key = "Away"
-                        elif m_type == "Over/Under 2.5":
+                        elif m_type in ("Over/Under 2.5", "Over/Under 3.0", "Over/Under 2.0"):
                             if "Over" in sel_name: key = "Over"
                             elif "Under" in sel_name: key = "Under"
                         elif m_type == "BTTS":
                             if "Yes" in sel_name: key = "Yes"
                             elif "No" in sel_name: key = "No"
+                        elif m_type == "Double Chance":
+                            if sel_name in ("1X", "X2", "12"):
+                                key = sel_name
+                        elif m_type == "Draw No Bet":
+                            if "Home" in sel_name: key = "Home"
+                            elif "Away" in sel_name: key = "Away"
                         elif m_type == "Corners":
                             key = sel_name  # "Corners OVER 9.5" must match scraper output
                         elif m_type == "Total Cards":

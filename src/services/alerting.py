@@ -112,12 +112,25 @@ class NotificationManager:
         Includes Kelly stake sized for the given bankroll.
         """
         # Human-readable pick label
-        if selection.lower() == "draw":
+        sel_l = selection.lower()
+        if sel_l == "draw":
             pick_label = "Draw"
-        elif selection.lower() in (home.lower(), "home"):
+        elif sel_l in (home.lower(), "home"):
             pick_label = f"{home} to win"
-        elif selection.lower() in (away.lower(), "away"):
+        elif sel_l in (away.lower(), "away"):
             pick_label = f"{away} to win"
+        elif sel_l == "1x":
+            pick_label = f"{home} or Draw (1X)"
+        elif sel_l == "x2":
+            pick_label = f"Draw or {away} (X2)"
+        elif sel_l == "12":
+            pick_label = f"{home} or {away} (12)"
+        elif sel_l == "yes":
+            pick_label = "Both Teams To Score - Yes"
+        elif sel_l == "no":
+            pick_label = "Both Teams To Score - No"
+        elif "over" in sel_l or "under" in sel_l:
+            pick_label = selection  # e.g. "Over 2.5", "Under 3.0"
         else:
             pick_label = f"{selection} to win"
 
