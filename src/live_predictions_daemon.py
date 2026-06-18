@@ -25,6 +25,16 @@ except Exception:
     _get_h2h = None
     _build_form_cache = None
     _LGBM_AVAILABLE = False
+
+# Multi-book odds aggregator: Pinnacle probs → LightGBM features + line-shopping display
+try:
+    from src.odds_aggregator import get_pinnacle_probs as _get_pinnacle_probs
+    from src.odds_aggregator import get_best_price as _get_best_price
+    _ODDS_AGG = True
+except Exception:
+    _get_pinnacle_probs = None
+    _get_best_price = None
+    _ODDS_AGG = False
 from src.execution_engine import place_bet # TASK 1: Import place_bet
 from src import sharp_edge  # Pinnacle sharp-line steam + Betarabia lagging-value engine
 
@@ -864,7 +874,7 @@ def get_player_rolling_stats(player_name, df):
         }
 
 
-def predict_match(fixture, lineups, player_model, match_model, df):
+def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=None):
     home_team = fixture["teams"]["home"]["name"]
     away_team = fixture["teams"]["away"]["name"]
     league_name = fixture["league"]["name"]
@@ -1051,12 +1061,20 @@ def predict_match(fixture, lineups, player_model, match_model, df):
             _hform = _get_form(home_team, _today_ord) if _get_form else {}
             _aform = _get_form(away_team, _today_ord) if _get_form else {}
             _h2h   = _get_h2h(home_team, away_team, _today_ord) if _get_h2h else {}
+            # mkt_probs = (p_h, p_d, p_a) from Pinnacle (de-vigged) when available.
+            # These are the top LightGBM features; passing None degrades to 1/3 each.
+            _mh = mkt_probs[0] if mkt_probs else None
+            _md = mkt_probs[1] if mkt_probs else None
+            _ma = mkt_probs[2] if mkt_probs else None
             _lgbm_result = _lgbm_predict_1x2(
                 dc_home_prob=prob_1,
                 dc_draw_prob=prob_x,
                 dc_away_prob=prob_2,
                 dc_exp_h=exp_h,
                 dc_exp_a=exp_a,
+                mkt_h_prob=_mh,
+                mkt_d_prob=_md,
+                mkt_a_prob=_ma,
                 home_form=_hform,
                 away_form=_aform,
                 h2h=_h2h,
@@ -3151,6 +3169,27 @@ def update_dashboard_json(fixtures, results_cache):
                             prob = round(prob_used * 100.0, 1)   # downstream gates use blended prob
                             is_at_peak = (odds >= max_seen_odds * 0.98)
 
+                            # LINE SHOPPING: find best price across Pinnacle + The Odds API.
+                            # EV stays on Betarabia (what we actually bet); best_odds / ev_best
+                            # are display-only so the dashboard shows when to shop elsewhere.
+                            if _ODDS_AGG and _get_best_price and m_type == "1X2":
+                                try:
+                                    _bbo = odds_dict.get("1X2", {})
+                                    _bp = _get_best_price(
+                                        home, away,
+                                        betarabia_h=_bbo.get("Home"),
+                                        betarabia_d=_bbo.get("Draw"),
+                                        betarabia_a=_bbo.get("Away"),
+                                    )
+                                    _sel_key = {"Home": "home", "Draw": "draw", "Away": "away"}.get(sel_name)
+                                    _best_o = _bp.get(_sel_key, odds) if _sel_key else odds
+                                    sel["best_odds"] = round(_best_o, 3) if _best_o else odds
+                                    sel["ev_best"]   = round(prob_used * _best_o - 1.0, 4) if _best_o else ev
+                                    sel["pinnacle_odds"] = _bp.get(f"pinnacle_{_sel_key}")
+                                    sel["line_shop_gain"] = round((_best_o - odds) / odds * 100, 1) if odds and _best_o else 0.0
+                                except Exception:
+                                    pass
+
                             # CONVICTION CAP (tools/backtest_1x2_lines.py finding): the model's
                             # BIGGEST disagreements with the market are where it is most WRONG —
                             # raising the edge bar made out-of-sample ROI worse, not better. So
@@ -3797,6 +3836,23 @@ def run_daemon():
             except Exception as e:
                 print("Failed to run official lineup fetcher:", e)
 
+        # Pre-fetch Pinnacle 1X2 data once per loop so every predict_match()
+        # call gets real market probs for LightGBM (top features: mkt_d_prob,
+        # mkt_a_prob). Without this they defaulted to 1/3 — ignoring the market.
+        _pinn_data = {}
+        if _ODDS_AGG and _get_pinnacle_probs:
+            try:
+                from src.sharp_scraper import fetch_pinnacle_1x2 as _fp
+                _pinn_data = _fp()
+            except Exception:
+                pass
+
+        def _mkt_probs_for(home_name, away_name):
+            """Look up de-vigged Pinnacle probs for a fixture (None if not found)."""
+            if not _ODDS_AGG or not _get_pinnacle_probs:
+                return None
+            return _get_pinnacle_probs(home_name, away_name)
+
         # Predict fixtures
         for f in fixtures:
             fid = f["fixture"]["id"]
@@ -3818,14 +3874,19 @@ def run_daemon():
             except Exception:
                 time_to_kickoff = 999
 
+            _h_name = f["teams"]["home"]["name"]
+            _a_name = f["teams"]["away"]["name"]
+            _mkt_p  = _mkt_probs_for(_h_name, _a_name)
+
             # Lineups window check
             if 0 < time_to_kickoff <= 45:
                 lineups = batch_lineups.get(fid, [])
                 if len(lineups) == 2 and len(lineups[0].get("startXI", [])) == 11:
                     print(
-                        f"[!] Official lineup confirmed for: {f['teams']['home']['name']} vs {f['teams']['away']['name']}!"
+                        f"[!] Official lineup confirmed for: {_h_name} vs {_a_name}!"
                     )
-                    res = predict_match(f, lineups, player_model, match_model, df)
+                    res = predict_match(f, lineups, player_model, match_model, df,
+                                        mkt_probs=_mkt_p)
                     log_prediction_to_db(res, has_lineup=True)
                     new_lineup_found = True
                 else:
@@ -3833,25 +3894,27 @@ def run_daemon():
                     # Fallback to estimated prediction if not already in DB
                     if fid not in db_preds:
                         print(
-                            f"    -> Generating estimated prediction for T-45m match: {f['teams']['home']['name']} vs {f['teams']['away']['name']}"
+                            f"    -> Generating estimated prediction for T-45m match: {_h_name} vs {_a_name}"
                         )
-                        home_xi = get_predicted_lineup(f["teams"]["home"]["name"], df)
-                        away_xi = get_predicted_lineup(f["teams"]["away"]["name"], df)
+                        home_xi = get_predicted_lineup(_h_name, df)
+                        away_xi = get_predicted_lineup(_a_name, df)
                         est_lineups = [{"startXI": home_xi}, {"startXI": away_xi}]
                         res = predict_match(
-                            f, est_lineups, player_model, match_model, df
+                            f, est_lineups, player_model, match_model, df,
+                            mkt_probs=_mkt_p
                         )
                         log_prediction_to_db(res, has_lineup=False)
             elif time_to_kickoff > 45:
                 # Kickoff is further away, generate estimated prediction if not already in DB
                 if fid not in db_preds:
                     print(
-                        f"    -> Generating estimated prediction for upcoming match: {f['teams']['home']['name']} vs {f['teams']['away']['name']}"
+                        f"    -> Generating estimated prediction for upcoming match: {_h_name} vs {_a_name}"
                     )
-                    home_xi = get_predicted_lineup(f["teams"]["home"]["name"], df)
-                    away_xi = get_predicted_lineup(f["teams"]["away"]["name"], df)
+                    home_xi = get_predicted_lineup(_h_name, df)
+                    away_xi = get_predicted_lineup(_a_name, df)
                     est_lineups = [{"startXI": home_xi}, {"startXI": away_xi}]
-                    res = predict_match(f, est_lineups, player_model, match_model, df)
+                    res = predict_match(f, est_lineups, player_model, match_model, df,
+                                        mkt_probs=_mkt_p)
                     log_prediction_to_db(res, has_lineup=False)
 
         # Always update dashboard JSON to keep odds and recommendations fresh!
