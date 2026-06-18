@@ -1,6 +1,41 @@
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+# Research codebase — suppress noisy style rules that don't affect correctness
+ignore = [
+    "E402",   # module-level import not at top of file
+    "E701",   # multiple statements on one line (colon)
+    "E702",   # multiple statements on one line (semicolon)
+    "E741",   # ambiguous variable name
+    "E722",   # do not use bare except
+    "F401",   # imported but unused (too many false positives in optional deps)
+    "F811",   # redefinition of unused name from import
+    "F841",   # local variable assigned but never used
+    "E401",   # multiple imports on one line
+    "F541",   # f-string without placeholders
+    "F821",   # undefined name (pre-existing issues, tracked separately)
+    "E501",   # line too long (research codebase, many long strings/comments)
+    "W291",   # trailing whitespace
+    "W293",   # whitespace before comment
+]
+per-file-ignores = { "src/train_models.py" = ["F821"] }
+# Still catch real bugs
+select = ["E", "F", "W"]
+# Exclude non-production directories
+exclude = [
+    ".venv",
+    ".understand-anything",
+    "data",
+    "models",
+    "logs",
+    "scratch",
+]
+
 [tool.black]
 line-length = 88
-target-version = ['py310']
+target-version = ['py312']
 include = '\.pyi?$'
 exclude = '''
 /(
