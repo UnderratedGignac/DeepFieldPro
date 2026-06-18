@@ -1,11 +1,18 @@
 """
 odds_aggregator.py — Multi-book best-price finder (no API limits).
 
-Sources (all unlimited, no keys required except Betfair):
+Sources (all unlimited):
   1. Pinnacle  — sharpest public book; guest API key; unlimited calls.
-  2. 1xBet     — major soft book; public JSON API; no auth; no rate limit.
-  3. Betfair   — Exchange market; ~3% commission; unlimited for registered users.
+                 230+ soccer fixtures available; primary source for LightGBM probs + CLV.
+  2. Betfair   — Exchange market; ~3% commission vs ~9% Betarabia overround.
                  Needs BETFAIR_USERNAME / BETFAIR_PASSWORD / BETFAIR_APP_KEY in .env.
+                 Activate your account at betfair.com before credentials work.
+
+  1xBet, Kambi (Unibet/Betsson), and OddsPortal all shut down their public JSON APIs
+  or require JavaScript rendering (Playwright). They can be added later as Playwright-
+  based scrapers using the same pattern as betarabia_scraper.py. For now Pinnacle is
+  the only soft-book-independent price source and it is the most important one —
+  it sets the efficient market price that all soft books eventually converge to.
 
 Two public functions:
     get_pinnacle_probs(home, away) -> (p_h, p_d, p_a) or None
@@ -96,87 +103,7 @@ def _fetch_pinnacle() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Source 2: 1xBet (public JSON API, no auth, no rate limit)
-# ---------------------------------------------------------------------------
-
-_1XBET_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept": "application/json",
-    "Referer": "https://1xbet.com/",
-}
-
-def _fetch_1xbet() -> dict:
-    """
-    Fetches today's soccer 1X2 prices from 1xBet's public API.
-    1xBet is a high-volume soft book; its prices often lag Pinnacle by 30-60 min,
-    creating genuine line-shopping opportunities.
-
-    API pattern (public, no auth):
-      GET https://1xbet.com/LineFeed/GetSports
-          ?sports=1&type=online&count=50&lng=en&tf=10800&tz=1
-      Returns a list of events with odds including home/draw/away (market type 1).
-    """
-    now = time.time()
-    cached = _CACHE.get("1xbet")
-    if cached and now - cached[0] < _TTL:
-        return cached[1]
-
-    result: dict = {}
-    try:
-        resp = requests.get(
-            "https://1xbet.com/LineFeed/GetSports",
-            params={"sports": "1", "type": "online", "count": "100",
-                    "lng": "en", "tf": "10800", "tz": "1"},
-            headers=_1XBET_HEADERS,
-            timeout=15,
-        )
-        if resp.status_code != 200:
-            logger.debug(f"[1xBet] HTTP {resp.status_code}")
-            _CACHE["1xbet"] = (now, result)
-            return result
-
-        data = resp.json()
-        events = data if isinstance(data, list) else data.get("Value", [])
-
-        for ev in events:
-            # Skip non-match events (outrights, etc.)
-            if not ev.get("O") or not ev.get("O2"):  # home / away team
-                continue
-            home = ev.get("O", "").strip()
-            away = ev.get("O2", "").strip()
-            if not home or not away:
-                continue
-
-            odds_1 = odds_x = odds_2 = None
-            for odd in (ev.get("E") or []):
-                t = odd.get("T")   # market type; 1=1X2
-                g = odd.get("G")   # group (1=home, 2=draw, 3=away for 1X2)
-                v = odd.get("C")   # decimal odds value
-                if t == 1 and v and float(v) > 1.0:
-                    if g == 1:
-                        odds_1 = float(v)
-                    elif g == 2:
-                        odds_x = float(v)
-                    elif g == 3:
-                        odds_2 = float(v)
-
-            if odds_1 and odds_2:
-                result[f"{home} vs {away}"] = {
-                    "home": odds_1,
-                    "draw": odds_x or 0.0,
-                    "away": odds_2,
-                    "home_team": home,
-                    "away_team": away,
-                }
-    except Exception as e:
-        logger.debug(f"[1xBet] {e}")
-
-    _CACHE["1xbet"] = (now, result)
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Source 3: Betfair Exchange (unlimited for registered users, ~3% commission)
+# Source 2: Betfair Exchange (unlimited for registered users, ~3% commission)
 # ---------------------------------------------------------------------------
 
 def _fetch_betfair(home: str, away: str) -> dict | None:
@@ -256,12 +183,6 @@ def get_best_price(home: str, away: str,
         result["pinnacle_draw"] = pd_
         result["pinnacle_away"] = pa
         _merge_best(result, {"home": ph, "draw": pd_, "away": pa})
-        result["sources"] += 1
-
-    # 1xBet
-    xm = _fuzzy_match(home, away, _fetch_1xbet())
-    if xm:
-        _merge_best(result, xm)
         result["sources"] += 1
 
     # Betfair Exchange (per-match call; only fires if credentials configured)
