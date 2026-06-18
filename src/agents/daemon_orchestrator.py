@@ -3,6 +3,7 @@ daemon_orchestrator.py — DaemonOrchestrator
 Thin coordinator that sequences all agents in one cycle.
 Zero business logic: reads settings/bankroll, calls agents, returns summary.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -129,7 +130,7 @@ class DaemonOrchestrator:
                     "away": away,
                     "league": fixture.get("tournament_name", ""),
                     "fixture_id": fid,
-                    "market_odds": {},   # market odds not available at scout stage
+                    "market_odds": {},  # market odds not available at scout stage
                 }
             )
             if not pred_result.success:
@@ -215,9 +216,11 @@ class DaemonOrchestrator:
 
     @staticmethod
     def _poisson_pmf(lam: float, k: int) -> float:
-        return (lam ** k) * math.exp(-lam) / math.factorial(k)
+        return (lam**k) * math.exp(-lam) / math.factorial(k)
 
-    def _format_for_dashboard(self, cycle_result: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _format_for_dashboard(
+        self, cycle_result: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """Convert run_cycle() output to todays_dashboard_state.json format."""
         out: List[Dict[str, Any]] = []
         for item in cycle_result.get("predictions", []):
@@ -239,7 +242,10 @@ class DaemonOrchestrator:
             lh = preds.get("lambda_h", 1.3)
             la = preds.get("lambda_a", 1.1)
 
-            pred_label = max({"HOME": hw, "DRAW": dx, "AWAY": aw}, key=lambda k: {"HOME": hw, "DRAW": dx, "AWAY": aw}[k])
+            pred_label = max(
+                {"HOME": hw, "DRAW": dx, "AWAY": aw},
+                key=lambda k: {"HOME": hw, "DRAW": dx, "AWAY": aw}[k],
+            )
 
             score_h = max(0, round(lh))
             score_a = max(0, round(la))
@@ -250,15 +256,21 @@ class DaemonOrchestrator:
 
             total_lam = max(lh + la, 0.1)
 
-            def goalscorers(team_name: str, lam: float, team_label: str) -> List[Dict[str, Any]]:
+            def goalscorers(
+                team_name: str, lam: float, team_label: str
+            ) -> List[Dict[str, Any]]:
                 base_gp = 1 - math.exp(-lam)
                 return [
                     {
                         "name": f"{team_name} Gen {i + 1}",
                         "team": team_label,
                         "role": "FW" if i < 2 else "MF",
-                        "anytime_goal_prob": round(max(0, base_gp * 100 * (0.35 - i * 0.05)), 1),
-                        "first_goal_prob": round(max(0, base_gp * 100 * (0.15 - i * 0.02)), 1),
+                        "anytime_goal_prob": round(
+                            max(0, base_gp * 100 * (0.35 - i * 0.05)), 1
+                        ),
+                        "first_goal_prob": round(
+                            max(0, base_gp * 100 * (0.15 - i * 0.02)), 1
+                        ),
                         "exp_shots": round(max(0.1, lam * (0.8 - i * 0.1)), 1),
                         "exp_sot": round(max(0.1, lam * (0.35 - i * 0.05)), 1),
                         "yellow_prob": round(max(0.5, 10.0 - i * 0.5), 1),
@@ -269,7 +281,11 @@ class DaemonOrchestrator:
                 ]
 
             over05 = round((1 - self._poisson_pmf(lh + la, 0)) * 100, 1)
-            over15 = round((1 - self._poisson_pmf(lh + la, 0) - self._poisson_pmf(lh + la, 1)) * 100, 1)
+            over15 = round(
+                (1 - self._poisson_pmf(lh + la, 0) - self._poisson_pmf(lh + la, 1))
+                * 100,
+                1,
+            )
 
             corners_h = max(3, round(lh * 2.5))
             corners_a = max(3, round(la * 2.5))
@@ -318,9 +334,14 @@ class DaemonOrchestrator:
                 "cards_yellow_away": cards_a,
                 "cards_yellow_total": cards_h + cards_a,
                 "cards_red_total": 0.0,
-                "goalscorers": goalscorers(home, lh, "Home") + goalscorers(away, la, "Away"),
+                "goalscorers": goalscorers(home, lh, "Home")
+                + goalscorers(away, la, "Away"),
                 "ev": round(ev * 100, 2),
-                "recommendation": f"{gate.get('selection', pred_label)} (A2A)" if gate.get("recommended") else pred_label,
+                "recommendation": (
+                    f"{gate.get('selection', pred_label)} (A2A)"
+                    if gate.get("recommended")
+                    else pred_label
+                ),
             }
 
             prediction_obj = {
@@ -336,19 +357,40 @@ class DaemonOrchestrator:
                 "fouls": f"Home: {fouls_h} | Away: {fouls_a}",
                 "cards": f"Home Yellows: {cards_h} | Away Yellows: {cards_a}",
                 "home_players": [
-                    {"name": f"{home} Gen {i + 1}", "impact": round(max(0, lh * (0.2 - i * 0.01)), 2)}
+                    {
+                        "name": f"{home} Gen {i + 1}",
+                        "impact": round(max(0, lh * (0.2 - i * 0.01)), 2),
+                    }
                     for i in range(3)
                 ],
                 "away_players": [
-                    {"name": f"{away} Gen {i + 1}", "impact": round(max(0, la * (0.2 - i * 0.01)), 2)}
+                    {
+                        "name": f"{away} Gen {i + 1}",
+                        "impact": round(max(0, la * (0.2 - i * 0.01)), 2),
+                    }
                     for i in range(3)
                 ],
                 "detailed_prediction": detailed,
                 "markets": {
                     "Match Result": [
-                        {"side": "Home", "odds": 0.0, "prob": round(hw * 100, 1), "ev": round(ev_home * 100, 2)},
-                        {"side": "Draw", "odds": 0.0, "prob": round(dx * 100, 1), "ev": round(ev_draw * 100, 2)},
-                        {"side": "Away", "odds": 0.0, "prob": round(aw * 100, 1), "ev": round(ev_away * 100, 2)},
+                        {
+                            "side": "Home",
+                            "odds": 0.0,
+                            "prob": round(hw * 100, 1),
+                            "ev": round(ev_home * 100, 2),
+                        },
+                        {
+                            "side": "Draw",
+                            "odds": 0.0,
+                            "prob": round(dx * 100, 1),
+                            "ev": round(ev_draw * 100, 2),
+                        },
+                        {
+                            "side": "Away",
+                            "odds": 0.0,
+                            "prob": round(aw * 100, 1),
+                            "ev": round(ev_away * 100, 2),
+                        },
                     ]
                 },
             }
@@ -383,7 +425,9 @@ class DaemonOrchestrator:
             json.dump(formatted, fh, ensure_ascii=False, indent=2)
         tmp_path.replace(state_path)
 
-    def run_loop(self, interval: int = 300, stop_event: threading.Event | None = None) -> None:
+    def run_loop(
+        self, interval: int = 300, stop_event: threading.Event | None = None
+    ) -> None:
         """Run continuous prediction cycles, writing the dashboard state after each.
 
         Set DEEPFIELD_USE_AGENTS=1 to start this instead of the legacy daemon.
@@ -391,6 +435,7 @@ class DaemonOrchestrator:
         stop_event: optional threading.Event; loop exits when set.
         """
         import os
+
         print(f"[A2A] Orchestrator loop started (interval={interval}s)")
         while not (stop_event and stop_event.is_set()):
             try:
@@ -399,7 +444,9 @@ class DaemonOrchestrator:
                 self.write_dashboard_state(formatted)
                 n = len(formatted)
                 errs = len(cycle.get("errors", []))
-                print(f"[A2A] Cycle complete — {n} fixtures, {cycle['bets_placed']} bets, {errs} errors")
+                print(
+                    f"[A2A] Cycle complete — {n} fixtures, {cycle['bets_placed']} bets, {errs} errors"
+                )
             except Exception as exc:
                 print(f"[A2A] Cycle error: {exc}")
             if stop_event:

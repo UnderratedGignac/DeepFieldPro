@@ -92,9 +92,11 @@ def get_state():
 
     try:
         from src.a2ui_builder import build_dashboard_ui
+
         _bk = 0.0
         try:
             import sqlite3 as _sq2
+
             _bkdb = os.path.join(DATA_DIR, "bankroll.db")
             _bkc = _sq2.connect(_bkdb)
             _bkr = _bkc.execute(
@@ -105,9 +107,16 @@ def get_state():
                 _bk = float(_bkr[0])
         except Exception:
             pass
-        return jsonify({"data": state, "ui": build_dashboard_ui(state or [], {}, _bk), "ui_available": True})
+        return jsonify(
+            {
+                "data": state,
+                "ui": build_dashboard_ui(state or [], {}, _bk),
+                "ui_available": True,
+            }
+        )
     except Exception as _ui_err:
         return jsonify({"data": state, "ui": None, "ui_available": False})
+
 
 @app.route("/api/stream")
 def stream_state():
@@ -126,7 +135,12 @@ def stream_state():
                             state = json.load(f)
                         try:
                             from src.a2ui_builder import build_dashboard_ui as _bdu
-                            _pl = {"data": state, "ui": _bdu(state or [], {}, 0.0), "ui_available": True}
+
+                            _pl = {
+                                "data": state,
+                                "ui": _bdu(state or [], {}, 0.0),
+                                "ui_available": True,
+                            }
                         except Exception:
                             _pl = {"data": state, "ui": None, "ui_available": False}
                         yield f"data: {json.dumps(_pl)}\n\n"
@@ -139,15 +153,19 @@ def stream_state():
 
 INITIAL_CAPITAL = 300.0  # paper bankroll seed
 
+
 @app.route("/api/bankroll")
 def get_bankroll():
     # Compute everything from bet_log (ground truth) — bankroll.db drifts due to
     # hash-settled noise and manual resets so we no longer trust it for display.
-    daily = query_db(
-        "bet_log.db",
-        "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
-        "WHERE result NOT IN ('OPEN') GROUP BY day ORDER BY day ASC",
-    ) or []
+    daily = (
+        query_db(
+            "bet_log.db",
+            "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
+            "WHERE result NOT IN ('OPEN') GROUP BY day ORDER BY day ASC",
+        )
+        or []
+    )
 
     chart_dates, chart_balances = [], []
     running = INITIAL_CAPITAL
@@ -163,13 +181,15 @@ def get_bankroll():
     all_time_pnl = running - INITIAL_CAPITAL
     roi = (all_time_pnl / INITIAL_CAPITAL) * 100
 
-    return jsonify({
-        "current": round(running, 2),
-        "roi": round(roi, 2),
-        "pnl": round(today_pnl, 2),
-        "chart_dates": chart_dates,
-        "chart_balances": chart_balances,
-    })
+    return jsonify(
+        {
+            "current": round(running, 2),
+            "roi": round(roi, 2),
+            "pnl": round(today_pnl, 2),
+            "chart_dates": chart_dates,
+            "chart_balances": chart_balances,
+        }
+    )
 
 
 @app.route("/api/edge_report")
@@ -180,47 +200,56 @@ def get_edge_report():
     def to_row(r):
         wins, losses = r["wins"] or 0, r["losses"] or 0
         stake = r["stake"] or 0.0
-        pnl   = r["pnl"]   or 0.0
+        pnl = r["pnl"] or 0.0
         total = wins + losses
         win_rate = round(100 * wins / total, 1) if total else 0.0
-        roi      = round(100 * pnl / stake, 1)  if stake else 0.0
+        roi = round(100 * pnl / stake, 1) if stake else 0.0
         return {
-            "label":    r["label"],
-            "bets":     r["cnt"] or 0,
-            "wins":     wins,
-            "losses":   losses,
+            "label": r["label"],
+            "bets": r["cnt"] or 0,
+            "wins": wins,
+            "losses": losses,
             "win_rate": win_rate,
-            "stake":    round(stake, 2),
-            "pnl":      round(pnl, 2),
-            "roi":      roi,
+            "stake": round(stake, 2),
+            "pnl": round(pnl, 2),
+            "roi": roi,
         }
 
     base = "WHERE result NOT IN ('OPEN','VOID')"
 
-    strategies = [to_row(dict(r, label=r["bet_source"] or "AI")) for r in run(
-        f"SELECT bet_source, COUNT(*) as cnt, "
-        f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
-        f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
-        f"SUM(stake) as stake, SUM(pnl) as pnl "
-        f"FROM bet_log {base} GROUP BY bet_source ORDER BY pnl DESC"
-    )]
+    strategies = [
+        to_row(dict(r, label=r["bet_source"] or "AI"))
+        for r in run(
+            f"SELECT bet_source, COUNT(*) as cnt, "
+            f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+            f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+            f"SUM(stake) as stake, SUM(pnl) as pnl "
+            f"FROM bet_log {base} GROUP BY bet_source ORDER BY pnl DESC"
+        )
+    ]
 
-    markets = [to_row(dict(r, label=r["market_type"] or "Unknown")) for r in run(
-        f"SELECT market_type, COUNT(*) as cnt, "
-        f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
-        f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
-        f"SUM(stake) as stake, SUM(pnl) as pnl "
-        f"FROM bet_log {base} GROUP BY market_type ORDER BY pnl DESC"
-    )]
+    markets = [
+        to_row(dict(r, label=r["market_type"] or "Unknown"))
+        for r in run(
+            f"SELECT market_type, COUNT(*) as cnt, "
+            f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+            f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+            f"SUM(stake) as stake, SUM(pnl) as pnl "
+            f"FROM bet_log {base} GROUP BY market_type ORDER BY pnl DESC"
+        )
+    ]
 
-    leagues = [to_row(dict(r, label=r["league"])) for r in run(
-        f"SELECT league, COUNT(*) as cnt, "
-        f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
-        f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
-        f"SUM(stake) as stake, SUM(pnl) as pnl "
-        f"FROM bet_log {base} AND league IS NOT NULL AND league != '' "
-        f"GROUP BY league HAVING cnt >= 2 ORDER BY pnl DESC"
-    )]
+    leagues = [
+        to_row(dict(r, label=r["league"]))
+        for r in run(
+            f"SELECT league, COUNT(*) as cnt, "
+            f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+            f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+            f"SUM(stake) as stake, SUM(pnl) as pnl "
+            f"FROM bet_log {base} AND league IS NOT NULL AND league != '' "
+            f"GROUP BY league HAVING cnt >= 2 ORDER BY pnl DESC"
+        )
+    ]
 
     return jsonify({"strategies": strategies, "markets": markets, "leagues": leagues})
 
@@ -238,7 +267,7 @@ def get_stair_balance():
         if res.status_code == 200:
             data = res.json()
             # Production returns wallet at the top level with snake_case usdc fields.
-            wallet = (data.get("wallet") or data.get("data", {}).get("wallet") or {})
+            wallet = data.get("wallet") or data.get("data", {}).get("wallet") or {}
             return jsonify(
                 {
                     "available": wallet.get("available_balance_usdc")
@@ -252,16 +281,17 @@ def get_stair_balance():
     return jsonify({"available": 0, "locked": 0})
 
 
-
 @app.route("/api/settled_ledger")
 def get_settled_ledger():
     singles = query_db(
         "bet_log.db",
-        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source FROM bet_log ORDER BY placed_at DESC"
+        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source FROM bet_log ORDER BY placed_at DESC",
     )
-    return jsonify({
-        "singles": [dict(r) for r in (singles or [])],
-    })
+    return jsonify(
+        {
+            "singles": [dict(r) for r in (singles or [])],
+        }
+    )
 
 
 @app.route("/api/tracker")
@@ -316,8 +346,6 @@ def get_tracker():
     )
 
 
-
-
 @app.route("/api/place_bet", methods=["POST"])
 def place_bet():
     try:
@@ -369,6 +397,7 @@ def place_bet():
 
         # Deduct stake from bankroll via tracker
         from bankroll_tracker import register_bet
+
         register_bet(stake)
 
         return jsonify({"status": "success", "bet_id": bet_id})
@@ -386,8 +415,6 @@ def manage_settings():
 
     with open(SETTINGS_FILE, "r") as f:
         return jsonify(json.load(f))
-
-
 
 
 @app.route("/api/comparisons")
@@ -611,13 +638,17 @@ def init_databases():
 
 def start_background_prediction_worker():
     import threading
+
     if os.getenv("DEEPFIELD_USE_AGENTS") == "1":
         # A2A agent-based orchestrator — replaces the legacy monolithic daemon
         try:
             from src.agents.daemon_orchestrator import DaemonOrchestrator
+
             orch = DaemonOrchestrator()
             interval = int(os.getenv("DEEPFIELD_AGENT_INTERVAL", "300"))
-            thread = threading.Thread(target=orch.run_loop, kwargs={"interval": interval}, daemon=True)
+            thread = threading.Thread(
+                target=orch.run_loop, kwargs={"interval": interval}, daemon=True
+            )
             thread.start()
             print(f"[*] A2A orchestrator thread started (interval={interval}s).")
         except Exception as e:
@@ -625,6 +656,7 @@ def start_background_prediction_worker():
     else:
         try:
             from live_predictions_daemon import run_daemon
+
             thread = threading.Thread(target=run_daemon, daemon=True)
             thread.start()
             print("[*] Background prediction worker thread started successfully.")

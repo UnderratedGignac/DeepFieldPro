@@ -8,21 +8,21 @@ from src.dfp_config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class DatabaseManager:
     """
     Centralized database manager for DeepFieldPro.
     Ensures all operations go through SQLAlchemy and the deepfield.db source of truth.
     """
-    
+
     def __init__(self, database_url: str = settings.DATABASE_URL):
         self.engine = create_engine(
-            database_url,
-            pool_size=20,
-            max_overflow=0,
-            pool_pre_ping=True
+            database_url, pool_size=20, max_overflow=0, pool_pre_ping=True
         )
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-        
+        self.SessionLocal = sessionmaker(
+            autocommit=False, autoflush=False, bind=self.engine
+        )
+
     def init_db(self):
         """Create all tables if they don't exist."""
         Base.metadata.create_all(bind=self.engine)
@@ -45,10 +45,8 @@ class DatabaseManager:
         def _bulk_insert():
             with self.engine.begin() as conn:
                 # Optimized bulk insert using executemany execution style
-                conn.execute(
-                    insert(OddsTick).values(ticks_list)
-                )
-        
+                conn.execute(insert(OddsTick).values(ticks_list))
+
         try:
             # Offload blocking IO to a thread pool to avoid stalling the event loop
             await asyncio.to_thread(_bulk_insert)
@@ -57,7 +55,7 @@ class DatabaseManager:
             logger.error(f"[DB] Bulk insert failed: {e}")
 
     # --- Bet Operations ---
-    
+
     def add_bet(self, bet_data: Dict[str, Any]) -> Bet:
         """Add a new bet to the database."""
         session = self.get_session()
@@ -65,7 +63,7 @@ class DatabaseManager:
             # First, ensure fixture exists or link it
             fixture_id = bet_data.get("fixture_id")
             # In a real scenario, we'd verify fixture_id here
-            
+
             new_bet = Bet(
                 fixture_id=fixture_id,
                 sportsbook=bet_data.get("sportsbook"),
@@ -75,7 +73,7 @@ class DatabaseManager:
                 odds=bet_data.get("odds"),
                 potential_return=bet_data.get("potential_return", 0.0),
                 status=bet_data.get("status", "pending"),
-                placed_at=bet_data.get("placed_at")
+                placed_at=bet_data.get("placed_at"),
             )
             session.add(new_bet)
             session.commit()
@@ -105,7 +103,7 @@ class DatabaseManager:
             session.close()
 
     # --- Prediction Operations ---
-    
+
     def add_prediction(self, pred_data: Dict[str, Any]) -> Prediction:
         """Add a model prediction to the database."""
         session = self.get_session()
@@ -122,7 +120,7 @@ class DatabaseManager:
                 recommended_market=pred_data.get("recommended_market"),
                 recommended_selection=pred_data.get("recommended_selection"),
                 fair_odds=pred_data.get("fair_odds"),
-                kelly_stake=pred_data.get("kelly_stake")
+                kelly_stake=pred_data.get("kelly_stake"),
             )
             session.add(new_pred)
             session.commit()
@@ -134,5 +132,6 @@ class DatabaseManager:
             raise
         finally:
             session.close()
+
 
 db_manager = DatabaseManager()

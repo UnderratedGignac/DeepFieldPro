@@ -139,8 +139,9 @@ def get_daily_spent(date_str: Optional[str] = None) -> float:
 
     # Convert the date string to epoch range in UTC
     import calendar
+
     struct = _t.strptime(date_str, "%Y-%m-%d")
-    day_start = float(calendar.timegm(struct))          # midnight UTC
+    day_start = float(calendar.timegm(struct))  # midnight UTC
     day_end = day_start + 86400.0
 
     with _connect() as conn:

@@ -2,6 +2,7 @@
 settler.py — SettlerAgent
 Grades open bets in bet_log.db using free_results_scraper.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -148,9 +149,17 @@ class SettlerAgent(BaseAgent):
 
             return TaskResult(
                 success=True,
-                data={"settled": settled, "wins": wins, "losses": losses, "voids": voids},
+                data={
+                    "settled": settled,
+                    "wins": wins,
+                    "losses": losses,
+                    "voids": voids,
+                },
             )
 
         except Exception as exc:
-            return TaskResult(success=False, error=str(exc),
-                              data={"settled": 0, "wins": 0, "losses": 0, "voids": 0})
+            return TaskResult(
+                success=False,
+                error=str(exc),
+                data={"settled": 0, "wins": 0, "losses": 0, "voids": 0},
+            )

@@ -26,7 +26,7 @@ def _pmf(lam: float, k: int) -> float:
     """Poisson PMF — P(X = k) for X ~ Poisson(lam)."""
     if lam <= 0:
         return 1.0 if k == 0 else 0.0
-    return math.exp(-lam) * (lam ** k) / math.factorial(k)
+    return math.exp(-lam) * (lam**k) / math.factorial(k)
 
 
 def _joint(exp_h: float, exp_a: float):
@@ -58,9 +58,15 @@ def _joint(exp_h: float, exp_a: float):
 def match_1x2(exp_h: float, exp_a: float) -> tuple:
     """Returns (p_home, p_draw, p_away) from DC joint distribution."""
     t = _joint(exp_h, exp_a)
-    ph = sum(t[h][a] for h in range(_MAX_GOALS + 1) for a in range(_MAX_GOALS + 1) if h > a)
-    px = sum(t[h][a] for h in range(_MAX_GOALS + 1) for a in range(_MAX_GOALS + 1) if h == a)
-    pa = sum(t[h][a] for h in range(_MAX_GOALS + 1) for a in range(_MAX_GOALS + 1) if a > h)
+    ph = sum(
+        t[h][a] for h in range(_MAX_GOALS + 1) for a in range(_MAX_GOALS + 1) if h > a
+    )
+    px = sum(
+        t[h][a] for h in range(_MAX_GOALS + 1) for a in range(_MAX_GOALS + 1) if h == a
+    )
+    pa = sum(
+        t[h][a] for h in range(_MAX_GOALS + 1) for a in range(_MAX_GOALS + 1) if a > h
+    )
     total = ph + px + pa or 1.0
     return ph / total, px / total, pa / total
 
@@ -106,7 +112,7 @@ def asian_goal_line(exp_h: float, exp_a: float, line: float) -> dict:
         return {"over": eff_over, "under": eff_under, "push": p_push}
 
     # Quarter lines: split between floor .5-line and ceil .5-line
-    lo = math.floor(line * 2) / 2   # nearest .0 or .5 below
+    lo = math.floor(line * 2) / 2  # nearest .0 or .5 below
     hi = lo + 0.5
     lo_r = asian_goal_line(exp_h, exp_a, lo)
     hi_r = asian_goal_line(exp_h, exp_a, hi)
@@ -120,8 +126,12 @@ def asian_goal_line(exp_h: float, exp_a: float, line: float) -> dict:
 def btts(exp_h: float, exp_a: float) -> tuple:
     """Returns (p_yes, p_no) for Both Teams To Score."""
     t = _joint(exp_h, exp_a)
-    p_yes = sum(t[h][a] for h in range(_MAX_GOALS + 1)
-                for a in range(_MAX_GOALS + 1) if h >= 1 and a >= 1)
+    p_yes = sum(
+        t[h][a]
+        for h in range(_MAX_GOALS + 1)
+        for a in range(_MAX_GOALS + 1)
+        if h >= 1 and a >= 1
+    )
     return p_yes, 1.0 - p_yes
 
 

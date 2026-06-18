@@ -39,6 +39,7 @@ from flask import Blueprint, jsonify, render_template, request
 try:
     import sys as _ap2sys
     import os as _ap2os
+
     _ap2sys.path.insert(0, _ap2os.path.join(_ap2os.path.dirname(__file__), ".."))
     from src.ap2_mandate import SpendingMandate as _Mandate, DEFAULT_MANDATE as _MANDATE
     from src.ap2_ledger import (
@@ -47,6 +48,7 @@ try:
         log_result as _log_result,
         get_daily_spent as _get_daily_spent,
     )
+
     _init_ledger()
     _AP2 = True
 except Exception as _ap2_exc:
@@ -69,29 +71,34 @@ def _ap2_set_ctx(model_prob=0.0, mid=0.0, edge=0.0, wallet_balance=999.0):
 
 
 def _ap2_get_ctx():
-    return getattr(_ap2_tls, "ctx", {
-        "model_prob": 1.0,
-        "mid": 0.0,
-        "edge": 1.0,
-        "wallet_balance": 999.0,
-    })
+    return getattr(
+        _ap2_tls,
+        "ctx",
+        {
+            "model_prob": 1.0,
+            "mid": 0.0,
+            "edge": 1.0,
+            "wallet_balance": 999.0,
+        },
+    )
+
 
 ARENA = "https://stair-ai.com"
 SEASON_ID = 26618  # World Cup 2026 (Sportmonks)
 PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 
 # ---- Risk defaults (overridable per request) -------------------------------
-CONF_MIN_DEFAULT = 0.50          # model prob must beat 50/50 for the outcome
-EDGE_MIN_DEFAULT = 0.02          # 2pp edge vs Polymarket mid (captures clear favourites)
-MAX_USD_PER_BET = 10.00          # arena hard ceiling per order
-MIN_USD_PER_BET = 1.00           # arena minimum per order
-WALLET_BUFFER = 0.05             # keep this much USDC unspent
-MAX_BETS_PER_RUN = 15            # raised so we cover all WC matches in one cycle
-LIMIT_BUFFER = 0.02              # pay up to mid + this to get filled
-TIF_SECONDS = 30                 # limit order expires if unfilled
+CONF_MIN_DEFAULT = 0.50  # model prob must beat 50/50 for the outcome
+EDGE_MIN_DEFAULT = 0.02  # 2pp edge vs Polymarket mid (captures clear favourites)
+MAX_USD_PER_BET = 10.00  # arena hard ceiling per order
+MIN_USD_PER_BET = 1.00  # arena minimum per order
+WALLET_BUFFER = 0.05  # keep this much USDC unspent
+MAX_BETS_PER_RUN = 15  # raised so we cover all WC matches in one cycle
+LIMIT_BUFFER = 0.02  # pay up to mid + this to get filled
+TIF_SECONDS = 30  # limit order expires if unfilled
 
 # Max fraction of wallet per single bet (hard safety cap)
-MAX_WALLET_FRACTION = 0.20       # never more than 20% of wallet on one bet
+MAX_WALLET_FRACTION = 0.20  # never more than 20% of wallet on one bet
 
 arena_bp = Blueprint("arena", __name__)
 
@@ -119,7 +126,9 @@ def _headers():
 
 
 def _get(path, **params):
-    r = requests.get(f"{ARENA}{path}", headers=_headers(), params=params or None, timeout=25)
+    r = requests.get(
+        f"{ARENA}{path}", headers=_headers(), params=params or None, timeout=25
+    )
     try:
         return r.status_code, r.json()
     except ValueError:
@@ -144,7 +153,9 @@ def _unwrap(o):
 # ---------------------------------------------------------------------------
 # DeepFieldPro model prob lookup (mirrors the Betarabia paper strategy)
 # ---------------------------------------------------------------------------
-_DFP_STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "todays_dashboard_state.json")
+_DFP_STATE_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "data", "todays_dashboard_state.json"
+)
 _dfp_cache = {"ts": 0.0, "data": []}
 _DFP_CACHE_TTL = 60  # seconds — daemon writes every ~3 min so 60s staleness is fine
 
@@ -198,7 +209,11 @@ def _match_dfp(home_name, away_name):
                 dp = float(dd["draw_prob"]) / 100.0
                 ap = float(dd["away_prob"]) / 100.0
                 if hp + dp + ap > 0:
-                    return {"home": round(hp, 4), "draw": round(dp, 4), "away": round(ap, 4)}
+                    return {
+                        "home": round(hp, 4),
+                        "draw": round(dp, 4),
+                        "away": round(ap, 4),
+                    }
             except (KeyError, TypeError, ValueError):
                 pass
     return None
@@ -308,7 +323,7 @@ def _wallet_kelly_size(edge, market_mid, wallet_balance):
     if market_mid >= 1.0 or market_mid <= 0 or wallet_balance <= 0:
         return MIN_USD_PER_BET
     kelly_f = max(0.0, edge / (1.0 - market_mid))
-    size = kelly_f * 1.0 * wallet_balance           # full-Kelly (capped by MAX_WALLET_FRACTION)
+    size = kelly_f * 1.0 * wallet_balance  # full-Kelly (capped by MAX_WALLET_FRACTION)
     hard_cap = min(wallet_balance * MAX_WALLET_FRACTION, MAX_USD_PER_BET)
     return round(max(MIN_USD_PER_BET, min(size, hard_cap)), 2)
 
@@ -328,8 +343,13 @@ def _size_for_edge(edge, max_usd):
 # ---------------------------------------------------------------------------
 # Core: analyze fixtures into candidate picks
 # ---------------------------------------------------------------------------
-def analyze(limit=40, conf_min=CONF_MIN_DEFAULT, edge_min=EDGE_MIN_DEFAULT,
-            max_usd=MAX_USD_PER_BET, wallet_balance=None):
+def analyze(
+    limit=40,
+    conf_min=CONF_MIN_DEFAULT,
+    edge_min=EDGE_MIN_DEFAULT,
+    max_usd=MAX_USD_PER_BET,
+    wallet_balance=None,
+):
     fixtures = list_upcoming_fixtures(limit)
     candidates = []
     for f in fixtures:
@@ -380,23 +400,25 @@ def analyze(limit=40, conf_min=CONF_MIN_DEFAULT, edge_min=EDGE_MIN_DEFAULT,
             else:
                 suggested = None
 
-            candidates.append({
-                "fixture_id": str(fid),
-                "match": fname,
-                "kickoff": f.get("starting_at"),
-                "kickoff_ts": f.get("starting_at_timestamp"),
-                "outcome": outcome,
-                "team_code": codes[outcome],
-                "model_prob": round(model_p, 4),
-                "market_mid": round(mid, 4),
-                "edge": round(edge, 4),
-                "edge_pp": round(edge * 100, 1),
-                "qualifies": qualifies,
-                "suggested_usd": suggested,
-                "limit_price": limit_price,
-                "token_id": token,
-                "prob_source": prob_source,
-            })
+            candidates.append(
+                {
+                    "fixture_id": str(fid),
+                    "match": fname,
+                    "kickoff": f.get("starting_at"),
+                    "kickoff_ts": f.get("starting_at_timestamp"),
+                    "outcome": outcome,
+                    "team_code": codes[outcome],
+                    "model_prob": round(model_p, 4),
+                    "market_mid": round(mid, 4),
+                    "edge": round(edge, 4),
+                    "edge_pp": round(edge * 100, 1),
+                    "qualifies": qualifies,
+                    "suggested_usd": suggested,
+                    "limit_price": limit_price,
+                    "token_id": token,
+                    "prob_source": prob_source,
+                }
+            )
     # qualifying first, then by edge desc
     candidates.sort(key=lambda c: (c["qualifies"], c["edge"]), reverse=True)
     return candidates
@@ -408,16 +430,18 @@ def analyze(limit=40, conf_min=CONF_MIN_DEFAULT, edge_min=EDGE_MIN_DEFAULT,
 def submit_ledger(fid, outcome_code, model_prob, note):
     prob = max(0.001, min(0.999, float(model_prob)))
     payload = {
-        "records": [{
-            "behavior": "Acting",
-            "action_type": "prediction",
-            "parameters": {
-                "fixture_id": str(fid),
-                "outcome": outcome_code,
-                "probability": prob,
-            },
-            "notes": note[:2048],
-        }],
+        "records": [
+            {
+                "behavior": "Acting",
+                "action_type": "prediction",
+                "parameters": {
+                    "fixture_id": str(fid),
+                    "outcome": outcome_code,
+                    "probability": prob,
+                },
+                "notes": note[:2048],
+            }
+        ],
         "fixture_id": str(fid),
     }
     return _post("/api/v1/arena/ledger/records/batch", payload)
@@ -436,9 +460,15 @@ def place_order(fid, team_code, usd_size, limit_price):
             _edg = _ctx.get("edge", 1.0)
             _ok, _reason = _m.check(float(usd_size), _spent, _wb, _conf, _edg)
             _ap2_row = _log_intent(
-                fid, team_code, float(usd_size), float(limit_price),
-                _ctx.get("model_prob", 0.0), _ctx.get("mid", 0.0),
-                _ctx.get("edge", 0.0), _ok, _reason,
+                fid,
+                team_code,
+                float(usd_size),
+                float(limit_price),
+                _ctx.get("model_prob", 0.0),
+                _ctx.get("mid", 0.0),
+                _ctx.get("edge", 0.0),
+                _ok,
+                _reason,
             )
             if not _ok:
                 return 402, {"error": f"AP2 mandate blocked: {_reason}"}
@@ -452,12 +482,13 @@ def place_order(fid, team_code, usd_size, limit_price):
         # Log the live-gate block to the AP2 ledger before returning
         if _AP2 and _ap2_row:
             try:
-                _log_result(_ap2_row, None, "blocked",
-                            "DEEPFIELD_ARENA_LIVE != 1")
+                _log_result(_ap2_row, None, "blocked", "DEEPFIELD_ARENA_LIVE != 1")
             except Exception:
                 pass
-        return 0, {"error": "blocked",
-                   "reason": "real-money placement disabled (DEEPFIELD_ARENA_LIVE != 1)"}
+        return 0, {
+            "error": "blocked",
+            "reason": "real-money placement disabled (DEEPFIELD_ARENA_LIVE != 1)",
+        }
 
     payload = {
         "fixture_id": str(fid),
@@ -474,13 +505,15 @@ def place_order(fid, team_code, usd_size, limit_price):
             if o_sc in (200, 201):
                 _order_id = (
                     str(o_resp.get("order_id") or o_resp.get("id") or "")
-                    if isinstance(o_resp, dict) else ""
+                    if isinstance(o_resp, dict)
+                    else ""
                 )
                 _log_result(_ap2_row, _order_id or None, "placed")
             else:
                 _err_msg = (
                     str(o_resp.get("error") or o_resp.get("message") or o_resp)
-                    if isinstance(o_resp, dict) else str(o_resp)
+                    if isinstance(o_resp, dict)
+                    else str(o_resp)
                 )
                 _log_result(_ap2_row, None, "failed", _err_msg[:500])
         except Exception:
@@ -488,8 +521,13 @@ def place_order(fid, team_code, usd_size, limit_price):
     return o_sc, o_resp
 
 
-def run_autoplace(limit=40, conf_min=CONF_MIN_DEFAULT, edge_min=EDGE_MIN_DEFAULT,
-                  max_usd=MAX_USD_PER_BET, dry_run=False):
+def run_autoplace(
+    limit=40,
+    conf_min=CONF_MIN_DEFAULT,
+    edge_min=EDGE_MIN_DEFAULT,
+    max_usd=MAX_USD_PER_BET,
+    dry_run=False,
+):
     wallet = get_wallet()
     if not wallet:
         return {"error": "Could not load arena wallet (check STAIR_AI_API_KEY)."}
@@ -497,8 +535,13 @@ def run_autoplace(limit=40, conf_min=CONF_MIN_DEFAULT, edge_min=EDGE_MIN_DEFAULT
     budget = max(0.0, wallet_balance - WALLET_BUFFER)
     per_bet_cap = min(max_usd, MAX_USD_PER_BET)
 
-    picks = [c for c in analyze(limit, conf_min, edge_min, per_bet_cap, wallet_balance=wallet_balance)
-             if c["qualifies"]]
+    picks = [
+        c
+        for c in analyze(
+            limit, conf_min, edge_min, per_bet_cap, wallet_balance=wallet_balance
+        )
+        if c["qualifies"]
+    ]
     results = []
     spent = 0.0
     placed = 0
@@ -506,45 +549,64 @@ def run_autoplace(limit=40, conf_min=CONF_MIN_DEFAULT, edge_min=EDGE_MIN_DEFAULT
     for c in picks:
         ko = c.get("kickoff_ts")
         if ko and ko <= now_ts:
-            results.append({**c, "status": "skipped", "reason": "match already started"})
+            results.append(
+                {**c, "status": "skipped", "reason": "match already started"}
+            )
             continue
         if placed >= MAX_BETS_PER_RUN:
-            results.append({**c, "status": "skipped", "reason": "max bets per run reached"})
+            results.append(
+                {**c, "status": "skipped", "reason": "max bets per run reached"}
+            )
             continue
         size = min(c["suggested_usd"], per_bet_cap, budget - spent)
         if size < MIN_USD_PER_BET:
-            results.append({**c, "status": "skipped", "reason": "insufficient remaining balance"})
+            results.append(
+                {**c, "status": "skipped", "reason": "insufficient remaining balance"}
+            )
             continue
         size = round(size, 2)
-        note = (f"DeepFieldPro [{c['prob_source']}]: model {c['model_prob']:.0%} vs market "
-                f"{c['market_mid']:.0%} on {c['team_code']} (edge {c['edge_pp']}pp).")
+        note = (
+            f"DeepFieldPro [{c['prob_source']}]: model {c['model_prob']:.0%} vs market "
+            f"{c['market_mid']:.0%} on {c['team_code']} (edge {c['edge_pp']}pp)."
+        )
         if dry_run:
             results.append({**c, "status": "dry_run", "would_stake_usd": size})
             spent += size
             placed += 1
             continue
-        l_sc, l_resp = submit_ledger(c["fixture_id"], c["team_code"], c["model_prob"], note)
+        l_sc, l_resp = submit_ledger(
+            c["fixture_id"], c["team_code"], c["model_prob"], note
+        )
         _ap2_set_ctx(
             model_prob=c.get("model_prob", 1.0),
             mid=c.get("market_mid", 0.0),
             edge=c.get("edge", 1.0),
             wallet_balance=wallet_balance if wallet_balance is not None else 999.0,
         )
-        o_sc, o_resp = place_order(c["fixture_id"], c["team_code"], size, c["limit_price"])
+        o_sc, o_resp = place_order(
+            c["fixture_id"], c["team_code"], size, c["limit_price"]
+        )
         ok = o_sc in (200, 201)
         if ok:
             spent += size
             placed += 1
-        results.append({
-            **c, "status": "placed" if ok else "order_failed",
-            "staked_usd": size,
-            "ledger_status": l_sc, "order_status": o_sc,
-            "order_response": o_resp,
-        })
+        results.append(
+            {
+                **c,
+                "status": "placed" if ok else "order_failed",
+                "staked_usd": size,
+                "ledger_status": l_sc,
+                "order_status": o_sc,
+                "order_response": o_resp,
+            }
+        )
     return {
-        "wallet": wallet, "budget": round(budget, 2),
-        "qualifying": len(picks), "placed": placed,
-        "total_staked": round(spent, 2), "dry_run": dry_run,
+        "wallet": wallet,
+        "budget": round(budget, 2),
+        "qualifying": len(picks),
+        "placed": placed,
+        "total_staked": round(spent, 2),
+        "dry_run": dry_run,
         "results": results,
     }
 
@@ -552,10 +614,12 @@ def run_autoplace(limit=40, conf_min=CONF_MIN_DEFAULT, edge_min=EDGE_MIN_DEFAULT
 # ---------------------------------------------------------------------------
 # Autopilot — fully autonomous betting loop (no user interaction)
 # ---------------------------------------------------------------------------
-SCAN_INTERVAL = 300            # seconds between autonomous scans
-AUTO_SCAN_LIMIT = 30           # nearest-kickoff fixtures scanned per cycle
-DAILY_SPEND_CAP = 40.0         # max real USDC the autopilot may stake per UTC day
-STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "arena_autopilot.json")
+SCAN_INTERVAL = 300  # seconds between autonomous scans
+AUTO_SCAN_LIMIT = 30  # nearest-kickoff fixtures scanned per cycle
+DAILY_SPEND_CAP = 40.0  # max real USDC the autopilot may stake per UTC day
+STATE_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "data", "arena_autopilot.json"
+)
 
 _state_lock = threading.Lock()
 _autopilot_started = False
@@ -575,9 +639,9 @@ def _default_state():
         "last_summary": "starting…",
         "last_error": None,
         "daily": {"date": _today(), "spent": 0.0},
-        "placed_keys": [],          # (fixture:outcome) already bet — dedup
-        "placed": [],               # newest-first log of auto-bets
-        "last_candidates": [],      # qualifying picks from the last cycle
+        "placed_keys": [],  # (fixture:outcome) already bet — dedup
+        "placed": [],  # newest-first log of auto-bets
+        "last_candidates": [],  # qualifying picks from the last cycle
     }
 
 
@@ -613,7 +677,9 @@ def autopilot_cycle():
     # Armed only when BOTH the operator env gate is set AND the state flag is on.
     arena_live = os.getenv("DEEPFIELD_ARENA_LIVE") == "1"
     if not (arena_live and state.get("enabled", False)):
-        state["last_summary"] = "paused" if arena_live else "paused (real-money gate off)"
+        state["last_summary"] = (
+            "paused" if arena_live else "paused (real-money gate off)"
+        )
         with _state_lock:
             _save_state(state)
         return "paused"
@@ -634,8 +700,11 @@ def autopilot_cycle():
     placed_keys = set(state.get("placed_keys", []))
     now_ts = time.time()
 
-    qualifying = [c for c in analyze(AUTO_SCAN_LIMIT, wallet_balance=wallet_balance)
-                  if c["qualifies"]]
+    qualifying = [
+        c
+        for c in analyze(AUTO_SCAN_LIMIT, wallet_balance=wallet_balance)
+        if c["qualifies"]
+    ]
     state["last_candidates"] = qualifying[:25]
 
     spent = 0.0
@@ -650,11 +719,15 @@ def autopilot_cycle():
         if ko and ko <= now_ts:
             continue
         room = min(budget - spent, daily_remaining - spent)
-        size = round(min(c["suggested_usd"] or MIN_USD_PER_BET, MAX_USD_PER_BET, room), 2)
+        size = round(
+            min(c["suggested_usd"] or MIN_USD_PER_BET, MAX_USD_PER_BET, room), 2
+        )
         if size < MIN_USD_PER_BET:
             continue
-        note = (f"DeepFieldPro autopilot [{c['prob_source']}]: model {c['model_prob']:.0%} "
-                f"vs market {c['market_mid']:.0%} on {c['team_code']} (edge {c['edge_pp']}pp).")
+        note = (
+            f"DeepFieldPro autopilot [{c['prob_source']}]: model {c['model_prob']:.0%} "
+            f"vs market {c['market_mid']:.0%} on {c['team_code']} (edge {c['edge_pp']}pp)."
+        )
         submit_ledger(c["fixture_id"], c["team_code"], c["model_prob"], note)
         _ap2_set_ctx(
             model_prob=c.get("model_prob", 1.0),
@@ -662,17 +735,30 @@ def autopilot_cycle():
             edge=c.get("edge", 1.0),
             wallet_balance=wallet_balance,
         )
-        o_sc, o_resp = place_order(c["fixture_id"], c["team_code"], size, c["limit_price"])
+        o_sc, o_resp = place_order(
+            c["fixture_id"], c["team_code"], size, c["limit_price"]
+        )
         ok = o_sc in (200, 201)
-        state["placed"].insert(0, {
-            "key": key, "fixture_id": c["fixture_id"], "match": c["match"],
-            "team_code": c["team_code"], "outcome": c["outcome"],
-            "model_prob": c["model_prob"], "market_mid": c["market_mid"],
-            "edge_pp": c["edge_pp"], "staked_usd": size, "limit_price": c["limit_price"],
-            "kickoff": c["kickoff"], "order_status": o_sc, "ok": ok,
-            "prob_source": c["prob_source"],
-            "ts": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-        })
+        state["placed"].insert(
+            0,
+            {
+                "key": key,
+                "fixture_id": c["fixture_id"],
+                "match": c["match"],
+                "team_code": c["team_code"],
+                "outcome": c["outcome"],
+                "model_prob": c["model_prob"],
+                "market_mid": c["market_mid"],
+                "edge_pp": c["edge_pp"],
+                "staked_usd": size,
+                "limit_price": c["limit_price"],
+                "kickoff": c["kickoff"],
+                "order_status": o_sc,
+                "ok": ok,
+                "prob_source": c["prob_source"],
+                "ts": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            },
+        )
         if ok:
             placed_keys.add(key)
             spent += size
@@ -682,7 +768,9 @@ def autopilot_cycle():
     state["placed"] = state["placed"][:100]
     state["daily"]["spent"] = round(state["daily"]["spent"] + spent, 2)
     state["last_error"] = None
-    state["last_summary"] = f"{len(qualifying)} qualifying · {placed_now} bet · ${spent:.2f} staked"
+    state["last_summary"] = (
+        f"{len(qualifying)} qualifying · {placed_now} bet · ${spent:.2f} staked"
+    )
     with _state_lock:
         _save_state(state)
     return state["last_summary"]
@@ -787,19 +875,26 @@ def arena_analyze():
         cands = analyze(wallet_balance=wallet_balance, **p)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({
-        "params": p,
-        "wallet_balance": wallet_balance,
-        "qualifying": sum(1 for c in cands if c["qualifies"]),
-        "candidates": cands,
-    })
+    return jsonify(
+        {
+            "params": p,
+            "wallet_balance": wallet_balance,
+            "qualifying": sum(1 for c in cands if c["qualifies"]),
+            "candidates": cands,
+        }
+    )
 
 
 @arena_bp.route("/arena/api/place", methods=["POST"])
 def arena_place():
     body = request.get_json(silent=True) or {}
     if not body.get("confirm"):
-        return jsonify({"error": "Refused: real-money placement requires {'confirm': true}."}), 400
+        return (
+            jsonify(
+                {"error": "Refused: real-money placement requires {'confirm': true}."}
+            ),
+            400,
+        )
     p = _params()
     dry = bool(body.get("dry_run", False))
     try:

@@ -16,17 +16,9 @@ def _summary(matches: list) -> str:
 
     n = len(matches)
 
-    rec = sum(
-        1
-        for m in matches
-        if m.get("recommended") or m.get("is_recommended")
-    )
+    rec = sum(1 for m in matches if m.get("recommended") or m.get("is_recommended"))
 
-    steam_hits = sum(
-        1
-        for m in matches
-        if abs(m.get("steam_move") or 0) >= 3.0
-    )
+    steam_hits = sum(1 for m in matches if abs(m.get("steam_move") or 0) >= 3.0)
 
     return f"{n} fixtures today · {rec} AI picks · {steam_hits} steam signals >=3%"
 
@@ -38,12 +30,27 @@ def _match_card_components(match: dict, idx: int) -> list[dict]:
     match_label = f"{home} vs {away}"
 
     # --- probabilities ---
-    raw_h = match.get("home_win_prob") or match.get("home_prob") or match.get("h_prob") or 0.0
+    raw_h = (
+        match.get("home_win_prob")
+        or match.get("home_prob")
+        or match.get("h_prob")
+        or 0.0
+    )
     raw_d = match.get("draw_prob") or match.get("d_prob") or 0.0
-    raw_a = match.get("away_win_prob") or match.get("away_prob") or match.get("a_prob") or 0.0
+    raw_a = (
+        match.get("away_win_prob")
+        or match.get("away_prob")
+        or match.get("a_prob")
+        or 0.0
+    )
 
     # scale from [0,1] to percentage if needed
-    if raw_h <= 1.0 and raw_d <= 1.0 and raw_a <= 1.0 and (raw_h + raw_d + raw_a) <= 1.05:
+    if (
+        raw_h <= 1.0
+        and raw_d <= 1.0
+        and raw_a <= 1.0
+        and (raw_h + raw_d + raw_a) <= 1.05
+    ):
         h_pct = raw_h * 100
         d_pct = raw_d * 100
         a_pct = raw_a * 100

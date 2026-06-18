@@ -6,6 +6,7 @@ from src.models.inference_wrapper import SafeModelLoader
 
 logger = logging.getLogger(__name__)
 
+
 class ModelRegistry:
     """
     Registry manager to track and load production-approved models.
@@ -13,7 +14,9 @@ class ModelRegistry:
     """
 
     def __init__(self, registry_path: str = "models/model_registry.json"):
-        self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.base_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
         self.registry_path = os.path.join(self.base_dir, registry_path)
         self.models_metadata = []
         self._load_registry()
@@ -28,7 +31,9 @@ class ModelRegistry:
             with open(self.registry_path, "r") as f:
                 data = json.load(f)
                 self.models_metadata = data.get("models", [])
-            logger.info(f"[REGISTRY] Loaded {len(self.models_metadata)} model definitions.")
+            logger.info(
+                f"[REGISTRY] Loaded {len(self.models_metadata)} model definitions."
+            )
         except Exception as e:
             logger.error(f"[REGISTRY] Failed to parse model registry: {e}")
 
@@ -48,20 +53,25 @@ class ModelRegistry:
             model_name = meta["model_name"]
             # Construct absolute path for the model file
             model_file_path = os.path.join(self.base_dir, meta["file_path"])
-            
+
             loader = SafeModelLoader(
                 model_name=model_name,
                 model_path=model_file_path,
-                expected_features=meta["expected_features"]
+                expected_features=meta["expected_features"],
             )
-            
+
             if loader.model is not None:
                 pipeline[meta["target_variable"]] = loader
-                logger.info(f"[REGISTRY] Production model {model_name} initialized for {meta['target_variable']}.")
+                logger.info(
+                    f"[REGISTRY] Production model {model_name} initialized for {meta['target_variable']}."
+                )
             else:
-                logger.warning(f"[REGISTRY] Failed to initialize production model: {model_name}")
+                logger.warning(
+                    f"[REGISTRY] Failed to initialize production model: {model_name}"
+                )
 
         return pipeline
+
 
 # Singleton instance for global access
 registry_manager = ModelRegistry()

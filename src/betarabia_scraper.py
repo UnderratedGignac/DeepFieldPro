@@ -132,11 +132,14 @@ def purge_old_data(DaysOld_P: int = 3):
     Bounds DB growth and removes stale lingering duplicates. Safe: those matches are
     long finished and never bet again; today's and future data are untouched."""
     Cutoff_V = (
-        datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=DaysOld_P)
+        datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(days=DaysOld_P)
     ).strftime("%Y-%m-%d")
     Conn_V = sqlite3.connect(DB_PATH)
     Cursor_V = Conn_V.cursor()
-    Cursor_V.execute("SELECT fixture_id FROM fixture WHERE kickoff_date < ?", (Cutoff_V,))
+    Cursor_V.execute(
+        "SELECT fixture_id FROM fixture WHERE kickoff_date < ?", (Cutoff_V,)
+    )
     OldIds_V = [row[0] for row in Cursor_V.fetchall()]
     if OldIds_V:
         Placeholders_V = ",".join("?" for _ in OldIds_V)
@@ -808,7 +811,9 @@ def _normalize_selection(
         if BettingLine_P is not None:
             return f"Total OVER {BettingLine_P}"
         try:
-            Line_V = float(Name_V.lower().replace("total over", "").replace("over", "").strip())
+            Line_V = float(
+                Name_V.lower().replace("total over", "").replace("over", "").strip()
+            )
             return f"Total OVER {Line_V}"
         except Exception:
             return "Total OVER"
@@ -818,7 +823,13 @@ def _normalize_selection(
         if BettingLine_P is not None:
             return f"Corners OVER {BettingLine_P}"
         try:
-            Line_V = float(Name_V.lower().replace("corners total over", "").replace("over", "").replace("corners", "").strip())
+            Line_V = float(
+                Name_V.lower()
+                .replace("corners total over", "")
+                .replace("over", "")
+                .replace("corners", "")
+                .strip()
+            )
             return f"Corners OVER {Line_V}"
         except Exception:
             return "Corners OVER"
@@ -826,7 +837,13 @@ def _normalize_selection(
         if BettingLine_P is not None:
             return f"Corners UNDER {BettingLine_P}"
         try:
-            Line_V = float(Name_V.lower().replace("corners total under", "").replace("under", "").replace("corners", "").strip())
+            Line_V = float(
+                Name_V.lower()
+                .replace("corners total under", "")
+                .replace("under", "")
+                .replace("corners", "")
+                .strip()
+            )
             return f"Corners UNDER {Line_V}"
         except Exception:
             return "Corners UNDER"
@@ -842,7 +859,13 @@ def _normalize_selection(
         if BettingLine_P is not None:
             return f"Cards OVER {BettingLine_P}"
         try:
-            Line_V = float(Name_V.lower().replace("yellow cards total over", "").replace("cards total over", "").replace("over", "").strip())
+            Line_V = float(
+                Name_V.lower()
+                .replace("yellow cards total over", "")
+                .replace("cards total over", "")
+                .replace("over", "")
+                .strip()
+            )
             return f"Cards OVER {Line_V}"
         except Exception:
             return "Cards OVER"
@@ -850,7 +873,13 @@ def _normalize_selection(
         if BettingLine_P is not None:
             return f"Cards UNDER {BettingLine_P}"
         try:
-            Line_V = float(Name_V.lower().replace("yellow cards total under", "").replace("cards total under", "").replace("under", "").strip())
+            Line_V = float(
+                Name_V.lower()
+                .replace("yellow cards total under", "")
+                .replace("cards total under", "")
+                .replace("under", "")
+                .strip()
+            )
             return f"Cards UNDER {Line_V}"
         except Exception:
             return "Cards UNDER"
@@ -1002,7 +1031,7 @@ async def scrape_fixture_list_html(Page_P) -> list:
 async def run_scraper():
     """Main scraper entry point."""
     init_db()
-    purge_old_data()   # drop long-finished fixtures (safe; bounds DB + kills stale dupes)
+    purge_old_data()  # drop long-finished fixtures (safe; bounds DB + kills stale dupes)
 
     TodayStr_V = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     # NOTE: today's data is cleared AFTER a successful scrape (just before the write
@@ -1201,9 +1230,14 @@ async def run_scraper():
                         )
                         if PlayerName_V:
                             PlayerPropsFound_V += 1
-                    elif Mkt_V["market_name"] in ("Total Corners", "Total Yellow Cards", "Total Cards"):
+                    elif Mkt_V["market_name"] in (
+                        "Total Corners",
+                        "Total Yellow Cards",
+                        "Total Cards",
+                    ):
                         # Extract line from selection_name (e.g. "Corners OVER 9.5" → 9.5)
                         import re as _re
+
                         _m = _re.search(r"(\d+\.?\d*)\s*$", Mkt_V["selection_name"])
                         if _m:
                             try:

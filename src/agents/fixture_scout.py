@@ -2,6 +2,7 @@
 fixture_scout.py — FixtureScoutAgent
 Reads today's (or a given date's) fixtures from odds_stream.db.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -10,7 +11,7 @@ from typing import List
 
 from .base import BaseAgent, TaskResult
 
-BASE = Path(__file__).parent.parent.parent   # agents/ -> src/ -> project root
+BASE = Path(__file__).parent.parent.parent  # agents/ -> src/ -> project root
 DATA = BASE / "data"
 MODELS = BASE / "models"
 

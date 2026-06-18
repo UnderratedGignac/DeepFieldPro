@@ -19,10 +19,13 @@ Sofascore has no keyless way to *discover* a match URL from team names — disco
 blocked). It's an on-demand settlement aid: paste the Sofascore link for a stuck bet.
 See tools/settle_from_sofascore.py.
 """
+
 import json
 
-_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
 
 
 def _extract_event(next_data_text, want_url=None):
@@ -33,7 +36,11 @@ def _extract_event(next_data_text, want_url=None):
     while stack:
         o = stack.pop()
         if isinstance(o, dict):
-            if "homeTeam" in o and "awayTeam" in o and ("homeScore" in o or "status" in o):
+            if (
+                "homeTeam" in o
+                and "awayTeam" in o
+                and ("homeScore" in o or "status" in o)
+            ):
                 ht = (o.get("homeTeam") or {}).get("name")
                 at = (o.get("awayTeam") or {}).get("name")
                 hs = o.get("homeScore") or {}
@@ -45,8 +52,10 @@ def _extract_event(next_data_text, want_url=None):
                 # The match page's PRIMARY event is the one with a real score / finished
                 # status; featured side-events are 'notstarted'. Prefer a finished one.
                 cand = {
-                    "home": ht, "away": at,
-                    "home_score": hs_v, "away_score": as_v,
+                    "home": ht,
+                    "away": at,
+                    "home_score": hs_v,
+                    "away_score": as_v,
                     "finished": (st_v == "finished"),
                 }
                 if ht and at:
@@ -65,6 +74,7 @@ def scrape_match(url, _page=None):
     if _page is not None:
         return _scrape_with_page(_page, url)
     from playwright.sync_api import sync_playwright
+
     with sync_playwright() as p:
         b = p.chromium.launch(headless=True)
         try:
@@ -93,6 +103,7 @@ def _scrape_with_page(pg, url):
 def scrape_many(urls):
     """Scrape several match URLs in one browser session."""
     from playwright.sync_api import sync_playwright
+
     out = []
     with sync_playwright() as p:
         b = p.chromium.launch(headless=True)
@@ -107,5 +118,6 @@ def scrape_many(urls):
 
 if __name__ == "__main__":
     import sys
+
     for u in sys.argv[1:]:
         print(u, "->", scrape_match(u))

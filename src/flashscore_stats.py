@@ -24,19 +24,28 @@ What this does NOT do: individual goalscorers or per-player shots — Flashscore
 doesn't expose reliable per-player data, so those markets are intentionally not settleable
 here (better an honest gap than a fabricated/wrong settlement).
 """
+
 import re
 import requests
 
-_H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0 Safari/537.36",
-      "x-fsign": "SW9D1eZo", "Referer": "https://www.flashscore.com/"}
+_H = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0 Safari/537.36",
+    "x-fsign": "SW9D1eZo",
+    "Referer": "https://www.flashscore.com/",
+}
 _DAY = "https://local-global.flashscore.ninja/2/x/feed/f_1_{off}_3_en_1"
 _STAT = "https://local-global.flashscore.ninja/2/x/feed/df_st_1_{mid}"
 _REC = chr(0x00AC)
 _KV = chr(0x00F7)
 
 # Same native<->English aliases used elsewhere so e.g. "Cabo Verde" maps to "Cape Verde".
-_ALIASES = {"cabo verde": "cape verde", "cote d ivoire": "ivory coast",
-            "korea republic": "south korea", "ir iran": "iran", "china pr": "china"}
+_ALIASES = {
+    "cabo verde": "cape verde",
+    "cote d ivoire": "ivory coast",
+    "korea republic": "south korea",
+    "ir iran": "iran",
+    "china pr": "china",
+}
 
 
 def _norm(s):
@@ -107,9 +116,14 @@ def _match_stats(event_id):
         name = f.get("SG")
         if name and name not in vals:
             vals[name] = (f.get("SH"), f.get("SI"))
-    res = {"corners_total": None, "cards_total": None,
-           "shots_home": None, "shots_away": None,
-           "xg_home": None, "xg_away": None}
+    res = {
+        "corners_total": None,
+        "cards_total": None,
+        "shots_home": None,
+        "shots_away": None,
+        "xg_home": None,
+        "xg_away": None,
+    }
     if "Expected goals (xG)" in vals:
         res["xg_home"] = _to_float(vals["Expected goals (xG)"][0])
         res["xg_away"] = _to_float(vals["Expected goals (xG)"][1])
@@ -119,13 +133,18 @@ def _match_stats(event_id):
             res["corners_total"] = h + a
     yc = vals.get("Yellow cards", (None, None))
     rc = vals.get("Red cards", (None, None))
-    cards = [x for x in (_to_int(yc[0]), _to_int(yc[1]), _to_int(rc[0]), _to_int(rc[1]))
-             if x is not None]
-    if "Yellow cards" in vals:   # at least yellow data present
+    cards = [
+        x
+        for x in (_to_int(yc[0]), _to_int(yc[1]), _to_int(rc[0]), _to_int(rc[1]))
+        if x is not None
+    ]
+    if "Yellow cards" in vals:  # at least yellow data present
         res["cards_total"] = sum(cards)
     if "Total shots" in vals:
-        res["shots_home"], res["shots_away"] = (_to_int(vals["Total shots"][0]),
-                                                _to_int(vals["Total shots"][1]))
+        res["shots_home"], res["shots_away"] = (
+            _to_int(vals["Total shots"][0]),
+            _to_int(vals["Total shots"][1]),
+        )
     has_any = any(v is not None for v in res.values())
     return res if has_any else None
 
@@ -169,4 +188,5 @@ def stats_for_matches(match_names, offsets=(0, -1, -2)):
 
 if __name__ == "__main__":
     import sys
+
     print(stats_for_matches(sys.argv[1:] or ["Spain vs Cape Verde"]))

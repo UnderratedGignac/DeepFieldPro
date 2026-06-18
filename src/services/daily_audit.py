@@ -1,6 +1,9 @@
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 import sqlite3
 import logging
 from datetime import datetime, timedelta, timezone
@@ -12,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BET_LOG_DB = os.path.join(BASE_DIR, "data", "bet_log.db")
+
 
 def run_daily_audit():
     """
@@ -30,29 +34,50 @@ def run_daily_audit():
         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
 
         # 1. Total Staked & Settled Count
-        cur.execute("SELECT COUNT(*), SUM(stake) FROM bet_log WHERE placed_at >= ?", (yesterday,))
+        cur.execute(
+            "SELECT COUNT(*), SUM(stake) FROM bet_log WHERE placed_at >= ?",
+            (yesterday,),
+        )
         total_bets, total_staked = cur.fetchone()
         total_staked = total_staked or 0.0
 
         # 2. Results & PnL
-        cur.execute("SELECT COUNT(*) FROM bet_log WHERE placed_at >= ? AND result = 'W'", (yesterday,))
+        cur.execute(
+            "SELECT COUNT(*) FROM bet_log WHERE placed_at >= ? AND result = 'W'",
+            (yesterday,),
+        )
         wins = cur.fetchone()[0] or 0
-        
-        cur.execute("SELECT COUNT(*) FROM bet_log WHERE placed_at >= ? AND result = 'L'", (yesterday,))
+
+        cur.execute(
+            "SELECT COUNT(*) FROM bet_log WHERE placed_at >= ? AND result = 'L'",
+            (yesterday,),
+        )
         losses = cur.fetchone()[0] or 0
-        
-        cur.execute("SELECT SUM(pnl) FROM bet_log WHERE placed_at >= ? AND result != 'OPEN'", (yesterday,))
+
+        cur.execute(
+            "SELECT SUM(pnl) FROM bet_log WHERE placed_at >= ? AND result != 'OPEN'",
+            (yesterday,),
+        )
         daily_pnl = cur.fetchone()[0] or 0.0
 
         # 3. Average CLV (Closing Line Value)
-        cur.execute("SELECT AVG(clv) FROM bet_log WHERE placed_at >= ? AND clv IS NOT NULL", (yesterday,))
+        cur.execute(
+            "SELECT AVG(clv) FROM bet_log WHERE placed_at >= ? AND clv IS NOT NULL",
+            (yesterday,),
+        )
         avg_clv = cur.fetchone()[0] or 0.0
 
         # 4. Top Win & Worst Loss
-        cur.execute("SELECT match_id, pnl FROM bet_log WHERE placed_at >= ? ORDER BY pnl DESC LIMIT 1", (yesterday,))
+        cur.execute(
+            "SELECT match_id, pnl FROM bet_log WHERE placed_at >= ? ORDER BY pnl DESC LIMIT 1",
+            (yesterday,),
+        )
         top_win = cur.fetchone()
-        
-        cur.execute("SELECT match_id, pnl FROM bet_log WHERE placed_at >= ? ORDER BY pnl ASC LIMIT 1", (yesterday,))
+
+        cur.execute(
+            "SELECT match_id, pnl FROM bet_log WHERE placed_at >= ? ORDER BY pnl ASC LIMIT 1",
+            (yesterday,),
+        )
         worst_loss = cur.fetchone()
 
         conn.close()
@@ -84,6 +109,7 @@ def run_daily_audit():
 
     except Exception as e:
         logger.error(f"Daily audit failed: {e}")
+
 
 if __name__ == "__main__":
     run_daily_audit()

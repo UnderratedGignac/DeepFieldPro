@@ -14,11 +14,12 @@ Arb math:
 Near-arb: one selection's Betarabia price > Pinnacle's same selection by ≥2%.
 This means the soft book is paying out more than the sharp market implies is fair.
 """
+
 import logging
 
 logger = logging.getLogger(__name__)
 
-_MIN_ARB_RETURN = 0.5    # % minimum arb to flag (avoids noise)
+_MIN_ARB_RETURN = 0.5  # % minimum arb to flag (avoids noise)
 _NEAR_ARB_THRESHOLD = 2.0  # % Betarabia must beat Pinnacle price to flag near-arb
 
 
@@ -93,12 +94,14 @@ def check_arb(best_prices: dict, pinnacle_prices: dict | None = None) -> dict:
             if best_p > 1 and pinn_p > 1:
                 edge_pct = (best_p / pinn_p - 1.0) * 100
                 if edge_pct >= _NEAR_ARB_THRESHOLD:
-                    result["near_arb"].append({
-                        "selection": sel,
-                        "best_odds": best_p,
-                        "pinnacle_odds": pinn_p,
-                        "edge_pct": round(edge_pct, 1),
-                    })
+                    result["near_arb"].append(
+                        {
+                            "selection": sel,
+                            "best_odds": best_p,
+                            "pinnacle_odds": pinn_p,
+                            "edge_pct": round(edge_pct, 1),
+                        }
+                    )
 
     if not result["is_arb"]:
         if result["near_arb"]:
@@ -109,8 +112,9 @@ def check_arb(best_prices: dict, pinnacle_prices: dict | None = None) -> dict:
     return result
 
 
-def compute_arb_stakes(h_odds: float, d_odds: float, a_odds: float,
-                        total_stake: float = 100.0) -> dict:
+def compute_arb_stakes(
+    h_odds: float, d_odds: float, a_odds: float, total_stake: float = 100.0
+) -> dict:
     """
     Compute how much to stake on each leg for a guaranteed return.
     Only meaningful when check_arb returns is_arb=True.

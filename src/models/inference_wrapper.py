@@ -6,6 +6,7 @@ from typing import List, Optional, Any
 
 logger = logging.getLogger(__name__)
 
+
 class SafeModelLoader:
     """
     Wrapper around AI models to ensure inference safety.
@@ -29,7 +30,9 @@ class SafeModelLoader:
             self.model = joblib.load(self.model_path)
             logger.info(f"[SAFE LOADER] Successfully loaded model: {self.model_name}")
         except Exception as e:
-            logger.critical(f"[SAFE LOADER] Failed to load model {self.model_name}: {e}")
+            logger.critical(
+                f"[SAFE LOADER] Failed to load model {self.model_name}: {e}"
+            )
             self.model = None
 
     def predict_safe(self, df: pd.DataFrame) -> Optional[Any]:
@@ -37,12 +40,14 @@ class SafeModelLoader:
         Perform inference only after validating that all required features exist.
         """
         if self.model is None:
-            logger.error(f"[SAFE LOADER] Inference skipped: {self.model_name} is not loaded.")
+            logger.error(
+                f"[SAFE LOADER] Inference skipped: {self.model_name} is not loaded."
+            )
             return None
 
         # Feature Validation Logic
         missing_features = [f for f in self.expected_features if f not in df.columns]
-        
+
         if missing_features:
             logger.critical(
                 f"[SAFE LOADER] FEATURE DRIFT DETECTED. Model: {self.model_name}. "
@@ -68,20 +73,23 @@ LGBM_MINUTES_FEATURES = [
     "minutes_last_5",
     "Pos",
     "Comp",
-    "days_rest"
+    "days_rest",
 ]
 
 # Instantiate the safe wrapper
 minutes_model_path = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
-    "..", "models", "lgbm_minutes_v1.pkl"
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "..",
+    "models",
+    "lgbm_minutes_v1.pkl",
 )
 
 safe_minutes_model = SafeModelLoader(
     model_name="Expected Minutes LGBM",
     model_path=minutes_model_path,
-    expected_features=LGBM_MINUTES_FEATURES
+    expected_features=LGBM_MINUTES_FEATURES,
 )
+
 
 def get_minutes_prediction(player_df: pd.DataFrame):
     """Utility function to use the safe wrapper."""

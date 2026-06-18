@@ -37,11 +37,14 @@ def _get_client():
     try:
         import betfairlightweight
         from betfairlightweight import APIClient
+
         username = os.getenv("BETFAIR_USERNAME", "")
         password = os.getenv("BETFAIR_PASSWORD", "")
-        app_key  = os.getenv("BETFAIR_APP_KEY", "")
+        app_key = os.getenv("BETFAIR_APP_KEY", "")
         if not all([username, password, app_key]) or "your_" in username:
-            logger.debug("[Betfair] Credentials not configured — skipping Exchange odds")
+            logger.debug(
+                "[Betfair] Credentials not configured — skipping Exchange odds"
+            )
             return None
         _CLIENT = APIClient(username, password, app_key=app_key)
         _CLIENT.login()
@@ -69,8 +72,19 @@ def get_betfair_odds(home_team: str, away_team: str) -> Optional[dict]:
         now = datetime.datetime.utcnow()
         end = now + datetime.timedelta(days=1)
         mf = market_filter(
-            event_type_ids=["1"],           # 1 = Soccer
-            market_countries=["GB", "IE", "DE", "ES", "IT", "FR", "PT", "NL", "BE", "TR"],
+            event_type_ids=["1"],  # 1 = Soccer
+            market_countries=[
+                "GB",
+                "IE",
+                "DE",
+                "ES",
+                "IT",
+                "FR",
+                "PT",
+                "NL",
+                "BE",
+                "TR",
+            ],
             market_type_codes=["MATCH_ODDS"],
             bsp_only=False,
             in_play_only=False,
@@ -85,6 +99,7 @@ def get_betfair_odds(home_team: str, away_team: str) -> Optional[dict]:
 
         # Find the best-matching market by event name
         from rapidfuzz import fuzz
+
         best_market = None
         best_score = 0.0
         for m in markets:

@@ -11,6 +11,7 @@ No external API needed — all data is already scraped by betarabia_scraper.py.
 
 Returns xG multipliers (home_mult, away_mult) ready to apply after DC output.
 """
+
 import os
 import sqlite3
 import datetime
@@ -34,13 +35,15 @@ def _recent_matches(team_name: str, before_date: datetime.date, days: int = 7) -
     try:
         conn = sqlite3.connect(_DB)
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             SELECT COUNT(*) FROM fixture
             WHERE (LOWER(home_team) = LOWER(?) OR LOWER(away_team) = LOWER(?))
               AND DATE(kickoff_time) >= ?
               AND DATE(kickoff_time) < ?
-        """, (team_name, team_name,
-               cutoff.isoformat(), before_date.isoformat()))
+        """,
+            (team_name, team_name, cutoff.isoformat(), before_date.isoformat()),
+        )
         row = cur.fetchone()
         conn.close()
         return int(row[0]) if row else 0
@@ -49,8 +52,9 @@ def _recent_matches(team_name: str, before_date: datetime.date, days: int = 7) -
         return 0
 
 
-def xg_multipliers(home_team: str, away_team: str,
-                   kickoff_date: datetime.date | None = None) -> tuple:
+def xg_multipliers(
+    home_team: str, away_team: str, kickoff_date: datetime.date | None = None
+) -> tuple:
     """
     Returns (home_mult, away_mult) for xG adjustment based on fixture congestion.
 
@@ -88,8 +92,9 @@ def xg_multipliers(home_team: str, away_team: str,
     return home_mult, away_mult
 
 
-def congestion_summary(home_team: str, away_team: str,
-                        kickoff_date: datetime.date | None = None) -> dict:
+def congestion_summary(
+    home_team: str, away_team: str, kickoff_date: datetime.date | None = None
+) -> dict:
     """
     Returns a dict with game counts and multipliers for dashboard display.
     {

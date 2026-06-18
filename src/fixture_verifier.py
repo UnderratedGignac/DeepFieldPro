@@ -21,15 +21,23 @@ Public API:
     }
 Network + Playwright heavy — intended for on-demand sweeps, NOT the hot loop.
 """
+
 import requests
 import difflib
 
-_SEARCH = ("https://s.livesport.services/api/v2/search/"
-           "?q={q}&lang-id=1&project-id=2&project-type-id=1&sport-ids=1&type-ids=1,2,3,4")
-_HDRS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0 Safari/537.36",
-         "Accept": "*/*", "Referer": "https://www.flashscore.com/"}
-_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+_SEARCH = (
+    "https://s.livesport.services/api/v2/search/"
+    "?q={q}&lang-id=1&project-id=2&project-type-id=1&sport-ids=1&type-ids=1,2,3,4"
+)
+_HDRS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0 Safari/537.36",
+    "Accept": "*/*",
+    "Referer": "https://www.flashscore.com/",
+}
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
 
 
 def _norm(s):
@@ -39,7 +47,9 @@ def _norm(s):
 def _search_team(name):
     """Return the best-matching Flashscore Team entry for `name`, or None."""
     try:
-        r = requests.get(_SEARCH.format(q=requests.utils.quote(name)), headers=_HDRS, timeout=15)
+        r = requests.get(
+            _SEARCH.format(q=requests.utils.quote(name)), headers=_HDRS, timeout=15
+        )
         if r.status_code != 200:
             return None
         items = [it for it in r.json() if it.get("type", {}).get("id") == 2]  # 2 = Team
@@ -80,14 +90,19 @@ def _opponent_on_schedule(team_url, team_id, opponent_name):
             pg = b.new_page(user_agent=_UA)
             for tab in ("results", "fixtures"):
                 try:
-                    pg.goto(f"https://www.flashscore.com/team/{team_url}/{team_id}/{tab}/",
-                            wait_until="domcontentloaded", timeout=30000)
+                    pg.goto(
+                        f"https://www.flashscore.com/team/{team_url}/{team_id}/{tab}/",
+                        wait_until="domcontentloaded",
+                        timeout=30000,
+                    )
                     pg.wait_for_timeout(3500)
                     for row in pg.evaluate(_ROWS_JS):
                         rl = _norm(row)
                         # token-overlap match so "Augnablik" hits "Augnablik Kopavogur"
-                        if opp and (opp in rl or any(
-                                tok in rl for tok in opp.split() if len(tok) >= 4)):
+                        if opp and (
+                            opp in rl
+                            or any(tok in rl for tok in opp.split() if len(tok) >= 4)
+                        ):
                             found = True
                             break
                 except Exception:
@@ -102,8 +117,13 @@ def _opponent_on_schedule(team_url, team_id, opponent_name):
 def verify(home, away):
     h = _search_team(home)
     a = _search_team(away)
-    res = {"verdict": "UNKNOWN", "home_found": bool(h), "away_found": bool(a),
-           "opponent_on_schedule": False, "detail": ""}
+    res = {
+        "verdict": "UNKNOWN",
+        "home_found": bool(h),
+        "away_found": bool(a),
+        "opponent_on_schedule": False,
+        "detail": "",
+    }
 
     if not h and not a:
         res["verdict"] = "PHANTOM"
@@ -118,21 +138,28 @@ def verify(home, away):
     on = _opponent_on_schedule(h["url"], h["id"], away)
     res["opponent_on_schedule"] = bool(on)
     if on is None:
-        res["detail"] = "Both teams exist but schedule could not be loaded (Playwright)."
+        res["detail"] = (
+            "Both teams exist but schedule could not be loaded (Playwright)."
+        )
         res["verdict"] = "UNKNOWN"
     elif on:
         res["verdict"] = "REAL"
         res["detail"] = f"{away!r} appears on {home!r}'s Flashscore schedule."
     else:
         res["verdict"] = "PHANTOM"
-        res["detail"] = (f"Both teams exist but {away!r} is NOT on {home!r}'s "
-                         f"results/fixtures — no such match.")
+        res["detail"] = (
+            f"Both teams exist but {away!r} is NOT on {home!r}'s "
+            f"results/fixtures — no such match."
+        )
     return res
 
 
 if __name__ == "__main__":
     import sys, json
+
     if len(sys.argv) >= 3:
-        print(json.dumps(verify(sys.argv[1], sys.argv[2]), indent=2, ensure_ascii=False))
+        print(
+            json.dumps(verify(sys.argv[1], sys.argv[2]), indent=2, ensure_ascii=False)
+        )
     else:
         print("usage: python -m src.fixture_verifier <home> <away>")

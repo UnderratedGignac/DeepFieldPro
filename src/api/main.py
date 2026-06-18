@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Authentication Middleware / Dependency
 # ============================================================================
 
+
 async def verify_api_key(x_api_key: str = Header(None), request: Request = None):
     """
     Middleware-style dependency to verify the X-API-Key header.
@@ -38,16 +39,17 @@ async def verify_api_key(x_api_key: str = Header(None), request: Request = None)
         return
 
     if not x_api_key or x_api_key != settings.DEEPFIELD_API_KEY:
-        logger.warning(f"Unauthorized access attempt to {request.url.path} from {request.client.host}")
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized: Invalid or missing X-API-Key header"
+        logger.warning(
+            f"Unauthorized access attempt to {request.url.path} from {request.client.host}"
         )
+        raise HTTPException(
+            status_code=401, detail="Unauthorized: Invalid or missing X-API-Key header"
+        )
+
 
 # ============================================================================
 # Pydantic Models for Request/Response
 # ============================================================================
-
 
 
 class HealthResponse(BaseModel):
@@ -193,7 +195,7 @@ app = FastAPI(
     description="Production-grade API for sportsbook data acquisition and odds ingestion",
     version="1.0.0",
     lifespan=lifespan,
-    dependencies=[Depends(verify_api_key)]
+    dependencies=[Depends(verify_api_key)],
 )
 
 # Enable CORS
@@ -536,6 +538,7 @@ from src.services.risk_engine.engine import get_bankroll_status, get_active_parl
 # Dashboard Endpoints
 # ============================================================================
 
+
 @app.get("/dashboard/matches", tags=["Dashboard"])
 async def get_dashboard_matches():
     """Get active matches for the Live Predictions dashboard."""
@@ -546,6 +549,7 @@ async def get_dashboard_matches():
         logger.error(f"Failed to fetch matches: {e}")
         return {"matches": []}
 
+
 @app.get("/dashboard/bankroll", tags=["Dashboard"])
 async def get_dashboard_bankroll():
     """Get bankroll and ROI status."""
@@ -555,6 +559,7 @@ async def get_dashboard_bankroll():
     except Exception as e:
         logger.error(f"Failed to fetch bankroll: {e}")
         return {"current_balance": 0.0, "total_pnl": 0.0, "roi": 0.0}
+
 
 @app.get("/dashboard/parlays", tags=["Dashboard"])
 async def get_dashboard_parlays():

@@ -1,6 +1,7 @@
 """
 base.py — shared base types for the DeepFieldPro A2A agent layer.
 """
+
 from __future__ import annotations
 
 import time

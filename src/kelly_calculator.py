@@ -16,7 +16,7 @@ MIN_EDGE_THRESHOLD = 0.03  # 3% minimum edge after vig removal
 def fractional_kelly(fair_prob, market_odds, xmin_p10, xmin_p90, expected_mean):
     """
     Calculates Kelly fraction scaled by model uncertainty (P10/P90 spread).
-    
+
     fair_prob: YOUR model's win probability.
     market_odds: Decimal odds.
     xmin_p10: P10 expected minutes.
@@ -31,11 +31,11 @@ def fractional_kelly(fair_prob, market_odds, xmin_p10, xmin_p90, expected_mean):
 
     # 2. Determine Dynamic Kelly Multiplier based on confidence
     if spread_pct < 0.15:
-        fraction = 0.25    # High Confidence: Quarter Kelly
+        fraction = 0.25  # High Confidence: Quarter Kelly
     elif spread_pct < 0.30:
-        fraction = 0.125   # Moderate Confidence: Eighth Kelly
+        fraction = 0.125  # Moderate Confidence: Eighth Kelly
     else:
-        return 0.0         # Low Confidence: Spread >= 30%, DO NOT BET
+        return 0.0  # Low Confidence: Spread >= 30%, DO NOT BET
 
     # 3. Standard Kelly Formula
     b = market_odds - 1.0
@@ -50,7 +50,9 @@ def fractional_kelly(fair_prob, market_odds, xmin_p10, xmin_p90, expected_mean):
     return kelly_full * fraction
 
 
-def get_recommended_stake(fair_prob, market_odds, current_bankroll, xmin_p10, xmin_p90, expected_mean):
+def get_recommended_stake(
+    fair_prob, market_odds, current_bankroll, xmin_p10, xmin_p90, expected_mean
+):
     """
     Returns the recommended stake in absolute currency.
     Sizing is uncertainty-aware and capped at 2% of bankroll.
@@ -63,7 +65,9 @@ def get_recommended_stake(fair_prob, market_odds, current_bankroll, xmin_p10, xm
         return 0.0
 
     # Calculate uncertainty-aware stake percentage
-    stake_pct = fractional_kelly(fair_prob, market_odds, xmin_p10, xmin_p90, expected_mean)
+    stake_pct = fractional_kelly(
+        fair_prob, market_odds, xmin_p10, xmin_p90, expected_mean
+    )
 
     # Hard cap: never risk more than 2% on any single bet
     max_single_bet_pct = 0.02

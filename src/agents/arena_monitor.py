@@ -3,6 +3,7 @@ arena_monitor.py — ArenaMonitorAgent
 Monitors the Polymarket/STAIR-AI Arena for value opportunities.
 Always enforces dry_run=True unless task explicitly passes dry_run=False.
 """
+
 from __future__ import annotations
 
 import sys

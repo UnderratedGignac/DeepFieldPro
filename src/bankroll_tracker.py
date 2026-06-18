@@ -27,7 +27,9 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "bankroll.db")
 STARTING_BANKROLL = 300.0  # Your initial capital
 # Real circuit-breakers (were 1.0 = disabled). Survival lets a small edge compound;
 # a noisy/over-estimated edge can't run the bankroll to zero before halting.
-MAX_DAILY_EXPOSURE_PCT = 0.50  # daily VOLUME cap (cumulative stakes); daily stop-loss is the real brake
+MAX_DAILY_EXPOSURE_PCT = (
+    0.50  # daily VOLUME cap (cumulative stakes); daily stop-loss is the real brake
+)
 MAX_DRAWDOWN_PCT = 0.30  # halt globally at -30% from peak
 DAILY_STOP_LOSS_PCT = 0.10  # halt for the day at -10% of today's start
 
@@ -209,7 +211,10 @@ def register_settlement(payout, pnl):
         status = "HALT"
 
     # Check daily stop-loss
-    if new_daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT) and starting_balance > 0:
+    if (
+        new_daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT)
+        and starting_balance > 0
+    ):
         print(
             f"🛑 CRITICAL: Daily stop-loss hit (${new_daily_pnl:.2f}). "
             f"Halting bets for the rest of today."

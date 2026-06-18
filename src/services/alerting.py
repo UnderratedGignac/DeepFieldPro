@@ -7,13 +7,19 @@ from src.dfp_config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class NotificationManager:
     """
     Centralized alerting service for DeepFieldPro.
     Handles critical system errors and execution notifications via Discord and WhatsApp.
     """
 
-    def __init__(self, discord_url: str = settings.DISCORD_WEBHOOK_URL, wa_phone: str = settings.WHATSAPP_PHONE, wa_key: str = settings.WHATSAPP_API_KEY):
+    def __init__(
+        self,
+        discord_url: str = settings.DISCORD_WEBHOOK_URL,
+        wa_phone: str = settings.WHATSAPP_PHONE,
+        wa_key: str = settings.WHATSAPP_API_KEY,
+    ):
         self.discord_url = discord_url
         self.wa_phone = wa_phone
         self.wa_key = wa_key
@@ -43,18 +49,24 @@ class NotificationManager:
         """Alert on critical infrastructure failure."""
         # Discord
         payload = {
-            "embeds": [{
-                "title": "🚨 CRITICAL SYSTEM ERROR",
-                "color": 15158332, # Red
-                "fields": [
-                    {"name": "Component", "value": component, "inline": True},
-                    {"name": "Timestamp", "value": datetime.utcnow().isoformat(), "inline": True},
-                    {"name": "Error Details", "value": f"```\n{error_msg}\n```"}
-                ]
-            }]
+            "embeds": [
+                {
+                    "title": "🚨 CRITICAL SYSTEM ERROR",
+                    "color": 15158332,  # Red
+                    "fields": [
+                        {"name": "Component", "value": component, "inline": True},
+                        {
+                            "name": "Timestamp",
+                            "value": datetime.utcnow().isoformat(),
+                            "inline": True,
+                        },
+                        {"name": "Error Details", "value": f"```\n{error_msg}\n```"},
+                    ],
+                }
+            ]
         }
         self._send_discord(payload)
-        
+
         # WhatsApp
         wa_msg = f"*🚨 DeepField CRITICAL ERROR*\n\n*Component:* {component}\n*Error:* {error_msg}\n\n_System Halt Recommended_"
         self._send_whatsapp(wa_msg)
@@ -67,21 +79,43 @@ class NotificationManager:
 
         # Discord
         payload = {
-            "embeds": [{
-                "title": title,
-                "color": color,
-                "fields": [
-                    {"name": "Match", "value": bet_details.get("match"), "inline": True},
-                    {"name": "Market", "value": f"{bet_details.get('market')} - {bet_details.get('side')}", "inline": True},
-                    {"name": "Odds", "value": str(bet_details.get("odds")), "inline": True},
-                    {"name": "Stake", "value": f"${bet_details.get('stake'):.2f}", "inline": True},
-                    {"name": "Edge", "value": f"{bet_details.get('edge', 0)*100:.2f}%", "inline": True}
-                ],
-                "footer": {"text": f"Bet ID: {bet_details.get('bet_id')}"}
-            }]
+            "embeds": [
+                {
+                    "title": title,
+                    "color": color,
+                    "fields": [
+                        {
+                            "name": "Match",
+                            "value": bet_details.get("match"),
+                            "inline": True,
+                        },
+                        {
+                            "name": "Market",
+                            "value": f"{bet_details.get('market')} - {bet_details.get('side')}",
+                            "inline": True,
+                        },
+                        {
+                            "name": "Odds",
+                            "value": str(bet_details.get("odds")),
+                            "inline": True,
+                        },
+                        {
+                            "name": "Stake",
+                            "value": f"${bet_details.get('stake'):.2f}",
+                            "inline": True,
+                        },
+                        {
+                            "name": "Edge",
+                            "value": f"{bet_details.get('edge', 0)*100:.2f}%",
+                            "inline": True,
+                        },
+                    ],
+                    "footer": {"text": f"Bet ID: {bet_details.get('bet_id')}"},
+                }
+            ]
         }
         self._send_discord(payload)
-        
+
         # WhatsApp
         emoji = "💰" if is_shadow else "🔥"
         status_txt = "SHADOW" if is_shadow else "LIVE"
@@ -98,14 +132,26 @@ class NotificationManager:
 
     def send_general_alert(self, title: str, message: str):
         """Generic alert for audits, news, etc."""
-        self._send_discord({"embeds": [{"title": title, "description": message, "color": 15844367}]})
+        self._send_discord(
+            {"embeds": [{"title": title, "description": message, "color": 15844367}]}
+        )
         self._send_whatsapp(f"*🔔 {title}*\n\n{message}")
 
-    def send_bet_alert(self, home: str, away: str, selection: str, league: str,
-                       odds: float, prob: float, ev: float,
-                       steam_move: float = 0.0, sharp_move: float = 0.0,
-                       bankroll: float = 10.0, kelly_mult: float = 0.25,
-                       max_exp: float = 0.05):
+    def send_bet_alert(
+        self,
+        home: str,
+        away: str,
+        selection: str,
+        league: str,
+        odds: float,
+        prob: float,
+        ev: float,
+        steam_move: float = 0.0,
+        sharp_move: float = 0.0,
+        bankroll: float = 10.0,
+        kelly_mult: float = 0.25,
+        max_exp: float = 0.05,
+    ):
         """
         Send a clean, actionable bet recommendation via WhatsApp.
         Formats as: "Team A vs Team B : Team A to win"
@@ -166,6 +212,7 @@ class NotificationManager:
             f"_Research tool — bet responsibly_"
         )
         self._send_whatsapp(msg)
+
 
 # Singleton instance
 notifier = NotificationManager()

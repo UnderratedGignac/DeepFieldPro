@@ -2,6 +2,7 @@ import numpy as np
 import lightgbm as lgb
 from scipy.special import expit
 
+
 def zip_objective(preds, train_data, pi=0.1):
     """
     Custom ZIP Objective for LightGBM.
@@ -10,26 +11,27 @@ def zip_objective(preds, train_data, pi=0.1):
     """
     y_true = train_data.get_label()
     lam = np.exp(preds)
-    
+
     # Gradient and Hessian vectors
     grad = np.zeros_like(preds)
     hess = np.zeros_like(preds)
-    
+
     # Case y = 0
-    idx_zero = (y_true == 0)
+    idx_zero = y_true == 0
     p0 = pi + (1 - pi) * np.exp(-lam[idx_zero])
     # dLL/d_lambda * d_lambda/df
     grad[idx_zero] = -((1 - pi) * np.exp(-lam[idx_zero]) * lam[idx_zero]) / p0
     # Simplified Hessian for y=0
-    hess[idx_zero] = lam[idx_zero] # Fallback to Poisson-like hessian
-    
+    hess[idx_zero] = lam[idx_zero]  # Fallback to Poisson-like hessian
+
     # Case y > 0
-    idx_positive = (y_true > 0)
+    idx_positive = y_true > 0
     grad[idx_positive] = lam[idx_positive] - y_true[idx_positive]
     hess[idx_positive] = lam[idx_positive]
-    
+
     # LightGBM minimizes the objective, so we return grad and hess of negative LL
     return grad, hess
+
 
 def zip_metric(preds, train_data, pi=0.1):
     """
@@ -37,19 +39,24 @@ def zip_metric(preds, train_data, pi=0.1):
     """
     y_true = train_data.get_label()
     lam = np.exp(preds)
-    
+
     ll = np.zeros_like(preds)
-    
+
     # Case y = 0
-    idx_zero = (y_true == 0)
+    idx_zero = y_true == 0
     ll[idx_zero] = np.log(pi + (1 - pi) * np.exp(-lam[idx_zero]))
-    
+
     # Case y > 0
-    idx_positive = (y_true > 0)
+    idx_positive = y_true > 0
     # Using Stirling's approximation or just ignoring log(y!) for relative comparison
-    ll[idx_positive] = np.log(1 - pi) - lam[idx_positive] + y_true[idx_positive] * np.log(lam[idx_positive])
-    
+    ll[idx_positive] = (
+        np.log(1 - pi)
+        - lam[idx_positive]
+        + y_true[idx_positive] * np.log(lam[idx_positive])
+    )
+
     return "zip_ll", -np.mean(ll), True
+
 
 # --- Training Script Snippet ---
 """

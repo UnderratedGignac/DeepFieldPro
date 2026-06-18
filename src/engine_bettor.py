@@ -70,14 +70,14 @@ def edge_pct(model_prob: float, market_odds: float, other_side_odds: float) -> f
     """
     if market_odds <= 1.0 or other_side_odds <= 1.0:
         return 0.0
-        
+
     # Get true probabilities
     true_probs = strip_vig([market_odds, other_side_odds])
-    
+
     # Assuming market_odds corresponds to the 'over' side for this calculation
     # (The caller must ensure the order matches)
     true_implied = true_probs[0]
-    
+
     return (model_prob - true_implied) * 100.0
 
 

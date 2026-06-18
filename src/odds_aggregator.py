@@ -26,6 +26,7 @@ Two public functions:
 All sources are cached 5 minutes so the daemon's 30-second loop makes at most
 one network call per source per 5-minute window, not one per fixture.
 """
+
 import os
 import time
 import logging
@@ -41,6 +42,7 @@ _TTL = 300  # 5-min module-level cache
 # ---------------------------------------------------------------------------
 # Helpers shared by all fetchers
 # ---------------------------------------------------------------------------
+
 
 def _sim(a: str, b: str) -> float:
     return SequenceMatcher(None, (a or "").lower(), (b or "").lower()).ratio()
@@ -87,6 +89,7 @@ def _merge_best(result: dict, src: dict, sel_keys=("home", "draw", "away")):
 # Source 1: Pinnacle (unlimited, sharpest line)
 # ---------------------------------------------------------------------------
 
+
 def _fetch_pinnacle() -> dict:
     now = time.time()
     cached = _CACHE.get("pinnacle")
@@ -94,6 +97,7 @@ def _fetch_pinnacle() -> dict:
         return cached[1]
     try:
         from src.sharp_scraper import fetch_pinnacle_1x2
+
         data = fetch_pinnacle_1x2()
         _CACHE["pinnacle"] = (now, data)
         return data
@@ -106,6 +110,7 @@ def _fetch_pinnacle() -> dict:
 # Source 2: Betfair Exchange (unlimited for registered users, ~3% commission)
 # ---------------------------------------------------------------------------
 
+
 def _fetch_betfair(home: str, away: str) -> dict | None:
     """
     Fetch Betfair Exchange best-back prices for a specific match.
@@ -117,6 +122,7 @@ def _fetch_betfair(home: str, away: str) -> dict | None:
     """
     try:
         from src.betfair_odds import get_betfair_odds
+
         return get_betfair_odds(home, away)
     except Exception:
         return None
@@ -125,6 +131,7 @@ def _fetch_betfair(home: str, away: str) -> dict | None:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def get_pinnacle_probs(home: str, away: str):
     """
@@ -137,8 +144,9 @@ def get_pinnacle_probs(home: str, away: str):
     return _devig(pm.get("home"), pm.get("draw"), pm.get("away"))
 
 
-def get_best_price(home: str, away: str,
-                   betarabia_h=None, betarabia_d=None, betarabia_a=None) -> dict:
+def get_best_price(
+    home: str, away: str, betarabia_h=None, betarabia_d=None, betarabia_a=None
+) -> dict:
     """
     Best available decimal odds across Pinnacle, 1xBet, Betfair, and Betarabia.
 
@@ -191,11 +199,14 @@ def get_best_price(home: str, away: str,
         result["betfair_home"] = bf.get("Home")
         result["betfair_draw"] = bf.get("Draw")
         result["betfair_away"] = bf.get("Away")
-        _merge_best(result, {
-            "home": bf.get("Home", 0),
-            "draw": bf.get("Draw", 0),
-            "away": bf.get("Away", 0),
-        })
+        _merge_best(
+            result,
+            {
+                "home": bf.get("Home", 0),
+                "draw": bf.get("Draw", 0),
+                "away": bf.get("Away", 0),
+            },
+        )
         result["sources"] += 1
 
     return result

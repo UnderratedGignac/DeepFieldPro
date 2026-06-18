@@ -24,45 +24,52 @@ import optuna
 from sklearn.metrics import mean_absolute_error
 from sklearn.feature_selection import SequentialFeatureSelector
 
+
 def prune_features(model, X, y):
     """Prune features using Sequential Feature Selection."""
-    sfs = SequentialFeatureSelector(model, n_features_to_select=5, direction='backward')
+    sfs = SequentialFeatureSelector(model, n_features_to_select=5, direction="backward")
     sfs.fit(X, y)
     selected_features = X.columns[sfs.get_support()].tolist()
     print(f"Selected {len(selected_features)} features: {selected_features}")
     return selected_features
 
+
 def objective(trial, X, y):
     """Optuna objective function for LightGBM."""
     param = {
-        'n_estimators': trial.suggest_int('n_estimators', 100, 500),
-        'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.1),
-        'max_depth': trial.suggest_int('max_depth', 3, 10),
-        'subsample': trial.suggest_float('subsample', 0.5, 1.0),
-        'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
-        'verbose': -1
+        "n_estimators": trial.suggest_int("n_estimators", 100, 500),
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.1),
+        "max_depth": trial.suggest_int("max_depth", 3, 10),
+        "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+        "verbose": -1,
     }
-    
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    X_train, X_val, y_train, y_val = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
     model = lgb.LGBMRegressor(**param)
     model.fit(X_train, y_train)
-    
+
     preds = model.predict(X_val)
     return mean_absolute_error(y_val, preds)
 
+
 def tune_lgbm(X, y):
     """Run Optuna study."""
-    study = optuna.create_study(direction='minimize')
+    study = optuna.create_study(direction="minimize")
     study.optimize(lambda trial: objective(trial, X, y), n_trials=20)
     return study.best_params
+
 
 def train_nb_model(X, y):
     """Train a Negative Binomial model."""
     # Add constant for intercept
     X_V = sm.add_constant(X)
     # Using 'add' parameterization for overdispersion
-    model = NegativeBinomial(y, X_V).fit(disp='add', cov_type='HC0', maxiter=100)
+    model = NegativeBinomial(y, X_V).fit(disp="add", cov_type="HC0", maxiter=100)
     return model
+
 
 BASE_DIR = os.path.join(os.path.dirname(__file__), "..")
 MODEL_DIR = os.path.join(BASE_DIR, "models")
@@ -182,10 +189,10 @@ def train_sot_club_model(df):
     ]
 
     TargetCol_V = "Performance_SoT"
-    
+
     X_V = clean_features(ClubDf_V[FeatureCols_V])
     Y_V = ClubDf_V[TargetCol_V].fillna(0)
-    
+
     # Prune features
     base_model = lgb.LGBMRegressor(verbose=-1)
     selected_features = prune_features(base_model, X_V, Y_V)
@@ -199,20 +206,20 @@ def train_sot_club_model(df):
     print("Optimizing LGBM hyperparameters...")
     best_params = tune_lgbm(X_V, Y_V)
     print(f"Best params: {best_params}")
-    
+
     print("Training LGBM...")
     lgbm_model = lgb.LGBMRegressor(**best_params)
     lgbm_model.fit(X_Train_V, Y_Train_V)
-    
+
     print("Training NB...")
     nb_model = train_nb_model(X_Train_V, Y_Train_V)
-    
+
     # Save ensemble
-    ensemble = {'lgbm': lgbm_model, 'nb': nb_model}
+    ensemble = {"lgbm": lgbm_model, "nb": nb_model}
     ModelPath_V = os.path.join(MODEL_DIR, "lgbm_sot_club_v2.pkl")
     with open(ModelPath_V, "wb") as f:
         pickle.dump(ensemble, f)
-    
+
     print(f"Ensemble model saved to {ModelPath_V}")
     return ensemble
     print(f"\n[OK] Saved: {ModelPath_V}")
@@ -548,20 +555,26 @@ def main():
 if __name__ == "__main__":
     main()
 
+
 def train_sot_int_model(df):
-    IntDf_V = df[df['competition_type'] == 1].copy()
-    IntDf_V['pos_encoded'] = IntDf_V['pos_'].apply(encode_position)
-    FeatureCols_V = ['age_', 'competition_type', 'min_', 'pos_encoded', 'Performance_Sh']
-    TargetCol_V = 'Performance_SoT'
+    IntDf_V = df[df["competition_type"] == 1].copy()
+    IntDf_V["pos_encoded"] = IntDf_V["pos_"].apply(encode_position)
+    FeatureCols_V = [
+        "age_",
+        "competition_type",
+        "min_",
+        "pos_encoded",
+        "Performance_Sh",
+    ]
+    TargetCol_V = "Performance_SoT"
     X_V = clean_features(IntDf_V[FeatureCols_V])
     Y_V = IntDf_V[TargetCol_V].fillna(0)
     best_params = tune_lgbm(X_V, Y_V)
     lgbm_model = lgb.LGBMRegressor(**best_params)
     lgbm_model.fit(X_V, Y_V)
     nb_model = train_nb_model(X_V, Y_V)
-    ensemble = {'lgbm': lgbm_model, 'nb': nb_model}
-    ModelPath_V = os.path.join(MODEL_DIR, 'lgbm_sot_int_v2.pkl')
-    with open(ModelPath_V, 'wb') as f:
+    ensemble = {"lgbm": lgbm_model, "nb": nb_model}
+    ModelPath_V = os.path.join(MODEL_DIR, "lgbm_sot_int_v2.pkl")
+    with open(ModelPath_V, "wb") as f:
         pickle.dump(ensemble, f)
     return ensemble
-

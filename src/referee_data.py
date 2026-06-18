@@ -19,6 +19,7 @@ Integration: the daemon calls `get_referee_signal(referee_name)` to get a
 multiplier for card-market EV display and a small xG adjustment (high-card
 refs correlate with −0.08 goals per extra card above league mean).
 """
+
 import os
 import sqlite3
 import logging
@@ -63,13 +64,16 @@ def _load_ref_stats() -> dict:
     if not os.path.exists(_DB):
         return stats
     if not _has_referee_column():
-        logger.debug("[REFEREE] history.db has no referee column — run ingest_history.py first")
+        logger.debug(
+            "[REFEREE] history.db has no referee column — run ingest_history.py first"
+        )
         return stats
 
     try:
         conn = sqlite3.connect(_DB)
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(
+            """
             SELECT referee,
                    COUNT(*) AS n,
                    AVG(COALESCE(HY,0) + COALESCE(AY,0)
@@ -80,7 +84,8 @@ def _load_ref_stats() -> dict:
             WHERE referee IS NOT NULL AND referee != ''
             GROUP BY referee
             HAVING COUNT(*) >= 10
-        """)
+        """
+        )
         rows = cur.fetchall()
         conn.close()
         for ref, n, avg_b, avg_h, avg_a in rows:
@@ -152,15 +157,17 @@ def get_referee_signal(referee_name: str | None) -> dict:
     xg_penalty = (rate - _LEAGUE_MEAN_BOOKING_RATE) * _CARD_XG_PENALTY_PER_UNIT
     xg_mult = max(0.85, min(1.10, 1.0 - xg_penalty))
 
-    base.update({
-        "found": True,
-        "booking_rate": round(rate, 2),
-        "home_bias": entry["home_bias"],
-        "xg_mult": round(xg_mult, 3),
-        "n_matches": entry["n"],
-        "is_high_card": rate > _LEAGUE_MEAN_BOOKING_RATE * 1.25,
-        "is_low_card": rate < _LEAGUE_MEAN_BOOKING_RATE * 0.75,
-    })
+    base.update(
+        {
+            "found": True,
+            "booking_rate": round(rate, 2),
+            "home_bias": entry["home_bias"],
+            "xg_mult": round(xg_mult, 3),
+            "n_matches": entry["n"],
+            "is_high_card": rate > _LEAGUE_MEAN_BOOKING_RATE * 1.25,
+            "is_low_card": rate < _LEAGUE_MEAN_BOOKING_RATE * 0.75,
+        }
+    )
 
     if base["is_high_card"] or base["is_low_card"]:
         logger.info(

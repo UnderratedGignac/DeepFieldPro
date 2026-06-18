@@ -13,6 +13,7 @@ Public function:
     fetch_pinnacle_1x2() -> { "Home vs Away": {home,draw,away, league, starts, matchup_id} }
     decimal odds; None for a missing designation.
 """
+
 import requests
 
 BASE = "https://guest.api.arcadia.pinnacle.com/0.1"
@@ -51,7 +52,7 @@ def fetch_pinnacle_1x2():
         if mk.get("type") == "moneyline" and mk.get("period") == 0:
             mid = mk.get("matchupId")
             prices = {}
-            for p in (mk.get("prices") or []):
+            for p in mk.get("prices") or []:
                 d = p.get("designation")
                 if d:
                     prices[d] = american_to_decimal(p.get("price"))
@@ -65,8 +66,12 @@ def fetch_pinnacle_1x2():
         parts = m.get("participants") or []
         if len(parts) != 2:
             continue
-        home = next((p.get("name") for p in parts if p.get("alignment") == "home"), None)
-        away = next((p.get("name") for p in parts if p.get("alignment") == "away"), None)
+        home = next(
+            (p.get("name") for p in parts if p.get("alignment") == "home"), None
+        )
+        away = next(
+            (p.get("name") for p in parts if p.get("alignment") == "away"), None
+        )
         if not home or not away:
             home, away = parts[0].get("name"), parts[1].get("name")
         if not home or not away:
@@ -100,7 +105,7 @@ def fetch_pinnacle_totals(line=2.5):
     for mk in markets:
         if mk.get("type") == "total" and mk.get("period") == 0 and mk.get("key") == key:
             o = u = None
-            for p in (mk.get("prices") or []):
+            for p in mk.get("prices") or []:
                 if p.get("designation") == "over":
                     o = american_to_decimal(p.get("price"))
                 elif p.get("designation") == "under":
@@ -108,7 +113,8 @@ def fetch_pinnacle_totals(line=2.5):
             if o and u:
                 io_, iu = 1.0 / o, 1.0 / u
                 tot[mk.get("matchupId")] = {
-                    "over_odds": o, "under_odds": u,
+                    "over_odds": o,
+                    "under_odds": u,
                     "over_prob": round(io_ / (io_ + iu), 4),
                     "under_prob": round(iu / (io_ + iu), 4),
                 }
@@ -120,17 +126,26 @@ def fetch_pinnacle_totals(line=2.5):
         parts = m.get("participants") or []
         if len(parts) != 2:
             continue
-        home = next((p.get("name") for p in parts if p.get("alignment") == "home"), None)
-        away = next((p.get("name") for p in parts if p.get("alignment") == "away"), None)
+        home = next(
+            (p.get("name") for p in parts if p.get("alignment") == "home"), None
+        )
+        away = next(
+            (p.get("name") for p in parts if p.get("alignment") == "away"), None
+        )
         if not (home and away):
             continue
         t = tot.get(m.get("id"))
         if not t:
             continue
-        out[f"{home} vs {away}"] = {**t, "line": line, "home_team": home,
-                                    "away_team": away, "matchup_id": m.get("id"),
-                                    "starts": m.get("startTime"),
-                                    "league": (m.get("league") or {}).get("name")}
+        out[f"{home} vs {away}"] = {
+            **t,
+            "line": line,
+            "home_team": home,
+            "away_team": away,
+            "matchup_id": m.get("id"),
+            "starts": m.get("startTime"),
+            "league": (m.get("league") or {}).get("name"),
+        }
     return out
 
 
@@ -142,5 +157,7 @@ if __name__ == "__main__":
     tot = fetch_pinnacle_totals()
     print(f"\nPinnacle fixtures with O/U 2.5: {len(tot)}")
     for k, v in list(tot.items())[:5]:
-        print(f"  {k:45s} O2.5={v['over_odds']} U2.5={v['under_odds']} "
-              f"P(over)={v['over_prob']:.0%}")
+        print(
+            f"  {k:45s} O2.5={v['over_odds']} U2.5={v['under_odds']} "
+            f"P(over)={v['over_prob']:.0%}"
+        )

@@ -19,19 +19,20 @@ Public API (mirrors free_results_scraper for drop-in use):
     get_finished_results(dates=None) -> { "Home vs Away": (home_score, away_score) }
 Cached per day-offset (TTL) so the settlement loop can call it every sweep cheaply.
 """
+
 import time
 import datetime
 import requests
 
 _HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+    "(KHTML, like Gecko) Chrome/125.0 Safari/537.36",
     "x-fsign": "SW9D1eZo",
     "Referer": "https://www.flashscore.com/",
 }
 _BASE = "https://local-global.flashscore.ninja/2/x/feed/f_1_{off}_3_en_1"
-_REC = chr(0x00AC)   # ¬  field separator
-_KV = chr(0x00F7)    # ÷  key/value separator
+_REC = chr(0x00AC)  # ¬  field separator
+_KV = chr(0x00F7)  # ÷  key/value separator
 _FINISHED = "3"
 
 # offset -> (epoch_fetched, {match: (hs, as)})
@@ -59,10 +60,10 @@ def _parse_feed(txt):
             if _KV in part:
                 k, v = part.split(_KV, 1)
                 f[k] = v
-        if "AA" in f:        # a new match block begins
+        if "AA" in f:  # a new match block begins
             flush()
             cur = dict(f)
-        elif cur:            # continuation fields for the current match
+        elif cur:  # continuation fields for the current match
             cur.update(f)
     flush()
     return out
