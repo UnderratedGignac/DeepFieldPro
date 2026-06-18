@@ -9,6 +9,7 @@ import numpy as np
 import joblib
 import requests
 import datetime
+import json
 import time
 import math
 import threading
@@ -35,6 +36,108 @@ sys.path.insert(0, os.path.dirname(__file__))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
+
+# ---------------------------------------------------------------------------
+# Calibrated league corner/card base rates (measured from football-data.co.uk)
+# ---------------------------------------------------------------------------
+_CORNER_BASE_RATES = {
+    "premier league": 10.57, "eng-premier league": 10.57, "e0": 10.57,
+    "championship": 11.0, "eng-championship": 11.0,
+    "la liga": 9.44, "esp-la liga": 9.44, "sp1": 9.44,
+    "serie a": 9.47, "ita-serie a": 9.47, "i1": 9.47,
+    "bundesliga": 9.77, "ger-bundesliga": 9.77, "d1": 9.77,
+    "ligue 1": 9.37, "fra-ligue 1": 9.37, "f1": 9.37,
+    "eredivisie": 10.4, "ned-eredivisie": 10.4,
+    "primeira liga": 9.9, "por-primeira liga": 9.9,
+    "world cup": 9.5, "copa america": 9.3, "euros": 9.6, "euro": 9.6,
+    "champions league": 9.7, "europa league": 10.0,
+    "mls": 10.2, "brasileirao": 9.6,
+}
+
+# Trained corner model (loaded lazily from models/corner_model.json)
+_corner_model: dict = {}
+
+
+def _load_corner_model():
+    global _corner_model
+    if _corner_model:
+        return _corner_model
+    path = os.path.join(MODELS_DIR, "corner_model.json")
+    if os.path.exists(path):
+        try:
+            with open(path) as _f:
+                _corner_model = json.load(_f)
+        except Exception:
+            _corner_model = {}
+    return _corner_model
+
+_CARD_BASE_RATES = {
+    "premier league": 3.2, "eng-premier league": 3.2,
+    "championship": 3.8, "eng-championship": 3.8,
+    "la liga": 4.0, "esp-la liga": 4.0,
+    "serie a": 4.5, "ita-serie a": 4.5,
+    "bundesliga": 3.0, "ger-bundesliga": 3.0,
+    "ligue 1": 4.0, "fra-ligue 1": 4.0,
+    "eredivisie": 3.5, "ned-eredivisie": 3.5,
+    "world cup": 3.8, "copa america": 3.5, "euro": 3.0,
+    "champions league": 2.8, "europa league": 3.3,
+    "mls": 3.4, "brasileirao": 4.2,
+}
+
+
+def _corner_base(league_name: str) -> float:
+    # Check trained model's league_base first
+    mdl = _load_corner_model()
+    if mdl:
+        lb = mdl.get("league_base", {})
+        ln = (league_name or "").lower()
+        for k, v in lb.items():
+            if k.lower() in ln or ln in k.lower():
+                return float(v)
+    # Fall back to hardcoded calibrated rates
+    ln = (league_name or "").lower()
+    for k, v in _CORNER_BASE_RATES.items():
+        if k in ln:
+            return v
+    return 9.74  # global mean from 3503-match training set
+
+
+def _team_corner_rate(team_name: str, side: str) -> float:
+    """Per-team historical corner rate. Returns None if not in model."""
+    mdl = _load_corner_model()
+    if not mdl:
+        return None
+    key = "home_corner_rate" if side == "home" else "away_corner_rate"
+    rate_map = mdl.get(key, {})
+    if team_name in rate_map:
+        return float(rate_map[team_name])
+    # Fuzzy: try case-insensitive match
+    tl = team_name.lower()
+    for k, v in rate_map.items():
+        if k.lower() == tl:
+            return float(v)
+    return None
+
+
+def _card_base(league_name: str) -> float:
+    ln = (league_name or "").lower()
+    for k, v in _CARD_BASE_RATES.items():
+        if k in ln:
+            return v
+    return 3.5
+
+
+def _poisson_sf(threshold: float, lam: float) -> float:
+    """P(X > threshold) for Poisson(lam) — exact via series summation."""
+    if lam <= 0:
+        return 0.0
+    k = int(math.floor(threshold))
+    p = math.exp(-lam)
+    cdf = p
+    for i in range(1, k + 1):
+        p = p * lam / i
+        cdf += p
+    return max(0.0, min(1.0, 1.0 - cdf))
 
 # Import new DeepFieldPro modules - only the specific classes/functions we actually use
 from src.free_scraper_module import (  # noqa: E402
@@ -627,23 +730,38 @@ def load_predictions_from_db():
 
             dp = extra.get("detailed_prediction", {})
             if dp:
-                # Reconstruct Corners
-                if "Corners" not in db_markets and "corners_over_85" in dp:
+                # Reconstruct Corners — multiple lines so the bet gate can match
+                # whatever line the book is offering (Corners OVER 9.5 etc.)
+                if "Corners" not in db_markets and "corners_lambda" in dp:
+                    lam_c = dp["corners_lambda"]
                     db_markets["Corners"] = [
-                        {"selection": "Over 8.5 Corners", "prob": dp["corners_over_85"]}
+                        {"selection": f"Corners OVER {line}", "prob": round(_poisson_sf(line, lam_c) * 100, 1)}
+                        for line in [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]
+                    ] + [
+                        {"selection": f"Corners UNDER {line}", "prob": round((1.0 - _poisson_sf(line, lam_c)) * 100, 1)}
+                        for line in [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]
                     ]
-                # Reconstruct Total Cards
-                if "Total Cards" not in db_markets and "cards_yellow_total" in dp:
+                elif "Corners" not in db_markets and "corners_over_85" in dp:
+                    # Legacy fallback for predictions stored without corners_lambda
+                    db_markets["Corners"] = [
+                        {"selection": "Corners OVER 8.5", "prob": dp["corners_over_85"]},
+                        {"selection": "Corners OVER 9.5", "prob": dp.get("corners_over_95", dp["corners_over_85"])},
+                    ]
+                # Reconstruct Total Cards — multiple lines
+                if "Total Cards" not in db_markets and "cards_lambda" in dp:
+                    lam_k = dp["cards_lambda"]
                     db_markets["Total Cards"] = [
-                        {
-                            "selection": "Over 3.5 Cards",
-                            "prob": round(
-                                (1.0 - math.exp(-dp["cards_yellow_total"] / 2.5)) * 100,
-                                1,
-                            ),
-                        }
+                        {"selection": f"Cards OVER {line}", "prob": round(_poisson_sf(line, lam_k) * 100, 1)}
+                        for line in [1.5, 2.5, 3.5, 4.5]
+                    ] + [
+                        {"selection": f"Cards UNDER {line}", "prob": round((1.0 - _poisson_sf(line, lam_k)) * 100, 1)}
+                        for line in [1.5, 2.5, 3.5, 4.5]
                     ]
-                # Reconstruct Goalscorer
+                elif "Total Cards" not in db_markets and "cards_yellow_total" in dp:
+                    db_markets["Total Cards"] = [
+                        {"selection": "Cards OVER 3.5", "prob": dp.get("cards_over_35", 40.0)}
+                    ]
+                # Reconstruct Goalscorer — uses anytime_goal_prob (now xG-calibrated %)
                 if "Goalscorer" not in db_markets and "goalscorers" in dp:
                     db_markets["Goalscorer"] = [
                         {
@@ -654,7 +772,7 @@ def load_predictions_from_db():
                                 else round(p["anytime_goal_prob"] * 100, 1)
                             ),
                         }
-                        for p in dp["goalscorers"][:3]
+                        for p in dp["goalscorers"][:8]
                     ]
                 # Reconstruct Player Shots
                 if "Player Shots" not in db_markets and "shots_players" in dp:
@@ -823,12 +941,36 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         home_g = away_g = max(home_g, away_g)
 
     intensity_factor = (home_impact + away_impact) / 10.0
-    home_corners = int(np.random.poisson(4.5 + (home_impact * 0.2)))
-    away_corners = int(np.random.poisson(4.5 + (away_impact * 0.2)))
     home_fouls = int(np.random.poisson(11.0 + intensity_factor))
     away_fouls = int(np.random.poisson(11.0 + intensity_factor))
-    home_yellows = int(np.random.poisson(home_fouls * 0.15))
-    away_yellows = int(np.random.poisson(away_fouls * 0.15))
+
+    # --- Corner model (team-specific + xG-adjusted Poisson, not sampled noise) ---
+    # Priority: (1) trained team historical corner rate, (2) xG-share of league base
+    base_crn = _corner_base(league_name)
+    h_team_rate = _team_corner_rate(home_team, "home")
+    a_team_rate = _team_corner_rate(away_team, "away")
+    if h_team_rate is not None and a_team_rate is not None:
+        # Use team-specific rates adjusted by xG dominance
+        total_xg = max(exp_h + exp_a, 0.01)
+        xg_adj = (exp_h - exp_a) / total_xg  # positive = home dominant
+        lambda_home_corners = h_team_rate * (1.0 + xg_adj * 0.15)
+        lambda_away_corners = a_team_rate * (1.0 - xg_adj * 0.15)
+    else:
+        total_xg = max(exp_h + exp_a, 0.01)
+        h_xg_share = exp_h / total_xg
+        lambda_home_corners = base_crn * h_xg_share * 1.07
+        lambda_away_corners = base_crn * (1.0 - h_xg_share) * 0.97
+    lambda_corners_total = lambda_home_corners + lambda_away_corners
+    # Keep integer samples only for display fields (not for probability calculations)
+    home_corners = max(1, round(lambda_home_corners))
+    away_corners = max(1, round(lambda_away_corners))
+
+    # --- Card model (league calibrated) ---
+    lambda_cards_total = _card_base(league_name)
+    lambda_home_cards = lambda_cards_total * 0.47  # away teams get slightly more cards
+    lambda_away_cards = lambda_cards_total * 0.53
+    home_yellows = max(0, round(lambda_home_cards))
+    away_yellows = max(0, round(lambda_away_cards))
 
     # Calculate Market Probabilities for Betarabia UI
     def poisson_prob(lam, k):
@@ -884,45 +1026,42 @@ def predict_match(fixture, lineups, player_model, match_model, df):
     prob_btts_yes /= total_btts
     prob_btts_no /= total_btts
 
-    # Generate player details based on position heuristic
+    # --- Player detail generation (xG-calibrated Poisson model) ---
+    # Distribute team expected goals across positions using empirical goal-share:
+    #   GK ~0%, DF ~10%, MF ~25%, FW ~65% of team's goals.
+    # Per-player anytime P = 1 - exp(-lambda_per_player) — properly calibrated
+    # to the match's Dixon-Coles xG rather than position*rating heuristics.
+    # Card probabilities use league-calibrated rates split by role.
     all_player_details = []
+
+    def _player_probs(idx, team_xg, team_cards_lambda, rating):
+        if idx == 0:  # GK
+            role = "GK"
+            goal_share, shot_rate, sot_rate = 0.002, 0.05, 0.01
+            card_rate = team_cards_lambda * 0.04
+        elif idx <= 4:  # DF (4 defenders)
+            role = "DF"
+            goal_share, shot_rate, sot_rate = 0.10 / 4, 0.8, 0.25
+            card_rate = team_cards_lambda * 0.28 / 4
+        elif idx <= 8:  # MF (4 midfielders)
+            role = "MF"
+            goal_share, shot_rate, sot_rate = 0.25 / 4, 1.5, 0.5
+            card_rate = team_cards_lambda * 0.38 / 4
+        else:  # FW (3 forwards)
+            role = "FW"
+            goal_share, shot_rate, sot_rate = 0.65 / 3, 2.5, 0.9
+            card_rate = team_cards_lambda * 0.30 / 3
+        lam_goal = team_xg * goal_share
+        anytime_pct = round((1.0 - math.exp(-lam_goal)) * 100.0, 1)
+        first_pct = round(anytime_pct * 0.28, 1)  # ~28% of anytime scorers score first
+        return role, anytime_pct, first_pct, round(shot_rate, 2), round(sot_rate, 2), round(card_rate * 100, 1)
+
     # Home starting lineup
     for idx, p in enumerate(lineups[0].get("startXI", [])):
         pname = p["player"]["name"]
         pstats = get_player_rolling_stats(pname, df)
         rating = pstats.get("rating_roll", 6.5)
-        if idx == 0:
-            role = "GK"
-            anytime = 0.5
-            first = 0.2
-            shots = 0.0
-            sot = 0.0
-            yellow = 8.0
-            red = 0.5
-        elif idx <= 4:
-            role = "DF"
-            anytime = round(rating * 0.8, 1)
-            first = round(anytime * 0.3, 1)
-            shots = round(rating * 0.06, 1)
-            sot = round(shots * 0.3, 1)
-            yellow = round(20 + rating, 1)
-            red = round(1 + rating * 0.2, 1)
-        elif idx <= 8:
-            role = "MF"
-            anytime = round(rating * 2.2, 1)
-            first = round(anytime * 0.4, 1)
-            shots = round(rating * 0.22, 1)
-            sot = round(shots * 0.4, 1)
-            yellow = round(15 + rating * 1.2, 1)
-            red = round(0.5 + rating * 0.15, 1)
-        else:
-            role = "FW"
-            anytime = round(rating * 4.2, 1)
-            first = round(anytime * 0.45, 1)
-            shots = round(rating * 0.38, 1)
-            sot = round(shots * 0.45, 1)
-            yellow = round(8 + rating * 0.5, 1)
-            red = round(0.2 + rating * 0.05, 1)
+        role, anytime, first, shots, sot, yellow = _player_probs(idx, exp_h, lambda_home_cards, rating)
         all_player_details.append(
             {
                 "name": pname,
@@ -933,7 +1072,7 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                 "exp_shots": shots,
                 "exp_sot": sot,
                 "yellow_prob": yellow,
-                "red_prob": red,
+                "red_prob": round(yellow * 0.05, 1),
                 "rating": round(rating, 2),
             }
         )
@@ -943,38 +1082,7 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         pname = p["player"]["name"]
         pstats = get_player_rolling_stats(pname, df)
         rating = pstats.get("rating_roll", 6.5)
-        if idx == 0:
-            role = "GK"
-            anytime = 0.5
-            first = 0.2
-            shots = 0.0
-            sot = 0.0
-            yellow = 8.0
-            red = 0.5
-        elif idx <= 4:
-            role = "DF"
-            anytime = round(rating * 0.8, 1)
-            first = round(anytime * 0.3, 1)
-            shots = round(rating * 0.06, 1)
-            sot = round(shots * 0.3, 1)
-            yellow = round(20 + rating, 1)
-            red = round(1 + rating * 0.2, 1)
-        elif idx <= 8:
-            role = "MF"
-            anytime = round(rating * 2.2, 1)
-            first = round(anytime * 0.4, 1)
-            shots = round(rating * 0.22, 1)
-            sot = round(shots * 0.4, 1)
-            yellow = round(15 + rating * 1.2, 1)
-            red = round(0.5 + rating * 0.15, 1)
-        else:
-            role = "FW"
-            anytime = round(rating * 4.2, 1)
-            first = round(anytime * 0.45, 1)
-            shots = round(rating * 0.38, 1)
-            sot = round(shots * 0.45, 1)
-            yellow = round(8 + rating * 0.5, 1)
-            red = round(0.2 + rating * 0.05, 1)
+        role, anytime, first, shots, sot, yellow = _player_probs(idx, exp_a, lambda_away_cards, rating)
         all_player_details.append(
             {
                 "name": pname,
@@ -985,7 +1093,7 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                 "exp_shots": shots,
                 "exp_sot": sot,
                 "yellow_prob": yellow,
-                "red_prob": red,
+                "red_prob": round(yellow * 0.05, 1),
                 "rating": round(rating, 2),
             }
         )
@@ -1030,24 +1138,24 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         "corners_total": home_corners + away_corners,
         "corners_home": home_corners,
         "corners_away": away_corners,
-        "corners_over_75": round(
-            (1.0 - math.exp(-(home_corners + away_corners) / 4.0)) * 100, 1
-        ),
-        "corners_over_85": round(
-            (1.0 - math.exp(-(home_corners + away_corners) / 5.0)) * 100, 1
-        ),
-        "corners_over_95": round(
-            (1.0 - math.exp(-(home_corners + away_corners) / 6.0)) * 100, 1
-        ),
-        "corners_over_105": round(
-            (1.0 - math.exp(-(home_corners + away_corners) / 7.0)) * 100, 1
-        ),
+        "corners_lambda": round(lambda_corners_total, 2),
+        # Proper Poisson CDF — P(X > threshold) using exact series, not noisy samples
+        "corners_over_75": round(_poisson_sf(7.5, lambda_corners_total) * 100, 1),
+        "corners_over_85": round(_poisson_sf(8.5, lambda_corners_total) * 100, 1),
+        "corners_over_95": round(_poisson_sf(9.5, lambda_corners_total) * 100, 1),
+        "corners_over_105": round(_poisson_sf(10.5, lambda_corners_total) * 100, 1),
+        "corners_over_115": round(_poisson_sf(11.5, lambda_corners_total) * 100, 1),
+        "corners_over_125": round(_poisson_sf(12.5, lambda_corners_total) * 100, 1),
+        "cards_lambda": round(lambda_cards_total, 2),
         "cards_yellow_home": home_yellows,
         "cards_yellow_away": away_yellows,
         "cards_yellow_total": home_yellows + away_yellows,
-        "cards_red_total": round(
-            float(np.random.choice([0.0, 0.1, 0.2], p=[0.8, 0.15, 0.05])), 2
-        ),
+        # Proper Poisson CDF for cards
+        "cards_over_15": round(_poisson_sf(1.5, lambda_cards_total) * 100, 1),
+        "cards_over_25": round(_poisson_sf(2.5, lambda_cards_total) * 100, 1),
+        "cards_over_35": round(_poisson_sf(3.5, lambda_cards_total) * 100, 1),
+        "cards_over_45": round(_poisson_sf(4.5, lambda_cards_total) * 100, 1),
+        "cards_red_total": round(lambda_cards_total * 0.04, 2),
         "goalscorers": goalscorers_sorted[:8],
         "shots_players": shots_sorted[:8],
         "cards_players": cards_sorted[:6],
@@ -1446,9 +1554,14 @@ def find_betarabia_odds(home_team, away_team):
             conn.close()
             return None
 
-        # Query markets
+        # Query markets. ORDER BY market_id so canonical 3-way rows (hyphen IDs,
+        # e.g. "26935878-3-0-0-0-0") always sort before secondary 2-way duplicate
+        # markets (underscore IDs). Combined with setdefault below this prevents
+        # a stray 2-way line (e.g. Home@14.0 / Away@1.002) from overwriting the
+        # real 3-way 1X2 odds and inflating EV.
         cur.execute(
-            "SELECT market_name, selection_name, raw_odds FROM market WHERE fixture_id = ?",
+            "SELECT market_name, selection_name, raw_odds FROM market"
+            " WHERE fixture_id = ? ORDER BY market_id ASC",
             (best_fid,),
         )
         rows = cur.fetchall()
@@ -1459,7 +1572,9 @@ def find_betarabia_odds(home_team, away_team):
             "Over/Under 2.5": {},
             "BTTS": {},
             "Corners": {},
-            "Cards": {},
+            "Total Cards": {},
+            "Goalscorer": {},
+            "Player Shots on Target": {},
         }
 
         for mname, sname, price in rows:
@@ -1467,35 +1582,38 @@ def find_betarabia_odds(home_team, away_team):
             sname_lower = sname.lower()
 
             # Match Result (1X2)
+            # Use setdefault: first valid 3-way market wins; later 2-way duplicates
+            # (e.g. Asian handicap lines with extreme odds) are ignored.
             if "result" in mname_lower or "1x2" in mname_lower:
                 if sname_lower == "x" or "draw" in sname_lower:
-                    odds_dict["1X2"]["Draw"] = price
+                    odds_dict["1X2"].setdefault("Draw", price)
                 else:
                     h_score = get_match_score(sname, best_home)
                     a_score = get_match_score(sname, best_away)
                     if h_score >= 0.5 and h_score > a_score:
-                        odds_dict["1X2"]["Home"] = price
+                        odds_dict["1X2"].setdefault("Home", price)
                     elif a_score >= 0.5 and a_score > h_score:
-                        odds_dict["1X2"]["Away"] = price
+                        odds_dict["1X2"].setdefault("Away", price)
 
-            # Over/Under 2.5
-            elif "total" in mname_lower or "over/under" in mname_lower:
-                if "corner" in mname_lower:
-                    # Capture corner lines (e.g. Over 8.5 Corners)
-                    if "over" in sname_lower:
-                        odds_dict["Corners"][sname] = price
-                    elif "under" in sname_lower:
-                        odds_dict["Corners"][sname] = price
-                elif "card" in mname_lower or "booking" in mname_lower:
-                    if "over" in sname_lower:
-                        odds_dict["Cards"][sname] = price
-                    elif "under" in sname_lower:
-                        odds_dict["Cards"][sname] = price
-                elif "2.5" in sname:
-                    if "over" in sname_lower:
-                        odds_dict["Over/Under 2.5"]["Over"] = price
-                    elif "under" in sname_lower:
-                        odds_dict["Over/Under 2.5"]["Under"] = price
+            # Corners — sname is now "Corners OVER 9.5" after scraper fix
+            elif "corner" in mname_lower and "total" in mname_lower:
+                odds_dict["Corners"][sname] = price
+
+            # Total Cards / Yellow Cards
+            elif ("card" in mname_lower or "booking" in mname_lower or "yellow" in mname_lower) and "total" in mname_lower:
+                odds_dict["Total Cards"][sname] = price
+
+            # Total Goals Over/Under
+            elif "total" in mname_lower and "goal" in mname_lower:
+                if "over" in sname_lower:
+                    odds_dict["Over/Under 2.5"]["Over"] = price
+                elif "under" in sname_lower:
+                    odds_dict["Over/Under 2.5"]["Under"] = price
+            elif ("total" in mname_lower or "goals" in mname_lower) and ("2.5" in sname or "total" in sname_lower):
+                if "over" in sname_lower:
+                    odds_dict["Over/Under 2.5"]["Over"] = price
+                elif "under" in sname_lower:
+                    odds_dict["Over/Under 2.5"]["Under"] = price
 
             # BTTS
             elif "both teams" in mname_lower or "btts" in mname_lower:
@@ -1503,6 +1621,26 @@ def find_betarabia_odds(home_team, away_team):
                     odds_dict["BTTS"]["Yes"] = price
                 elif "no" in sname_lower:
                     odds_dict["BTTS"]["No"] = price
+
+            # Player anytime goalscorer — sname like "Kylian Mbappe Over 0.5"
+            # Store keyed by player name (strip " Over 0.5")
+            elif "goalscorer" in mname_lower or ("anytime" in mname_lower and "goal" in mname_lower):
+                import re as _re
+                player = _re.sub(r"\s+Over\s+\d+\.?\d*$", "", sname, flags=_re.IGNORECASE).strip()
+                if player:
+                    odds_dict["Goalscorer"][player] = price
+
+            # Player shots on target — sname like "Mbappe Over 1.5"
+            elif "shots on target" in mname_lower and "player" in mname_lower:
+                import re as _re
+                player_sot = _re.sub(r"\s+(Over|Under)\s+\d+\.?\d*$", "", sname, flags=_re.IGNORECASE).strip()
+                if player_sot:
+                    line_m = _re.search(r"(Over|Under)\s+(\d+\.?\d*)", sname, _re.IGNORECASE)
+                    if line_m:
+                        direction = line_m.group(1).lower()
+                        line_val = float(line_m.group(2))
+                        key = f"{player_sot} {direction.title()} {line_val}"
+                        odds_dict["Player Shots on Target"][key] = price
 
         return odds_dict
 
@@ -2070,7 +2208,7 @@ def fetch_api_football_results():
     headers = {"x-apisports-key": key}
     results = {}
     now = datetime.datetime.now(datetime.timezone.utc)
-    for delta in (0, 1):
+    for delta in range(3):   # free plan: today, yesterday, tomorrow only
         day = (now - datetime.timedelta(days=delta)).strftime("%Y-%m-%d")
         cached = _apifootball_cache.get(day)
         if cached and (time.time() - cached[0]) < _APIFOOTBALL_TTL:
@@ -2149,11 +2287,38 @@ def settle_open_bets():
                     away_score,
                 )
 
+    # Compute date range: cover the oldest open bet so bets >2 days old can settle.
+    # Both scrapers accept a `dates` list; default is today+yesterday only.
+    try:
+        _bl_conn = sqlite3.connect(os.path.join(DATA_DIR, "bet_log.db"))
+        _oldest = _bl_conn.execute(
+            "SELECT MIN(placed_at) FROM bet_log WHERE result='OPEN'"
+        ).fetchone()[0]
+        _bl_conn.close()
+    except Exception:
+        _oldest = None
+    _now_utc = datetime.datetime.now(datetime.timezone.utc)
+    if _oldest:
+        try:
+            _oldest_dt = datetime.datetime.fromisoformat(
+                str(_oldest).replace("Z", "+00:00")
+            ).replace(tzinfo=datetime.timezone.utc)
+            _days_back = max(1, (_now_utc.date() - _oldest_dt.date()).days)
+        except Exception:
+            _days_back = 3
+    else:
+        _days_back = 1
+    _days_back = min(_days_back, 7)   # cap at 7 so we don't hammer APIs with ancient bets
+    _settle_dates = [
+        (_now_utc - datetime.timedelta(days=d)).strftime("%Y-%m-%d")
+        for d in range(_days_back + 1)
+    ]
+
     # Sofascore is bot-blocked/empty — use the free, key-less results scraper
     # (ESPN + TheSportsDB) as the primary settlement feed.
     try:
         from src.free_results_scraper import get_finished_results
-        free_results = get_finished_results()
+        free_results = get_finished_results(dates=_settle_dates)
         finished_matches.update(free_results)
         print(f"[SETTLEMENT] Free results scraper provided {len(free_results)} finished matches.")
     except Exception as e:
@@ -2163,7 +2328,7 @@ def settle_open_bets():
     # lower-division matches ESPN/TheSportsDB miss. Plain requests, cached, no browser.
     try:
         from src.flashscore_scraper import get_finished_results as fs_results
-        flash = fs_results()
+        flash = fs_results(dates=_settle_dates)
         finished_matches.update(flash)
         print(f"[SETTLEMENT] Flashscore provided {len(flash)} finished matches.")
     except Exception as e:
@@ -2719,27 +2884,33 @@ def update_dashboard_json(fixtures, results_cache):
                         elif m_type == "BTTS":
                             if "Yes" in sel_name: key = "Yes"
                             elif "No" in sel_name: key = "No"
-                        elif m_type == "Corners": key = sel_name
-                        elif m_type == "Total Cards": key = sel_name
+                        elif m_type == "Corners":
+                            key = sel_name  # "Corners OVER 9.5" must match scraper output
+                        elif m_type == "Total Cards":
+                            key = sel_name  # "Cards OVER 3.5" must match scraper output
+                        elif m_type == "Goalscorer":
+                            # sel_name = "Kylian Mbappe Anytime Goal" → extract player name
+                            import re as _re
+                            key = _re.sub(r"\s+Anytime Goal$", "", sel_name, flags=_re.IGNORECASE).strip()
+                        elif m_type == "Player Shots on Target":
+                            key = sel_name
 
                         odds = None
                         all_market_odds = []
                         if odds_dict:
-                            if m_type in odds_dict and key in odds_dict[m_type]:
+                            if m_type in odds_dict and key and key in odds_dict[m_type]:
                                 odds = odds_dict[m_type][key]
                                 all_market_odds = list(odds_dict[m_type].values())
-                            elif m_type == "Corners" and "Corners" in odds_dict:
-                                for o_name, o_price in odds_dict["Corners"].items():
-                                    if "8.5" in o_name and "over" in o_name.lower(): 
-                                        odds = o_price
-                                        all_market_odds = [o_price, 1.05] # Dummy under odds if missing
-                                        break
-                            elif m_type == "Total Cards" and "Cards" in odds_dict:
-                                for o_name, o_price in odds_dict["Cards"].items():
-                                    if "3.5" in o_name and "over" in o_name.lower(): 
-                                        odds = o_price
-                                        all_market_odds = [o_price, 1.05]
-                                        break
+                            elif m_type == "Goalscorer" and key and "Goalscorer" in odds_dict:
+                                # Fuzzy match player name (e.g. "Mbappe" vs "Kylian Mbappe")
+                                best_gscore, best_gprice = 0.0, None
+                                for pname, pprice in odds_dict["Goalscorer"].items():
+                                    gs = get_match_score(key, pname)
+                                    if gs > best_gscore:
+                                        best_gscore, best_gprice = gs, pprice
+                                if best_gscore >= 0.5 and best_gprice is not None:
+                                    odds = best_gprice
+                                    all_market_odds = list(odds_dict["Goalscorer"].values())
 
                         if odds is not None:
                             # Sniper / Peak Logic
@@ -2964,15 +3135,30 @@ def update_dashboard_json(fixtures, results_cache):
             from src.live_matches import get_live_matches
             def _nm(s):
                 return "".join(c for c in (s or "").lower() if c.isalnum())
-            existing = {_nm(d.get("match", "")) for d in dashboard_data}
+            # Map normalised name → index so we can update existing cards in-place.
+            existing = {_nm(d.get("match", "")): i for i, d in enumerate(dashboard_data)}
             added = 0
+            updated = 0
             for lm in get_live_matches():
-                if _nm(lm["match"]) not in existing:
+                key = _nm(lm["match"])
+                if key not in existing:
                     dashboard_data.append(lm)
-                    existing.add(_nm(lm["match"]))
+                    existing[key] = len(dashboard_data) - 1
                     added += 1
-            if added:
-                print(f"[LIVE] Injected {added} in-play match(es) into the dashboard.")
+                else:
+                    # Patch live score + status onto the existing prediction card so
+                    # the score refreshes automatically when a pre-match card goes live.
+                    d = dashboard_data[existing[key]]
+                    if not d.get("fixture"):
+                        d["fixture"] = {}
+                    lf = lm.get("fixture", {})
+                    d["fixture"]["home_score"] = lf.get("home_score")
+                    d["fixture"]["away_score"] = lf.get("away_score")
+                    if lm.get("status_code"):
+                        d["status_code"] = lm["status_code"]
+                    updated += 1
+            if added or updated:
+                print(f"[LIVE] {added} new, {updated} score-updated in-play match(es).")
         except Exception as e:
             print("[LIVE] inject failed:", e)
 

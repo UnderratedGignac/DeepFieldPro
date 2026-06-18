@@ -769,6 +769,9 @@
             <a class="nav-item" onclick="switchView('comparison-view', this)">
                 <i class="fa-solid fa-scale-balanced"></i> AI vs Reality
             </a>
+            <a class="nav-item" onclick="switchView('edge-view', this)">
+                <i class="fa-solid fa-fire"></i> Edge Report
+            </a>
             <a class="nav-item" onclick="switchView('arena-view', this)">
                 <i class="fa-solid fa-futbol"></i> World Cup Arena
             </a>
@@ -1061,6 +1064,46 @@
             </div>
         </div>
 
+        <!-- EDGE REPORT VIEW -->
+        <div id="edge-view" class="view-section">
+            <div style="display:grid; gap:24px;">
+
+                <!-- Strategy breakdown -->
+                <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                    <h3 style="color:var(--primary);margin:0 0 6px;"><i class="fa-solid fa-robot"></i> Performance by Strategy</h3>
+                    <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 18px;">Which betting engine is actually making money.</p>
+                    <table class="data-table"><thead><tr>
+                        <th>Strategy</th><th>Bets</th><th>W / L</th><th>Win Rate</th><th>Stake</th><th>P&amp;L</th><th>ROI</th>
+                    </tr></thead><tbody id="edge-strategy-body"><tr><td colspan="7" style="text-align:center;">Loading…</td></tr></tbody></table>
+                </div>
+
+                <!-- Market breakdown -->
+                <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                    <h3 style="color:var(--primary);margin:0 0 6px;"><i class="fa-solid fa-chart-bar"></i> Performance by Market Type</h3>
+                    <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 18px;">Which bet types are profitable — focus only on positive ROI markets.</p>
+                    <table class="data-table"><thead><tr>
+                        <th>Market</th><th>Bets</th><th>W / L</th><th>Win Rate</th><th>Stake</th><th>P&amp;L</th><th>ROI</th>
+                    </tr></thead><tbody id="edge-market-body"><tr><td colspan="7" style="text-align:center;">Loading…</td></tr></tbody></table>
+                </div>
+
+                <!-- League breakdown -->
+                <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                    <h3 style="color:var(--primary);margin:0 0 6px;"><i class="fa-solid fa-trophy"></i> Performance by League / Tournament</h3>
+                    <p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 4px;">Leagues with ≥2 settled bets. League tagging started recently — sample grows each day.</p>
+                    <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 18px;opacity:0.7;">Green = bet here. Red = avoid. Sort by ROI to find your best markets.</p>
+                    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+                        <button class="ledger-filter-btn active" data-esort="pnl"  onclick="sortEdgeLeagues('pnl')">Sort by P&amp;L</button>
+                        <button class="ledger-filter-btn"        data-esort="roi"  onclick="sortEdgeLeagues('roi')">Sort by ROI</button>
+                        <button class="ledger-filter-btn"        data-esort="bets" onclick="sortEdgeLeagues('bets')">Sort by Volume</button>
+                    </div>
+                    <table class="data-table"><thead><tr>
+                        <th>League / Tournament</th><th>Bets</th><th>W / L</th><th>Win Rate</th><th>Stake</th><th>P&amp;L</th><th>ROI</th>
+                    </tr></thead><tbody id="edge-league-body"><tr><td colspan="7" style="text-align:center;">Loading…</td></tr></tbody></table>
+                </div>
+
+            </div>
+        </div>
+
         <!-- COMPARISON VIEW -->
         <div id="comparison-view" class="view-section">
             <div style="display: grid; grid-template-columns: 300px 1fr; gap: 24px; min-height: 500px;">
@@ -1252,7 +1295,8 @@
                 'settings-view': 'Engine Configuration',
                 'comparison-view': 'AI vs Reality Comparisons',
                 'arena-view': 'World Cup Arena (Stair AI)',
-                'settled-view': 'P&L Ledger'
+                'settled-view': 'P&L Ledger',
+                'edge-view': 'Edge Report'
             };
             document.getElementById('page-title').innerText = titles[viewId] || 'DeepField';
 
@@ -1261,7 +1305,9 @@
                 'bankroll-view': '/bankroll',
                 'tracker-view': '/tracker',
                 'settings-view': '/settings',
-                'comparison-view': '/comparison'
+                'comparison-view': '/comparison',
+                'settled-view': '/ledger',
+                'edge-view': '/edge'
             };
             if(paths[viewId] && window.location.pathname !== paths[viewId]) {
                 history.pushState(null, '', paths[viewId]);
@@ -1275,6 +1321,8 @@
                 loadComparisonList();
             } else if(viewId === 'settled-view') {
                 loadSettledLedger();
+            } else if(viewId === 'edge-view') {
+                loadEdgeReport();
             }
         }
 
@@ -2028,6 +2076,57 @@
             } catch(e) {}
         }
 
+        // Edge Report
+        let _edgeLeagues = [];
+        let _edgeLeagueSort = 'pnl';
+
+        function edgeRow(r) {
+            const positive = r.roi >= 0;
+            const roiColor  = positive ? '#00ff88' : '#ff4d4d';
+            const pnlColor  = positive ? '#00ff88' : '#ff4d4d';
+            const roiBadge  = `<span style="color:${roiColor};font-weight:700;">${r.roi >= 0 ? '+' : ''}${r.roi}%</span>`;
+            const pnlBadge  = `<span style="color:${pnlColor};font-weight:700;">${r.pnl >= 0 ? '+' : ''}$${r.pnl.toFixed(2)}</span>`;
+            const rowBg     = positive ? 'rgba(0,255,136,0.03)' : '';
+            return `<tr style="background:${rowBg};">
+                <td style="font-weight:600;">${r.label}</td>
+                <td>${r.bets}</td>
+                <td>${r.wins}W / ${r.losses}L</td>
+                <td>${r.win_rate}%</td>
+                <td>$${r.stake.toFixed(2)}</td>
+                <td>${pnlBadge}</td>
+                <td>${roiBadge}</td>
+            </tr>`;
+        }
+
+        function sortEdgeLeagues(by) {
+            _edgeLeagueSort = by;
+            document.querySelectorAll('[data-esort]').forEach(b => b.classList.toggle('active', b.dataset.esort === by));
+            const sorted = [..._edgeLeagues].sort((a, b) => b[by] - a[by]);
+            document.getElementById('edge-league-body').innerHTML = sorted.length
+                ? sorted.map(edgeRow).join('')
+                : '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Not enough league data yet — keeps growing as bets settle.</td></tr>';
+        }
+
+        async function loadEdgeReport() {
+            try {
+                const res  = await fetch('/api/edge_report');
+                const data = await res.json();
+
+                document.getElementById('edge-strategy-body').innerHTML =
+                    (data.strategies || []).map(edgeRow).join('') ||
+                    '<tr><td colspan="7" style="text-align:center;">No data yet.</td></tr>';
+
+                document.getElementById('edge-market-body').innerHTML =
+                    (data.markets || []).map(edgeRow).join('') ||
+                    '<tr><td colspan="7" style="text-align:center;">No data yet.</td></tr>';
+
+                _edgeLeagues = data.leagues || [];
+                sortEdgeLeagues(_edgeLeagueSort);
+            } catch(e) {
+                console.error('Edge report load error:', e);
+            }
+        }
+
         // Fetch Settings
         async function loadSettings() {
             try {
@@ -2094,6 +2193,10 @@
                 switchView('settings-view', navItems[5]);
             } else if (path === '/comparison') {
                 switchView('comparison-view', navItems[3]);
+            } else if (path === '/ledger') {
+                switchView('settled-view', navItems[4]);
+            } else if (path === '/edge') {
+                switchView('edge-view', navItems[5]);
             } else {
                 switchView('live-view', navItems[0]);
                 connectSSE();

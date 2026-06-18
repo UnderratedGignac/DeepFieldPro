@@ -4,9 +4,7 @@
   "max_exposure_pct": 0.05,
   "min_confidence_pct": 60,
   "allowed_markets": [
-    "1X2",
-    "Corners",
-    "Total Cards"
+    "1X2"
   ],
   "exclude_draws": true,
   "league_blocklist": [],
@@ -35,5 +33,8 @@
   "show_live_matches": true,
   "ai_real_staking_enabled": false,
   "steam_kelly_frac": 0.02,
-  "steam_covered_only": true
+  "steam_covered_only": true,
+  "arena_max_per_order": 10.0,
+  "arena_daily_cap": 40.0,
+  "arena_wallet_buffer": 10.0
 }

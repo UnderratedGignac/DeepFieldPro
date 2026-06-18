@@ -83,7 +83,7 @@ PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 # ---- Risk defaults (overridable per request) -------------------------------
 CONF_MIN_DEFAULT = 0.50          # model prob must beat 50/50 for the outcome
 EDGE_MIN_DEFAULT = 0.02          # 2pp edge vs Polymarket mid (captures clear favourites)
-MAX_USD_PER_BET = 5.00           # arena hard ceiling per order
+MAX_USD_PER_BET = 10.00          # arena hard ceiling per order
 MIN_USD_PER_BET = 1.00           # arena minimum per order
 WALLET_BUFFER = 0.05             # keep this much USDC unspent
 MAX_BETS_PER_RUN = 15            # raised so we cover all WC matches in one cycle
@@ -91,7 +91,7 @@ LIMIT_BUFFER = 0.02              # pay up to mid + this to get filled
 TIF_SECONDS = 30                 # limit order expires if unfilled
 
 # Max fraction of wallet per single bet (hard safety cap)
-MAX_WALLET_FRACTION = 0.05       # never more than 5% of wallet on one bet
+MAX_WALLET_FRACTION = 0.20       # never more than 20% of wallet on one bet
 
 arena_bp = Blueprint("arena", __name__)
 
@@ -308,7 +308,7 @@ def _wallet_kelly_size(edge, market_mid, wallet_balance):
     if market_mid >= 1.0 or market_mid <= 0 or wallet_balance <= 0:
         return MIN_USD_PER_BET
     kelly_f = max(0.0, edge / (1.0 - market_mid))
-    size = kelly_f * 0.25 * wallet_balance          # quarter-Kelly
+    size = kelly_f * 1.0 * wallet_balance           # full-Kelly (capped by MAX_WALLET_FRACTION)
     hard_cap = min(wallet_balance * MAX_WALLET_FRACTION, MAX_USD_PER_BET)
     return round(max(MIN_USD_PER_BET, min(size, hard_cap)), 2)
 
@@ -554,7 +554,7 @@ def run_autoplace(limit=40, conf_min=CONF_MIN_DEFAULT, edge_min=EDGE_MIN_DEFAULT
 # ---------------------------------------------------------------------------
 SCAN_INTERVAL = 300            # seconds between autonomous scans
 AUTO_SCAN_LIMIT = 30           # nearest-kickoff fixtures scanned per cycle
-DAILY_SPEND_CAP = 25.0         # max real USDC the autopilot may stake per UTC day
+DAILY_SPEND_CAP = 40.0         # max real USDC the autopilot may stake per UTC day
 STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "arena_autopilot.json")
 
 _state_lock = threading.Lock()

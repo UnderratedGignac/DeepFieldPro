@@ -70,6 +70,8 @@ def query_db(db_name, query, args=(), one=False):
 @app.route("/tracker")
 @app.route("/settings")
 @app.route("/comparison")
+@app.route("/ledger")
+@app.route("/edge")
 def index():
     return render_template("index.html")
 
@@ -135,59 +137,92 @@ def stream_state():
     return Response(event_stream(), mimetype="text/event-stream")
 
 
+INITIAL_CAPITAL = 300.0  # paper bankroll seed
+
 @app.route("/api/bankroll")
 def get_bankroll():
-    try:
-        from bankroll_tracker import init_bankroll_db
+    # Compute everything from bet_log (ground truth) — bankroll.db drifts due to
+    # hash-settled noise and manual resets so we no longer trust it for display.
+    daily = query_db(
+        "bet_log.db",
+        "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
+        "WHERE result NOT IN ('OPEN') GROUP BY day ORDER BY day ASC",
+    ) or []
 
-        init_bankroll_db()
-    except Exception as e:
-        print("Bankroll init error in server:", e)
+    chart_dates, chart_balances = [], []
+    running = INITIAL_CAPITAL
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    today_pnl = 0.0
+    for row in daily:
+        running += row["dpnl"] or 0.0
+        chart_dates.append(row["day"])
+        chart_balances.append(round(running, 2))
+        if row["day"] == today_str:
+            today_pnl = row["dpnl"] or 0.0
 
-    row = query_db(
-        "bankroll.db",
-        "SELECT current_balance, starting_balance, daily_pnl FROM bankroll ORDER BY date DESC LIMIT 1",
-        one=True,
-    )
-    history = query_db(
-        "bankroll.db", "SELECT date, current_balance FROM bankroll ORDER BY date ASC"
-    )
+    all_time_pnl = running - INITIAL_CAPITAL
+    roi = (all_time_pnl / INITIAL_CAPITAL) * 100
 
-    chart_dates = []
-    chart_balances = []
-    if history:
-        for h in history:
-            chart_dates.append(h["date"])
-            chart_balances.append(h["current_balance"])
+    return jsonify({
+        "current": round(running, 2),
+        "roi": round(roi, 2),
+        "pnl": round(today_pnl, 2),
+        "chart_dates": chart_dates,
+        "chart_balances": chart_balances,
+    })
 
-    if row:
-        roi = (
-            (
-                (row["current_balance"] - row["starting_balance"])
-                / row["starting_balance"]
-            )
-            * 100
-            if row["starting_balance"]
-            else 0
-        )
-        return jsonify(
-            {
-                "current": round(row["current_balance"], 2),
-                "roi": round(roi, 2),
-                "pnl": round(row["daily_pnl"] or 0.0, 2),
-                "chart_dates": chart_dates,
-                "chart_balances": chart_balances,
-            }
-        )
-    return jsonify(
-        {
-            "current": 10000.0,
-            "roi": 0.0,
-            "pnl": 0.0,
-            "chart_dates": [],
-            "chart_balances": [],
+
+@app.route("/api/edge_report")
+def get_edge_report():
+    def run(sql):
+        return query_db("bet_log.db", sql) or []
+
+    def to_row(r):
+        wins, losses = r["wins"] or 0, r["losses"] or 0
+        stake = r["stake"] or 0.0
+        pnl   = r["pnl"]   or 0.0
+        total = wins + losses
+        win_rate = round(100 * wins / total, 1) if total else 0.0
+        roi      = round(100 * pnl / stake, 1)  if stake else 0.0
+        return {
+            "label":    r["label"],
+            "bets":     r["cnt"] or 0,
+            "wins":     wins,
+            "losses":   losses,
+            "win_rate": win_rate,
+            "stake":    round(stake, 2),
+            "pnl":      round(pnl, 2),
+            "roi":      roi,
         }
-    )
+
+    base = "WHERE result NOT IN ('OPEN','VOID')"
+
+    strategies = [to_row(dict(r, label=r["bet_source"] or "AI")) for r in run(
+        f"SELECT bet_source, COUNT(*) as cnt, "
+        f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+        f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+        f"SUM(stake) as stake, SUM(pnl) as pnl "
+        f"FROM bet_log {base} GROUP BY bet_source ORDER BY pnl DESC"
+    )]
+
+    markets = [to_row(dict(r, label=r["market_type"] or "Unknown")) for r in run(
+        f"SELECT market_type, COUNT(*) as cnt, "
+        f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+        f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+        f"SUM(stake) as stake, SUM(pnl) as pnl "
+        f"FROM bet_log {base} GROUP BY market_type ORDER BY pnl DESC"
+    )]
+
+    leagues = [to_row(dict(r, label=r["league"])) for r in run(
+        f"SELECT league, COUNT(*) as cnt, "
+        f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+        f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+        f"SUM(stake) as stake, SUM(pnl) as pnl "
+        f"FROM bet_log {base} AND league IS NOT NULL AND league != '' "
+        f"GROUP BY league HAVING cnt >= 2 ORDER BY pnl DESC"
+    )]
+
+    return jsonify({"strategies": strategies, "markets": markets, "leagues": leagues})
 
 
 @app.route("/api/stair_balance")

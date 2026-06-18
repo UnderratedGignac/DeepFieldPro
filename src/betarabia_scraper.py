@@ -45,22 +45,39 @@ SBTECH_DOMAINS = ["websbkt.com", "api-m-sp-cdl"]
 
 # Market name mapping from SBTech oddCode → human-readable
 ODD_CODE_MAP = {
+    # Match result
     "ODD_FTB_1X2_HOME": "Match Result",
     "ODD_FTB_1X2_DRAW": "Match Result",
     "ODD_FTB_1X2_AWAY": "Match Result",
+    # BTTS
     "ODD_FTB_BOTHTEAMSSCORE_YES": "Both teams to score",
     "ODD_FTB_BOTHTEAMSSCORE_NO": "Both teams to score",
+    # Total goals (both code variants)
     "ODD_FTB_TOTALS_OVER": "Total Goals",
     "ODD_FTB_TOTALS_UNDER": "Total Goals",
+    "ODD_TTL_1_OVR": "Total Goals",
+    # Double chance
     "ODD_FTB_DC_1X": "Double Chance",
     "ODD_FTB_DC_X2": "Double Chance",
     "ODD_FTB_DC_12": "Double Chance",
+    # Corners — CORRECTED: real API uses ODD_CRN_TTL_OVR (old map had wrong code)
+    "ODD_CRN_TTL_OVR": "Total Corners",
+    "ODD_CRN_TTL_UND": "Total Corners",
+    "ODD_CRN_S1": "Team Corners",
+    "ODD_CRN_S2": "Team Corners",
+    # Legacy corner codes (may appear in deep-market files)
     "ODD_CORNER_TTL_OVR": "Total Corners",
     "ODD_CORNER_TTL_UND": "Total Corners",
+    # Yellow cards / bookings
+    "ODD_YEL_S1": "Team Yellow Cards",
+    "ODD_YEL_S2": "Team Yellow Cards",
     "ODD_CARD_TTL_OVR": "Total Cards",
     "ODD_CARD_TTL_UND": "Total Cards",
     "ODD_YEL_TTL_OVR": "Total Yellow Cards",
     "ODD_YEL_TTL_UND": "Total Yellow Cards",
+    # Match-level totals (shots on target, offsides)
+    "ODD_SFG_TTL_OVR": "Total Shots on Target",
+    "ODD_SOF_TTL_OVR": "Total Offsides",
 }
 
 
@@ -785,6 +802,58 @@ def _normalize_selection(
         except Exception:
             return "Total UNDER"
 
+    # Total Goals (alternative code ODD_TTL_1_OVR)
+    if "TTL_1_OVR" in Code_V:
+        if BettingLine_P is not None:
+            return f"Total OVER {BettingLine_P}"
+        try:
+            Line_V = float(Name_V.lower().replace("total over", "").replace("over", "").strip())
+            return f"Total OVER {Line_V}"
+        except Exception:
+            return "Total OVER"
+
+    # Corners total over/under — real API code is ODD_CRN_TTL_OVR (embed line)
+    if "CRN_TTL_OVR" in Code_V or "CORNER_TTL_OVR" in Code_V:
+        if BettingLine_P is not None:
+            return f"Corners OVER {BettingLine_P}"
+        try:
+            Line_V = float(Name_V.lower().replace("corners total over", "").replace("over", "").replace("corners", "").strip())
+            return f"Corners OVER {Line_V}"
+        except Exception:
+            return "Corners OVER"
+    if "CRN_TTL_UND" in Code_V or "CORNER_TTL_UND" in Code_V:
+        if BettingLine_P is not None:
+            return f"Corners UNDER {BettingLine_P}"
+        try:
+            Line_V = float(Name_V.lower().replace("corners total under", "").replace("under", "").replace("corners", "").strip())
+            return f"Corners UNDER {Line_V}"
+        except Exception:
+            return "Corners UNDER"
+
+    # Total Shots on Target (ODD_SFG_TTL_OVR — embed line)
+    if "SFG_TTL_OVR" in Code_V:
+        if BettingLine_P is not None:
+            return f"Shots on Target OVER {BettingLine_P}"
+        return "Shots on Target OVER"
+
+    # Yellow cards / total cards over/under — embed the line value
+    if "YEL_TTL_OVR" in Code_V or "CARD_TTL_OVR" in Code_V:
+        if BettingLine_P is not None:
+            return f"Cards OVER {BettingLine_P}"
+        try:
+            Line_V = float(Name_V.lower().replace("yellow cards total over", "").replace("cards total over", "").replace("over", "").strip())
+            return f"Cards OVER {Line_V}"
+        except Exception:
+            return "Cards OVER"
+    if "YEL_TTL_UND" in Code_V or "CARD_TTL_UND" in Code_V:
+        if BettingLine_P is not None:
+            return f"Cards UNDER {BettingLine_P}"
+        try:
+            Line_V = float(Name_V.lower().replace("yellow cards total under", "").replace("cards total under", "").replace("under", "").strip())
+            return f"Cards UNDER {Line_V}"
+        except Exception:
+            return "Cards UNDER"
+
     # 1X2 match result — map codes to team names
     if "1X2_HOME" in Code_V:
         return Fixture_P.get("home_team", Name_V)
@@ -1131,6 +1200,15 @@ async def run_scraper():
                         )
                         if PlayerName_V:
                             PlayerPropsFound_V += 1
+                    elif Mkt_V["market_name"] in ("Total Corners", "Total Yellow Cards", "Total Cards"):
+                        # Extract line from selection_name (e.g. "Corners OVER 9.5" → 9.5)
+                        import re as _re
+                        _m = _re.search(r"(\d+\.?\d*)\s*$", Mkt_V["selection_name"])
+                        if _m:
+                            try:
+                                Line_V = float(_m.group(1))
+                            except ValueError:
+                                pass
 
                     Cursor_V.execute(
                         """
