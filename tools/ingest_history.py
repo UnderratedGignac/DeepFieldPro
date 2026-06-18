@@ -58,14 +58,21 @@ def init_db():
             odds_ch REAL, odds_cd REAL, odds_ca REAL,
             odds_maxh REAL, odds_maxd REAL, odds_maxa REAL,
             odds_o25 REAL, odds_u25 REAL,
+            referee TEXT,
+            HY INTEGER, AY INTEGER, HR INTEGER, AR INTEGER,
             UNIQUE(date, league, home, away)
         )""")
     # Migration: add newer columns to a pre-existing DB that lacks them.
     cols = {r[1] for r in con.execute("PRAGMA table_info(matches)")}
-    for col in ("odds_ch", "odds_cd", "odds_ca",
-                "odds_maxh", "odds_maxd", "odds_maxa", "odds_o25", "odds_u25"):
+    for col, typ in [
+        ("odds_ch", "REAL"), ("odds_cd", "REAL"), ("odds_ca", "REAL"),
+        ("odds_maxh", "REAL"), ("odds_maxd", "REAL"), ("odds_maxa", "REAL"),
+        ("odds_o25", "REAL"), ("odds_u25", "REAL"),
+        ("referee", "TEXT"),
+        ("HY", "INTEGER"), ("AY", "INTEGER"), ("HR", "INTEGER"), ("AR", "INTEGER"),
+    ]:
         if col not in cols:
-            con.execute(f"ALTER TABLE matches ADD COLUMN {col} REAL")
+            con.execute(f"ALTER TABLE matches ADD COLUMN {col} {typ}")
     con.commit()
     return con
 
@@ -114,22 +121,42 @@ def ingest(leagues, seasons):
                          "P>2.5", "B365>2.5", "Avg>2.5", "Max>2.5")
                 u25 = _f(row, "PC<2.5", "B365C<2.5", "AvgC<2.5", "MaxC<2.5",
                          "P<2.5", "B365<2.5", "Avg<2.5", "Max<2.5")
+                # Referee and card columns (football-data.co.uk standard names)
+                ref = (row.get("Referee") or "").strip() or None
+                def _i(row, *keys):
+                    for k in keys:
+                        v = row.get(k, "")
+                        if v not in (None, "", "NA"):
+                            try:
+                                return int(float(v))
+                            except (ValueError, TypeError):
+                                continue
+                    return None
+                hy = _i(row, "HY")   # home yellows
+                ay = _i(row, "AY")   # away yellows
+                hr = _i(row, "HR")   # home reds
+                ar = _i(row, "AR")   # away reds
+
                 # NAMED columns (not positional): the table may have been built up via
                 # ALTER TABLE ADD COLUMN, so physical column order is NOT the CREATE order.
                 cur.execute(
                     """INSERT INTO matches
                            (date, league, season, home, away, home_goals, away_goals, result,
                             odds_h, odds_d, odds_a, odds_ch, odds_cd, odds_ca,
-                            odds_maxh, odds_maxd, odds_maxa, odds_o25, odds_u25)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                            odds_maxh, odds_maxd, odds_maxa, odds_o25, odds_u25,
+                            referee, HY, AY, HR, AR)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                        ON CONFLICT(date, league, home, away) DO UPDATE SET
                            odds_h=excluded.odds_h, odds_d=excluded.odds_d, odds_a=excluded.odds_a,
                            odds_ch=excluded.odds_ch, odds_cd=excluded.odds_cd, odds_ca=excluded.odds_ca,
                            odds_maxh=excluded.odds_maxh, odds_maxd=excluded.odds_maxd,
                            odds_maxa=excluded.odds_maxa,
-                           odds_o25=excluded.odds_o25, odds_u25=excluded.odds_u25""",
+                           odds_o25=excluded.odds_o25, odds_u25=excluded.odds_u25,
+                           referee=excluded.referee,
+                           HY=excluded.HY, AY=excluded.AY, HR=excluded.HR, AR=excluded.AR""",
                     (row.get("Date"), lg, season, home, away, hg, ag, row.get("FTR"),
-                     oh, od, oa, ch, cd, ca, mxh, mxd, mxa, o25, u25),
+                     oh, od, oa, ch, cd, ca, mxh, mxd, mxa, o25, u25,
+                     ref, hy, ay, hr, ar),
                 )
                 n += 1
             con.commit()

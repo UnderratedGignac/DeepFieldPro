@@ -35,6 +35,37 @@ except Exception:
     _get_pinnacle_probs = None
     _get_best_price = None
     _ODDS_AGG = False
+
+# Fatigue, weather, referee, and arb signal modules
+try:
+    from src.fatigue_detector import xg_multipliers as _fatigue_xg_mult
+    from src.fatigue_detector import congestion_summary as _congestion_summary
+    _FATIGUE_OK = True
+except Exception:
+    _fatigue_xg_mult = None
+    _congestion_summary = None
+    _FATIGUE_OK = False
+
+try:
+    from src.weather_adjuster import get_weather_adjustments as _weather_adj
+    _WEATHER_OK = True
+except Exception:
+    _weather_adj = None
+    _WEATHER_OK = False
+
+try:
+    from src.referee_data import get_referee_signal as _referee_signal
+    _REFEREE_OK = True
+except Exception:
+    _referee_signal = None
+    _REFEREE_OK = False
+
+try:
+    from src.arb_detector import check_arb as _check_arb
+    _ARB_OK = True
+except Exception:
+    _check_arb = None
+    _ARB_OK = False
 from src.execution_engine import place_bet # TASK 1: Import place_bet
 from src import sharp_edge  # Pinnacle sharp-line steam + Betarabia lagging-value engine
 
@@ -957,6 +988,69 @@ def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=Non
         else:
             winner = "DRAW"
 
+    # ── Fatigue / fixture congestion adjustment ──────────────────────────────
+    # Teams playing their 3rd match in 7 days show ~8% offensive drop per extra
+    # game (meta-analysis 2025). Adjust xG BEFORE Poisson sampling.
+    _fatigue_info = {}
+    if _FATIGUE_OK and _fatigue_xg_mult is not None:
+        try:
+            import datetime as _dt_fat
+            _ko_str = fixture["fixture"].get("date", "")
+            _ko_date = _dt_fat.date.today()
+            if _ko_str:
+                try:
+                    _ko_date = _dt_fat.datetime.fromisoformat(
+                        _ko_str.replace("Z", "+00:00")
+                    ).date()
+                except Exception:
+                    pass
+            _fh_mult, _fa_mult = _fatigue_xg_mult(home_team, away_team, _ko_date)
+            exp_h *= _fh_mult
+            exp_a *= _fa_mult
+            if _congestion_summary is not None:
+                _fatigue_info = _congestion_summary(home_team, away_team, _ko_date)
+        except Exception:
+            pass
+
+    # ── Weather adjustment ────────────────────────────────────────────────────
+    # Rain →  −12% xG; wind ≥25 km/h → −5-10% xG, −15% BTTS yes.
+    # Adjusts xG here; BTTS/O/U are re-derived below from the adjusted xG.
+    _weather_info = {"source": "disabled", "xg_mult": 1.0,
+                     "btts_yes_mult": 1.0, "over25_mult": 1.0}
+    if _WEATHER_OK and _weather_adj is not None:
+        try:
+            import datetime as _dt_wx
+            _ko_str_wx = fixture["fixture"].get("date", "")
+            _ko_dt_wx = None
+            if _ko_str_wx:
+                try:
+                    import dateutil.parser as _dup
+                    _ko_dt_wx = _dup.parse(_ko_str_wx)
+                except Exception:
+                    try:
+                        _ko_dt_wx = _dt_wx.datetime.fromisoformat(
+                            _ko_str_wx.replace("Z", "+00:00")
+                        )
+                    except Exception:
+                        pass
+            _weather_info = _weather_adj(home_team, away_team, _ko_dt_wx)
+            exp_h *= _weather_info.get("xg_mult", 1.0)
+            exp_a *= _weather_info.get("xg_mult", 1.0)
+        except Exception:
+            pass
+
+    # ── Referee signal ────────────────────────────────────────────────────────
+    # High-card refs → more stoppages → slightly fewer goals
+    _referee_info = {"found": False, "xg_mult": 1.0}
+    if _REFEREE_OK and _referee_signal is not None:
+        try:
+            _ref_name = (fixture.get("fixture") or {}).get("referee") or None
+            _referee_info = _referee_signal(_ref_name)
+            exp_h *= _referee_info.get("xg_mult", 1.0)
+            exp_a *= _referee_info.get("xg_mult", 1.0)
+        except Exception:
+            pass
+
     home_g = np.random.poisson(exp_h)
     away_g = np.random.poisson(exp_a)
     if winner == "DRAW" and home_g != away_g:
@@ -1364,6 +1458,22 @@ def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=Non
                 {"selection": f"{away_team} +0.5",
                  "prob": round((prob_2 + prob_x) * 100, 1)},
             ],
+        },
+        # ── Signal metadata (displayed on dashboard cards) ─────────────────
+        "fatigue": _fatigue_info,
+        "weather": {
+            "rain": _weather_info.get("rain", False),
+            "heavy_wind": _weather_info.get("heavy_wind", False),
+            "wind_kmh": _weather_info.get("wind_kmh", 0.0),
+            "precipitation_mm": _weather_info.get("precipitation_mm", 0.0),
+            "source": _weather_info.get("source", "disabled"),
+        },
+        "referee": {
+            "name": _referee_info.get("referee"),
+            "found": _referee_info.get("found", False),
+            "booking_rate": _referee_info.get("booking_rate", 3.5),
+            "is_high_card": _referee_info.get("is_high_card", False),
+            "is_low_card": _referee_info.get("is_low_card", False),
         },
     }
 
@@ -3187,6 +3297,26 @@ def update_dashboard_json(fixtures, results_cache):
                                     sel["ev_best"]   = round(prob_used * _best_o - 1.0, 4) if _best_o else ev
                                     sel["pinnacle_odds"] = _bp.get(f"pinnacle_{_sel_key}")
                                     sel["line_shop_gain"] = round((_best_o - odds) / odds * 100, 1) if odds and _best_o else 0.0
+                                    # ARB / NEAR-ARB detection (display-only, no actual bets)
+                                    if _ARB_OK and _check_arb and m_type == "1X2":
+                                        try:
+                                            _pinn_raw = {
+                                                "home": _bp.get("pinnacle_home"),
+                                                "draw": _bp.get("pinnacle_draw"),
+                                                "away": _bp.get("pinnacle_away"),
+                                            }
+                                            _best_all = {
+                                                "home": _bp.get("home"),
+                                                "draw": _bp.get("draw"),
+                                                "away": _bp.get("away"),
+                                            }
+                                            _arb = _check_arb(_best_all, _pinn_raw if any(_pinn_raw.values()) else None)
+                                            if _arb["status"] != "NORMAL":
+                                                sel["arb_status"] = _arb["status"]
+                                                sel["arb_return_pct"] = _arb.get("arb_return_pct", 0.0)
+                                                sel["near_arb"] = _arb.get("near_arb", [])
+                                        except Exception:
+                                            pass
                                 except Exception:
                                     pass
 
