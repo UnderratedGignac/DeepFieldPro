@@ -11,6 +11,7 @@ report fills in as new bets settle.
 
 Run:  .venv\\Scripts\\python.exe tools\\clv_report.py
 """
+
 import os
 import sqlite3
 
@@ -23,14 +24,23 @@ def main():
     rows = [dict(r) for r in con.execute("SELECT * FROM bet_log")]
     con.close()
 
-    settled = [r for r in rows if str(r.get("result", "")).upper() in
-               ("W", "L", "WIN", "LOSS", "WON", "LOST")]
+    settled = [
+        r
+        for r in rows
+        if str(r.get("result", "")).upper() in ("W", "L", "WIN", "LOSS", "WON", "LOST")
+    ]
     with_clv = [r for r in settled if r.get("clv") is not None]
 
-    print(f"Total bets: {len(rows)} | settled: {len(settled)} | with CLV: {len(with_clv)}")
+    print(
+        f"Total bets: {len(rows)} | settled: {len(settled)} | with CLV: {len(with_clv)}"
+    )
     if not with_clv:
-        print("\nNo CLV captured yet. CLV is recorded at settlement for bets that carry a")
-        print("fixture_id (i.e. placed after this upgrade) and have odds_history snapshots.")
+        print(
+            "\nNo CLV captured yet. CLV is recorded at settlement for bets that carry a"
+        )
+        print(
+            "fixture_id (i.e. placed after this upgrade) and have odds_history snapshots."
+        )
         print("Let the daemon run a day, then re-check — this is the metric to watch.")
         return
 
@@ -41,7 +51,9 @@ def main():
         return n, beat / n, avg
 
     n, beat_rate, avg = stats(with_clv)
-    print(f"\n=== OVERALL CLV === n={n}  beat-close={beat_rate:.1%}  avg CLV={avg:+.2%}")
+    print(
+        f"\n=== OVERALL CLV === n={n}  beat-close={beat_rate:.1%}  avg CLV={avg:+.2%}"
+    )
     print("(positive avg CLV is the signal you are genuinely beating the market)")
 
     print("\n=== CLV by market ===")

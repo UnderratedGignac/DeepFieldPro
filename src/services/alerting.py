@@ -58,7 +58,13 @@ class NotificationManager:
     # ------------------------------------------------------------------
     # ntfy.sh (primary — free, instant, no quota)
     # ------------------------------------------------------------------
-    def _send_ntfy(self, message: str, title: str = "DeepField", priority: str = "high", tags: str = "soccer") -> bool:
+    def _send_ntfy(
+        self,
+        message: str,
+        title: str = "DeepField",
+        priority: str = "high",
+        tags: str = "soccer",
+    ) -> bool:
         """Send a push notification via ntfy.sh to the phone's lock screen."""
         topic = self.ntfy_topic
         if not topic:
@@ -72,7 +78,9 @@ class NotificationManager:
                 "Tags": tags,
                 "Content-Type": "text/plain; charset=utf-8",
             }
-            resp = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=10)
+            resp = requests.post(
+                url, data=message.encode("utf-8"), headers=headers, timeout=10
+            )
             if resp.status_code in (200, 201, 204):
                 logger.info(f"[NTFY] Push sent OK (topic={topic})")
                 return True
@@ -118,7 +126,13 @@ class NotificationManager:
     # ------------------------------------------------------------------
     # Unified send — ntfy first, WhatsApp fallback
     # ------------------------------------------------------------------
-    def _notify(self, message: str, title: str = "DeepField", priority: str = "high", tags: str = "soccer") -> bool:
+    def _notify(
+        self,
+        message: str,
+        title: str = "DeepField",
+        priority: str = "high",
+        tags: str = "soccer",
+    ) -> bool:
         sent = self._send_ntfy(message, title=title, priority=priority, tags=tags)
         if not sent:
             sent = self._send_whatsapp(message)
@@ -139,17 +153,28 @@ class NotificationManager:
     # Public alert methods
     # ------------------------------------------------------------------
     def send_critical_error(self, component: str, error_msg: str):
-        self._send_discord({
-            "embeds": [{
-                "title": "CRITICAL SYSTEM ERROR",
-                "color": 15158332,
-                "fields": [
-                    {"name": "Component", "value": component, "inline": True},
-                    {"name": "Timestamp", "value": datetime.utcnow().isoformat(), "inline": True},
-                    {"name": "Error Details", "value": f"```\n{error_msg}\n```"},
-                ],
-            }]
-        })
+        self._send_discord(
+            {
+                "embeds": [
+                    {
+                        "title": "CRITICAL SYSTEM ERROR",
+                        "color": 15158332,
+                        "fields": [
+                            {"name": "Component", "value": component, "inline": True},
+                            {
+                                "name": "Timestamp",
+                                "value": datetime.utcnow().isoformat(),
+                                "inline": True,
+                            },
+                            {
+                                "name": "Error Details",
+                                "value": f"```\n{error_msg}\n```",
+                            },
+                        ],
+                    }
+                ]
+            }
+        )
         self._notify(
             f"Component: {component}\nError: {error_msg}",
             title="DeepField CRITICAL ERROR",
@@ -161,17 +186,44 @@ class NotificationManager:
         is_shadow = bet_details.get("status") == "SHADOW"
         title = "SHADOW BET" if is_shadow else "LIVE BET EXECUTED"
         color = 3447003 if is_shadow else 3066993
-        self._send_discord({"embeds": [{
-            "title": title, "color": color,
-            "fields": [
-                {"name": "Match", "value": bet_details.get("match"), "inline": True},
-                {"name": "Market", "value": f"{bet_details.get('market')} - {bet_details.get('side')}", "inline": True},
-                {"name": "Odds", "value": str(bet_details.get("odds")), "inline": True},
-                {"name": "Stake", "value": f"${bet_details.get('stake'):.2f}", "inline": True},
-                {"name": "Edge", "value": f"{bet_details.get('edge', 0)*100:.2f}%", "inline": True},
-            ],
-            "footer": {"text": f"Bet ID: {bet_details.get('bet_id')}"},
-        }]})
+        self._send_discord(
+            {
+                "embeds": [
+                    {
+                        "title": title,
+                        "color": color,
+                        "fields": [
+                            {
+                                "name": "Match",
+                                "value": bet_details.get("match"),
+                                "inline": True,
+                            },
+                            {
+                                "name": "Market",
+                                "value": f"{bet_details.get('market')} - {bet_details.get('side')}",
+                                "inline": True,
+                            },
+                            {
+                                "name": "Odds",
+                                "value": str(bet_details.get("odds")),
+                                "inline": True,
+                            },
+                            {
+                                "name": "Stake",
+                                "value": f"${bet_details.get('stake'):.2f}",
+                                "inline": True,
+                            },
+                            {
+                                "name": "Edge",
+                                "value": f"{bet_details.get('edge', 0)*100:.2f}%",
+                                "inline": True,
+                            },
+                        ],
+                        "footer": {"text": f"Bet ID: {bet_details.get('bet_id')}"},
+                    }
+                ]
+            }
+        )
         msg = (
             f"Match: {bet_details.get('match')}\n"
             f"Pick: {bet_details.get('market')} - {bet_details.get('side')}\n"
@@ -182,7 +234,9 @@ class NotificationManager:
         self._notify(msg, title=f"DeepField {title}", tags="money_with_wings")
 
     def send_general_alert(self, title: str, message: str):
-        self._send_discord({"embeds": [{"title": title, "description": message, "color": 15844367}]})
+        self._send_discord(
+            {"embeds": [{"title": title, "description": message, "color": 15844367}]}
+        )
         self._notify(message, title=title)
 
     def send_bet_alert(
@@ -246,7 +300,9 @@ class NotificationManager:
         if signals:
             msg += f"Signals: {', '.join(signals)}\n"
         msg += f"Stake (${bankroll:.0f} bankroll): ${stake:.2f}"
-        self._notify(msg, title="DeepField Best Bet", tags="chart_with_upwards_trend,soccer")
+        self._notify(
+            msg, title="DeepField Best Bet", tags="chart_with_upwards_trend,soccer"
+        )
 
     def send_hot_picks(self, bankroll: float = 10.0, state_file: str = None) -> bool:
         """
@@ -286,10 +342,17 @@ class NotificationManager:
                 kf = max(0.0, (p * odds - 1.0) / b) if b > 0 else 0.0
                 stake = round(min(kf * 0.25 * bankroll, bankroll * 0.25), 2)
                 stake = max(stake, 0.25)
-                picks.append({
-                    "match": match, "league": league, "selection": selection,
-                    "odds": odds, "prob": prob, "ev": ev, "stake": stake,
-                })
+                picks.append(
+                    {
+                        "match": match,
+                        "league": league,
+                        "selection": selection,
+                        "odds": odds,
+                        "prob": prob,
+                        "ev": ev,
+                        "stake": stake,
+                    }
+                )
 
         if not picks:
             logger.info("[HOT_PICKS] No qualifying picks — notification skipped")
@@ -326,7 +389,12 @@ class NotificationManager:
         lines.append(f"Total: ${total_stake:.2f} exposure")
 
         msg = "\n".join(lines)
-        return self._notify(msg, title="DeepField Hot Bets", priority="high", tags="chart_with_upwards_trend,soccer")
+        return self._notify(
+            msg,
+            title="DeepField Hot Bets",
+            priority="high",
+            tags="chart_with_upwards_trend,soccer",
+        )
 
 
 # Singleton instance

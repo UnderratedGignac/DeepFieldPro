@@ -2,7 +2,9 @@
 probe_arena.py — Dump all available Polymarket token fields from the mapping API.
 Run: .venv\Scripts\python.exe tools\probe_arena.py
 """
+
 import json, os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from src.arena_betting import _get, list_upcoming_fixtures, get_mapping, get_mid
 

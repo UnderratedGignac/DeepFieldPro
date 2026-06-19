@@ -3,6 +3,7 @@ Delete all historical data from losing strategies: SHARP, SHARPV, and prop marke
 (Corners, Total Cards, Goalscorer, Player Shots, Over/Under 2.5, BTTS).
 Run once. Irreversible.
 """
+
 import sqlite3, os
 
 DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
@@ -43,12 +44,8 @@ deleted = total_before - total_after
 print(f"\nDeleted {deleted} records. Remaining: {total_after}")
 
 # Verify no losers remain
-remaining_sources = db.execute(
-    "SELECT DISTINCT bet_source FROM bet_log"
-).fetchall()
-remaining_markets = db.execute(
-    "SELECT DISTINCT market_type FROM bet_log"
-).fetchall()
+remaining_sources = db.execute("SELECT DISTINCT bet_source FROM bet_log").fetchall()
+remaining_markets = db.execute("SELECT DISTINCT market_type FROM bet_log").fetchall()
 print(f"Remaining bet_sources: {[r[0] for r in remaining_sources]}")
 print(f"Remaining market_types: {[r[0] for r in remaining_markets]}")
 

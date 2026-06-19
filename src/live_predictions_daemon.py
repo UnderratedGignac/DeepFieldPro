@@ -346,15 +346,15 @@ def _odds_history_db():
 
 
 _SIGNAL_REGISTRY_DEFAULTS = {
-    "STEAM_FWD":       {"enabled": 1, "promoted": 0, "min_samples": 100},
-    "STEAM_REV":       {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "DOG_DRIFT":       {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "FAV_DRIFT":       {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "EARLY_STEAM":     {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "LATE_STEAM":      {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "FAV_DRIFT_REV":   {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "MOMENTUM_ACCEL":  {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "LARGE_SPREAD":    {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "STEAM_FWD": {"enabled": 1, "promoted": 0, "min_samples": 100},
+    "STEAM_REV": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "DOG_DRIFT": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "FAV_DRIFT": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "EARLY_STEAM": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "LATE_STEAM": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "FAV_DRIFT_REV": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "MOMENTUM_ACCEL": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "LARGE_SPREAD": {"enabled": 0, "promoted": 0, "min_samples": 100},
 }
 
 
@@ -362,14 +362,16 @@ def _init_signal_registry():
     """Create signal_registry table and seed default rows if not present."""
     try:
         con = sqlite3.connect(_odds_history_db())
-        con.execute("""CREATE TABLE IF NOT EXISTS signal_registry (
+        con.execute(
+            """CREATE TABLE IF NOT EXISTS signal_registry (
             signal_name  TEXT PRIMARY KEY,
             enabled      INTEGER DEFAULT 1,
             promoted     INTEGER DEFAULT 0,
             min_samples  INTEGER DEFAULT 100,
             owner        TEXT    DEFAULT 'system',
             updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
-        )""")
+        )"""
+        )
         for sig, vals in _SIGNAL_REGISTRY_DEFAULTS.items():
             con.execute(
                 "INSERT OR IGNORE INTO signal_registry (signal_name, enabled, promoted, min_samples) "
@@ -389,6 +391,7 @@ _signal_registry_cache_ts: float = 0.0
 def _load_signal_registry() -> dict:
     """Return {signal_name: {enabled, promoted}} from the registry, cached for 60s."""
     import time as _time
+
     global _signal_registry_cache, _signal_registry_cache_ts
     if _time.time() - _signal_registry_cache_ts < 60 and _signal_registry_cache:
         return _signal_registry_cache
@@ -398,12 +401,16 @@ def _load_signal_registry() -> dict:
             "SELECT signal_name, enabled, promoted FROM signal_registry"
         ).fetchall()
         con.close()
-        _signal_registry_cache = {r[0]: {"enabled": bool(r[1]), "promoted": bool(r[2])} for r in rows}
+        _signal_registry_cache = {
+            r[0]: {"enabled": bool(r[1]), "promoted": bool(r[2])} for r in rows
+        }
         _signal_registry_cache_ts = _time.time()
         return _signal_registry_cache
     except Exception:
-        return {k: {"enabled": v["enabled"], "promoted": v["promoted"]}
-                for k, v in _SIGNAL_REGISTRY_DEFAULTS.items()}
+        return {
+            k: {"enabled": v["enabled"], "promoted": v["promoted"]}
+            for k, v in _SIGNAL_REGISTRY_DEFAULTS.items()
+        }
 
 
 def _purge_odds_history(days=30):
@@ -453,6 +460,7 @@ def _steam_moves(fid, m_type):
 
     # Build per-selection time series of devigged probabilities
     from collections import defaultdict
+
     by_ts: dict = defaultdict(dict)
     for sel, o, ts in rows:
         if o and o > 0:
@@ -479,7 +487,7 @@ def _steam_moves(fid, m_type):
     if len(snapshots_with_all) < 2:
         return {}
     early = _devig_map(snapshots_with_all[0])
-    late  = _devig_map(snapshots_with_all[-1])
+    late = _devig_map(snapshots_with_all[-1])
     if not early or not late:
         return {}
 
@@ -492,7 +500,7 @@ def _steam_moves(fid, m_type):
         # Monotonicity: count steps in the dominant direction
         if len(series) >= 2:
             direction = 1 if raw_move >= 0 else -1
-            steps = [series[i+1] - series[i] for i in range(len(series)-1)]
+            steps = [series[i + 1] - series[i] for i in range(len(series) - 1)]
             aligned = sum(1 for s in steps if s * direction > 0)
             monotonicity = aligned / len(steps) if steps else 0.5
 
@@ -504,14 +512,20 @@ def _steam_moves(fid, m_type):
 
         effective_move = raw_move * monotonicity
         result[sel] = effective_move
-        meta[sel] = {"raw": raw_move, "monotonicity": round(monotonicity, 2),
-                     "recent": recent_move, "n_snaps": len(series)}
+        meta[sel] = {
+            "raw": raw_move,
+            "monotonicity": round(monotonicity, 2),
+            "recent": recent_move,
+            "n_snaps": len(series),
+        }
 
     result["__meta__"] = meta
     return result
 
 
-def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kickoff, monotonicity=None):
+def _record_steam_signal(
+    fid, league, match, m_type, sel_name, odds, move, kickoff, monotonicity=None
+):
     """Append a fired steam pick to the steam_signals research ledger (one row per
     fixture/market/selection — first detection's price sticks). Settled offline by
     tools/steam_report.py. Independent of the model bet path / staking."""
@@ -532,7 +546,17 @@ def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kicko
             """INSERT OR IGNORE INTO steam_signals
                    (fixture_id, league, match, market, selection, entry_odds, steam_move, kickoff, monotonicity)
                VALUES (?,?,?,?,?,?,?,?,?)""",
-            (str(fid), league, match, m_type, sel_name, odds, move, kickoff, monotonicity),
+            (
+                str(fid),
+                league,
+                match,
+                m_type,
+                sel_name,
+                odds,
+                move,
+                kickoff,
+                monotonicity,
+            ),
         )
         conn.commit()
         conn.close()
@@ -1905,12 +1929,37 @@ def get_match_score(name1, name2):
         n = re.sub(r"[^a-z0-9\s]", " ", n)
         n = _apply_aliases(re.sub(r"\s+", " ", n).strip())
         noise = {
-            "fc", "cf", "sc", "u23", "pr", "ii", "u20", "united", "city", "town",
-            "athletic", "club", "de", "fk", "afc", "sv", "sp",
+            "fc",
+            "cf",
+            "sc",
+            "u23",
+            "pr",
+            "ii",
+            "u20",
+            "united",
+            "city",
+            "town",
+            "athletic",
+            "club",
+            "de",
+            "fk",
+            "afc",
+            "sv",
+            "sp",
             # Scandinavian / Eastern European suffixes
-            "bk", "ik", "if", "sk", "aik", "ff", "bois",
+            "bk",
+            "ik",
+            "if",
+            "sk",
+            "aik",
+            "ff",
+            "bois",
             # Other common suffixes
-            "ac", "hfc", "rfc", "utd", "jfc",
+            "ac",
+            "hfc",
+            "rfc",
+            "utd",
+            "jfc",
         }
         return [w for w in n.split() if w and w not in noise]
 
@@ -2377,7 +2426,14 @@ def _implausible_odds(market, odds):
 
 
 def log_steam_bet(
-    match, market, selection, odds, steam_move_pct, fixture_id=None, league=None, monotonicity=None
+    match,
+    market,
+    selection,
+    odds,
+    steam_move_pct,
+    fixture_id=None,
+    league=None,
+    monotonicity=None,
 ):
     """Shadow flat-stake bet for a fired STEAM (line-movement) signal.
 
@@ -2443,9 +2499,9 @@ def log_steam_bet(
         bet_id = "STEAM_" + uuid.uuid4().hex[:12]
 
         for col_sql in [
-            'ALTER TABLE bet_log ADD COLUMN signal_name TEXT',
-            'ALTER TABLE bet_log ADD COLUMN move_size REAL',
-            'ALTER TABLE bet_log ADD COLUMN monotonicity REAL',
+            "ALTER TABLE bet_log ADD COLUMN signal_name TEXT",
+            "ALTER TABLE bet_log ADD COLUMN move_size REAL",
+            "ALTER TABLE bet_log ADD COLUMN monotonicity REAL",
         ]:
             try:
                 conn.execute(col_sql)
@@ -2475,7 +2531,7 @@ def log_steam_bet(
                 selection,
                 str(fixture_id) if fixture_id is not None else None,
                 league,
-                'STEAM_FWD',
+                "STEAM_FWD",
                 steam_move_pct,
                 monotonicity,
             ),
@@ -2500,8 +2556,6 @@ def log_steam_bet(
         )
     except Exception as e:
         print(f"[STEAM BET] error: {e}")
-
-
 
 
 def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None):
@@ -2905,10 +2959,13 @@ def settle_open_bets():
     # Sofascore via headless browser (covers leagues ESPN/Flashscore miss).
     try:
         from src.sofascore_results_scraper import get_finished_results as ss_results
+
         sofa = ss_results(dates=_settle_dates)
         before = len(finished_matches)
         finished_matches.update(sofa)
-        print(f"[SETTLEMENT] Sofascore added {len(finished_matches) - before} new matches ({len(sofa)} total).")
+        print(
+            f"[SETTLEMENT] Sofascore added {len(finished_matches) - before} new matches ({len(sofa)} total)."
+        )
     except Exception as e:
         print("[SETTLEMENT] Sofascore scraper failed:", e)
 
@@ -3049,7 +3106,9 @@ def settle_open_bets():
                     candidates.append((h_score + a_score, score, finished_name))
 
             if not candidates:
-                print(f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results.")
+                print(
+                    f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results."
+                )
                 continue
 
             candidates.sort(key=lambda c: c[0], reverse=True)
@@ -3823,10 +3882,14 @@ def update_dashboard_json(fixtures, results_cache):
                             # the odds_history ledger, capture fired picks to the research
                             # ledger, and (opt-in) use it to confirm model picks. 1X2 only.
                             steam_min = settings.get("steam_min_move_pct", 3.0) / 100.0
-                            _steam_result = _steam_moves(fid, m_type) if market_allowed else {}
+                            _steam_result = (
+                                _steam_moves(fid, m_type) if market_allowed else {}
+                            )
                             steam_move = _steam_result.get(sel_name, 0.0)
-                            _steam_meta_sel = (_steam_result.get('__meta__') or {}).get(sel_name, {})
-                            steam_mono = _steam_meta_sel.get('monotonicity', None)
+                            _steam_meta_sel = (_steam_result.get("__meta__") or {}).get(
+                                sel_name, {}
+                            )
+                            steam_mono = _steam_meta_sel.get("monotonicity", None)
                             sel["steam_move"] = round(steam_move * 100.0, 2)
                             _registry = _load_signal_registry()
                             steam_fired = (
@@ -3865,6 +3928,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 )
                                 try:
                                     from src.services.alerting import notifier as _ntfy
+
                                     _ntfy._notify(
                                         f"STEAM {sel_name} @ {odds:.2f}\n"
                                         f"{home} vs {away}\n"

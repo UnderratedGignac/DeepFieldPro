@@ -249,23 +249,19 @@ def get_wallet():
     if sc != 200 or not isinstance(data, dict):
         return None
     # API may nest wallet under data.wallet or data.data.wallet; handle both casings
-    w = (
-        data.get("wallet")
-        or (data.get("data") or {}).get("wallet")
-        or {}
-    )
+    w = data.get("wallet") or (data.get("data") or {}).get("wallet") or {}
     try:
         avail = float(
-            w.get("available_balance_usdc")
-            or w.get("availableBalance")
-            or 0.0
+            w.get("available_balance_usdc") or w.get("availableBalance") or 0.0
         )
     except (TypeError, ValueError):
         avail = 0.0
     return {
-        "display_name": data.get("display_name") or (data.get("data") or {}).get("display_name"),
+        "display_name": data.get("display_name")
+        or (data.get("data") or {}).get("display_name"),
         "agent_id": data.get("agent_id") or (data.get("data") or {}).get("agent_id"),
-        "lifecycle_phase": data.get("lifecycle_phase") or (data.get("data") or {}).get("lifecycle_phase"),
+        "lifecycle_phase": data.get("lifecycle_phase")
+        or (data.get("data") or {}).get("lifecycle_phase"),
         "available_balance_usdc": avail,
         "locked_balance_usdc": w.get("locked_balance_usdc") or w.get("lockedBalance"),
     }
@@ -427,11 +423,22 @@ def analyze(
             continue
         # Extract team codes from the event ticker (format: fifwc-{home}-{away}-YYYY-MM-DD)
         # The orders API expects ticker codes (e.g. "RSA"), not ISO short codes (e.g. "ZAF")
-        ticker = (mapping.get("polymarket_event_ticker") or
-                  mapping.get("polymarket_event_slug") or "")
+        ticker = (
+            mapping.get("polymarket_event_ticker")
+            or mapping.get("polymarket_event_slug")
+            or ""
+        )
         ticker_parts = ticker.split("-")
-        home_code = ticker_parts[1].upper() if len(ticker_parts) > 2 else mapping.get("home_short_code", "HOME")
-        away_code = ticker_parts[2].upper() if len(ticker_parts) > 3 else mapping.get("away_short_code", "AWAY")
+        home_code = (
+            ticker_parts[1].upper()
+            if len(ticker_parts) > 2
+            else mapping.get("home_short_code", "HOME")
+        )
+        away_code = (
+            ticker_parts[2].upper()
+            if len(ticker_parts) > 3
+            else mapping.get("away_short_code", "AWAY")
+        )
         codes = {
             "home": home_code,
             "draw": "draw",
@@ -669,7 +676,7 @@ def run_autoplace(
 # ---------------------------------------------------------------------------
 # Autopilot — fully autonomous betting loop (no user interaction)
 # ---------------------------------------------------------------------------
-SCAN_INTERVAL = 60   # scan every minute — catch every pre-kickoff window
+SCAN_INTERVAL = 60  # scan every minute — catch every pre-kickoff window
 AUTO_SCAN_LIMIT = 104  # look at all upcoming WC fixtures each cycle
 DAILY_SPEND_CAP = 999.0  # wallet-limited; no artificial daily cap
 STATE_FILE = os.path.join(
@@ -830,6 +837,7 @@ def autopilot_cycle():
             try:
                 from src.services.alerting import notifier as _n
                 import datetime as _dt
+
                 ko_str = c.get("kickoff", "")
                 try:
                     ko_dt = _dt.datetime.strptime(ko_str[:16], "%Y-%m-%d %H:%M")
@@ -859,7 +867,11 @@ def autopilot_cycle():
     state["placed"] = state["placed"][:200]
     state["daily"]["spent"] = round(state["daily"]["spent"] + spent, 2)
     state["last_error"] = None
-    mode = "LIVE" if autopilot_enabled else ("armed-predict-only" if arena_live else "predict-only")
+    mode = (
+        "LIVE"
+        if autopilot_enabled
+        else ("armed-predict-only" if arena_live else "predict-only")
+    )
     state["last_summary"] = (
         f"[{mode}] {len(all_candidates)} scanned · {len(qualifying)} qualifying · "
         f"{ledger_now} ledger · {placed_now} bet · ${spent:.2f} staked"
@@ -923,7 +935,9 @@ def _ntfy_listener_loop():
     except Exception:
         pass
 
-    print(f"[NTFY] Listener active on topic '{topic}' — send balance from phone to trigger a cycle")
+    print(
+        f"[NTFY] Listener active on topic '{topic}' — send balance from phone to trigger a cycle"
+    )
 
     while True:
         try:
@@ -950,9 +964,14 @@ def _ntfy_listener_loop():
 
                     text = (msg.get("message") or "").strip()
                     # Ignore messages we sent ourselves (they have our titles)
-                    own_titles = {"DeepField Hot Bets", "DeepField Setup Test", "DeepField Best Bet",
-                                  "DeepField LIVE BET EXECUTED", "DeepField SHADOW BET",
-                                  "DeepField CRITICAL ERROR"}
+                    own_titles = {
+                        "DeepField Hot Bets",
+                        "DeepField Setup Test",
+                        "DeepField Best Bet",
+                        "DeepField LIVE BET EXECUTED",
+                        "DeepField SHADOW BET",
+                        "DeepField CRITICAL ERROR",
+                    }
                     if msg.get("title") in own_titles:
                         continue
 
@@ -960,17 +979,23 @@ def _ntfy_listener_loop():
 
                     # Parse as a wallet balance (e.g. "5.87" or "$5.87" or "balance 5.87")
                     import re as _re
+
                     numbers = _re.findall(r"\d+(?:\.\d+)?", text)
                     if numbers:
                         balance = float(numbers[0])
-                        print(f"[NTFY] Balance ${balance:.2f} received — unlocking future bets + triggering cycle")
+                        print(
+                            f"[NTFY] Balance ${balance:.2f} received — unlocking future bets + triggering cycle"
+                        )
                         try:
                             # Unlock placed_keys for future fixtures so we can top up
                             with _state_lock:
                                 st = _load_state()
                             now_ts2 = time.time()
                             candidates = st.get("last_candidates", [])
-                            kickoff_map2 = {c["fixture_id"]: c.get("kickoff_ts", 0) for c in candidates}
+                            kickoff_map2 = {
+                                c["fixture_id"]: c.get("kickoff_ts", 0)
+                                for c in candidates
+                            }
                             old_pk = set(st.get("placed_keys", []))
                             keep_pk = set()
                             unlocked_count = 0
@@ -982,14 +1007,19 @@ def _ntfy_listener_loop():
                                 else:
                                     unlocked_count += 1
                             st["placed_keys"] = list(keep_pk)
-                            st["daily"] = {"date": time.strftime("%Y-%m-%d"), "spent": 0.0}
+                            st["daily"] = {
+                                "date": time.strftime("%Y-%m-%d"),
+                                "spent": 0.0,
+                            }
                             with _state_lock:
                                 _save_state(st)
                             print(f"[NTFY] Unlocked {unlocked_count} future fixtures")
 
                             summary = autopilot_cycle()
                             wallet = get_wallet()
-                            actual_bal = wallet["available_balance_usdc"] if wallet else balance
+                            actual_bal = (
+                                wallet["available_balance_usdc"] if wallet else balance
+                            )
                             _notifier._notify(
                                 f"Wallet: ${actual_bal:.2f} | {unlocked_count} picks unlocked\n"
                                 f"{summary}",
@@ -1020,7 +1050,9 @@ def start_ntfy_listener():
     if _ntfy_listener_started:
         return
     _ntfy_listener_started = True
-    threading.Thread(target=_ntfy_listener_loop, daemon=True, name="ntfy-listener").start()
+    threading.Thread(
+        target=_ntfy_listener_loop, daemon=True, name="ntfy-listener"
+    ).start()
 
 
 def start_autopilot():

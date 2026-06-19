@@ -1,8 +1,12 @@
 """Preview the WhatsApp hot picks message without sending it."""
+
 import json, os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-DATA = os.path.join(os.path.dirname(__file__), "..", "data", "todays_dashboard_state.json")
+DATA = os.path.join(
+    os.path.dirname(__file__), "..", "data", "todays_dashboard_state.json"
+)
 BANKROLL = 10.0
 
 with open(DATA, encoding="utf-8") as f:
@@ -31,10 +35,17 @@ for item in state:
         kf = max(0.0, (p * odds - 1.0) / b) if b > 0 else 0.0
         stake = round(min(kf * 0.25 * BANKROLL, BANKROLL * 0.25), 2)
         stake = max(stake, 0.25)
-        picks.append({
-            "match": match, "league": league, "selection": selection,
-            "odds": odds, "prob": prob, "ev": ev, "stake": stake,
-        })
+        picks.append(
+            {
+                "match": match,
+                "league": league,
+                "selection": selection,
+                "odds": odds,
+                "prob": prob,
+                "ev": ev,
+                "stake": stake,
+            }
+        )
 
 picks.sort(key=lambda x: x["ev"], reverse=True)
 print(f"Found {len(picks)} qualifying picks.\n")
@@ -44,6 +55,7 @@ if not picks:
     sys.exit(0)
 
 from datetime import datetime
+
 today_str = datetime.now().strftime("%Y-%m-%d")
 lines = [f"*DeepField Hot Bets - {today_str}*\n"]
 total_stake = 0.0

@@ -10,12 +10,14 @@ honest go/no-go before wiring totals into the bet path. Read-only; no live chang
     ev_under = pinnacle_under_prob * betarabia_under_odds - 1
 A real edge = consistent modest +EV (cap big "values" as stale, same as 1X2 SHARPV).
 """
+
 import os
 import sys
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 import io
+
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 from src.sharp_scraper import fetch_pinnacle_totals
@@ -38,8 +40,10 @@ def main():
             continue
         ou = od.get("Over/Under 2.5") or {}
         bo, bu = ou.get("Over"), ou.get("Under")
-        for side, b_odds, p_prob in (("Over", bo, s["over_prob"]),
-                                     ("Under", bu, s["under_prob"])):
+        for side, b_odds, p_prob in (
+            ("Over", bo, s["over_prob"]),
+            ("Under", bu, s["under_prob"]),
+        ):
             if not b_odds or b_odds <= 1.0:
                 continue
             ev = p_prob * b_odds - 1.0
@@ -51,14 +55,18 @@ def main():
     print("=" * 72)
     if not rows:
         print(" No modest +EV totals found on the overlap right now.")
-        print(" (Either Betarabia totals are efficient, or no fixtures overlapped Pinnacle.)")
+        print(
+            " (Either Betarabia totals are efficient, or no fixtures overlapped Pinnacle.)"
+        )
         return
     print(f"{'EV':>6}  {'side':5} {'B.odds':>7} {'sharp P':>8}  match")
     print("-" * 72)
     for ev, match, side, b_odds, p_prob in rows[:20]:
         print(f"{ev:>+6.1%}  {side:5} {b_odds:>7.2f} {p_prob:>8.0%}  {match[:40]}")
     print("-" * 72)
-    print(f" {len(rows)} modest +EV totals (<= {TRAP_EV_CAP:.0%}). If these persist and beat")
+    print(
+        f" {len(rows)} modest +EV totals (<= {TRAP_EV_CAP:.0%}). If these persist and beat"
+    )
     print(" the close (CLV), wiring a totals SHARPV/steam bet path is justified.")
 
 

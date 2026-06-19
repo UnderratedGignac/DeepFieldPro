@@ -1,5 +1,7 @@
 """Probe Stair AI API to see what market types and mappings are available."""
+
 import sys, os, json
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from src.arena_betting import _get, list_upcoming_fixtures, get_mapping, ARENA
 

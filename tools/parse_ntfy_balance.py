@@ -1,10 +1,18 @@
 """Read user-sent messages from ntfy and parse any balance."""
+
 import sys, os, requests, json, re
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 TOPIC = "deepfieldpro-elie-haddad"
-OWN_TITLES = {"DeepField Hot Bets", "DeepField Setup Test", "DeepField Best Bet",
-              "DeepField CRITICAL ERROR", "DeepField - Balance received", "DeepField"}
+OWN_TITLES = {
+    "DeepField Hot Bets",
+    "DeepField Setup Test",
+    "DeepField Best Bet",
+    "DeepField CRITICAL ERROR",
+    "DeepField - Balance received",
+    "DeepField",
+}
 
 r = requests.get(f"https://ntfy.sh/{TOPIC}/json?poll=1&since=2h", timeout=10)
 found = False

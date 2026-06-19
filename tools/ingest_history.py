@@ -18,6 +18,7 @@ football-data.co.uk naming: the plain columns (PSH/MaxH/AvgH) are the EARLY odds
 Run:  .venv\\Scripts\\python.exe tools\\ingest_history.py
       .venv\\Scripts\\python.exe tools\\ingest_history.py --leagues E0 SP1 --seasons 2324 2425
 """
+
 import argparse
 import io
 import os
@@ -49,7 +50,8 @@ def _f(row, *keys):
 
 def init_db():
     con = sqlite3.connect(DB)
-    con.execute("""
+    con.execute(
+        """
         CREATE TABLE IF NOT EXISTS matches (
             date TEXT, league TEXT, season TEXT,
             home TEXT, away TEXT,
@@ -61,15 +63,24 @@ def init_db():
             referee TEXT,
             HY INTEGER, AY INTEGER, HR INTEGER, AR INTEGER,
             UNIQUE(date, league, home, away)
-        )""")
+        )"""
+    )
     # Migration: add newer columns to a pre-existing DB that lacks them.
     cols = {r[1] for r in con.execute("PRAGMA table_info(matches)")}
     for col, typ in [
-        ("odds_ch", "REAL"), ("odds_cd", "REAL"), ("odds_ca", "REAL"),
-        ("odds_maxh", "REAL"), ("odds_maxd", "REAL"), ("odds_maxa", "REAL"),
-        ("odds_o25", "REAL"), ("odds_u25", "REAL"),
+        ("odds_ch", "REAL"),
+        ("odds_cd", "REAL"),
+        ("odds_ca", "REAL"),
+        ("odds_maxh", "REAL"),
+        ("odds_maxd", "REAL"),
+        ("odds_maxa", "REAL"),
+        ("odds_o25", "REAL"),
+        ("odds_u25", "REAL"),
         ("referee", "TEXT"),
-        ("HY", "INTEGER"), ("AY", "INTEGER"), ("HR", "INTEGER"), ("AR", "INTEGER"),
+        ("HY", "INTEGER"),
+        ("AY", "INTEGER"),
+        ("HR", "INTEGER"),
+        ("AR", "INTEGER"),
     ]:
         if col not in cols:
             con.execute(f"ALTER TABLE matches ADD COLUMN {col} {typ}")
@@ -79,6 +90,7 @@ def init_db():
 
 def ingest(leagues, seasons):
     import csv
+
     con = init_db()
     cur = con.cursor()
     total = 0
@@ -104,7 +116,9 @@ def ingest(leagues, seasons):
                     hg, ag = int(fthg), int(ftag)
                 except ValueError:
                     continue
-                oh = _f(row, "PSH", "B365H", "AvgH", "MaxH")   # 1X2 EARLY, Pinnacle preferred
+                oh = _f(
+                    row, "PSH", "B365H", "AvgH", "MaxH"
+                )  # 1X2 EARLY, Pinnacle preferred
                 od = _f(row, "PSD", "B365D", "AvgD", "MaxD")
                 oa = _f(row, "PSA", "B365A", "AvgA", "MaxA")
                 # 1X2 CLOSING odds (for CLV): Pinnacle-Closing preferred.
@@ -117,12 +131,31 @@ def ingest(leagues, seasons):
                 mxa = _f(row, "MaxA", "B365A", "PSA", "AvgA")
                 # Over/Under 2.5 closing odds: Pinnacle-Closing first, then
                 # Bet365-Closing / market avg/max, then the non-closing equivalents.
-                o25 = _f(row, "PC>2.5", "B365C>2.5", "AvgC>2.5", "MaxC>2.5",
-                         "P>2.5", "B365>2.5", "Avg>2.5", "Max>2.5")
-                u25 = _f(row, "PC<2.5", "B365C<2.5", "AvgC<2.5", "MaxC<2.5",
-                         "P<2.5", "B365<2.5", "Avg<2.5", "Max<2.5")
+                o25 = _f(
+                    row,
+                    "PC>2.5",
+                    "B365C>2.5",
+                    "AvgC>2.5",
+                    "MaxC>2.5",
+                    "P>2.5",
+                    "B365>2.5",
+                    "Avg>2.5",
+                    "Max>2.5",
+                )
+                u25 = _f(
+                    row,
+                    "PC<2.5",
+                    "B365C<2.5",
+                    "AvgC<2.5",
+                    "MaxC<2.5",
+                    "P<2.5",
+                    "B365<2.5",
+                    "Avg<2.5",
+                    "Max<2.5",
+                )
                 # Referee and card columns (football-data.co.uk standard names)
                 ref = (row.get("Referee") or "").strip() or None
+
                 def _i(row, *keys):
                     for k in keys:
                         v = row.get(k, "")
@@ -132,10 +165,11 @@ def ingest(leagues, seasons):
                             except (ValueError, TypeError):
                                 continue
                     return None
-                hy = _i(row, "HY")   # home yellows
-                ay = _i(row, "AY")   # away yellows
-                hr = _i(row, "HR")   # home reds
-                ar = _i(row, "AR")   # away reds
+
+                hy = _i(row, "HY")  # home yellows
+                ay = _i(row, "AY")  # away yellows
+                hr = _i(row, "HR")  # home reds
+                ar = _i(row, "AR")  # away reds
 
                 # NAMED columns (not positional): the table may have been built up via
                 # ALTER TABLE ADD COLUMN, so physical column order is NOT the CREATE order.
@@ -154,9 +188,32 @@ def ingest(leagues, seasons):
                            odds_o25=excluded.odds_o25, odds_u25=excluded.odds_u25,
                            referee=excluded.referee,
                            HY=excluded.HY, AY=excluded.AY, HR=excluded.HR, AR=excluded.AR""",
-                    (row.get("Date"), lg, season, home, away, hg, ag, row.get("FTR"),
-                     oh, od, oa, ch, cd, ca, mxh, mxd, mxa, o25, u25,
-                     ref, hy, ay, hr, ar),
+                    (
+                        row.get("Date"),
+                        lg,
+                        season,
+                        home,
+                        away,
+                        hg,
+                        ag,
+                        row.get("FTR"),
+                        oh,
+                        od,
+                        oa,
+                        ch,
+                        cd,
+                        ca,
+                        mxh,
+                        mxd,
+                        mxa,
+                        o25,
+                        u25,
+                        ref,
+                        hy,
+                        ay,
+                        hr,
+                        ar,
+                    ),
                 )
                 n += 1
             con.commit()
@@ -165,12 +222,20 @@ def ingest(leagues, seasons):
             time.sleep(0.3)
     cnt = cur.execute("SELECT COUNT(*) FROM matches").fetchone()[0]
     teams = cur.execute("SELECT COUNT(DISTINCT home) FROM matches").fetchone()[0]
-    with_odds = cur.execute("SELECT COUNT(*) FROM matches WHERE odds_h IS NOT NULL").fetchone()[0]
-    with_close = cur.execute("SELECT COUNT(*) FROM matches WHERE odds_ch IS NOT NULL").fetchone()[0]
-    with_ou = cur.execute("SELECT COUNT(*) FROM matches WHERE odds_o25 IS NOT NULL").fetchone()[0]
+    with_odds = cur.execute(
+        "SELECT COUNT(*) FROM matches WHERE odds_h IS NOT NULL"
+    ).fetchone()[0]
+    with_close = cur.execute(
+        "SELECT COUNT(*) FROM matches WHERE odds_ch IS NOT NULL"
+    ).fetchone()[0]
+    with_ou = cur.execute(
+        "SELECT COUNT(*) FROM matches WHERE odds_o25 IS NOT NULL"
+    ).fetchone()[0]
     con.close()
-    print(f"\nDB now holds {cnt} matches | {teams} distinct teams | {with_odds} with 1X2 early odds "
-          f"| {with_close} with 1X2 closing odds | {with_ou} with O/U 2.5 odds")
+    print(
+        f"\nDB now holds {cnt} matches | {teams} distinct teams | {with_odds} with 1X2 early odds "
+        f"| {with_close} with 1X2 closing odds | {with_ou} with O/U 2.5 odds"
+    )
     print(f"-> {os.path.relpath(DB)}")
 
 

@@ -62,6 +62,7 @@ class QwenResult:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _port_open(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(0.5)
@@ -98,9 +99,8 @@ def _get_webview_ws() -> str:
 
 def _cdp_session(ws_url: str):
     import websocket
-    return websocket.create_connection(
-        ws_url, timeout=10, header={"Origin": CDP_HTTP}
-    )
+
+    return websocket.create_connection(ws_url, timeout=10, header={"Origin": CDP_HTTP})
 
 
 def _send(ws, method: str, params: dict | None = None, wait: float = 10) -> dict:
@@ -126,11 +126,16 @@ def _send(ws, method: str, params: dict | None = None, wait: float = 10) -> dict
 
 def _js(ws, expression: str, wait: float = 10) -> str:
     """Evaluate JS and return string value (bool/None normalised to string)."""
-    result = _send(ws, "Runtime.evaluate", {
-        "expression": expression,
-        "returnByValue": True,
-        "awaitPromise": False,
-    }, wait=wait)
+    result = _send(
+        ws,
+        "Runtime.evaluate",
+        {
+            "expression": expression,
+            "returnByValue": True,
+            "awaitPromise": False,
+        },
+        wait=wait,
+    )
     val = result.get("result", {}).get("value", "")
     if val is None:
         return ""
@@ -142,20 +147,34 @@ def _js(ws, expression: str, wait: float = 10) -> str:
 def _mouse_click(ws, x: float, y: float) -> None:
     """Dispatch a real left-click at (x, y) in CSS pixels."""
     for etype in ("mousePressed", "mouseReleased"):
-        _send(ws, "Input.dispatchMouseEvent", {
-            "type": etype, "x": x, "y": y,
-            "button": "left", "clickCount": 1,
-        })
+        _send(
+            ws,
+            "Input.dispatchMouseEvent",
+            {
+                "type": etype,
+                "x": x,
+                "y": y,
+                "button": "left",
+                "clickCount": 1,
+            },
+        )
         time.sleep(0.04)
 
 
 def _key_event(ws, key: str, code: str, vk: int, modifiers: int = 0) -> None:
     for etype in ("keyDown", "keyUp"):
-        _send(ws, "Input.dispatchKeyEvent", {
-            "type": etype, "key": key, "code": code,
-            "nativeVirtualKeyCode": vk, "windowsVirtualKeyCode": vk,
-            "modifiers": modifiers,
-        })
+        _send(
+            ws,
+            "Input.dispatchKeyEvent",
+            {
+                "type": etype,
+                "key": key,
+                "code": code,
+                "nativeVirtualKeyCode": vk,
+                "windowsVirtualKeyCode": vk,
+                "modifiers": modifiers,
+            },
+        )
         time.sleep(0.04)
 
 
@@ -166,14 +185,17 @@ def _enable_mcp(ws) -> bool:
     Returns True if the MCP chip confirmed active.
     """
     # 1. JS-click the + (mode-select-open) button
-    result = _js(ws, """
+    result = _js(
+        ws,
+        """
     (function(){
         var el = document.querySelector('.mode-select-open');
         if (!el) return 'NO_PLUS';
         el.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
         return 'ok';
     })()
-    """)
+    """,
+    )
     if result != "ok":
         return False
 
@@ -181,7 +203,9 @@ def _enable_mcp(ws) -> bool:
     time.sleep(1.0)
 
     # 3. Find the "MCP" LI and JS-click it
-    result = _js(ws, """
+    result = _js(
+        ws,
+        """
     (function(){
         var items = document.querySelectorAll('li, [role="menuitem"]');
         for (var i = 0; i < items.length; i++) {
@@ -195,7 +219,8 @@ def _enable_mcp(ws) -> bool:
         }
         return 'NOT_FOUND';
     })()
-    """)
+    """,
+    )
     if result != "clicked":
         return False
 
@@ -203,7 +228,9 @@ def _enable_mcp(ws) -> bool:
     time.sleep(0.8)
 
     # 5. Confirm MCP chip is in the input bar
-    chip = _js(ws, "(document.querySelector('.message-input') || {innerText:''}).innerText")
+    chip = _js(
+        ws, "(document.querySelector('.message-input') || {innerText:''}).innerText"
+    )
     return "MCP" in chip
 
 
@@ -212,7 +239,9 @@ def _auto_approve_mcp(ws) -> bool:
     If Qwen shows a 'Allow in this chat' MCP permission dialog, click it.
     Called every polling cycle. Returns True if a dialog was approved.
     """
-    result = _js(ws, """
+    result = _js(
+        ws,
+        """
     (function(){
         var btns = document.querySelectorAll('button');
         for (var i = 0; i < btns.length; i++) {
@@ -224,17 +253,21 @@ def _auto_approve_mcp(ws) -> bool:
         }
         return '';
     })()
-    """)
+    """,
+    )
     return result == "approved"
 
 
 def _chat_text(ws) -> str:
-    return _js(ws, f"""
+    return _js(
+        ws,
+        f"""
     (function(){{
         var e = document.querySelectorAll('{_RESPONSE_SEL}');
         return e.length ? e[e.length-1].innerText : '';
     }})()
-    """).strip()
+    """,
+    ).strip()
 
 
 def _extract_response(raw: str, prompt: str) -> str:
@@ -261,7 +294,7 @@ def _extract_response(raw: str, prompt: str) -> str:
     # Strip the leading user prompt (last occurrence, handles multi-turn)
     idx = text.rfind(prompt_s)
     if idx != -1:
-        text = text[idx + len(prompt_s):].lstrip("\n")
+        text = text[idx + len(prompt_s) :].lstrip("\n")
 
     # Handle Qwen Studio A/B comparison UI — take Response 1 text
     if "Which response do you prefer?" in text:
@@ -270,10 +303,10 @@ def _extract_response(raw: str, prompt: str) -> str:
             text = m.group(1).strip()
 
     # Strip Qwen Studio "no matching skill" metadata prefix (first line only)
-    if text.startswith(("⚠", "⚠️")):   # ⚠ or ⚠️
+    if text.startswith(("⚠", "⚠️")):  # ⚠ or ⚠️
         nl = text.find("\n")
         if nl != -1:
-            text = text[nl + 1:].lstrip("\n")
+            text = text[nl + 1 :].lstrip("\n")
 
     # Strip trailing disclaimer lines
     for prefix in _DISCLAIMER_PREFIXES:
@@ -289,6 +322,7 @@ def _extract_response(raw: str, prompt: str) -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def run_task(
     prompt: str,
@@ -310,21 +344,28 @@ def run_task(
     #    lock will prevent a new instance — kill first, then relaunch.
     if not _port_open(CDP_PORT):
         if not launch_if_closed:
-            return QwenResult("", False,
-                              f"CDP port {CDP_PORT} not open and launch_if_closed=False")
+            return QwenResult(
+                "", False, f"CDP port {CDP_PORT} not open and launch_if_closed=False"
+            )
         if not Path(QWEN_EXE).exists():
             return QwenResult("", False, f"Qwen.exe not found: {QWEN_EXE}")
 
         # Kill any existing Qwen process (single-instance lock workaround)
         subprocess.run(
             ["taskkill", "/IM", "Qwen.exe", "/F"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         time.sleep(1)
 
         subprocess.Popen(
-            [QWEN_EXE, f"--remote-debugging-port={CDP_PORT}", "--remote-allow-origins=*"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            [
+                QWEN_EXE,
+                f"--remote-debugging-port={CDP_PORT}",
+                "--remote-allow-origins=*",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         if not _wait_port(CDP_PORT, timeout=30):
             return QwenResult("", False, "Qwen CDP port did not open within 30s")
@@ -334,21 +375,32 @@ def run_task(
     try:
         ws_url = _get_webview_ws()
     except Exception as e:
-        return QwenResult("", False, f"CDP target discovery failed: {e}",
-                          timing_s=round(time.time() - t0, 1))
+        return QwenResult(
+            "",
+            False,
+            f"CDP target discovery failed: {e}",
+            timing_s=round(time.time() - t0, 1),
+        )
 
     try:
         import websocket as _ws_mod  # noqa: F401
     except ImportError:
-        return QwenResult("", False,
-                          "websocket-client not installed: "
-                          "run `.venv\\Scripts\\pip install websocket-client`")
+        return QwenResult(
+            "",
+            False,
+            "websocket-client not installed: "
+            "run `.venv\\Scripts\\pip install websocket-client`",
+        )
 
     try:
         ws = _cdp_session(ws_url)
     except Exception as e:
-        return QwenResult("", False, f"CDP WebSocket connect failed: {e}",
-                          timing_s=round(time.time() - t0, 1))
+        return QwenResult(
+            "",
+            False,
+            f"CDP WebSocket connect failed: {e}",
+            timing_s=round(time.time() - t0, 1),
+        )
 
     try:
         # 3. Navigate to a fresh chat home page (clears conversation history)
@@ -361,9 +413,12 @@ def run_task(
             if _js(ws, f"!!document.querySelector('{_TEXTAREA_SEL}')") == "true":
                 break
         else:
-            return QwenResult("", False,
-                              "Textarea not found after navigation — is Qwen logged in?",
-                              timing_s=round(time.time() - t0, 1))
+            return QwenResult(
+                "",
+                False,
+                "Textarea not found after navigation — is Qwen logged in?",
+                timing_s=round(time.time() - t0, 1),
+            )
 
         time.sleep(1.0)  # let React finish mounting all input widgets
 
@@ -375,8 +430,10 @@ def run_task(
         time.sleep(0.2)
 
         # 5b. Click the textarea to focus it (use CSS pixel coords; scale=1.0 confirmed working)
-        ta_rect_json = _js(ws,
-            f"JSON.stringify(document.querySelector('{_TEXTAREA_SEL}')?.getBoundingClientRect())")
+        ta_rect_json = _js(
+            ws,
+            f"JSON.stringify(document.querySelector('{_TEXTAREA_SEL}')?.getBoundingClientRect())",
+        )
         try:
             ta_rect = json.loads(ta_rect_json)
             ta_cx = ta_rect["left"] + ta_rect["width"] / 2
@@ -388,7 +445,7 @@ def run_task(
         time.sleep(0.2)
 
         # 6. Clear any pre-existing text (Ctrl+A, Delete)
-        _key_event(ws, "a", "KeyA", 65, modifiers=2)   # Ctrl+A
+        _key_event(ws, "a", "KeyA", 65, modifiers=2)  # Ctrl+A
         _key_event(ws, "Delete", "Delete", 46)
 
         # 7. Type the prompt via native OS input (Input.insertText)
@@ -398,9 +455,12 @@ def run_task(
         # Verify the text landed in the textarea
         ta_val = _js(ws, f"document.querySelector('{_TEXTAREA_SEL}')?.value||''")
         if prompt not in ta_val:
-            return QwenResult("", False,
-                              f"Prompt not in textarea after typing (got: {ta_val[:50]!r})",
-                              timing_s=round(time.time() - t0, 1))
+            return QwenResult(
+                "",
+                False,
+                f"Prompt not in textarea after typing (got: {ta_val[:50]!r})",
+                timing_s=round(time.time() - t0, 1),
+            )
 
         # 8. Submit with Enter key
         _key_event(ws, "Enter", "Enter", 13)
@@ -436,9 +496,12 @@ def run_task(
                 stable_count = 0
                 last_text = cleaned
 
-        return QwenResult("", False,
-                          f"No stable response within {timeout}s",
-                          timing_s=round(time.time() - t0, 1))
+        return QwenResult(
+            "",
+            False,
+            f"No stable response within {timeout}s",
+            timing_s=round(time.time() - t0, 1),
+        )
 
     except Exception as e:
         return QwenResult("", False, str(e), timing_s=round(time.time() - t0, 1))
@@ -463,8 +526,7 @@ def run_build_task(task: str, timeout: int = 300) -> QwenResult:
         "Project: DeepFieldPro at C:/Users/Elie/DeepFieldPro "
         "(Python 3.12, Flask, SQLite, Windows, venv at .venv/)\n\n"
         "Complete the following task autonomously using your tools. "
-        "After finishing, give a brief summary of what you changed and why:\n\n"
-        + task
+        "After finishing, give a brief summary of what you changed and why:\n\n" + task
     )
     return run_task(full_prompt, timeout=timeout)
 
@@ -479,7 +541,11 @@ if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-    prompt = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "Say the word ONLINE and nothing else."
+    prompt = (
+        " ".join(sys.argv[1:])
+        if len(sys.argv) > 1
+        else "Say the word ONLINE and nothing else."
+    )
     print(f"[master] -> Qwen: {prompt!r}")
     result = run_task(prompt, timeout=90)
     print(f"[qwen]   ok={result.ok}  time={result.timing_s}s")

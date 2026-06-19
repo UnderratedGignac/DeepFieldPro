@@ -4,6 +4,7 @@ line_shop_report.py — how much is line-shopping (Betarabia vs Kambi) actually 
 Reads bet_log's best_odds/best_book (recorded at bet time) and reports the price uplift
 line-shopping would have captured — the realized value of the +1.9% CLV line-shopping edge.
 """
+
 import os
 import sqlite3
 
@@ -31,7 +32,9 @@ print("=" * 60)
 print(f" bets with cross-book price ... {n}")
 print(f" Kambi beat Betarabia ......... {len(better)}  ({len(better)/n:.0%})")
 print(f" avg uplift when Kambi better . {avg_uplift_when_better:+.2%}")
-print(f" avg uplift across ALL bets ... {avg_uplift_all:+.2%}  (the bankable line-shop edge)")
+print(
+    f" avg uplift across ALL bets ... {avg_uplift_all:+.2%}  (the bankable line-shop edge)"
+)
 print("-" * 60)
 print(" Take the BEST price on every pick to capture this. >~+1.5% avg")
 print(" across all bets means line-shopping is a real, free edge to wire in.")

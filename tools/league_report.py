@@ -12,6 +12,7 @@ when available.
 
 Run:  .venv\\Scripts\\python.exe tools\\league_report.py
 """
+
 import os
 import sqlite3
 
@@ -28,8 +29,12 @@ def build_match_league_map():
             continue
         try:
             con = sqlite3.connect(p)
-            tabs = [r[0] for r in con.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'")]
+            tabs = [
+                r[0]
+                for r in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            ]
             if "predictions" in tabs:
                 cols = {r[1] for r in con.execute("PRAGMA table_info(predictions)")}
                 if "match" in cols and "league" in cols:
@@ -49,8 +54,11 @@ def main():
     con.close()
 
     lg_map = build_match_league_map()
-    settled = [r for r in rows if str(r.get("result", "")).upper() in
-               ("W", "L", "WIN", "LOSS", "WON", "LOST")]
+    settled = [
+        r
+        for r in rows
+        if str(r.get("result", "")).upper() in ("W", "L", "WIN", "LOSS", "WON", "LOST")
+    ]
 
     def league_of(r):
         return r.get("league") or lg_map.get(r.get("match_id")) or "(not captured)"
@@ -60,7 +68,9 @@ def main():
         groups.setdefault(league_of(r), []).append(r)
 
     print(f"Settled bets: {len(settled)} across {len(groups)} league buckets\n")
-    print(f"{'league':32s} {'n':>4s} {'hit':>6s} {'staked':>9s} {'pnl':>9s} {'roi':>8s} {'CLV':>7s}")
+    print(
+        f"{'league':32s} {'n':>4s} {'hit':>6s} {'staked':>9s} {'pnl':>9s} {'roi':>8s} {'CLV':>7s}"
+    )
     print("-" * 82)
     rowsout = []
     for lg, g in groups.items():
@@ -70,11 +80,15 @@ def main():
         pnl = sum(float(r["pnl"] or 0) for r in g)
         clvs = [r["clv"] for r in g if r.get("clv") is not None]
         avgclv = (sum(clvs) / len(clvs)) if clvs else None
-        rowsout.append((lg, n, wins / n, staked, pnl, pnl / staked if staked else 0, avgclv))
+        rowsout.append(
+            (lg, n, wins / n, staked, pnl, pnl / staked if staked else 0, avgclv)
+        )
     # biggest staked first
     for lg, n, hit, staked, pnl, roi, avgclv in sorted(rowsout, key=lambda x: -x[3]):
         clv = f"{avgclv:+.1%}" if avgclv is not None else "  --"
-        print(f"{str(lg)[:32]:32s} {n:4d} {hit:6.1%} ${staked:8.2f} ${pnl:8.2f} {roi:+7.1%} {clv:>7s}")
+        print(
+            f"{str(lg)[:32]:32s} {n:4d} {hit:6.1%} ${staked:8.2f} ${pnl:8.2f} {roi:+7.1%} {clv:>7s}"
+        )
 
     print("\nTip: leagues with many bets and clearly negative ROI/CLV are blocklist")
     print('candidates — add them to settings.json "league_blocklist".')

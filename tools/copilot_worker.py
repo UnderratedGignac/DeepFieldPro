@@ -40,7 +40,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 _PROJECT_ROOT = Path(r"C:\Users\Elie\DeepFieldPro")
-_VENV_PYTHON  = str(_PROJECT_ROOT / ".venv" / "Scripts" / "python.exe")
+_VENV_PYTHON = str(_PROJECT_ROOT / ".venv" / "Scripts" / "python.exe")
 
 
 @dataclass
@@ -55,6 +55,7 @@ class WorkerResult:
 # ---------------------------------------------------------------------------
 # Tool implementations
 # ---------------------------------------------------------------------------
+
 
 def _read_file(path: str) -> str:
     p = Path(path)
@@ -88,9 +89,12 @@ def _list_directory(path: str = ".") -> str:
         return f"ERROR: directory not found: {p}"
     try:
         entries = sorted(p.iterdir(), key=lambda x: (x.is_file(), x.name))
-        return "\n".join(
-            f"{'[DIR] ' if e.is_dir() else '[FILE]'} {e.name}" for e in entries
-        ) or "(empty)"
+        return (
+            "\n".join(
+                f"{'[DIR] ' if e.is_dir() else '[FILE]'} {e.name}" for e in entries
+            )
+            or "(empty)"
+        )
     except Exception as e:
         return f"ERROR: {e}"
 
@@ -99,7 +103,9 @@ def _run_python(code: str) -> str:
     try:
         result = subprocess.run(
             [_VENV_PYTHON, "-c", code],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=str(_PROJECT_ROOT),
         )
         parts = []
@@ -119,7 +125,11 @@ def _run_python(code: str) -> str:
 def _run_shell(command: str) -> str:
     try:
         result = subprocess.run(
-            command, shell=True, capture_output=True, text=True, timeout=30,
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=str(_PROJECT_ROOT),
         )
         parts = []
@@ -137,11 +147,11 @@ def _run_shell(command: str) -> str:
 
 
 _TOOL_FNS = {
-    "read_file":      lambda a: _read_file(a.get("path", "")),
-    "write_file":     lambda a: _write_file(a.get("path", ""), a.get("content", "")),
+    "read_file": lambda a: _read_file(a.get("path", "")),
+    "write_file": lambda a: _write_file(a.get("path", ""), a.get("content", "")),
     "list_directory": lambda a: _list_directory(a.get("path", ".")),
-    "run_python":     lambda a: _run_python(a.get("code", "")),
-    "run_shell":      lambda a: _run_shell(a.get("command", "")),
+    "run_python": lambda a: _run_python(a.get("code", "")),
+    "run_shell": lambda a: _run_shell(a.get("command", "")),
 }
 
 
@@ -149,9 +159,10 @@ _TOOL_FNS = {
 # ReAct parser
 # ---------------------------------------------------------------------------
 
+
 def _parse_tool_call(text: str):
     """Return (tool_name, args_dict) if a TOOL/INPUT block is present, else (None, None)."""
-    tool_m  = re.search(r"TOOL:\s*(\w+)", text, re.IGNORECASE)
+    tool_m = re.search(r"TOOL:\s*(\w+)", text, re.IGNORECASE)
     input_m = re.search(r"INPUT:\s*(\{.*?\})", text, re.DOTALL | re.IGNORECASE)
     if not (tool_m and input_m):
         return None, None
@@ -205,12 +216,15 @@ Rules:
 # Async core
 # ---------------------------------------------------------------------------
 
+
 async def _run_async(
     prompt: str,
     timeout: int,
     max_rounds: int,
 ) -> WorkerResult:
-    from sydney import SydneyClient  # imported here so missing install gives clear error
+    from sydney import (
+        SydneyClient,
+    )  # imported here so missing install gives clear error
 
     t0 = time.time()
     tool_calls_total = 0
@@ -224,7 +238,9 @@ async def _run_async(
             for round_num in range(max_rounds):
                 if time.time() - t0 > timeout:
                     return WorkerResult(
-                        "", False, f"Timeout after {timeout}s",
+                        "",
+                        False,
+                        f"Timeout after {timeout}s",
                         timing_s=round(time.time() - t0, 1),
                         tool_calls=tool_calls_total,
                     )
@@ -237,7 +253,9 @@ async def _run_async(
                     )
                 except Exception as e:
                     return WorkerResult(
-                        "", False, f"Sydney API error: {e}",
+                        "",
+                        False,
+                        f"Sydney API error: {e}",
                         timing_s=round(time.time() - t0, 1),
                         tool_calls=tool_calls_total,
                     )
@@ -275,20 +293,26 @@ async def _run_async(
                     )
 
                 return WorkerResult(
-                    "", False, "Empty response from model",
+                    "",
+                    False,
+                    "Empty response from model",
                     timing_s=round(time.time() - t0, 1),
                     tool_calls=tool_calls_total,
                 )
 
     except Exception as e:
         return WorkerResult(
-            "", False, f"Client error: {e}",
+            "",
+            False,
+            f"Client error: {e}",
             timing_s=round(time.time() - t0, 1),
             tool_calls=tool_calls_total,
         )
 
     return WorkerResult(
-        "", False, f"Exceeded {max_rounds} rounds",
+        "",
+        False,
+        f"Exceeded {max_rounds} rounds",
         timing_s=round(time.time() - t0, 1),
         tool_calls=tool_calls_total,
     )
@@ -298,6 +322,7 @@ async def _run_async(
 # Public API  (sync wrappers — matches openrouter_worker.py interface)
 # ---------------------------------------------------------------------------
 
+
 def _ensure_cookie():
     cookie = os.getenv("BING_U_COOKIE", "")
     if not cookie:
@@ -306,7 +331,9 @@ def _ensure_cookie():
     return None
 
 
-def run_task(prompt: str, *, timeout: int = 120, max_tool_rounds: int = 15) -> WorkerResult:
+def run_task(
+    prompt: str, *, timeout: int = 120, max_tool_rounds: int = 15
+) -> WorkerResult:
     """Send prompt to Microsoft Copilot with a ReAct tool-calling loop."""
     err = _ensure_cookie()
     if err:
@@ -339,13 +366,17 @@ if __name__ == "__main__":
         print("How to get it:", file=sys.stderr)
         print("  1. Open Edge/Chrome → https://copilot.microsoft.com", file=sys.stderr)
         print("  2. Sign in with your Microsoft account", file=sys.stderr)
-        print("  3. F12 → Application → Cookies → copilot.microsoft.com", file=sys.stderr)
+        print(
+            "  3. F12 → Application → Cookies → copilot.microsoft.com", file=sys.stderr
+        )
         print("  4. Copy the value of the '_U' cookie", file=sys.stderr)
         print("  5. Add to .env:  BING_U_COOKIE=<value>", file=sys.stderr)
         sys.exit(1)
 
-    prompt = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else (
-        "List the files in the tools/ directory of this project."
+    prompt = (
+        " ".join(sys.argv[1:])
+        if len(sys.argv) > 1
+        else ("List the files in the tools/ directory of this project.")
     )
     print(f"[copilot-worker] style=precise  ReAct loop enabled")
     print(f"[copilot-worker] -> {prompt!r}\n")

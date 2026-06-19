@@ -3,10 +3,14 @@ Clear placed_keys for future WC fixtures so the autopilot can re-bet
 them with the new wallet balance. Already-kicked-off fixtures are left locked.
 Then immediately run one autopilot cycle.
 """
+
 import sys, os, json, time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "arena_autopilot.json")
+STATE_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "data", "arena_autopilot.json"
+)
 
 with open(STATE_FILE, encoding="utf-8") as f:
     state = json.load(f)
@@ -44,5 +48,6 @@ print(f"\nUnlocked {len(unlocked)} future fixtures. Locked {len(keep_keys)} live
 print("Running autopilot cycle now...")
 
 from src.arena_betting import autopilot_cycle
+
 summary = autopilot_cycle()
 print(f"\nCycle result: {summary}")

@@ -1,4 +1,5 @@
 import sqlite3
+
 db = sqlite3.connect("data/bet_log.db")
 rows = db.execute(
     "SELECT bet_id, player_id, bet_source, market_type, entry_odds, stake, result "
@@ -6,4 +7,6 @@ rows = db.execute(
 ).fetchall()
 print(f"Bets today: {len(rows)}")
 for r in rows:
-    print(f"  {r[2]:8s} | {r[3]:15s} | {r[1][:50]} | odds={r[4]} | stake={r[5]:.1f} | {r[6]}")
+    print(
+        f"  {r[2]:8s} | {r[3]:15s} | {r[1][:50]} | odds={r[4]} | stake={r[5]:.1f} | {r[6]}"
+    )

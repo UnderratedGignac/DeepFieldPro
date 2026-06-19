@@ -6,6 +6,7 @@ league). The daemon loads it to produce continuous, team-specific 1X2 probs.
 
 Run:  .venv\\Scripts\\python.exe tools\\train_dixon_coles.py
 """
+
 import datetime
 import json
 import os
@@ -39,8 +40,14 @@ def main():
         if o is None:
             continue
         by_league.setdefault(r["league"], []).append(
-            {"home": r["home"], "away": r["away"],
-             "hg": r["home_goals"], "ag": r["away_goals"], "ordinal": o})
+            {
+                "home": r["home"],
+                "away": r["away"],
+                "hg": r["home_goals"],
+                "ag": r["away_goals"],
+                "ordinal": o,
+            }
+        )
 
     leagues = {}
     for lg, ms in sorted(by_league.items()):
@@ -54,14 +61,19 @@ def main():
         rank = sorted(teams.items(), key=lambda kv: -kv[1]["att"])
         top = ", ".join(t for t, _ in rank[:3])
         bot = ", ".join(t for t, _ in rank[-3:])
-        print(f"  {lg}: {params['n_teams']} teams, {params['n_matches']} matches | "
-              f"home_adv={params['home_adv']:.3f} rho={params['rho']:+.3f}")
+        print(
+            f"  {lg}: {params['n_teams']} teams, {params['n_matches']} matches | "
+            f"home_adv={params['home_adv']:.3f} rho={params['rho']:+.3f}"
+        )
         print(f"       strongest: {top}  |  weakest: {bot}")
 
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     with open(MODEL_PATH, "w", encoding="utf-8") as f:
-        json.dump({"leagues": leagues,
-                   "trained_at": datetime.date.today().isoformat()}, f, indent=1)
+        json.dump(
+            {"leagues": leagues, "trained_at": datetime.date.today().isoformat()},
+            f,
+            indent=1,
+        )
     print(f"\nSaved {len(leagues)} league models -> {os.path.relpath(MODEL_PATH)}")
 
 

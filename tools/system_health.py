@@ -1,13 +1,17 @@
 """System health check — scraper freshness, open bets, and live state."""
+
 import sqlite3, json, sys, io, os, datetime
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 BASE = os.path.join(os.path.dirname(__file__), "..")
 
 # 1. Dashboard state summary
 print("=== Dashboard state ===")
 try:
-    with open(os.path.join(BASE, "data", "todays_dashboard_state.json"), encoding="utf-8") as f:
+    with open(
+        os.path.join(BASE, "data", "todays_dashboard_state.json"), encoding="utf-8"
+    ) as f:
         state = json.load(f)
     statuses = {}
     for item in state:
@@ -28,11 +32,15 @@ try:
     print(f"Total fixtures: {c.fetchone()[0]}")
     c.execute("SELECT MAX(scraped_at) FROM fixture")
     print(f"Last scraped_at: {c.fetchone()[0]}")
-    c.execute("SELECT kickoff_date, COUNT(*) FROM fixture GROUP BY kickoff_date ORDER BY kickoff_date DESC LIMIT 6")
+    c.execute(
+        "SELECT kickoff_date, COUNT(*) FROM fixture GROUP BY kickoff_date ORDER BY kickoff_date DESC LIMIT 6"
+    )
     print("Fixtures by date:")
     for r in c.fetchall():
         print(f"  {r[0]}: {r[1]}")
-    c.execute("SELECT home_team, away_team, kickoff_date, tournament_name FROM fixture ORDER BY scraped_at DESC LIMIT 5")
+    c.execute(
+        "SELECT home_team, away_team, kickoff_date, tournament_name FROM fixture ORDER BY scraped_at DESC LIMIT 5"
+    )
     print("5 most recently scraped:")
     for r in c.fetchall():
         h = (r[0] or "").encode("ascii", "replace").decode()
@@ -52,7 +60,9 @@ try:
     c2.execute("SELECT COUNT(*) as cnt FROM bet_log WHERE result='OPEN'")
     total_open = c2.fetchone()["cnt"]
     print(f"Total OPEN bets: {total_open}")
-    c2.execute("SELECT match_id, market_type, side, placed_at, result FROM bet_log WHERE result='OPEN' ORDER BY placed_at ASC LIMIT 10")
+    c2.execute(
+        "SELECT match_id, market_type, side, placed_at, result FROM bet_log WHERE result='OPEN' ORDER BY placed_at ASC LIMIT 10"
+    )
     print("Oldest 10:")
     for r in c2.fetchall():
         mid = str(r["match_id"]).encode("ascii", "replace").decode()

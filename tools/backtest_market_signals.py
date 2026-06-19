@@ -20,6 +20,7 @@ need a live feed. This tool covers what the free historical data can actually va
 
 Run:  .venv\\Scripts\\python.exe tools\\backtest_market_signals.py
 """
+
 import os
 import sqlite3
 
@@ -43,14 +44,27 @@ def main():
     print(f"Test season: {test_season}  ({len(test)} matches)\n")
 
     def usable(r):
-        cols = ("odds_h", "odds_d", "odds_a", "odds_ch", "odds_cd", "odds_ca",
-                "odds_maxh", "odds_maxd", "odds_maxa")
+        cols = (
+            "odds_h",
+            "odds_d",
+            "odds_a",
+            "odds_ch",
+            "odds_cd",
+            "odds_ca",
+            "odds_maxh",
+            "odds_maxd",
+            "odds_maxa",
+        )
         return all(r[c] for c in cols) and r["result"] in ("H", "D", "A")
 
     # ---- Signal 1: STEAM (early->close move), settled at the EARLY price ----
-    print("=== SIGNAL 1: STEAM (bet the side the line moved toward, at the early price) ===")
+    print(
+        "=== SIGNAL 1: STEAM (bet the side the line moved toward, at the early price) ==="
+    )
     print("    diagnostic ceiling — peeks at the close, not directly tradable")
-    print(f"{'min move':>8s} {'bets':>5s} {'hit':>6s} {'roi(early)':>11s} {'roi(close)':>11s}")
+    print(
+        f"{'min move':>8s} {'bets':>5s} {'hit':>6s} {'roi(early)':>11s} {'roi(close)':>11s}"
+    )
     for min_move in (0.0, 0.005, 0.01, 0.02, 0.03, 0.05):
         n = w = 0
         pnl_e = pnl_c = 0.0
@@ -67,17 +81,23 @@ def main():
             eo = (r["odds_h"], r["odds_d"], r["odds_a"])[best]
             co = (r["odds_ch"], r["odds_cd"], r["odds_ca"])[best]
             n += 1
-            won = (best == oi)
+            won = best == oi
             if won:
                 w += 1
             pnl_e += (eo - 1.0) if won else -1.0
             pnl_c += (co - 1.0) if won else -1.0
         if n:
-            print(f"{min_move:8.1%} {n:5d} {w/n:6.1%} {pnl_e/n:+11.1%} {pnl_c/n:+11.1%}")
-    print("    (early >> close ROI confirms the move is informative; profit needs early ROI > 0)")
+            print(
+                f"{min_move:8.1%} {n:5d} {w/n:6.1%} {pnl_e/n:+11.1%} {pnl_c/n:+11.1%}"
+            )
+    print(
+        "    (early >> close ROI confirms the move is informative; profit needs early ROI > 0)"
+    )
 
     # ---- Signal 2: SOFT-OUTLIER vs sharp consensus, settled at the BEST price ----
-    print("\n=== SIGNAL 2: SOFT-OUTLIER (best soft price vs sharp early consensus) — TRADABLE ===")
+    print(
+        "\n=== SIGNAL 2: SOFT-OUTLIER (best soft price vs sharp early consensus) — TRADABLE ==="
+    )
     print(f"{'EV margin':>9s} {'bets':>5s} {'hit':>6s} {'roi':>8s}")
     for margin in (0.0, 0.02, 0.04, 0.06, 0.08, 0.10):
         n = w = 0
@@ -86,20 +106,24 @@ def main():
             if not usable(r):
                 continue
             oi = {"H": 0, "D": 1, "A": 2}[r["result"]]
-            sharp = devig(r["odds_h"], r["odds_d"], r["odds_a"])     # sharp fair probs
+            sharp = devig(r["odds_h"], r["odds_d"], r["odds_a"])  # sharp fair probs
             best_px = (r["odds_maxh"], r["odds_maxd"], r["odds_maxa"])
-            evs = [sharp[k] * best_px[k] - 1.0 for k in range(3)]    # EV at best price by sharp prob
+            evs = [
+                sharp[k] * best_px[k] - 1.0 for k in range(3)
+            ]  # EV at best price by sharp prob
             best = max(range(3), key=lambda k: evs[k])
             if evs[best] < margin:
                 continue
             n += 1
-            won = (best == oi)
+            won = best == oi
             if won:
                 w += 1
             pnl += (best_px[best] - 1.0) if won else -1.0
         if n:
             print(f"{margin:9.1%} {n:5d} {w/n:6.1%} {pnl/n:+8.1%}")
-    print("    (this is line-shopping vs the sharp line; positive ROI here is directly bettable)")
+    print(
+        "    (this is line-shopping vs the sharp line; positive ROI here is directly bettable)"
+    )
 
 
 if __name__ == "__main__":

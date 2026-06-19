@@ -3,6 +3,7 @@ Poll the ntfy topic for incoming messages from the user's phone.
 Usage: .venv\Scripts\python.exe tools\ntfy_listen.py
 Send a message to the topic from your ntfy app and it will appear here.
 """
+
 import requests, time, sys, os
 
 TOPIC = "deepfieldpro-elie-haddad"
@@ -20,6 +21,7 @@ while True:
             if not line.strip():
                 continue
             import json
+
             msg = json.loads(line)
             mid = msg.get("id", "")
             if mid in seen:

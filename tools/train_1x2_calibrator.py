@@ -13,6 +13,7 @@ The daemon's _calibrate_1x2() maps raw->calibrated win prob with it.
 
 Run:  .venv\\Scripts\\python.exe tools\\train_1x2_calibrator.py
 """
+
 import datetime
 import json
 import math
@@ -51,6 +52,7 @@ def _parse_ord(s):
 def collect_from_history():
     """Walk-forward DC predictions -> (model_prob, win) pairs over real matches."""
     from src.models.dixon_coles import fit_league, predict_1x2_from_params
+
     con = sqlite3.connect(HIST)
     con.row_factory = sqlite3.Row
     rows = [dict(r) for r in con.execute("SELECT * FROM matches")]
@@ -68,8 +70,14 @@ def collect_from_history():
                 o = _parse_ord(r["date"])
                 if o:
                     by_lg.setdefault(r["league"], []).append(
-                        {"home": r["home"], "away": r["away"],
-                         "hg": r["home_goals"], "ag": r["away_goals"], "ordinal": o})
+                        {
+                            "home": r["home"],
+                            "away": r["away"],
+                            "hg": r["home_goals"],
+                            "ag": r["away_goals"],
+                            "ordinal": o,
+                        }
+                    )
         models = {lg: fit_league(ms) for lg, ms in by_lg.items()}
         for r in rows:
             if r["season"] != test_s:
@@ -80,9 +88,13 @@ def collect_from_history():
             if r["result"] not in ("H", "D", "A"):
                 continue
             ph, pd, pa = predict_1x2_from_params(
-                m["teams"][r["home"]]["att"], m["teams"][r["home"]]["def"],
-                m["teams"][r["away"]]["att"], m["teams"][r["away"]]["def"],
-                m["home_adv"], m["rho"])
+                m["teams"][r["home"]]["att"],
+                m["teams"][r["home"]]["def"],
+                m["teams"][r["away"]]["att"],
+                m["teams"][r["away"]]["def"],
+                m["home_adv"],
+                m["rho"],
+            )
             for prob, outc in ((ph, "H"), (pd, "D"), (pa, "A")):
                 X.append(prob)
                 Y.append(1 if r["result"] == outc else 0)
@@ -92,7 +104,9 @@ def collect_from_history():
 def collect_from_betlog():
     con = sqlite3.connect(BETLOG)
     con.row_factory = sqlite3.Row
-    rows = [dict(r) for r in con.execute("SELECT * FROM bet_log WHERE market_type='1X2'")]
+    rows = [
+        dict(r) for r in con.execute("SELECT * FROM bet_log WHERE market_type='1X2'")
+    ]
     con.close()
     X, Y = [], []
     for r in rows:
@@ -111,19 +125,22 @@ def collect_from_betlog():
 
 def reliability(X, Y, fn, label):
     print(f"  {label}")
-    for lo, hi in [(0, .2), (.2, .35), (.35, .5), (.5, .65), (.65, 1.01)]:
+    for lo, hi in [(0, 0.2), (0.2, 0.35), (0.35, 0.5), (0.5, 0.65), (0.65, 1.01)]:
         idx = [i for i in range(len(X)) if lo <= X[i] < hi]
         if idx:
             pred = sum(fn(X[i]) for i in idx) / len(idx)
             act = sum(Y[i] for i in idx) / len(idx)
-            print(f"    {lo:4.0%}-{hi:4.0%} n={len(idx):5d} pred={pred:5.1%} actual={act:5.1%}")
+            print(
+                f"    {lo:4.0%}-{hi:4.0%} n={len(idx):5d} pred={pred:5.1%} actual={act:5.1%}"
+            )
 
 
 def main():
     source = "history (Dixon-Coles, walk-forward)"
     X, Y = ([], [])
     if os.path.exists(HIST) and os.path.exists(
-            os.path.join(os.path.dirname(__file__), "..", "models", "dixon_coles.json")):
+        os.path.join(os.path.dirname(__file__), "..", "models", "dixon_coles.json")
+    ):
         try:
             X, Y = collect_from_history()
         except Exception as e:
@@ -132,7 +149,9 @@ def main():
         source = "bet_log paper bets"
         X, Y = collect_from_betlog()
     n = len(X)
-    print(f"Calibration source: {source} | samples: {n} | base win-rate: {np.mean(Y):.1%}\n")
+    print(
+        f"Calibration source: {source} | samples: {n} | base win-rate: {np.mean(Y):.1%}\n"
+    )
     if n < 20:
         print("Too few samples; aborting.")
         return
@@ -143,13 +162,28 @@ def main():
     a, b = float(clf.intercept_[0]), float(clf.coef_[0][0])
     cal = lambda p: sigmoid(a + b * logit(p))
 
-    print("BEFORE (raw):"); reliability(X, Y, lambda p: p, "identity")
-    print("AFTER  (calibrated):"); reliability(X, Y, cal, "platt")
-    print("\n  mapping: " + " ".join(f"{p:.0%}->{cal(p):.0%}" for p in (.2, .35, .5, .65, .8)))
+    print("BEFORE (raw):")
+    reliability(X, Y, lambda p: p, "identity")
+    print("AFTER  (calibrated):")
+    reliability(X, Y, cal, "platt")
+    print(
+        "\n  mapping: "
+        + " ".join(f"{p:.0%}->{cal(p):.0%}" for p in (0.2, 0.35, 0.5, 0.65, 0.8))
+    )
 
     with open(OUT, "w", encoding="utf-8") as f:
-        json.dump({"type": "platt", "market": "1X2", "a": a, "b": b,
-                   "n_train": n, "source": source}, f, indent=2)
+        json.dump(
+            {
+                "type": "platt",
+                "market": "1X2",
+                "a": a,
+                "b": b,
+                "n_train": n,
+                "source": source,
+            },
+            f,
+            indent=2,
+        )
     print(f"\nSaved -> {os.path.relpath(OUT)}")
 
 

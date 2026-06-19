@@ -7,9 +7,12 @@ These are real paper bets from June 17 in leagues too obscure for any free API:
 
 Zero real-money impact (all SHADOW mode paper bets).
 """
+
 import sqlite3, os, sys
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
+)
 DB = os.path.join(DATA_DIR, "bet_log.db")
 
 
@@ -26,9 +29,12 @@ def main():
 
     # Identify the stuck ones
     VOID_KEYWORDS = [
-        "utsiktens", "atvidaberg",
-        "mochtas", "lucan",
-        "goytacaz", "america rj",
+        "utsiktens",
+        "atvidaberg",
+        "mochtas",
+        "lucan",
+        "goytacaz",
+        "america rj",
     ]
 
     to_void = []
@@ -70,7 +76,9 @@ def main():
 
     conn2 = sqlite3.connect(DB)
     cur2 = conn2.cursor()
-    cur2.execute("SELECT bet_id, player_id, market_type FROM bet_log WHERE result='OPEN'")
+    cur2.execute(
+        "SELECT bet_id, player_id, market_type FROM bet_log WHERE result='OPEN'"
+    )
     for row in cur2.fetchall():
         print(f"  {row}")
     conn2.close()

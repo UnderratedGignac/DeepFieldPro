@@ -34,12 +34,27 @@ OUT_JSON = os.path.join(ROOT, "models", "lgbm_features.json")
 
 # ── feature order (must match at inference time) ──────────────────────────────
 FEATURE_NAMES = [
-    "dc_home_prob", "dc_draw_prob", "dc_away_prob",
-    "dc_exp_h", "dc_exp_a",
-    "mkt_h_prob", "mkt_d_prob", "mkt_a_prob",
-    "home_form_w5", "home_form_d5", "home_form_l5", "home_gf5", "home_ga5",
-    "away_form_w5", "away_form_d5", "away_form_l5", "away_gf5", "away_ga5",
-    "h2h_home_w5", "h2h_draw5", "h2h_away_w5",
+    "dc_home_prob",
+    "dc_draw_prob",
+    "dc_away_prob",
+    "dc_exp_h",
+    "dc_exp_a",
+    "mkt_h_prob",
+    "mkt_d_prob",
+    "mkt_a_prob",
+    "home_form_w5",
+    "home_form_d5",
+    "home_form_l5",
+    "home_gf5",
+    "home_ga5",
+    "away_form_w5",
+    "away_form_d5",
+    "away_form_l5",
+    "away_gf5",
+    "away_ga5",
+    "h2h_home_w5",
+    "h2h_draw5",
+    "h2h_away_w5",
 ]
 
 MAX_GOALS = 10
@@ -47,7 +62,7 @@ MAX_GOALS = 10
 
 # ── DC helpers ────────────────────────────────────────────────────────────────
 def _pois(k, lam):
-    return math.exp(-lam) * lam ** k / math.factorial(k)
+    return math.exp(-lam) * lam**k / math.factorial(k)
 
 
 def _tau(hg, ag, lam, mu, rho):
@@ -177,13 +192,15 @@ def load_matches():
     """Load all valid matches from history.db, sorted by date."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    cur = conn.execute("""
+    cur = conn.execute(
+        """
         SELECT date, league, season, home, away,
                home_goals, away_goals, result,
                odds_h, odds_d, odds_a,
                odds_ch, odds_cd, odds_ca
         FROM matches
-    """)
+    """
+    )
     rows = cur.fetchall()
     conn.close()
 
@@ -220,7 +237,7 @@ def build_features(matches, dc_leagues):
     Returns X (np.ndarray), y (np.ndarray), seasons (list of str).
     """
     # Running form per team
-    team_form = defaultdict(_empty_form)   # team -> form dict
+    team_form = defaultdict(_empty_form)  # team -> form dict
     # H2H history: sorted(home,away) -> list of (dt, result_for_first_team)
     h2h_history = defaultdict(list)
 
@@ -256,18 +273,36 @@ def build_features(matches, dc_leagues):
         # ── H2H features (last 5 meetings before this match) ─────────────────
         key = _h2h_key(home, away)
         past = h2h_history[key][-5:]
-        h2h_hw = sum(1 for (_, r_home, r_first) in past
-                     if r_first == home and r_home == "H")
-        h2h_aw = sum(1 for (_, r_home, r_first) in past
-                     if r_first == home and r_home == "A")
+        h2h_hw = sum(
+            1 for (_, r_home, r_first) in past if r_first == home and r_home == "H"
+        )
+        h2h_aw = sum(
+            1 for (_, r_home, r_first) in past if r_first == home and r_home == "A"
+        )
         h2h_d = sum(1 for (_, r_home, r_first) in past if r_home == "D")
 
         row = [
-            dc_hp, dc_dp, dc_ap, dc_eh, dc_ea,
-            mkt_h, mkt_d, mkt_a,
-            h_w5, h_d5, h_l5, h_gf5, h_ga5,
-            a_w5, a_d5, a_l5, a_gf5, a_ga5,
-            h2h_hw, h2h_d, h2h_aw,
+            dc_hp,
+            dc_dp,
+            dc_ap,
+            dc_eh,
+            dc_ea,
+            mkt_h,
+            mkt_d,
+            mkt_a,
+            h_w5,
+            h_d5,
+            h_l5,
+            h_gf5,
+            h_ga5,
+            a_w5,
+            a_d5,
+            a_l5,
+            a_gf5,
+            a_ga5,
+            h2h_hw,
+            h2h_d,
+            h2h_aw,
         ]
         X_rows.append(row)
         y_rows.append({"H": 0, "D": 1, "A": 2}[result])
@@ -372,7 +407,9 @@ def main():
         train_idx = [i for i, s in enumerate(seasons) if s != last_season]
         test_idx = [i for i, s in enumerate(seasons) if s == last_season]
 
-    print(f"\nWalk-forward split: train on {len(train_idx)} rows, test on {len(test_idx)} rows (season '{test_season}')")
+    print(
+        f"\nWalk-forward split: train on {len(train_idx)} rows, test on {len(test_idx)} rows (season '{test_season}')"
+    )
 
     X_train, y_train = X[train_idx], y[train_idx]
     X_test, y_test = X[test_idx], y[test_idx]
@@ -450,8 +487,10 @@ def main():
     joblib.dump(clf_final, OUT_PKL)
     print(f"\nSaved model to {OUT_PKL}")
 
-    final_imp = {name: float(imp)
-                 for name, imp in zip(FEATURE_NAMES, clf_final.feature_importances_)}
+    final_imp = {
+        name: float(imp)
+        for name, imp in zip(FEATURE_NAMES, clf_final.feature_importances_)
+    }
     meta = {
         "features": FEATURE_NAMES,
         "importance": final_imp,
