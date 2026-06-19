@@ -39,22 +39,56 @@ class AgyResult:
     error: str = ""
 
 
-def _extract_text(db_path: str) -> str:
-    """Pull assistant response text from a conversation DB."""
-    conn = sqlite3.connect(db_path)
+def _count_responses(db_path: str) -> int:
+    """Return the current count of completed response steps in this DB."""
+    try:
+        conn = sqlite3.connect(db_path, timeout=2)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) FROM steps WHERE step_type=? AND status=?",
+            (_RESP_STEP_TYPE, _STATUS_DONE),
+        )
+        count = cur.fetchone()[0]
+        conn.close()
+        return count
+    except Exception:
+        return 0
+
+
+def _max_step_idx(db_path: str) -> int:
+    """Return the max step idx in this DB (or -1 on error)."""
+    try:
+        conn = sqlite3.connect(db_path, timeout=2)
+        cur = conn.cursor()
+        cur.execute("SELECT COALESCE(MAX(idx), -1) FROM steps")
+        idx = cur.fetchone()[0]
+        conn.close()
+        return idx
+    except Exception:
+        return -1
+
+
+def _extract_text(db_path: str, min_idx: int = -1) -> str:
+    """
+    Pull the newest completed assistant response added AFTER min_idx.
+    Returns plain text extracted from the protobuf payload.
+    """
+    conn = sqlite3.connect(db_path, timeout=5)
     try:
         cur = conn.cursor()
         cur.execute(
-            "SELECT step_payload FROM steps WHERE step_type=? AND status=? ORDER BY idx DESC LIMIT 1",
-            (_RESP_STEP_TYPE, _STATUS_DONE),
+            "SELECT step_payload FROM steps "
+            "WHERE step_type=? AND status=? AND idx>? "
+            "ORDER BY idx DESC LIMIT 1",
+            (_RESP_STEP_TYPE, _STATUS_DONE, min_idx),
         )
         row = cur.fetchone()
         if not row or not row[0]:
             return ""
         raw = row[0].decode("utf-8", errors="replace")
         # Protobuf text fields are embedded as length-prefixed strings.
-        # Grab all printable runs longer than 20 chars, deduplicate adjacent duplicates.
-        candidates = re.findall(r"[ -~\n\t]{20,}", raw)
+        # Grab all printable runs longer than 15 chars, filter noise, deduplicate.
+        candidates = re.findall(r"[ -~\n\t]{15,}", raw)
         seen, parts = set(), []
         for c in candidates:
             c = c.strip()
@@ -74,23 +108,18 @@ def _is_noise(s: str) -> bool:
         return True
     if s.startswith(("command(", "execute_url(", "read_url(")):
         return True
+    # Pure hex/protobuf framing noise (no spaces, all hex/digits)
+    if re.match(r"^[0-9a-fA-F]{16,}$", s):
+        return True
     return False
 
 
-def _db_has_response(db_path: str) -> bool:
-    """Return True if the DB already contains a completed response step."""
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT COUNT(*) FROM steps WHERE step_type=? AND status=?",
-            (_RESP_STEP_TYPE, _STATUS_DONE),
-        )
-        count = cur.fetchone()[0]
-        conn.close()
-        return count > 0
-    except Exception:
-        return False
+def _snapshot_all_dbs() -> dict[str, int]:
+    """Return {db_path: max_step_idx} for every existing conversation DB."""
+    snapshot = {}
+    for db_path in glob.glob(str(_CONV_DIR / "*.db")):
+        snapshot[db_path] = _max_step_idx(db_path)
+    return snapshot
 
 
 def run_task(
@@ -103,16 +132,21 @@ def run_task(
     """
     Dispatch `prompt` to AGY as a slave and return the response.
 
+    AGY reuses its per-project "brain" conversation DB rather than creating
+    a new file each time.  The bridge therefore snapshots the max step idx
+    of every existing DB before launch and polls for any DB whose idx grew.
+
     Args:
         prompt:            The task/instruction for AGY.
         timeout:           Seconds to wait for a response (default 120).
         skip_permissions:  Pass --dangerously-skip-permissions (default True).
-        cwd:               Working directory for AGY (defaults to current dir).
+        cwd:               Working directory for AGY (defaults to project root).
     """
     _CONV_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Snapshot existing DBs so we can identify the new one.
-    before = set(glob.glob(str(_CONV_DIR / "*.db")))
+    # Snapshot: record the max step idx of every existing DB.
+    # A DB whose idx increases after launch is the one AGY wrote to.
+    before = _snapshot_all_dbs()
 
     cmd = [_AGY_EXE, "--print", prompt]
     if skip_permissions:
@@ -128,22 +162,62 @@ def run_task(
     except FileNotFoundError:
         return AgyResult(text="", ok=False, conversation_id="", error="agy.exe not found")
 
-    # Poll for the new conversation DB.
+    # Poll for any DB whose max_step_idx has grown AND contains a new
+    # completed response step (type=15, status=3) after the snapshot idx.
     deadline = time.time() + timeout
-    new_db: str | None = None
+    found_db: str | None = None
+    found_min_idx: int = -1
 
     while time.time() < deadline:
         time.sleep(1)
-        after = set(glob.glob(str(_CONV_DIR / "*.db")))
-        candidates = after - before
-        if candidates:
-            new_db = max(candidates, key=os.path.getmtime)
-            # Wait until the DB contains a completed response.
-            if _db_has_response(new_db):
-                break
-        # Also check if process exited — give it one more second then read.
-        if proc.poll() is not None and new_db and time.time() > deadline - timeout + 5:
+        # Scan all DBs — both existing (checking if idx grew) and any new ones.
+        all_dbs = glob.glob(str(_CONV_DIR / "*.db"))
+        for db_path in all_dbs:
+            prior_idx = before.get(db_path, -1)
+            cur_idx = _max_step_idx(db_path)
+            if cur_idx > prior_idx:
+                # This DB got new steps. Check if one of them is a completed response.
+                try:
+                    conn = sqlite3.connect(db_path, timeout=2)
+                    cur = conn.cursor()
+                    cur.execute(
+                        "SELECT COUNT(*) FROM steps "
+                        "WHERE step_type=? AND status=? AND idx>?",
+                        (_RESP_STEP_TYPE, _STATUS_DONE, prior_idx),
+                    )
+                    n = cur.fetchone()[0]
+                    conn.close()
+                    if n > 0:
+                        found_db = db_path
+                        found_min_idx = prior_idx
+                        break
+                except Exception:
+                    pass
+        if found_db:
+            break
+        # If AGY process exited, do one final scan then stop waiting.
+        if proc.poll() is not None:
             time.sleep(2)
+            # Final scan
+            for db_path in glob.glob(str(_CONV_DIR / "*.db")):
+                prior_idx = before.get(db_path, -1)
+                cur_idx = _max_step_idx(db_path)
+                if cur_idx > prior_idx:
+                    try:
+                        conn = sqlite3.connect(db_path, timeout=2)
+                        cur = conn.cursor()
+                        cur.execute(
+                            "SELECT COUNT(*) FROM steps "
+                            "WHERE step_type=? AND status=? AND idx>?",
+                            (_RESP_STEP_TYPE, _STATUS_DONE, prior_idx),
+                        )
+                        n = cur.fetchone()[0]
+                        conn.close()
+                        if n > 0:
+                            found_db = db_path
+                            found_min_idx = prior_idx
+                    except Exception:
+                        pass
             break
 
     if proc.poll() is None:
@@ -152,16 +226,16 @@ def run_task(
         except subprocess.TimeoutExpired:
             proc.kill()
 
-    if not new_db:
+    if not found_db:
         return AgyResult(
             text="",
             ok=False,
             conversation_id="",
-            error=f"No new conversation DB appeared within {timeout}s",
+            error=f"No new AGY response appeared within {timeout}s",
         )
 
-    conv_id = Path(new_db).stem
-    text = _extract_text(new_db)
+    conv_id = Path(found_db).stem
+    text = _extract_text(found_db, min_idx=found_min_idx)
 
     return AgyResult(
         text=text,
