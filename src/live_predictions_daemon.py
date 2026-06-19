@@ -3687,8 +3687,12 @@ def update_dashboard_json(fixtures, results_cache):
         if prediction and "markets" in prediction:
             # Always attach the real Betarabia price to each market selection so the
             # dashboard shows actual odds (not "@ 0.00"), even for estimated XI.
-            # BUT only place a bet when OFFICIAL lineups are confirmed (has_lineup).
-            bet_allowed = bool(prediction.get("has_lineup", False))
+            # Paper/shadow mode: allow bets without lineup confirmation (Sofascore
+            # is bot-blocked so lineups almost never arrive; gating on them kills
+            # all model betting). Real-money path keeps its own hard gate in
+            # execution_engine.py (SHADOW_MODE). Lineup quality is captured in
+            # has_lineup field for post-analysis.
+            bet_allowed = True
             if True:
                 match_bet_candidates = []
                 for m_type, selections in prediction["markets"].items():
