@@ -18,12 +18,12 @@ _SETTINGS_PATH = Path(__file__).parent.parent / "data" / "settings.json"
 
 @dataclass
 class SpendingMandate:
-    max_per_order: float = 5.0       # max USD per single order
-    daily_cap: float = 25.0          # max USD placed per calendar day (UTC)
-    wallet_buffer: float = 20.0      # minimum USDC to keep in wallet after order
-    conf_min: float = 0.50           # minimum model confidence (0..1)
-    edge_min: float = 0.02           # minimum edge over Polymarket mid (0..1)
-    max_bets_per_run: int = 3        # max bets per autopilot cycle
+    max_per_order: float = 5.0  # max USD per single order
+    daily_cap: float = 25.0  # max USD placed per calendar day (UTC)
+    wallet_buffer: float = 20.0  # minimum USDC to keep in wallet after order
+    conf_min: float = 0.50  # minimum model confidence (0..1)
+    edge_min: float = 0.02  # minimum edge over Polymarket mid (0..1)
+    max_bets_per_run: int = 3  # max bets per autopilot cycle
 
     # ------------------------------------------------------------------
     def check(

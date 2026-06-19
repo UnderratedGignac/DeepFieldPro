@@ -10,14 +10,28 @@ inflate a bet (the record was just made honest — keep it that way).
 Used as METADATA first (record best_odds/best_book alongside each bet, place as usual),
 so the uplift is measured before it's acted on.
 """
+
 import re
 import difflib
 from src.kambi_scraper import fetch_kambi_1x2
 
-_ALIASES = {"cabo verde": "cape verde", "cote d ivoire": "ivory coast",
-            "korea republic": "south korea", "ir iran": "iran", "china pr": "china",
-            "usa": "united states", "czechia": "czech republic"}
-_SIDE = {"home": "home", "1": "home", "draw": "draw", "x": "draw", "away": "away", "2": "away"}
+_ALIASES = {
+    "cabo verde": "cape verde",
+    "cote d ivoire": "ivory coast",
+    "korea republic": "south korea",
+    "ir iran": "iran",
+    "china pr": "china",
+    "usa": "united states",
+    "czechia": "czech republic",
+}
+_SIDE = {
+    "home": "home",
+    "1": "home",
+    "draw": "draw",
+    "x": "draw",
+    "away": "away",
+    "2": "away",
+}
 
 
 def _norm(s):
@@ -46,7 +60,7 @@ def _match(home, away, kambi):
         sc = min(sh, sa)
         if sc > best_score:
             best, best_score = v, sc
-    return best if best_score >= 0.85 else None   # strict: both teams must match well
+    return best if best_score >= 0.85 else None  # strict: both teams must match well
 
 
 def best_1x2(match, selection, betarabia_odds):

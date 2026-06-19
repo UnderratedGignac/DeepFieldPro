@@ -45,22 +45,39 @@ SBTECH_DOMAINS = ["websbkt.com", "api-m-sp-cdl"]
 
 # Market name mapping from SBTech oddCode → human-readable
 ODD_CODE_MAP = {
+    # Match result
     "ODD_FTB_1X2_HOME": "Match Result",
     "ODD_FTB_1X2_DRAW": "Match Result",
     "ODD_FTB_1X2_AWAY": "Match Result",
+    # BTTS
     "ODD_FTB_BOTHTEAMSSCORE_YES": "Both teams to score",
     "ODD_FTB_BOTHTEAMSSCORE_NO": "Both teams to score",
+    # Total goals (both code variants)
     "ODD_FTB_TOTALS_OVER": "Total Goals",
     "ODD_FTB_TOTALS_UNDER": "Total Goals",
+    "ODD_TTL_1_OVR": "Total Goals",
+    # Double chance
     "ODD_FTB_DC_1X": "Double Chance",
     "ODD_FTB_DC_X2": "Double Chance",
     "ODD_FTB_DC_12": "Double Chance",
+    # Corners — CORRECTED: real API uses ODD_CRN_TTL_OVR (old map had wrong code)
+    "ODD_CRN_TTL_OVR": "Total Corners",
+    "ODD_CRN_TTL_UND": "Total Corners",
+    "ODD_CRN_S1": "Team Corners",
+    "ODD_CRN_S2": "Team Corners",
+    # Legacy corner codes (may appear in deep-market files)
     "ODD_CORNER_TTL_OVR": "Total Corners",
     "ODD_CORNER_TTL_UND": "Total Corners",
+    # Yellow cards / bookings
+    "ODD_YEL_S1": "Team Yellow Cards",
+    "ODD_YEL_S2": "Team Yellow Cards",
     "ODD_CARD_TTL_OVR": "Total Cards",
     "ODD_CARD_TTL_UND": "Total Cards",
     "ODD_YEL_TTL_OVR": "Total Yellow Cards",
     "ODD_YEL_TTL_UND": "Total Yellow Cards",
+    # Match-level totals (shots on target, offsides)
+    "ODD_SFG_TTL_OVR": "Total Shots on Target",
+    "ODD_SOF_TTL_OVR": "Total Offsides",
 }
 
 
@@ -115,11 +132,14 @@ def purge_old_data(DaysOld_P: int = 3):
     Bounds DB growth and removes stale lingering duplicates. Safe: those matches are
     long finished and never bet again; today's and future data are untouched."""
     Cutoff_V = (
-        datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=DaysOld_P)
+        datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(days=DaysOld_P)
     ).strftime("%Y-%m-%d")
     Conn_V = sqlite3.connect(DB_PATH)
     Cursor_V = Conn_V.cursor()
-    Cursor_V.execute("SELECT fixture_id FROM fixture WHERE kickoff_date < ?", (Cutoff_V,))
+    Cursor_V.execute(
+        "SELECT fixture_id FROM fixture WHERE kickoff_date < ?", (Cutoff_V,)
+    )
     OldIds_V = [row[0] for row in Cursor_V.fetchall()]
     if OldIds_V:
         Placeholders_V = ",".join("?" for _ in OldIds_V)
@@ -238,7 +258,7 @@ def parse_kickertech_events(ApiResponses_P: list) -> dict:
     EventsById_V = {}
 
     for Response_V in ApiResponses_P:
-        Data_V = Response_V.get("data", {})
+        Data_V = Response_V.get("data") or {}  # guard: json() can return None
         Url_V = Response_V.get("url", "")
 
         # Only process SBTech domain responses
@@ -331,7 +351,7 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
     MarketsByEvent_V = {eid: [] for eid in EventsById_P}
 
     for Response_V in ApiResponses_P:
-        Data_V = Response_V.get("data", {})
+        Data_V = Response_V.get("data") or {}  # guard: json() can return None
         Url_V = Response_V.get("url", "")
 
         if not any(D_V in Url_V for D_V in SBTECH_DOMAINS):
@@ -545,8 +565,9 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                 EventData_V = Data_V  # Fallback if 'data' wrapper is missing
 
             Groups_V = EventData_V.get("groups", [])
-            Info_V = EventData_V.get("info", {})
-            EventId_V = str(Info_V.get("id") or Data_V.get("id", ""))
+            Info_V = EventData_V.get("info") or {}
+            _data_safe = Data_V if isinstance(Data_V, dict) else {}
+            EventId_V = str(Info_V.get("id") or _data_safe.get("id", ""))
 
             if not EventId_V and "lb/" in Url_V:
                 import re
@@ -785,6 +806,84 @@ def _normalize_selection(
         except Exception:
             return "Total UNDER"
 
+    # Total Goals (alternative code ODD_TTL_1_OVR)
+    if "TTL_1_OVR" in Code_V:
+        if BettingLine_P is not None:
+            return f"Total OVER {BettingLine_P}"
+        try:
+            Line_V = float(
+                Name_V.lower().replace("total over", "").replace("over", "").strip()
+            )
+            return f"Total OVER {Line_V}"
+        except Exception:
+            return "Total OVER"
+
+    # Corners total over/under — real API code is ODD_CRN_TTL_OVR (embed line)
+    if "CRN_TTL_OVR" in Code_V or "CORNER_TTL_OVR" in Code_V:
+        if BettingLine_P is not None:
+            return f"Corners OVER {BettingLine_P}"
+        try:
+            Line_V = float(
+                Name_V.lower()
+                .replace("corners total over", "")
+                .replace("over", "")
+                .replace("corners", "")
+                .strip()
+            )
+            return f"Corners OVER {Line_V}"
+        except Exception:
+            return "Corners OVER"
+    if "CRN_TTL_UND" in Code_V or "CORNER_TTL_UND" in Code_V:
+        if BettingLine_P is not None:
+            return f"Corners UNDER {BettingLine_P}"
+        try:
+            Line_V = float(
+                Name_V.lower()
+                .replace("corners total under", "")
+                .replace("under", "")
+                .replace("corners", "")
+                .strip()
+            )
+            return f"Corners UNDER {Line_V}"
+        except Exception:
+            return "Corners UNDER"
+
+    # Total Shots on Target (ODD_SFG_TTL_OVR — embed line)
+    if "SFG_TTL_OVR" in Code_V:
+        if BettingLine_P is not None:
+            return f"Shots on Target OVER {BettingLine_P}"
+        return "Shots on Target OVER"
+
+    # Yellow cards / total cards over/under — embed the line value
+    if "YEL_TTL_OVR" in Code_V or "CARD_TTL_OVR" in Code_V:
+        if BettingLine_P is not None:
+            return f"Cards OVER {BettingLine_P}"
+        try:
+            Line_V = float(
+                Name_V.lower()
+                .replace("yellow cards total over", "")
+                .replace("cards total over", "")
+                .replace("over", "")
+                .strip()
+            )
+            return f"Cards OVER {Line_V}"
+        except Exception:
+            return "Cards OVER"
+    if "YEL_TTL_UND" in Code_V or "CARD_TTL_UND" in Code_V:
+        if BettingLine_P is not None:
+            return f"Cards UNDER {BettingLine_P}"
+        try:
+            Line_V = float(
+                Name_V.lower()
+                .replace("yellow cards total under", "")
+                .replace("cards total under", "")
+                .replace("under", "")
+                .strip()
+            )
+            return f"Cards UNDER {Line_V}"
+        except Exception:
+            return "Cards UNDER"
+
     # 1X2 match result — map codes to team names
     if "1X2_HOME" in Code_V:
         return Fixture_P.get("home_team", Name_V)
@@ -932,7 +1031,7 @@ async def scrape_fixture_list_html(Page_P) -> list:
 async def run_scraper():
     """Main scraper entry point."""
     init_db()
-    purge_old_data()   # drop long-finished fixtures (safe; bounds DB + kills stale dupes)
+    purge_old_data()  # drop long-finished fixtures (safe; bounds DB + kills stale dupes)
 
     TodayStr_V = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     # NOTE: today's data is cleared AFTER a successful scrape (just before the write
@@ -1131,6 +1230,20 @@ async def run_scraper():
                         )
                         if PlayerName_V:
                             PlayerPropsFound_V += 1
+                    elif Mkt_V["market_name"] in (
+                        "Total Corners",
+                        "Total Yellow Cards",
+                        "Total Cards",
+                    ):
+                        # Extract line from selection_name (e.g. "Corners OVER 9.5" → 9.5)
+                        import re as _re
+
+                        _m = _re.search(r"(\d+\.?\d*)\s*$", Mkt_V["selection_name"])
+                        if _m:
+                            try:
+                                Line_V = float(_m.group(1))
+                            except ValueError:
+                                pass
 
                     Cursor_V.execute(
                         """

@@ -20,7 +20,7 @@ on:
         default: 'false'
 
 env:
-  PYTHON_VERSION: '3.10'
+  PYTHON_VERSION: '3.12'
   POSTGRES_DB: 'deepfield_test'
   POSTGRES_USER: 'postgres'
   POSTGRES_PASSWORD: 'postgres'
@@ -57,7 +57,7 @@ jobs:
 
       - name: Format Check with Black
         run: |
-          black --check src/ --line-length 88 --target-version py310
+          black --check src/ --line-length 88 --target-version py312
 
       - name: Type Check with MyPy
         run: |

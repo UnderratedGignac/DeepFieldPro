@@ -62,6 +62,7 @@ def init_bet_log_db():
 
 def log_parlay(total_odds, fair_prob, combined_ev, trust_score, stake, legs):
     import json
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 

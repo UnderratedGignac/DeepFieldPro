@@ -34,6 +34,24 @@ Thumbs.db
 artifacts/
 temp/
 *.tmp
+
+# Large data files — too big for GitHub (use LFS or exclude)
+data/betarabia_api_responses.json
+data/deepfield_browser_data/completed_fixtures.db
+data/betarabia_page_probe.html
+
+# Runtime / scratch files not worth tracking
+current_port.txt
+logs/
+scratch/
+scratch_*.py
+old_data/
+check_*.py
+find_*.py
+force_*.py
+inspect_*.py
+remove_*.py
+reset_*.py
 *.png
 !parlay_ui_verification.png
 !dashboard_preview.png

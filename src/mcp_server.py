@@ -2,6 +2,7 @@
 DeepFieldPro MCP Server
 Exposes DeepFieldPro databases and analytics tools as MCP tools for Claude Code.
 """
+
 import sqlite3
 import json
 import subprocess
@@ -171,9 +172,7 @@ def run_analytics_tool(script: str) -> str:
             )
 
         if not VENV_PYTHON.exists():
-            return json.dumps(
-                {"error": f"Venv Python not found at: {VENV_PYTHON}"}
-            )
+            return json.dumps({"error": f"Venv Python not found at: {VENV_PYTHON}"})
 
         result = subprocess.run(
             [str(VENV_PYTHON), str(script_path)],

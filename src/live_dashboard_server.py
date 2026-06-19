@@ -68,10 +68,10 @@ def query_db(db_name, query, args=(), one=False):
 @app.route("/")
 @app.route("/bankroll")
 @app.route("/tracker")
-@app.route("/performance")
 @app.route("/settings")
 @app.route("/comparison")
-@app.route("/stair")
+@app.route("/ledger")
+@app.route("/edge")
 def index():
     return render_template("index.html")
 
@@ -92,9 +92,11 @@ def get_state():
 
     try:
         from src.a2ui_builder import build_dashboard_ui
+
         _bk = 0.0
         try:
             import sqlite3 as _sq2
+
             _bkdb = os.path.join(DATA_DIR, "bankroll.db")
             _bkc = _sq2.connect(_bkdb)
             _bkr = _bkc.execute(
@@ -105,9 +107,16 @@ def get_state():
                 _bk = float(_bkr[0])
         except Exception:
             pass
-        return jsonify({"data": state, "ui": build_dashboard_ui(state or [], {}, _bk), "ui_available": True})
+        return jsonify(
+            {
+                "data": state,
+                "ui": build_dashboard_ui(state or [], {}, _bk),
+                "ui_available": True,
+            }
+        )
     except Exception as _ui_err:
         return jsonify({"data": state, "ui": None, "ui_available": False})
+
 
 @app.route("/api/stream")
 def stream_state():
@@ -126,7 +135,12 @@ def stream_state():
                             state = json.load(f)
                         try:
                             from src.a2ui_builder import build_dashboard_ui as _bdu
-                            _pl = {"data": state, "ui": _bdu(state or [], {}, 0.0), "ui_available": True}
+
+                            _pl = {
+                                "data": state,
+                                "ui": _bdu(state or [], {}, 0.0),
+                                "ui_available": True,
+                            }
                         except Exception:
                             _pl = {"data": state, "ui": None, "ui_available": False}
                         yield f"data: {json.dumps(_pl)}\n\n"
@@ -137,59 +151,107 @@ def stream_state():
     return Response(event_stream(), mimetype="text/event-stream")
 
 
+INITIAL_CAPITAL = 300.0  # paper bankroll seed
+
+
 @app.route("/api/bankroll")
 def get_bankroll():
-    try:
-        from bankroll_tracker import init_bankroll_db
-
-        init_bankroll_db()
-    except Exception as e:
-        print("Bankroll init error in server:", e)
-
-    row = query_db(
-        "bankroll.db",
-        "SELECT current_balance, starting_balance, daily_pnl FROM bankroll ORDER BY date DESC LIMIT 1",
-        one=True,
-    )
-    history = query_db(
-        "bankroll.db", "SELECT date, current_balance FROM bankroll ORDER BY date ASC"
+    # Compute everything from bet_log (ground truth) — bankroll.db drifts due to
+    # hash-settled noise and manual resets so we no longer trust it for display.
+    daily = (
+        query_db(
+            "bet_log.db",
+            "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
+            "WHERE result NOT IN ('OPEN') GROUP BY day ORDER BY day ASC",
+        )
+        or []
     )
 
-    chart_dates = []
-    chart_balances = []
-    if history:
-        for h in history:
-            chart_dates.append(h["date"])
-            chart_balances.append(h["current_balance"])
+    chart_dates, chart_balances = [], []
+    running = INITIAL_CAPITAL
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    today_pnl = 0.0
+    for row in daily:
+        running += row["dpnl"] or 0.0
+        chart_dates.append(row["day"])
+        chart_balances.append(round(running, 2))
+        if row["day"] == today_str:
+            today_pnl = row["dpnl"] or 0.0
 
-    if row:
-        roi = (
-            (
-                (row["current_balance"] - row["starting_balance"])
-                / row["starting_balance"]
-            )
-            * 100
-            if row["starting_balance"]
-            else 0
-        )
-        return jsonify(
-            {
-                "current": round(row["current_balance"], 2),
-                "roi": round(roi, 2),
-                "pnl": round(row["daily_pnl"] or 0.0, 2),
-                "chart_dates": chart_dates,
-                "chart_balances": chart_balances,
-            }
-        )
+    all_time_pnl = running - INITIAL_CAPITAL
+    roi = (all_time_pnl / INITIAL_CAPITAL) * 100
+
     return jsonify(
         {
-            "current": 10000.0,
-            "roi": 0.0,
-            "pnl": 0.0,
-            "chart_dates": [],
-            "chart_balances": [],
+            "current": round(running, 2),
+            "roi": round(roi, 2),
+            "pnl": round(today_pnl, 2),
+            "chart_dates": chart_dates,
+            "chart_balances": chart_balances,
         }
     )
+
+
+@app.route("/api/edge_report")
+def get_edge_report():
+    def run(sql):
+        return query_db("bet_log.db", sql) or []
+
+    def to_row(r):
+        wins, losses = r["wins"] or 0, r["losses"] or 0
+        stake = r["stake"] or 0.0
+        pnl = r["pnl"] or 0.0
+        total = wins + losses
+        win_rate = round(100 * wins / total, 1) if total else 0.0
+        roi = round(100 * pnl / stake, 1) if stake else 0.0
+        return {
+            "label": r["label"],
+            "bets": r["cnt"] or 0,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": win_rate,
+            "stake": round(stake, 2),
+            "pnl": round(pnl, 2),
+            "roi": roi,
+        }
+
+    base = "WHERE result NOT IN ('OPEN','VOID')"
+
+    strategies = [
+        to_row(dict(r, label=r["bet_source"] or "AI"))
+        for r in run(
+            f"SELECT bet_source, COUNT(*) as cnt, "
+            f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+            f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+            f"SUM(stake) as stake, SUM(pnl) as pnl "
+            f"FROM bet_log {base} GROUP BY bet_source ORDER BY pnl DESC"
+        )
+    ]
+
+    markets = [
+        to_row(dict(r, label=r["market_type"] or "Unknown"))
+        for r in run(
+            f"SELECT market_type, COUNT(*) as cnt, "
+            f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+            f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+            f"SUM(stake) as stake, SUM(pnl) as pnl "
+            f"FROM bet_log {base} GROUP BY market_type ORDER BY pnl DESC"
+        )
+    ]
+
+    leagues = [
+        to_row(dict(r, label=r["league"]))
+        for r in run(
+            f"SELECT league, COUNT(*) as cnt, "
+            f"SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) as wins, "
+            f"SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) as losses, "
+            f"SUM(stake) as stake, SUM(pnl) as pnl "
+            f"FROM bet_log {base} AND league IS NOT NULL AND league != '' "
+            f"GROUP BY league HAVING cnt >= 2 ORDER BY pnl DESC"
+        )
+    ]
+
+    return jsonify({"strategies": strategies, "markets": markets, "leagues": leagues})
 
 
 @app.route("/api/stair_balance")
@@ -205,7 +267,7 @@ def get_stair_balance():
         if res.status_code == 200:
             data = res.json()
             # Production returns wallet at the top level with snake_case usdc fields.
-            wallet = (data.get("wallet") or data.get("data", {}).get("wallet") or {})
+            wallet = data.get("wallet") or data.get("data", {}).get("wallet") or {}
             return jsonify(
                 {
                     "available": wallet.get("available_balance_usdc")
@@ -219,50 +281,17 @@ def get_stair_balance():
     return jsonify({"available": 0, "locked": 0})
 
 
-@app.route("/api/place_parlay", methods=["POST"])
-def place_parlay():
-    data = request.json
-    try:
-        from bet_logger import log_parlay
-        parlay_id = log_parlay(
-            total_odds=data.get("total_odds"),
-            fair_prob=data.get("fair_prob"),
-            combined_ev=data.get("combined_ev"),
-            trust_score=data.get("parlay_trust_score"),
-            stake=data.get("recommended_stake"),
-            legs=data.get("legs")
-        )
-        return jsonify({"status": "success", "parlay_id": parlay_id})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-@app.route("/api/active_parlays")
-def get_active_parlays_ledger():
-    parlays = query_db(
-        "bet_log.db",
-        "SELECT parlay_id, total_odds, stake, result, pnl, placed_at, legs_json FROM parlay_log WHERE result = 'OPEN' ORDER BY placed_at DESC"
-    )
-    return jsonify([dict(r) for r in (parlays or [])])
-
 @app.route("/api/settled_ledger")
 def get_settled_ledger():
-    # Fetch settled single bets
     singles = query_db(
         "bet_log.db",
-        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at FROM bet_log WHERE result != 'OPEN' ORDER BY placed_at DESC"
+        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source, league FROM bet_log ORDER BY placed_at DESC",
     )
-    
-    # Fetch settled parlays
-    parlays = query_db(
-        "bet_log.db",
-        "SELECT parlay_id, total_odds, stake, result, pnl, placed_at, legs_json FROM parlay_log WHERE result != 'OPEN' ORDER BY placed_at DESC"
+    return jsonify(
+        {
+            "singles": [dict(r) for r in (singles or [])],
+        }
     )
-    
-    return jsonify({
-        "singles": [dict(r) for r in (singles or [])],
-        "parlays": [dict(r) for r in (parlays or [])]
-    })
 
 
 @app.route("/api/tracker")
@@ -270,9 +299,9 @@ def get_tracker():
     rows = query_db(
         "bet_log.db",
         """
-        SELECT b.bet_id, b.match_id, b.player_id, b.market_type, b.entry_odds, 
-               b.closing_odds, b.edge_pct, b.stake, b.result, b.pnl, b.placed_at, 
-               b.bet_source, b.is_recommended, p.kickoff
+        SELECT b.bet_id, b.match_id, b.player_id, b.market_type, b.entry_odds,
+               b.closing_odds, b.edge_pct, b.stake, b.result, b.pnl, b.placed_at,
+               b.bet_source, b.is_recommended, b.league, p.kickoff
         FROM bet_log b
         LEFT JOIN predictions p ON b.match_id = p.match_name
         ORDER BY b.placed_at DESC LIMIT 50
@@ -314,97 +343,6 @@ def get_tracker():
             "stats": stats,
             "financials": financials,
         }
-    )
-
-
-@app.route("/api/performance")
-def get_performance():
-    # Query AI bets with all fields
-    ai_bets = query_db(
-        "bet_log.db",
-        "SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at FROM bet_log WHERE bet_source='AI' ORDER BY placed_at DESC",
-    )
-    # Query User bets with all fields
-    user_bets = query_db(
-        "bet_log.db",
-        "SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, is_recommended FROM bet_log WHERE bet_source='USER' ORDER BY placed_at DESC",
-    )
-
-    def summarize(bets):
-        total = len(bets)
-        wins = sum(1 for b in bets if b["result"] == "W")
-        losses = sum(1 for b in bets if b["result"] == "L")
-        open_count = sum(1 for b in bets if b["result"] == "OPEN")
-
-        total_stake = sum(b["stake"] or 0.0 for b in bets)
-        total_pnl = sum(b["pnl"] or 0.0 for b in bets)
-
-        win_rate = (
-            round((wins / (wins + losses)) * 100, 1) if (wins + losses) > 0 else 0.0
-        )
-        return {
-            "total": total,
-            "wins": wins,
-            "losses": losses,
-            "open": open_count,
-            "win_rate": win_rate,
-            "stake": round(total_stake, 2),
-            "pnl": round(total_pnl, 2),
-        }
-
-    ai_summary = summarize(ai_bets or [])
-    user_summary = summarize(user_bets or [])
-
-    user_rec_bets = [b for b in (user_bets or []) if b["is_recommended"] == 1]
-    user_own_bets = [b for b in (user_bets or []) if b["is_recommended"] == 0]
-
-    user_rec_summary = summarize(user_rec_bets)
-    user_own_summary = summarize(user_own_bets)
-
-    return jsonify(
-        {
-            "ai": ai_summary,
-            "user": user_summary,
-            "user_rec": user_rec_summary,
-            "user_own": user_own_summary,
-            "raw_user_bets": [dict(r) for r in (user_bets or [])],
-            "raw_ai_bets": [dict(r) for r in (ai_bets or [])],
-        }
-    )
-
-
-@app.route("/api/stair_bets")
-def get_stair_bets():
-    rows = query_db(
-        "bet_log.db",
-        "SELECT b.bet_id, b.match_id, b.market_type, b.entry_odds, b.stake, b.result as status, b.pnl, b.placed_at, s.order_id FROM bet_log b JOIN stair_orders s ON b.bet_id = s.bet_id ORDER BY b.placed_at DESC",
-    )
-    return jsonify({"stair_bets": [dict(r) for r in (rows or [])]})
-
-
-@app.route("/api/smart_parlays")
-def get_smart_parlays():
-    parlay_path = os.path.join(DATA_DIR, "smart_parlays.json")
-    if os.path.exists(parlay_path):
-        try:
-            with open(parlay_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return jsonify(data)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    return jsonify({"top_parlays": []})
-
-
-@app.route("/api/settle_bet", methods=["POST"])
-def settle_bet():
-    return (
-        jsonify(
-            {
-                "status": "error",
-                "error": "Manual bet settlement is disabled. All bets are automatically settled by the background daemon.",
-            }
-        ),
-        400,
     )
 
 
@@ -459,12 +397,766 @@ def place_bet():
 
         # Deduct stake from bankroll via tracker
         from bankroll_tracker import register_bet
+
         register_bet(stake)
 
         return jsonify({"status": "success", "bet_id": bet_id})
     except Exception as e:
         print("Bet Error:", e)
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/clv")
+def get_clv():
+    """CLV dashboard — closing-line value stats for STEAM bets broken down by
+    league, week, and move-size bucket. Returns only bets that have a closing_odds
+    recorded so the numbers are grounded in real prices."""
+    import os as _os
+    SIGNALS_DB = _os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    rows = query_db(
+        "bet_log.db",
+        """SELECT b.match_id, b.league, b.entry_odds, b.closing_odds, b.clv,
+                  b.result, b.pnl, b.stake, b.placed_at, b.fixture_id, b.bet_id
+           FROM bet_log b
+           WHERE b.bet_source = 'STEAM' AND b.result IN ('W','L','WIN','LOSS')
+           ORDER BY b.placed_at ASC""",
+    )
+
+    # Enrich with steam_move from signals db
+    move_map = {}
+    try:
+        import sqlite3 as _sql
+        con2 = _sql.connect(SIGNALS_DB)
+        sigs = con2.execute(
+            "SELECT fixture_id, steam_move FROM steam_signals"
+        ).fetchall()
+        con2.close()
+        move_map = {str(r[0]): r[1] for r in sigs}
+    except Exception:
+        pass
+
+    bets = []
+    for r in (rows or []):
+        d = dict(r)
+        d["steam_move_pct"] = round(move_map.get(str(d.get("fixture_id", "")), 0) * 100, 1)
+        bets.append(d)
+
+    settled_clv = [b for b in bets if b.get("clv") is not None]
+
+    def _roi(pnl, staked):
+        return round(pnl / staked * 100, 1) if staked else 0
+
+    def _summary(subset):
+        if not subset:
+            return None
+        clv_vals = [b["clv"] * 100 for b in subset if b.get("clv") is not None]
+        pnl = sum(b.get("pnl") or 0 for b in subset)
+        staked = sum(b.get("stake") or 0 for b in subset)
+        wins = sum(1 for b in subset if b.get("result") in ("W", "WIN"))
+        avg_clv = round(sum(clv_vals) / len(clv_vals), 2) if clv_vals else None
+        # 95% confidence interval for avg CLV via t-distribution (normal approx for n≥30)
+        ci_lower = ci_upper = None
+        nc = len(clv_vals)
+        if nc >= 2 and avg_clv is not None:
+            import math
+            variance = sum((v - avg_clv) ** 2 for v in clv_vals) / (nc - 1)
+            se = math.sqrt(variance / nc)
+            z = 1.96 if nc >= 30 else (2.045 if nc >= 25 else (2.131 if nc >= 20 else 2.571))
+            ci_lower = round(avg_clv - z * se, 1)
+            ci_upper = round(avg_clv + z * se, 1)
+        return {
+            "n": len(subset),
+            "wins": wins,
+            "hit_rate": round(wins / len(subset) * 100, 1),
+            "roi": _roi(pnl, staked),
+            "pnl": round(pnl, 2),
+            "staked": round(staked, 2),
+            "avg_clv": avg_clv,
+            "clv_n": nc,
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
+        }
+
+    # By league
+    from collections import defaultdict
+    by_league = defaultdict(list)
+    for b in bets:
+        by_league[b.get("league") or "Unknown"].append(b)
+    leagues_out = {lg: _summary(v) for lg, v in sorted(by_league.items(), key=lambda x: -len(x[1]))}
+
+    # By week
+    by_week = defaultdict(list)
+    for b in bets:
+        try:
+            import datetime
+            d = datetime.date.fromisoformat((b.get("placed_at") or "")[:10])
+            week = f"{d.isocalendar()[0]}-W{d.isocalendar()[1]:02d}"
+        except Exception:
+            week = "Unknown"
+        by_week[week].append(b)
+    weeks_out = {w: _summary(v) for w, v in sorted(by_week.items())}
+
+    # By move bucket
+    move_buckets = [("5-8%", 5, 8), ("8-12%", 8, 12), ("12-20%", 12, 20), ("20%+", 20, 999)]
+    moves_out = {}
+    for label, lo, hi in move_buckets:
+        bucket = [b for b in bets if lo <= b["steam_move_pct"] < hi]
+        moves_out[label] = _summary(bucket)
+
+    # By monotonicity bucket (requires bet_log.monotonicity column from CLV attribution)
+    mono_buckets = [("0.0-0.25", 0.0, 0.25), ("0.25-0.5", 0.25, 0.5),
+                    ("0.5-0.75", 0.5, 0.75), ("0.75-1.0", 0.75, 1.01)]
+    mono_out = {}
+    mono_rows = query_db(
+        "bet_log.db",
+        """SELECT b.match_id, b.league, b.entry_odds, b.closing_odds, b.clv,
+                  b.result, b.pnl, b.stake, b.placed_at, b.fixture_id, b.monotonicity
+           FROM bet_log b
+           WHERE b.bet_source = 'STEAM' AND b.result IN ('W','L','WIN','LOSS')
+             AND b.monotonicity IS NOT NULL
+           ORDER BY b.placed_at ASC""",
+    ) or []
+    for label, lo, hi in mono_buckets:
+        bucket = [dict(r) for r in mono_rows if lo <= (r[10] or 0) < hi]
+        mono_out[label] = _summary(bucket)
+
+    # Signal decay: rolling windows (last 50, last 100, lifetime) for STEAM
+    decay_out = {}
+    sorted_bets = sorted(bets, key=lambda b: b.get("placed_at") or "")
+    for window_label, window_n in [("last_50", 50), ("last_100", 100), ("lifetime", None)]:
+        subset = sorted_bets[-window_n:] if window_n else sorted_bets
+        decay_out[window_label] = _summary(subset)
+
+    # Load signal discovery results; merge with registry for live status
+    signals_out = {}
+    try:
+        import json as _json, sqlite3 as _sql
+        sig_path = _os.path.join(DATA_DIR, "signal_discovery_results.json")
+        # Load registry state
+        reg = {}
+        try:
+            _rcon = _sql.connect(_os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"))
+            for row in _rcon.execute("SELECT signal_name, enabled, promoted, updated_at FROM signal_registry"):
+                reg[row[0]] = {"registry_enabled": bool(row[1]), "registry_promoted": bool(row[2]), "registry_updated": row[3]}
+            _rcon.close()
+        except Exception:
+            pass
+        if _os.path.exists(sig_path):
+            disc = _json.load(open(sig_path))
+            raw_sigs = disc.get("signals", {})
+            for sig_name, r in raw_sigs.items():
+                n = r.get("n", 0)
+                clv = r.get("avg_clv")
+                if n >= 100 and clv is not None:
+                    auto_status = "PROMOTE" if clv >= 3.0 else ("DISABLE" if clv < 0.0 else "WATCH")
+                else:
+                    auto_status = "WATCH"
+                signals_out[sig_name] = {**r, "auto_status": auto_status, **reg.get(sig_name, {})}
+    except Exception:
+        pass
+
+    # Scatter data for CLV attribution plot (move_size x CLV, bubble = monotonicity)
+    scatter_rows = query_db(
+        "bet_log.db",
+        """SELECT match_id, entry_odds, clv, move_size, monotonicity, league, placed_at, bet_id
+           FROM bet_log
+           WHERE bet_source='STEAM' AND result IN ('W','L','WIN','LOSS')
+             AND clv IS NOT NULL AND move_size IS NOT NULL
+           ORDER BY placed_at ASC""",
+    ) or []
+    scatter_out = [
+        {
+            "match": r[0], "entry_odds": r[1],
+            "clv": round(r[2] * 100, 2), "move_size": r[3],
+            "monotonicity": r[4], "league": r[5], "bet_id": r[7],
+        }
+        for r in scatter_rows
+    ]
+
+    # Rolling windows (7d / 30d / 90d) for regime / decay detection
+    import datetime as _dt
+    _now = _dt.datetime.now()
+    rolling_out = {}
+    for label, days in [("7d", 7), ("30d", 30), ("90d", 90)]:
+        cutoff = (_now - _dt.timedelta(days=days)).isoformat()
+        subset = [b for b in bets if (b.get("placed_at") or "") >= cutoff]
+        rolling_out[label] = _summary(subset)
+
+    # Validation status from signal_validation table
+    validation_out = {}
+    try:
+        import sqlite3 as _sql2
+        _vcon = _sql2.connect(_os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"))
+        _vrows = _vcon.execute(
+            "SELECT signal_name, discovery_date, validation_bets, validation_clv, status FROM signal_validation"
+        ).fetchall()
+        _vcon.close()
+        for row in _vrows:
+            validation_out[row[0]] = {
+                "discovery_date": row[1], "validation_bets": row[2],
+                "validation_clv": row[3], "status": row[4],
+            }
+        # Merge into signals_out
+        for sig, vdata in validation_out.items():
+            if sig in signals_out:
+                signals_out[sig]["validation"] = vdata
+    except Exception:
+        pass
+
+    # Research Health Score (0–100)
+    def _health_score(ov, roll):
+        score = 0.0
+        n = (ov or {}).get("n", 0)
+        clv = (ov or {}).get("avg_clv") or 0
+        ci_lo = (ov or {}).get("ci_lower")
+        ci_hi = (ov or {}).get("ci_upper")
+        # Sample size (max 30 pts)
+        score += min(30.0, n / 300.0 * 30.0)
+        # CLV magnitude (max 25 pts — 10% CLV = full score)
+        score += min(25.0, max(0.0, clv / 10.0 * 25.0))
+        # CI quality (max 20 pts)
+        if ci_lo is not None and ci_hi is not None:
+            score += 20.0 if ci_lo > 0 else (0.0 if (ci_hi or 0) < 0 else 10.0)
+        # 7d vs 30d trend (max 15 pts)
+        clv_7d  = (roll.get("7d")  or {}).get("avg_clv")
+        clv_30d = (roll.get("30d") or {}).get("avg_clv")
+        if clv_7d is not None and clv_30d is not None:
+            score += 15.0 if clv_7d >= clv_30d else (7.5 if clv_7d >= clv_30d - 3 else 0.0)
+        elif clv > 0:
+            score += 7.5
+        # Signal diversity bonus (max 10 pts)
+        n_promoted = sum(1 for s in signals_out.values()
+                         if s.get("registry_promoted") or s.get("auto_status") == "PROMOTE")
+        score += min(10.0, n_promoted * 3.3)
+        return round(score)
+
+    ov_summary = _summary(bets)
+    health = _health_score(ov_summary, rolling_out)
+
+    return jsonify({
+        "overall": ov_summary,
+        "by_league": leagues_out,
+        "by_week": weeks_out,
+        "by_move_bucket": moves_out,
+        "by_monotonicity": mono_out,
+        "decay": decay_out,
+        "rolling": rolling_out,
+        "health_score": health,
+        "signals": signals_out,
+        "validation": validation_out,
+        "scatter": scatter_out,
+        "bets": bets,
+    })
+
+
+@app.route("/api/signal_registry", methods=["GET"])
+def get_signal_registry():
+    """Return all signal_registry rows for the dashboard control panel."""
+    import sqlite3 as _sql
+    reg_db = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+    try:
+        con = _sql.connect(reg_db)
+        rows = con.execute(
+            "SELECT signal_name, enabled, promoted, min_samples, owner, updated_at FROM signal_registry ORDER BY signal_name"
+        ).fetchall()
+        con.close()
+        return jsonify([
+            {"signal_name": r[0], "enabled": bool(r[1]), "promoted": bool(r[2]),
+             "min_samples": r[3], "owner": r[4], "updated_at": r[5]}
+            for r in rows
+        ])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/signal_registry/<signal_name>", methods=["POST"])
+def update_signal_registry(signal_name):
+    """Toggle enabled/promoted for a signal. Body: {enabled?: bool, promoted?: bool}"""
+    import sqlite3 as _sql
+    reg_db = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+    data = request.get_json() or {}
+    try:
+        con = _sql.connect(reg_db)
+        if "enabled" in data:
+            con.execute(
+                "UPDATE signal_registry SET enabled=?, updated_at=CURRENT_TIMESTAMP WHERE signal_name=?",
+                (1 if data["enabled"] else 0, signal_name),
+            )
+        if "promoted" in data:
+            con.execute(
+                "UPDATE signal_registry SET promoted=?, updated_at=CURRENT_TIMESTAMP WHERE signal_name=?",
+                (1 if data["promoted"] else 0, signal_name),
+            )
+        con.commit()
+        con.close()
+        return jsonify({"status": "ok", "signal": signal_name})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/bet_replay/<bet_id>")
+def get_bet_replay(bet_id):
+    """Return bet details + full odds timeline for the Replay Explorer."""
+    import sqlite3 as _sql
+    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    # Fetch bet metadata
+    bet_rows = query_db(
+        "bet_log.db",
+        """SELECT bet_id, match_id, market_type, entry_odds, closing_odds, clv,
+                  result, pnl, stake, placed_at, league, move_size, monotonicity, fixture_id, signal_name
+           FROM bet_log WHERE bet_id = ?""",
+        (bet_id,),
+    )
+    if not bet_rows:
+        return jsonify({"error": "Bet not found"}), 404
+    bet = dict(bet_rows[0])
+    if bet.get("clv") is not None:
+        bet["clv_pct"] = round(bet["clv"] * 100, 2)
+
+    # Fetch odds timeline from odds_history
+    timeline = []
+    fid = bet.get("fixture_id")
+    mtype = bet.get("market_type", "1X2")
+    if fid:
+        try:
+            con = _sql.connect(SIGNALS_DB)
+            oh_rows = con.execute(
+                "SELECT selection, odds, timestamp FROM odds_history "
+                "WHERE fixture_id=? AND market=? ORDER BY timestamp ASC",
+                (str(fid), mtype),
+            ).fetchall()
+            con.close()
+            # Group by timestamp → {ts: {sel: odds}}
+            from collections import defaultdict
+            by_ts: dict = defaultdict(dict)
+            for sel, odds, ts in oh_rows:
+                if odds and odds > 0:
+                    by_ts[ts][sel] = odds
+            # De-vig each snapshot
+            def _dv(snap):
+                inv = {s: 1/o for s, o in snap.items() if o and o > 0}
+                tot = sum(inv.values())
+                return {s: round(v/tot*100, 1) for s, v in inv.items()} if tot > 0 else {}
+            for ts in sorted(by_ts):
+                snap = by_ts[ts]
+                probs = _dv(snap)
+                timeline.append({
+                    "ts": ts,
+                    "odds": {s: round(o, 3) for s, o in snap.items()},
+                    "prob": probs,
+                })
+        except Exception as e:
+            timeline = [{"error": str(e)}]
+
+    return jsonify({"bet": bet, "timeline": timeline})
+
+
+@app.route("/api/research_runs")
+def get_research_runs():
+    """Return last N nightly audit records from research_runs table."""
+    import sqlite3 as _sql
+    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+    limit = int(request.args.get("limit", 30))
+    try:
+        con = _sql.connect(SIGNALS_DB)
+        rows = con.execute(
+            """SELECT run_id, run_at, signals_evaluated, bets_analyzed,
+                      promoted, disabled, health_score, avg_clv, jobs_ok
+               FROM research_runs ORDER BY run_id DESC LIMIT ?""",
+            (limit,)
+        ).fetchall()
+        con.close()
+        runs = []
+        for r in rows:
+            import json as _j
+            runs.append({
+                "run_id": r[0], "run_at": r[1],
+                "signals_evaluated": r[2], "bets_analyzed": r[3],
+                "promoted": _j.loads(r[4] or "[]"),
+                "disabled": _j.loads(r[5] or "[]"),
+                "health_score": r[6], "avg_clv": r[7],
+                "jobs_ok": _j.loads(r[8] or "{}"),
+            })
+        return jsonify(runs)
+    except Exception as e:
+        return jsonify([])
+
+
+@app.route("/api/signal_lifecycle")
+def get_signal_lifecycle():
+    """Return current lifecycle stage for every signal plus full transition history."""
+    import sqlite3 as _sql
+    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+    try:
+        con = _sql.connect(SIGNALS_DB)
+        # Current stage = most recent row per signal
+        cur_rows = con.execute(
+            """SELECT signal_name, stage, entered_at, n, avg_clv, metadata
+               FROM signal_lifecycle
+               WHERE id IN (
+                   SELECT MAX(id) FROM signal_lifecycle GROUP BY signal_name
+               )
+               ORDER BY signal_name"""
+        ).fetchall()
+        # History for timeline
+        hist_rows = con.execute(
+            """SELECT signal_name, stage, entered_at FROM signal_lifecycle
+               ORDER BY signal_name, id ASC"""
+        ).fetchall()
+        con.close()
+        import json as _j
+        current = {}
+        for r in cur_rows:
+            meta = {}
+            try:
+                meta = _j.loads(r[5] or "{}")
+            except Exception:
+                pass
+            # Days in current stage
+            import datetime as _dt
+            try:
+                entered = _dt.datetime.fromisoformat(r[2]) if r[2] else _dt.datetime.now()
+                days_in_stage = (_dt.datetime.now() - entered).days
+            except Exception:
+                days_in_stage = 0
+            current[r[0]] = {
+                "signal_name": r[0], "stage": r[1], "entered_at": r[2],
+                "n": r[3], "avg_clv": r[4], "days_in_stage": days_in_stage,
+                **meta,
+            }
+        history = {}
+        for r in hist_rows:
+            history.setdefault(r[0], []).append({"stage": r[1], "at": r[2]})
+        return jsonify({"current": current, "history": history})
+    except Exception as e:
+        return jsonify({"current": {}, "history": {}, "error": str(e)})
+
+
+@app.route("/api/edge_attribution")
+def get_edge_attribution():
+    """Break down CLV contribution by move_size, monotonicity, league, and timing."""
+    rows = query_db(
+        "bet_log.db",
+        """SELECT match_id, league, entry_odds, closing_odds, clv,
+                  result, pnl, stake, placed_at, move_size, monotonicity
+           FROM bet_log
+           WHERE bet_source='STEAM' AND result IN ('W','L','WIN','LOSS')
+             AND clv IS NOT NULL""",
+    )
+    if not rows:
+        return jsonify({"error": "no_data"})
+
+    bets = [dict(r) for r in rows]
+    n_total  = len(bets)
+    clv_vals = [b["clv"] * 100 for b in bets]
+    overall  = sum(clv_vals) / len(clv_vals) if clv_vals else 0
+
+    def _bucket_contrib(key_fn, label_fn, bets):
+        buckets: dict = {}
+        for b in bets:
+            k = key_fn(b)
+            if k is None:
+                continue
+            buckets.setdefault(k, []).append(b["clv"] * 100)
+        result = []
+        for k in sorted(buckets):
+            vals = buckets[k]
+            avg  = sum(vals) / len(vals)
+            frac = len(vals) / n_total
+            result.append({
+                "label": label_fn(k),
+                "n": len(vals),
+                "avg_clv": round(avg, 2),
+                "contribution": round((avg - overall) * frac, 2),
+                "weight_pct": round(frac * 100, 1),
+            })
+        return result
+
+    # Move size buckets
+    def _move_key(b):
+        m = b.get("move_size")
+        if m is None:
+            return None
+        if m < 8: return 0
+        if m < 12: return 1
+        if m < 18: return 2
+        return 3
+    move_labels = {0: "5-8%", 1: "8-12%", 2: "12-18%", 3: "18%+"}
+    move_out = _bucket_contrib(_move_key, lambda k: move_labels.get(k, str(k)), bets)
+
+    # Monotonicity buckets
+    def _mono_key(b):
+        m = b.get("monotonicity")
+        if m is None:
+            return None
+        if m < 0.25: return 0
+        if m < 0.50: return 1
+        if m < 0.75: return 2
+        return 3
+    mono_labels = {0: "0.00-0.25", 1: "0.25-0.50", 2: "0.50-0.75", 3: "0.75-1.00"}
+    mono_out = _bucket_contrib(_mono_key, lambda k: mono_labels.get(k, str(k)), bets)
+
+    # League (top 6 by count, rest = Other)
+    from collections import Counter
+    league_counts = Counter(b.get("league") or "Unknown" for b in bets)
+    top_leagues   = {lg for lg, _ in league_counts.most_common(6)}
+    def _lg_key(b):
+        lg = b.get("league") or "Unknown"
+        return lg if lg in top_leagues else "Other"
+    league_out = _bucket_contrib(_lg_key, lambda k: k, bets)
+    league_out.sort(key=lambda r: r["n"], reverse=True)
+
+    # Timing buckets (hour of day placed_at)
+    def _hour_key(b):
+        pa = b.get("placed_at") or ""
+        try:
+            import datetime as _dt
+            h = _dt.datetime.fromisoformat(pa).hour
+            if h < 6: return 0
+            if h < 12: return 1
+            if h < 18: return 2
+            return 3
+        except Exception:
+            return None
+    time_labels = {0: "00-06h", 1: "06-12h", 2: "12-18h", 3: "18-24h"}
+    timing_out = _bucket_contrib(_hour_key, lambda k: time_labels.get(k, str(k)), bets)
+
+    return jsonify({
+        "overall_clv": round(overall, 2),
+        "n_total": n_total,
+        "by_move_size": move_out,
+        "by_monotonicity": mono_out,
+        "by_league": league_out,
+        "by_timing": timing_out,
+    })
+
+
+@app.route("/api/experiments", methods=["GET", "POST"])
+def manage_experiments():
+    """GET: list all experiments. POST: create a new one."""
+    import sqlite3 as _sql
+    import hashlib as _hl
+    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    def _ensure_table(con):
+        con.execute("""CREATE TABLE IF NOT EXISTS experiments (
+            id              TEXT PRIMARY KEY,
+            start_date      TEXT,
+            end_date        TEXT,
+            config_hash     TEXT,
+            hypothesis      TEXT,
+            config_snapshot TEXT,
+            status          TEXT DEFAULT 'ACTIVE',
+            result          TEXT,
+            created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""")
+
+    if request.method == "GET":
+        try:
+            con = _sql.connect(SIGNALS_DB)
+            _ensure_table(con)
+            rows = con.execute(
+                "SELECT id, start_date, end_date, config_hash, hypothesis, status, result, created_at "
+                "FROM experiments ORDER BY start_date DESC"
+            ).fetchall()
+            con.close()
+            exps = []
+            for r in rows:
+                exps.append({
+                    "id": r[0], "start_date": r[1], "end_date": r[2],
+                    "config_hash": r[3], "hypothesis": r[4],
+                    "status": r[5], "result": r[6], "created_at": r[7],
+                })
+            return jsonify(exps)
+        except Exception as e:
+            return jsonify([])
+
+    # POST: create a new experiment
+    body = request.json or {}
+    hypothesis = (body.get("hypothesis") or "").strip()
+    if not hypothesis:
+        return jsonify({"error": "hypothesis required"}), 400
+    try:
+        # Snapshot current settings.json + registry as the experiment config
+        settings_snap = {}
+        try:
+            with open(SETTINGS_FILE) as f:
+                settings_snap = json.load(f)
+        except Exception:
+            pass
+        reg_snap = {}
+        try:
+            con2 = _sql.connect(SIGNALS_DB)
+            for row in con2.execute("SELECT signal_name, enabled, promoted FROM signal_registry"):
+                reg_snap[row[0]] = {"enabled": bool(row[1]), "promoted": bool(row[2])}
+            con2.close()
+        except Exception:
+            pass
+        config = {"settings": settings_snap, "signal_registry": reg_snap}
+        config_json = json.dumps(config, sort_keys=True)
+        config_hash = _hl.md5(config_json.encode()).hexdigest()[:8]
+
+        # Auto-increment experiment ID
+        con = _sql.connect(SIGNALS_DB)
+        _ensure_table(con)
+        count = con.execute("SELECT COUNT(*) FROM experiments").fetchone()[0]
+        exp_id = f"EXP{(count + 1):03d}"
+        today  = __import__("datetime").date.today().isoformat()
+
+        # Mark any currently ACTIVE experiment as COMPLETED before creating new one
+        if body.get("supersede", False):
+            con.execute(
+                "UPDATE experiments SET status='COMPLETED', end_date=? WHERE status='ACTIVE'",
+                (today,)
+            )
+
+        con.execute(
+            "INSERT OR IGNORE INTO experiments "
+            "(id, start_date, config_hash, hypothesis, config_snapshot, status) "
+            "VALUES (?,?,?,?,?,?)",
+            (exp_id, today, config_hash, hypothesis, config_json, "ACTIVE")
+        )
+        con.commit()
+        con.close()
+        return jsonify({"id": exp_id, "config_hash": config_hash, "status": "ACTIVE"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/experiments/<exp_id>", methods=["PATCH"])
+def update_experiment(exp_id):
+    """Update experiment status or result."""
+    import sqlite3 as _sql
+    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+    body = request.json or {}
+    try:
+        con = _sql.connect(SIGNALS_DB)
+        today = __import__("datetime").date.today().isoformat()
+        if "status" in body:
+            end_date = today if body["status"] in ("COMPLETED", "CANCELLED") else None
+            con.execute(
+                "UPDATE experiments SET status=?, end_date=? WHERE id=?",
+                (body["status"], end_date, exp_id)
+            )
+        if "result" in body:
+            con.execute(
+                "UPDATE experiments SET result=? WHERE id=?",
+                (json.dumps(body["result"]) if isinstance(body["result"], dict) else body["result"], exp_id)
+            )
+        con.commit()
+        con.close()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/counterfactual")
+def get_counterfactual():
+    """Re-evaluate STEAM_FWD at multiple thresholds against historical data."""
+    import sqlite3 as _sql
+    from collections import defaultdict
+    import re as _re
+    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    thresholds_raw = request.args.get("thresholds", "3,5,7,10,15")
+    signal_type    = request.args.get("signal", "STEAM_FWD")
+    thresholds     = [float(t) / 100.0 for t in thresholds_raw.split(",") if t.strip()]
+
+    # Load odds history
+    try:
+        con     = _sql.connect(SIGNALS_DB)
+        oh_rows = con.execute(
+            "SELECT fixture_id, selection, odds, timestamp FROM odds_history "
+            "WHERE market='1X2' ORDER BY fixture_id, timestamp ASC"
+        ).fetchall()
+        con.close()
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+    by_fid: dict = defaultdict(list)
+    for fid, sel, odds, ts in oh_rows:
+        by_fid[str(fid)].append((sel, float(odds) if odds else 0, ts))
+
+    # Load settled bets
+    try:
+        bcon      = _sql.connect(os.path.join(DATA_DIR, "bet_log.db"))
+        bet_rows  = bcon.execute(
+            "SELECT fixture_id, player_id, result, entry_odds, closing_odds "
+            "FROM bet_log WHERE bet_source='STEAM' AND result IN ('W','L','WIN','LOSS')"
+        ).fetchall()
+        bcon.close()
+    except Exception:
+        bet_rows = []
+
+    settled: dict = {}
+    for fid, pid, result, eo, co in bet_rows:
+        if not fid:
+            continue
+        m   = _re.search(r"\((Home \(1\)|Away \(2\)|Draw)\)$", pid or "")
+        sel = m.group(1) if m else pid
+        clv = (eo / co - 1) if co and co > 0 else None
+        settled.setdefault(str(fid), {})[sel] = {
+            "won": result in ("W", "WIN"), "clv": clv,
+        }
+
+    def _devig(odds_dict):
+        inv = {s: 1/o for s, o in odds_dict.items() if o and o > 0}
+        tot = sum(inv.values())
+        return {s: v/tot for s, v in inv.items()} if tot > 0 and len(inv) >= 2 else None
+
+    def _steam_fire(snaps, threshold):
+        by_ts: dict = defaultdict(dict)
+        for sel, odds, ts in snaps:
+            if odds > 0:
+                by_ts[ts][sel] = odds
+        series = {ts: _devig(by_ts[ts]) for ts in sorted(by_ts) if _devig(by_ts[ts])}
+        ts_list = sorted(series)
+        if len(ts_list) < 2:
+            return None
+        first, last = series[ts_list[0]], series[ts_list[-1]]
+        best = max(((s, last[s] - first[s]) for s in set(first) & set(last)),
+                   key=lambda x: x[1], default=None)
+        return best if (best and best[1] >= threshold) else None
+
+    results = []
+    for thr in thresholds:
+        n = wins = clv_sum = clv_n = 0
+        for fid, snaps in by_fid.items():
+            if fid not in settled:
+                continue
+            hit = _steam_fire(snaps, thr)
+            if not hit:
+                continue
+            sel_key = hit[0]
+            info = next((v for k, v in settled[fid].items() if sel_key == k or sel_key in k), None)
+            if not info:
+                continue
+            n += 1
+            if info["won"]:
+                wins += 1
+            if info["clv"] is not None:
+                clv_sum += info["clv"]
+                clv_n   += 1
+        avg_clv = round(clv_sum / clv_n * 100, 2) if clv_n > 0 else None
+        results.append({
+            "threshold_pct": round(thr * 100, 1),
+            "n": n, "wins": wins,
+            "hit": round(wins / n * 100, 1) if n else 0,
+            "avg_clv": avg_clv, "clv_n": clv_n,
+        })
+
+    # Find optimal
+    scored = [(r, r["avg_clv"] or -999) for r in results if r["n"] >= 5]
+    optimal = max(scored, key=lambda x: x[1])[0] if scored else None
+
+    return jsonify({
+        "signal_type": signal_type,
+        "thresholds_pct": thresholds_raw,
+        "results": results,
+        "optimal": optimal,
+    })
 
 
 @app.route("/api/settings", methods=["GET", "POST"])
@@ -476,12 +1168,6 @@ def manage_settings():
 
     with open(SETTINGS_FILE, "r") as f:
         return jsonify(json.load(f))
-
-
-@app.route("/api/trigger_recalibration", methods=["POST"])
-def trigger_recalibration():
-    print("[DAEMON] Initiating Platt Scaler Recalibration from UI...")
-    return jsonify({"status": "Recalibration Started"})
 
 
 @app.route("/api/comparisons")
@@ -519,26 +1205,11 @@ def get_comparisons_list():
         except Exception as e:
             print("Error parsing state JSON:", e)
 
-    demo_found = any(str(m["fixture_id"]) == "15458376" for m in matches_list)
-    if not demo_found:
-        matches_list.insert(
-            0,
-            {
-                "fixture_id": 15458376,
-                "match": "FBK Karlstad vs IF Karlstad Fotboll",
-                "league": "Ettan, Norra",
-                "kickoff": datetime.datetime.now().isoformat(),
-                "status_code": "FT",
-                "has_actuals": True,
-            },
-        )
-
     return jsonify(matches_list)
 
 
 @app.route("/api/comparison/<fixture_id>")
 def get_comparison(fixture_id):
-    request.args.get("demo")  # noqa: F841
 
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     prediction = None
@@ -606,196 +1277,7 @@ def get_comparison(fixture_id):
             except Exception:
                 pass
 
-    if not prediction and str(fixture_id) == "15458376":
-        prediction = {
-            "fixture_id": 15458376,
-            "match": "FBK Karlstad vs IF Karlstad Fotboll",
-            "league": "Ettan, Norra",
-            "kickoff": "2026-06-05T18:00:00+00:00",
-            "prediction": "FBK Karlstad WIN",
-            "expected_score": "2 - 1",
-            "has_lineup": True,
-            "team_impacts": "Home: 1.2 | Away: 0.8",
-            "corners": "Home: 5 | Away: 4",
-            "fouls": "Home: 12 | Away: 10",
-            "cards": "Home Yellows: 1 | Away Yellows: 2",
-            "home_players": [
-                {"name": "Renan Correa Faustini", "impact": 0.8},
-                {"name": "Granit Hana", "impact": 0.6},
-            ],
-            "away_players": [{"name": "Nfansu Dibba", "impact": 0.7}],
-            "detailed_prediction": {
-                "home_prob": 55.0,
-                "draw_prob": 25.0,
-                "away_prob": 20.0,
-                "predicted_score": "2 - 1",
-                "confidence": 8,
-                "home_xg": 1.8,
-                "away_xg": 1.1,
-                "over_05": 95.0,
-                "over_15": 75.0,
-                "over_25": 55.0,
-                "over_35": 30.0,
-                "under_25": 45.0,
-                "btts_yes": 60.0,
-                "possession_home": 52,
-                "possession_away": 48,
-                "fouls_home": 12,
-                "fouls_away": 10,
-                "offsides_home": 2.1,
-                "offsides_away": 1.8,
-                "saves_home": 3,
-                "saves_away": 4,
-                "clean_sheet_home": 20.0,
-                "clean_sheet_away": 15.0,
-                "corners_total": 9,
-                "corners_home": 5,
-                "corners_away": 4,
-                "corners_over_75": 65.0,
-                "corners_over_85": 55.0,
-                "corners_over_95": 45.0,
-                "corners_over_105": 35.0,
-                "cards_yellow_home": 1,
-                "cards_yellow_away": 2,
-                "cards_yellow_total": 3,
-                "cards_red_total": 0.1,
-                "goalscorers": [
-                    {
-                        "name": "Renan Correa Faustini",
-                        "team": "Home",
-                        "role": "FW",
-                        "anytime_goal_prob": 26.7,
-                        "first_goal_prob": 12.0,
-                        "exp_shots": 2.4,
-                        "exp_sot": 1.1,
-                        "yellow_prob": 12.0,
-                        "red_prob": 0.5,
-                        "rating": 6.36,
-                    },
-                    {
-                        "name": "Kim Kack Ofordu",
-                        "team": "Away",
-                        "role": "FW",
-                        "anytime_goal_prob": 25.6,
-                        "first_goal_prob": 11.5,
-                        "exp_shots": 2.3,
-                        "exp_sot": 1.0,
-                        "yellow_prob": 10.0,
-                        "red_prob": 0.4,
-                        "rating": 6.10,
-                    },
-                    {
-                        "name": "Granit Hana",
-                        "team": "Home",
-                        "role": "MF",
-                        "anytime_goal_prob": 24.2,
-                        "first_goal_prob": 10.9,
-                        "exp_shots": 2.2,
-                        "exp_sot": 1.0,
-                        "yellow_prob": 15.0,
-                        "red_prob": 0.8,
-                        "rating": 5.75,
-                    },
-                    {
-                        "name": "Nfansu Dibba",
-                        "team": "Away",
-                        "role": "MF",
-                        "anytime_goal_prob": 24.2,
-                        "first_goal_prob": 10.9,
-                        "exp_shots": 2.2,
-                        "exp_sot": 1.0,
-                        "yellow_prob": 15.0,
-                        "red_prob": 0.8,
-                        "rating": 5.77,
-                    },
-                ],
-                "shots_players": [
-                    {
-                        "name": "Renan Correa Faustini",
-                        "team": "Home",
-                        "role": "FW",
-                        "anytime_goal_prob": 26.7,
-                        "first_goal_prob": 12.0,
-                        "exp_shots": 2.4,
-                        "exp_sot": 1.1,
-                        "yellow_prob": 12.0,
-                        "red_prob": 0.5,
-                        "rating": 6.36,
-                    },
-                    {
-                        "name": "Kim Kack Ofordu",
-                        "team": "Away",
-                        "role": "FW",
-                        "anytime_goal_prob": 25.6,
-                        "first_goal_prob": 11.5,
-                        "exp_shots": 2.3,
-                        "exp_sot": 1.0,
-                        "yellow_prob": 10.0,
-                        "red_prob": 0.4,
-                        "rating": 6.10,
-                    },
-                ],
-                "cards_players": [],
-                "value_analysis": {
-                    "best_result": "FBK Karlstad WIN",
-                    "best_goals": "Over 2.5 Goals",
-                    "best_cards": "Under 4.5 Cards",
-                    "best_corners": "Over 8.5 Corners",
-                    "best_player_prop": "Renan Correa Faustini Over 1.5 Shots",
-                    "safest": "FBK Karlstad Double Chance (1X)",
-                    "high_risk_reward": "FBK Karlstad WIN & BTTS (Yes)",
-                },
-                "tactical_summary": "Tactically, FBK Karlstad is projected to control possession.",
-            },
-        }
-
     actuals = None
-    if str(fixture_id) == "15458376":
-        actuals = {
-            "fixture_id": 15458376,
-            "match": "FBK Karlstad vs IF Karlstad Fotboll",
-            "league": "Ettan, Norra",
-            "status": "FT",
-            "score": "1 - 1",
-            "home_score": 1,
-            "away_score": 1,
-            "winner": "DRAW",
-            "goals": [
-                {"player": "Renan Correa Faustini", "team": "Home", "minute": 23},
-                {"player": "Nfansu Dibba", "team": "Away", "minute": 67},
-            ],
-            "possession_home": 52,
-            "possession_away": 48,
-            "corners_home": 5,
-            "corners_away": 4,
-            "corners_total": 9,
-            "fouls_home": 12,
-            "fouls_away": 10,
-            "cards_yellow_home": 1,
-            "cards_yellow_away": 2,
-            "cards_yellow_total": 3,
-            "cards_red_total": 0,
-            "shots_home": 10,
-            "shots_away": 8,
-            "shots_on_target_home": 4,
-            "shots_on_target_away": 3,
-            "player_stats": [
-                {
-                    "name": "Renan Correa Faustini",
-                    "team": "Home",
-                    "goals": 1,
-                    "shots": 3,
-                    "shots_on_target": 2,
-                },
-                {
-                    "name": "Nfansu Dibba",
-                    "team": "Away",
-                    "goals": 1,
-                    "shots": 2,
-                    "shots_on_target": 1,
-                },
-            ],
-        }
 
     if not prediction:
         return jsonify({"error": "Prediction not found"}), 404
@@ -909,13 +1391,17 @@ def init_databases():
 
 def start_background_prediction_worker():
     import threading
+
     if os.getenv("DEEPFIELD_USE_AGENTS") == "1":
         # A2A agent-based orchestrator — replaces the legacy monolithic daemon
         try:
             from src.agents.daemon_orchestrator import DaemonOrchestrator
+
             orch = DaemonOrchestrator()
             interval = int(os.getenv("DEEPFIELD_AGENT_INTERVAL", "300"))
-            thread = threading.Thread(target=orch.run_loop, kwargs={"interval": interval}, daemon=True)
+            thread = threading.Thread(
+                target=orch.run_loop, kwargs={"interval": interval}, daemon=True
+            )
             thread.start()
             print(f"[*] A2A orchestrator thread started (interval={interval}s).")
         except Exception as e:
@@ -923,6 +1409,7 @@ def start_background_prediction_worker():
     else:
         try:
             from live_predictions_daemon import run_daemon
+
             thread = threading.Thread(target=run_daemon, daemon=True)
             thread.start()
             print("[*] Background prediction worker thread started successfully.")

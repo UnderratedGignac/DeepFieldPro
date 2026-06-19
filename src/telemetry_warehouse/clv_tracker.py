@@ -213,12 +213,16 @@ class CLVTracker:
 
         if closing_odds is None:
             # Fallback to local database if Sharp API fails (Safety Net)
-            print(f"[CLVTracker] Sharp API failed for {bet_id}. Falling back to local tick.")
+            print(
+                f"[CLVTracker] Sharp API failed for {bet_id}. Falling back to local tick."
+            )
             closing_odds = self._fetch_closing_odds(player_name, team, market)
 
         if closing_odds is None:
             # DO NOT fallback to entry odds. Nullify CLV to avoid poisoning data.
-            print(f"[CLVTracker] No closing line found. CLV tracking skipped for {bet_id}")
+            print(
+                f"[CLVTracker] No closing line found. CLV tracking skipped for {bet_id}"
+            )
             return
 
         # Calculate CLV percentage: (1.0 / closing_odds) - (1.0 / entry_odds)
@@ -238,36 +242,44 @@ class CLVTracker:
             f"[CLVTracker] CLV recorded for {bet_id}: {clv_percentage*100:.2f}% (entry: {entry_odds}, close: {closing_odds})"
         )
 
-    def _fetch_closing_odds_from_sharp_api(self, player_name: str, market: str) -> Optional[float]:
+    def _fetch_closing_odds_from_sharp_api(
+        self, player_name: str, market: str
+    ) -> Optional[float]:
         """
         Fetches ground-truth closing odds from a Sharp API (e.g., Pinnacle/OddsJam).
         """
         api_key = os.getenv("SHARP_API_KEY")
-        api_url = "https://api.pinnacle-sharp-proxy.com/v1/odds" # Placeholder for actual endpoint
-        
+        api_url = "https://api.pinnacle-sharp-proxy.com/v1/odds"  # Placeholder for actual endpoint
+
         if not api_key:
-            logging.error("[CLV] SHARP_API_KEY missing from environment. CLV tracking impaired.")
+            logging.error(
+                "[CLV] SHARP_API_KEY missing from environment. CLV tracking impaired."
+            )
             return None
 
         params = {
             "player": player_name,
             "market": market,
             "status": "closing",
-            "bookie": "pinnacle"
+            "bookie": "pinnacle",
         }
 
         try:
-            response = requests.get(api_url, params=params, headers={"X-Api-Key": api_key}, timeout=10)
+            response = requests.get(
+                api_url, params=params, headers={"X-Api-Key": api_key}, timeout=10
+            )
             response.raise_for_status()
-            
+
             data = response.json()
-            
+
             # Robust parsing of JSON payload
             odds_list = data.get("odds", [])
             if not odds_list:
-                logging.warning(f"[CLV] No sharp odds found for {player_name} | {market}")
+                logging.warning(
+                    f"[CLV] No sharp odds found for {player_name} | {market}"
+                )
                 return None
-                
+
             # Extract highest confidence decimal odds
             closing_line = float(odds_list[0].get("price"))
             return closing_line
@@ -278,7 +290,7 @@ class CLVTracker:
             logging.error(f"[CLV] Sharp API Connection Error: {e}")
         except (ValueError, KeyError, IndexError) as e:
             logging.error(f"[CLV] Sharp API Parse Error: {e}")
-    
+
         return None
 
     def enforce_clv_circuit_breaker(self, market_type: str) -> bool:
@@ -289,20 +301,27 @@ class CLVTracker:
         try:
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
-            
+
             cutoff = (datetime.datetime.now() - datetime.timedelta(days=7)).isoformat()
-            base_market = market_type.split('_')[0] # e.g., "shots" from "shots_over_2.5"
-            
-            cur.execute("""
+            base_market = market_type.split("_")[
+                0
+            ]  # e.g., "shots" from "shots_over_2.5"
+
+            cur.execute(
+                """
                 SELECT AVG(clv_percentage) FROM bets
                 WHERE market LIKE ? AND timestamp > ? AND clv_percentage IS NOT NULL
-            """, (f"{base_market}%", cutoff))
-            
+            """,
+                (f"{base_market}%", cutoff),
+            )
+
             row = cur.fetchone()
             conn.close()
-            
+
             if row[0] is not None and row[0] < 0:
-                print(f"[CIRCUIT BREAKER] HALT: 7-day CLV for {base_market} is {row[0]*100:.2f}% (Negative).")
+                print(
+                    f"[CIRCUIT BREAKER] HALT: 7-day CLV for {base_market} is {row[0]*100:.2f}% (Negative)."
+                )
                 return True
             return False
         except Exception as e:

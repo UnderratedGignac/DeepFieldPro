@@ -20,9 +20,11 @@ import requests
 
 from src.free_results_scraper import ESPN_LEAGUES
 
-_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                     "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-       "Accept": "application/json, text/plain, */*"}
+_UA = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+}
 _BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 
 # date_compact -> (epoch, index)  ;  index: list of (league, event_id, home_norm, away_norm)
@@ -36,8 +38,25 @@ def _norm(name):
     n = unicodedata.normalize("NFKD", str(name).lower())
     n = "".join(c for c in n if not unicodedata.combining(c))
     n = re.sub(r"[^a-z0-9 ]", " ", n)
-    noise = {"fc", "cf", "sc", "cd", "ac", "afc", "club", "deportivo", "de", "the",
-             "united", "city", "ii", "u20", "u23", "atletico", "athletic"}
+    noise = {
+        "fc",
+        "cf",
+        "sc",
+        "cd",
+        "ac",
+        "afc",
+        "club",
+        "deportivo",
+        "de",
+        "the",
+        "united",
+        "city",
+        "ii",
+        "u20",
+        "u23",
+        "atletico",
+        "athletic",
+    }
     return " ".join(w for w in n.split() if w and w not in noise)
 
 
@@ -64,8 +83,12 @@ def _build_index(date_compact):
     index = []
     for lg in ESPN_LEAGUES:
         try:
-            r = requests.get(f"{_BASE}/{lg}/scoreboard", headers=_UA,
-                             params={"dates": date_compact}, timeout=8)
+            r = requests.get(
+                f"{_BASE}/{lg}/scoreboard",
+                headers=_UA,
+                params={"dates": date_compact},
+                timeout=8,
+            )
             if r.status_code != 200:
                 continue
             events = r.json().get("events", []) or []
@@ -107,8 +130,9 @@ def get_official_lineups(home_name, away_name, kickoff_date):
     if not eid:
         return None
     try:
-        r = requests.get(f"{_BASE}/{lg}/summary", headers=_UA,
-                         params={"event": eid}, timeout=10)
+        r = requests.get(
+            f"{_BASE}/{lg}/summary", headers=_UA, params={"event": eid}, timeout=10
+        )
         rosters = r.json().get("rosters") or []
     except Exception:
         return None
@@ -119,13 +143,20 @@ def get_official_lineups(home_name, away_name, kickoff_date):
     for ro in rosters:
         tname = (ro.get("team") or {}).get("displayName", "")
         starters = [p for p in (ro.get("roster") or []) if p.get("starter")]
-        xi = [{"player": {"name": (p.get("athlete") or {}).get("displayName", "")}}
-              for p in starters if (p.get("athlete") or {}).get("displayName")]
+        xi = [
+            {"player": {"name": (p.get("athlete") or {}).get("displayName", "")}}
+            for p in starters
+            if (p.get("athlete") or {}).get("displayName")
+        ]
         by_team[tname] = xi
 
     # Assign rosters to home/away by best name match.
-    home_xi = max(by_team.items(), key=lambda kv: _similar(home_name, kv[0]), default=(None, []))[1]
-    away_xi = max(by_team.items(), key=lambda kv: _similar(away_name, kv[0]), default=(None, []))[1]
+    home_xi = max(
+        by_team.items(), key=lambda kv: _similar(home_name, kv[0]), default=(None, [])
+    )[1]
+    away_xi = max(
+        by_team.items(), key=lambda kv: _similar(away_name, kv[0]), default=(None, [])
+    )[1]
 
     if len(home_xi) < 11 or len(away_xi) < 11:
         return None  # lineups not fully posted yet

@@ -2,6 +2,7 @@
 predictor.py — PredictorAgent
 Dixon-Coles 1X2 + O/U 2.5 + BTTS predictions with Platt calibration.
 """
+
 from __future__ import annotations
 
 import json
@@ -55,8 +56,19 @@ def _load_calib_ou25() -> Optional[dict]:
 # ---------------------------------------------------------------------------
 # Team-name fuzzy match
 # ---------------------------------------------------------------------------
-_SUFFIXES = {"fc", "sc", "cf", "united", "city", "town", "athletic", "atletico",
-             "sporting", "real", "club"}
+_SUFFIXES = {
+    "fc",
+    "sc",
+    "cf",
+    "united",
+    "city",
+    "town",
+    "athletic",
+    "atletico",
+    "sporting",
+    "real",
+    "club",
+}
 
 
 def _norm(name: str) -> str:
@@ -90,13 +102,12 @@ def _poisson_pmf(lam: float, k: int) -> float:
     if lam <= 0:
         return 1.0 if k == 0 else 0.0
     try:
-        return math.exp(-lam) * (lam ** k) / math.factorial(k)
+        return math.exp(-lam) * (lam**k) / math.factorial(k)
     except (OverflowError, ValueError):
         return 0.0
 
 
-def _dixon_coles_tau(lam_h: float, lam_a: float, rho: float,
-                     h: int, a: int) -> float:
+def _dixon_coles_tau(lam_h: float, lam_a: float, rho: float, h: int, a: int) -> float:
     """Dixon-Coles low-score correction factor."""
     if h == 0 and a == 0:
         return 1.0 - lam_h * lam_a * rho

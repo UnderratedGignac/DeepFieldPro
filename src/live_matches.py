@@ -10,16 +10,20 @@ no odds and no prediction (you can see them, the AI doesn't bet them).
 Flashscore daily feed fields: AA=eventId, AB=status (1 scheduled / 2 in-play / 3 finished),
 AD=start timestamp, AE/AF=home/away, AG/AH=score, ZA="Country: League" header.
 """
+
 import time
 import datetime
 import requests
 
-_H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0 Safari/537.36",
-      "x-fsign": "SW9D1eZo", "Referer": "https://www.flashscore.com/"}
+_H = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0 Safari/537.36",
+    "x-fsign": "SW9D1eZo",
+    "Referer": "https://www.flashscore.com/",
+}
 _DAY = "https://local-global.flashscore.ninja/2/x/feed/f_1_0_3_en_1"
 _REC = chr(0x00AC)
 _KV = chr(0x00F7)
-_LIVE = "2"   # in-play
+_LIVE = "2"  # in-play
 
 _cache = {"ts": 0.0, "data": []}
 _TTL = 45  # seconds — live scores move; keep it fresh but don't hammer
@@ -40,29 +44,37 @@ def _parse(txt):
             hs, as_ = None, None
         ts = cur.get("AD")
         try:
-            kickoff = datetime.datetime.fromtimestamp(
-                int(ts), datetime.timezone.utc).isoformat() if ts else None
+            kickoff = (
+                datetime.datetime.fromtimestamp(
+                    int(ts), datetime.timezone.utc
+                ).isoformat()
+                if ts
+                else None
+            )
         except (TypeError, ValueError):
             kickoff = None
         eid = cur.get("AA")
-        out.append({
-            "fixture_id": f"FS_{eid}",
-            "match": f"{cur['AE']} vs {cur['AF']}",
-            "league": cur.get("_league", "Live"),
-            "kickoff": kickoff or datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "status_code": "LIVE",
-            "has_lineup": False,
-            "prediction": None,
-            "prematch_markets": None,
-            "live_only": True,   # marks a display-only card (no odds, no betting)
-            "fixture": {
-                "id": f"FS_{eid}",
-                "home_score": hs,
-                "away_score": as_,
-                "status": {"short": "LIVE"},
-                "date": kickoff,
-            },
-        })
+        out.append(
+            {
+                "fixture_id": f"FS_{eid}",
+                "match": f"{cur['AE']} vs {cur['AF']}",
+                "league": cur.get("_league", "Live"),
+                "kickoff": kickoff
+                or datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "status_code": "LIVE",
+                "has_lineup": False,
+                "prediction": None,
+                "prematch_markets": None,
+                "live_only": True,  # marks a display-only card (no odds, no betting)
+                "fixture": {
+                    "id": f"FS_{eid}",
+                    "home_score": hs,
+                    "away_score": as_,
+                    "status": {"short": "LIVE"},
+                    "date": kickoff,
+                },
+            }
+        )
 
     for blk in txt.split("~"):
         f = {}

@@ -9,11 +9,74 @@ import numpy as np
 import joblib
 import requests
 import datetime
+import json
 import time
 import math
 import threading
-from src.execution_engine import place_bet # TASK 1: Import place_bet
-from src import sharp_edge  # Pinnacle sharp-line steam + Betarabia lagging-value engine
+
+# LightGBM ensemble + form cache (best-practice upgrades)
+try:
+    from src.models.lgbm_predictor import predict_1x2 as _lgbm_predict_1x2
+    from src.models.form_cache import (
+        get_form as _get_form,
+        get_h2h as _get_h2h,
+        build_cache as _build_form_cache,
+    )
+
+    _LGBM_AVAILABLE = True
+except Exception:
+    _lgbm_predict_1x2 = None
+    _get_form = None
+    _get_h2h = None
+    _build_form_cache = None
+    _LGBM_AVAILABLE = False
+
+# Multi-book odds aggregator: Pinnacle probs → LightGBM features + line-shopping display
+try:
+    from src.odds_aggregator import get_pinnacle_probs as _get_pinnacle_probs
+    from src.odds_aggregator import get_best_price as _get_best_price
+
+    _ODDS_AGG = True
+except Exception:
+    _get_pinnacle_probs = None
+    _get_best_price = None
+    _ODDS_AGG = False
+
+# Fatigue, weather, referee, and arb signal modules
+try:
+    from src.fatigue_detector import xg_multipliers as _fatigue_xg_mult
+    from src.fatigue_detector import congestion_summary as _congestion_summary
+
+    _FATIGUE_OK = True
+except Exception:
+    _fatigue_xg_mult = None
+    _congestion_summary = None
+    _FATIGUE_OK = False
+
+try:
+    from src.weather_adjuster import get_weather_adjustments as _weather_adj
+
+    _WEATHER_OK = True
+except Exception:
+    _weather_adj = None
+    _WEATHER_OK = False
+
+try:
+    from src.referee_data import get_referee_signal as _referee_signal
+
+    _REFEREE_OK = True
+except Exception:
+    _referee_signal = None
+    _REFEREE_OK = False
+
+try:
+    from src.arb_detector import check_arb as _check_arb
+
+    _ARB_OK = True
+except Exception:
+    _check_arb = None
+    _ARB_OK = False
+from src.execution_engine import place_bet  # TASK 1: Import place_bet
 
 # Unicode-safe print override for Windows console compatibility
 _orig_print = print
@@ -36,6 +99,139 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
+# ---------------------------------------------------------------------------
+# Calibrated league corner/card base rates (measured from football-data.co.uk)
+# ---------------------------------------------------------------------------
+_CORNER_BASE_RATES = {
+    "premier league": 10.57,
+    "eng-premier league": 10.57,
+    "e0": 10.57,
+    "championship": 11.0,
+    "eng-championship": 11.0,
+    "la liga": 9.44,
+    "esp-la liga": 9.44,
+    "sp1": 9.44,
+    "serie a": 9.47,
+    "ita-serie a": 9.47,
+    "i1": 9.47,
+    "bundesliga": 9.77,
+    "ger-bundesliga": 9.77,
+    "d1": 9.77,
+    "ligue 1": 9.37,
+    "fra-ligue 1": 9.37,
+    "f1": 9.37,
+    "eredivisie": 10.4,
+    "ned-eredivisie": 10.4,
+    "primeira liga": 9.9,
+    "por-primeira liga": 9.9,
+    "world cup": 9.5,
+    "copa america": 9.3,
+    "euros": 9.6,
+    "euro": 9.6,
+    "champions league": 9.7,
+    "europa league": 10.0,
+    "mls": 10.2,
+    "brasileirao": 9.6,
+}
+
+# Trained corner model (loaded lazily from models/corner_model.json)
+_corner_model: dict = {}
+
+
+def _load_corner_model():
+    global _corner_model
+    if _corner_model:
+        return _corner_model
+    path = os.path.join(MODELS_DIR, "corner_model.json")
+    if os.path.exists(path):
+        try:
+            with open(path) as _f:
+                _corner_model = json.load(_f)
+        except Exception:
+            _corner_model = {}
+    return _corner_model
+
+
+_CARD_BASE_RATES = {
+    "premier league": 3.2,
+    "eng-premier league": 3.2,
+    "championship": 3.8,
+    "eng-championship": 3.8,
+    "la liga": 4.0,
+    "esp-la liga": 4.0,
+    "serie a": 4.5,
+    "ita-serie a": 4.5,
+    "bundesliga": 3.0,
+    "ger-bundesliga": 3.0,
+    "ligue 1": 4.0,
+    "fra-ligue 1": 4.0,
+    "eredivisie": 3.5,
+    "ned-eredivisie": 3.5,
+    "world cup": 3.8,
+    "copa america": 3.5,
+    "euro": 3.0,
+    "champions league": 2.8,
+    "europa league": 3.3,
+    "mls": 3.4,
+    "brasileirao": 4.2,
+}
+
+
+def _corner_base(league_name: str) -> float:
+    # Check trained model's league_base first
+    mdl = _load_corner_model()
+    if mdl:
+        lb = mdl.get("league_base", {})
+        ln = (league_name or "").lower()
+        for k, v in lb.items():
+            if k.lower() in ln or ln in k.lower():
+                return float(v)
+    # Fall back to hardcoded calibrated rates
+    ln = (league_name or "").lower()
+    for k, v in _CORNER_BASE_RATES.items():
+        if k in ln:
+            return v
+    return 9.74  # global mean from 3503-match training set
+
+
+def _team_corner_rate(team_name: str, side: str) -> float:
+    """Per-team historical corner rate. Returns None if not in model."""
+    mdl = _load_corner_model()
+    if not mdl:
+        return None
+    key = "home_corner_rate" if side == "home" else "away_corner_rate"
+    rate_map = mdl.get(key, {})
+    if team_name in rate_map:
+        return float(rate_map[team_name])
+    # Fuzzy: try case-insensitive match
+    tl = team_name.lower()
+    for k, v in rate_map.items():
+        if k.lower() == tl:
+            return float(v)
+    return None
+
+
+def _card_base(league_name: str) -> float:
+    ln = (league_name or "").lower()
+    for k, v in _CARD_BASE_RATES.items():
+        if k in ln:
+            return v
+    return 3.5
+
+
+def _poisson_sf(threshold: float, lam: float) -> float:
+    """P(X > threshold) for Poisson(lam) — exact via series summation."""
+    if lam <= 0:
+        return 0.0
+    k = int(math.floor(threshold))
+    p = math.exp(-lam)
+    cdf = p
+    for i in range(1, k + 1):
+        p = p * lam / i
+        cdf += p
+    return max(0.0, min(1.0, 1.0 - cdf))
+
+
 # Import new DeepFieldPro modules - only the specific classes/functions we actually use
 from src.free_scraper_module import (  # noqa: E402
     get_todays_fixtures_free as get_todays_fixtures,
@@ -43,7 +239,7 @@ from src.free_scraper_module import (  # noqa: E402
 from src.models.calibration_engine import ProbabilityCalibrator  # noqa: E402
 from src.risk_engine.no_bet_filter import create_no_bet_filter  # noqa: E402
 from src.telemetry_warehouse.clv_tracker import create_clv_tracker  # noqa: E402
-from src.dfp_config import settings as dfp_settings # institutional risk gates
+from src.dfp_config import settings as dfp_settings  # institutional risk gates
 
 PLAYER_STATS_CACHE = {}
 TEAM_PLAYERS_CACHE = {}
@@ -66,13 +262,17 @@ def _load_1x2_calibrator():
     if _CAL_1X2 is not None:
         return _CAL_1X2
     try:
-        path = os.path.join(os.path.dirname(__file__), "..", "models", "calibrator_1x2.json")
+        path = os.path.join(
+            os.path.dirname(__file__), "..", "models", "calibrator_1x2.json"
+        )
         with open(path, encoding="utf-8") as f:
             _CAL_1X2 = json.load(f)
-            print(f"[+] 1X2 calibrator loaded (Platt a={_CAL_1X2.get('a'):.3f} "
-                  f"b={_CAL_1X2.get('b'):.3f}, n={_CAL_1X2.get('n_train')})")
+            print(
+                f"[+] 1X2 calibrator loaded (Platt a={_CAL_1X2.get('a'):.3f} "
+                f"b={_CAL_1X2.get('b'):.3f}, n={_CAL_1X2.get('n_train')})"
+            )
     except Exception:
-        _CAL_1X2 = {}     # absent => identity (raw probs)
+        _CAL_1X2 = {}  # absent => identity (raw probs)
     return _CAL_1X2
 
 
@@ -101,13 +301,17 @@ def _load_ou_calibrator():
     if _CAL_OU is not None:
         return _CAL_OU
     try:
-        path = os.path.join(os.path.dirname(__file__), "..", "models", "calibrator_ou25.json")
+        path = os.path.join(
+            os.path.dirname(__file__), "..", "models", "calibrator_ou25.json"
+        )
         with open(path, encoding="utf-8") as f:
             _CAL_OU = json.load(f)
-            print(f"[+] O/U 2.5 calibrator loaded (Platt a={_CAL_OU.get('a'):.3f} "
-                  f"b={_CAL_OU.get('b'):.3f}, n={_CAL_OU.get('n_train')})")
+            print(
+                f"[+] O/U 2.5 calibrator loaded (Platt a={_CAL_OU.get('a'):.3f} "
+                f"b={_CAL_OU.get('b'):.3f}, n={_CAL_OU.get('n_train')})"
+            )
     except Exception:
-        _CAL_OU = {}      # absent => identity (raw probs)
+        _CAL_OU = {}  # absent => identity (raw probs)
     return _CAL_OU
 
 
@@ -141,14 +345,77 @@ def _odds_history_db():
     return os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
 
 
-def _purge_odds_history(days=3):
-    """Bound odds_history growth. Steam detection needs only same-day pre-kickoff
-    history and CLV settles within a day, so anything older than `days` is dead weight
-    (the table was at 31k rows and climbing every scrape)."""
+_SIGNAL_REGISTRY_DEFAULTS = {
+    "STEAM_FWD":       {"enabled": 1, "promoted": 0, "min_samples": 100},
+    "STEAM_REV":       {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "DOG_DRIFT":       {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "FAV_DRIFT":       {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "EARLY_STEAM":     {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "LATE_STEAM":      {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "FAV_DRIFT_REV":   {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "MOMENTUM_ACCEL":  {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "LARGE_SPREAD":    {"enabled": 0, "promoted": 0, "min_samples": 100},
+}
+
+
+def _init_signal_registry():
+    """Create signal_registry table and seed default rows if not present."""
     try:
         con = sqlite3.connect(_odds_history_db())
-        con.execute("DELETE FROM odds_history WHERE timestamp < datetime('now', ?)",
-                    (f"-{int(days)} days",))
+        con.execute("""CREATE TABLE IF NOT EXISTS signal_registry (
+            signal_name  TEXT PRIMARY KEY,
+            enabled      INTEGER DEFAULT 1,
+            promoted     INTEGER DEFAULT 0,
+            min_samples  INTEGER DEFAULT 100,
+            owner        TEXT    DEFAULT 'system',
+            updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""")
+        for sig, vals in _SIGNAL_REGISTRY_DEFAULTS.items():
+            con.execute(
+                "INSERT OR IGNORE INTO signal_registry (signal_name, enabled, promoted, min_samples) "
+                "VALUES (?,?,?,?)",
+                (sig, vals["enabled"], vals["promoted"], vals["min_samples"]),
+            )
+        con.commit()
+        con.close()
+    except Exception:
+        pass
+
+
+_signal_registry_cache: dict = {}
+_signal_registry_cache_ts: float = 0.0
+
+
+def _load_signal_registry() -> dict:
+    """Return {signal_name: {enabled, promoted}} from the registry, cached for 60s."""
+    import time as _time
+    global _signal_registry_cache, _signal_registry_cache_ts
+    if _time.time() - _signal_registry_cache_ts < 60 and _signal_registry_cache:
+        return _signal_registry_cache
+    try:
+        con = sqlite3.connect(_odds_history_db())
+        rows = con.execute(
+            "SELECT signal_name, enabled, promoted FROM signal_registry"
+        ).fetchall()
+        con.close()
+        _signal_registry_cache = {r[0]: {"enabled": bool(r[1]), "promoted": bool(r[2])} for r in rows}
+        _signal_registry_cache_ts = _time.time()
+        return _signal_registry_cache
+    except Exception:
+        return {k: {"enabled": v["enabled"], "promoted": v["promoted"]}
+                for k, v in _SIGNAL_REGISTRY_DEFAULTS.items()}
+
+
+def _purge_odds_history(days=30):
+    """Bound odds_history growth. Keep 30 days so signal_discovery.py can evaluate
+    signals against a rolling month of settled fixtures. Steam detection only needs
+    same-day data but the research pipeline needs longer history."""
+    try:
+        con = sqlite3.connect(_odds_history_db())
+        con.execute(
+            "DELETE FROM odds_history WHERE timestamp < datetime('now', ?)",
+            (f"-{int(days)} days",),
+        )
         con.commit()
         con.close()
     except Exception:
@@ -156,32 +423,95 @@ def _purge_odds_history(days=3):
 
 
 def _steam_moves(fid, m_type):
-    """Return {selection: latest_prob - earliest_prob} for a fixture+market, or {}.
-    Both snapshots come from the odds_history ledger (latest = most recent logged
-    price per selection, which the sniper writes just before this gate runs)."""
+    """Return {selection: effective_move} using time-series pattern analysis.
+
+    Upgrades from earliest-vs-latest to a monotonicity-weighted signal:
+      effective_move = raw_move * monotonicity_score
+
+    Monotonicity score (0..1): fraction of consecutive probability steps that go
+    in the dominant direction. A smooth 2.10→2.05→1.98→1.92 pattern scores 1.0.
+    A spike-and-reverse 2.10→1.90→2.08 scores 0.33. This filters "fake steam"
+    (single large print then reversal) while rewarding sustained sharp-money flow.
+
+    Also computes recent_momentum (last 2 snapshots only) and returns it in a
+    secondary key "__meta__" so callers can display both measures if wanted.
+    """
     try:
         conn = sqlite3.connect(_odds_history_db())
         rows = conn.execute(
             "SELECT selection, odds, timestamp FROM odds_history "
             "WHERE fixture_id=? AND market=? ORDER BY timestamp ASC",
-            (str(fid), m_type)).fetchall()
+            (str(fid), m_type),
+        ).fetchall()
         conn.close()
     except Exception:
         return {}
-    if len({ts for _, _, ts in rows}) < 2:     # need an actual move over time
+
+    unique_ts = {ts for _, _, ts in rows}
+    if len(unique_ts) < 2:
         return {}
-    earliest, latest = {}, {}
-    for sel, o, _ts in rows:
+
+    # Build per-selection time series of devigged probabilities
+    from collections import defaultdict
+    by_ts: dict = defaultdict(dict)
+    for sel, o, ts in rows:
         if o and o > 0:
-            earliest.setdefault(sel, o)         # first (oldest) price per selection
-            latest[sel] = o                     # overwritten -> ends at newest
-    early, late = _devig_map(earliest), _devig_map(latest)
+            by_ts[ts][sel] = o
+
+    # Sort timestamps and build per-selection prob series
+    sorted_ts = sorted(by_ts)
+    all_sels = {sel for snap in by_ts.values() for sel in snap}
+    prob_series: dict = {sel: [] for sel in all_sels}
+
+    for ts in sorted_ts:
+        snap = by_ts[ts]
+        if len(snap) < 2:
+            continue
+        dv = _devig_map(snap)
+        if not dv:
+            continue
+        for sel in all_sels:
+            if sel in dv:
+                prob_series[sel].append(dv[sel])
+
+    # Need earliest and latest devigged maps for the raw move
+    snapshots_with_all = [by_ts[ts] for ts in sorted_ts if len(by_ts[ts]) >= 2]
+    if len(snapshots_with_all) < 2:
+        return {}
+    early = _devig_map(snapshots_with_all[0])
+    late  = _devig_map(snapshots_with_all[-1])
     if not early or not late:
         return {}
-    return {s: late[s] - early.get(s, late[s]) for s in late}
+
+    result = {}
+    meta = {}
+    for sel in late:
+        raw_move = late[sel] - early.get(sel, late[sel])
+        series = prob_series.get(sel, [])
+
+        # Monotonicity: count steps in the dominant direction
+        if len(series) >= 2:
+            direction = 1 if raw_move >= 0 else -1
+            steps = [series[i+1] - series[i] for i in range(len(series)-1)]
+            aligned = sum(1 for s in steps if s * direction > 0)
+            monotonicity = aligned / len(steps) if steps else 0.5
+
+            # Recent momentum: last 2 points
+            recent_move = series[-1] - series[-2] if len(series) >= 2 else 0
+        else:
+            monotonicity = 0.5
+            recent_move = raw_move
+
+        effective_move = raw_move * monotonicity
+        result[sel] = effective_move
+        meta[sel] = {"raw": raw_move, "monotonicity": round(monotonicity, 2),
+                     "recent": recent_move, "n_snaps": len(series)}
+
+    result["__meta__"] = meta
+    return result
 
 
-def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kickoff):
+def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kickoff, monotonicity=None):
     """Append a fired steam pick to the steam_signals research ledger (one row per
     fixture/market/selection — first detection's price sticks). Settled offline by
     tools/steam_report.py. Independent of the model bet path / staking."""
@@ -190,14 +520,20 @@ def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kicko
         conn.execute(
             """CREATE TABLE IF NOT EXISTS steam_signals (
                    fixture_id TEXT, league TEXT, match TEXT, market TEXT, selection TEXT,
-                   entry_odds REAL, steam_move REAL, kickoff TEXT,
+                   entry_odds REAL, steam_move REAL, kickoff TEXT, monotonicity REAL,
                    detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                   UNIQUE(fixture_id, market, selection))""")
+                   UNIQUE(fixture_id, market, selection))"""
+        )
+        try:
+            conn.execute("ALTER TABLE steam_signals ADD COLUMN monotonicity REAL")
+        except Exception:
+            pass
         conn.execute(
             """INSERT OR IGNORE INTO steam_signals
-                   (fixture_id, league, match, market, selection, entry_odds, steam_move, kickoff)
-               VALUES (?,?,?,?,?,?,?,?)""",
-            (str(fid), league, match, m_type, sel_name, odds, move, kickoff))
+                   (fixture_id, league, match, market, selection, entry_odds, steam_move, kickoff, monotonicity)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (str(fid), league, match, m_type, sel_name, odds, move, kickoff, monotonicity),
+        )
         conn.commit()
         conn.close()
     except Exception:
@@ -211,16 +547,32 @@ _DC_MODEL = "unloaded"
 _DC_TEAM_CACHE = {}
 # Map the daemon's live league names -> football-data.co.uk league codes.
 _DC_LEAGUE_MAP = {
-    "premier league": "E0", "epl": "E0", "england 1": "E0",
-    "championship": "E1", "england 2": "E1",
-    "laliga": "SP1", "la liga": "SP1", "primera division": "SP1", "spain 1": "SP1",
-    "serie a": "I1", "italy 1": "I1",
-    "bundesliga": "D1", "germany 1": "D1",
-    "ligue 1": "F1", "france 1": "F1",
-    "eredivisie": "N1", "netherlands 1": "N1",
-    "primeira liga": "P1", "liga portugal": "P1", "portugal 1": "P1",
-    "jupiler pro league": "B1", "belgium 1": "B1", "pro league": "B1",
-    "premiership": "SC0", "scottish premiership": "SC0", "scotland 1": "SC0",
+    "premier league": "E0",
+    "epl": "E0",
+    "england 1": "E0",
+    "championship": "E1",
+    "england 2": "E1",
+    "laliga": "SP1",
+    "la liga": "SP1",
+    "primera division": "SP1",
+    "spain 1": "SP1",
+    "serie a": "I1",
+    "italy 1": "I1",
+    "bundesliga": "D1",
+    "germany 1": "D1",
+    "ligue 1": "F1",
+    "france 1": "F1",
+    "eredivisie": "N1",
+    "netherlands 1": "N1",
+    "primeira liga": "P1",
+    "liga portugal": "P1",
+    "portugal 1": "P1",
+    "jupiler pro league": "B1",
+    "belgium 1": "B1",
+    "pro league": "B1",
+    "premiership": "SC0",
+    "scottish premiership": "SC0",
+    "scotland 1": "SC0",
 }
 
 
@@ -229,9 +581,12 @@ def _load_dc_model():
     if _DC_MODEL == "unloaded":
         try:
             from src.models.dixon_coles import DixonColes
+
             _DC_MODEL = DixonColes.load()
             n = sum(len(lg["teams"]) for lg in _DC_MODEL.leagues.values())
-            print(f"[+] Dixon-Coles model loaded ({len(_DC_MODEL.leagues)} leagues, {n} teams)")
+            print(
+                f"[+] Dixon-Coles model loaded ({len(_DC_MODEL.leagues)} leagues, {n} teams)"
+            )
         except Exception:
             _DC_MODEL = None
     return _DC_MODEL
@@ -240,17 +595,33 @@ def _load_dc_model():
 def _norm_team(s):
     import re
     import unicodedata
+
     s = unicodedata.normalize("NFD", str(s).lower())
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     s = re.sub(r"[^a-z0-9 ]", " ", s)
-    drop = {"fc", "cf", "sc", "afc", "ac", "as", "ss", "ssc", "rc", "cd", "ud",
-            "club", "calcio", "the"}
+    drop = {
+        "fc",
+        "cf",
+        "sc",
+        "afc",
+        "ac",
+        "as",
+        "ss",
+        "ssc",
+        "rc",
+        "cd",
+        "ud",
+        "club",
+        "calcio",
+        "the",
+    }
     return " ".join(w for w in s.split() if w not in drop)
 
 
 def _match_team(league_code, name):
     """Fuzzy-map a live team name to a model team in this league (cached)."""
     import difflib
+
     key = (league_code, name)
     if key in _DC_TEAM_CACHE:
         return _DC_TEAM_CACHE[key]
@@ -627,23 +998,59 @@ def load_predictions_from_db():
 
             dp = extra.get("detailed_prediction", {})
             if dp:
-                # Reconstruct Corners
-                if "Corners" not in db_markets and "corners_over_85" in dp:
+                # Reconstruct Corners — multiple lines so the bet gate can match
+                # whatever line the book is offering (Corners OVER 9.5 etc.)
+                if "Corners" not in db_markets and "corners_lambda" in dp:
+                    lam_c = dp["corners_lambda"]
                     db_markets["Corners"] = [
-                        {"selection": "Over 8.5 Corners", "prob": dp["corners_over_85"]}
+                        {
+                            "selection": f"Corners OVER {line}",
+                            "prob": round(_poisson_sf(line, lam_c) * 100, 1),
+                        }
+                        for line in [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]
+                    ] + [
+                        {
+                            "selection": f"Corners UNDER {line}",
+                            "prob": round((1.0 - _poisson_sf(line, lam_c)) * 100, 1),
+                        }
+                        for line in [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]
                     ]
-                # Reconstruct Total Cards
-                if "Total Cards" not in db_markets and "cards_yellow_total" in dp:
+                elif "Corners" not in db_markets and "corners_over_85" in dp:
+                    # Legacy fallback for predictions stored without corners_lambda
+                    db_markets["Corners"] = [
+                        {
+                            "selection": "Corners OVER 8.5",
+                            "prob": dp["corners_over_85"],
+                        },
+                        {
+                            "selection": "Corners OVER 9.5",
+                            "prob": dp.get("corners_over_95", dp["corners_over_85"]),
+                        },
+                    ]
+                # Reconstruct Total Cards — multiple lines
+                if "Total Cards" not in db_markets and "cards_lambda" in dp:
+                    lam_k = dp["cards_lambda"]
                     db_markets["Total Cards"] = [
                         {
-                            "selection": "Over 3.5 Cards",
-                            "prob": round(
-                                (1.0 - math.exp(-dp["cards_yellow_total"] / 2.5)) * 100,
-                                1,
-                            ),
+                            "selection": f"Cards OVER {line}",
+                            "prob": round(_poisson_sf(line, lam_k) * 100, 1),
+                        }
+                        for line in [1.5, 2.5, 3.5, 4.5]
+                    ] + [
+                        {
+                            "selection": f"Cards UNDER {line}",
+                            "prob": round((1.0 - _poisson_sf(line, lam_k)) * 100, 1),
+                        }
+                        for line in [1.5, 2.5, 3.5, 4.5]
+                    ]
+                elif "Total Cards" not in db_markets and "cards_yellow_total" in dp:
+                    db_markets["Total Cards"] = [
+                        {
+                            "selection": "Cards OVER 3.5",
+                            "prob": dp.get("cards_over_35", 40.0),
                         }
                     ]
-                # Reconstruct Goalscorer
+                # Reconstruct Goalscorer — uses anytime_goal_prob (now xG-calibrated %)
                 if "Goalscorer" not in db_markets and "goalscorers" in dp:
                     db_markets["Goalscorer"] = [
                         {
@@ -654,7 +1061,7 @@ def load_predictions_from_db():
                                 else round(p["anytime_goal_prob"] * 100, 1)
                             ),
                         }
-                        for p in dp["goalscorers"][:3]
+                        for p in dp["goalscorers"][:8]
                     ]
                 # Reconstruct Player Shots
                 if "Player Shots" not in db_markets and "shots_players" in dp:
@@ -734,7 +1141,7 @@ def get_player_rolling_stats(player_name, df):
         }
 
 
-def predict_match(fixture, lineups, player_model, match_model, df):
+def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=None):
     home_team = fixture["teams"]["home"]["name"]
     away_team = fixture["teams"]["away"]["name"]
     league_name = fixture["league"]["name"]
@@ -817,18 +1224,112 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         else:
             winner = "DRAW"
 
+    # ── Fatigue / fixture congestion adjustment ──────────────────────────────
+    # Teams playing their 3rd match in 7 days show ~8% offensive drop per extra
+    # game (meta-analysis 2025). Adjust xG BEFORE Poisson sampling.
+    _fatigue_info = {}
+    if _FATIGUE_OK and _fatigue_xg_mult is not None:
+        try:
+            import datetime as _dt_fat
+
+            _ko_str = fixture["fixture"].get("date", "")
+            _ko_date = _dt_fat.date.today()
+            if _ko_str:
+                try:
+                    _ko_date = _dt_fat.datetime.fromisoformat(
+                        _ko_str.replace("Z", "+00:00")
+                    ).date()
+                except Exception:
+                    pass
+            _fh_mult, _fa_mult = _fatigue_xg_mult(home_team, away_team, _ko_date)
+            exp_h *= _fh_mult
+            exp_a *= _fa_mult
+            if _congestion_summary is not None:
+                _fatigue_info = _congestion_summary(home_team, away_team, _ko_date)
+        except Exception:
+            pass
+
+    # ── Weather adjustment ────────────────────────────────────────────────────
+    # Rain →  −12% xG; wind ≥25 km/h → −5-10% xG, −15% BTTS yes.
+    # Adjusts xG here; BTTS/O/U are re-derived below from the adjusted xG.
+    _weather_info = {
+        "source": "disabled",
+        "xg_mult": 1.0,
+        "btts_yes_mult": 1.0,
+        "over25_mult": 1.0,
+    }
+    if _WEATHER_OK and _weather_adj is not None:
+        try:
+            import datetime as _dt_wx
+
+            _ko_str_wx = fixture["fixture"].get("date", "")
+            _ko_dt_wx = None
+            if _ko_str_wx:
+                try:
+                    import dateutil.parser as _dup
+
+                    _ko_dt_wx = _dup.parse(_ko_str_wx)
+                except Exception:
+                    try:
+                        _ko_dt_wx = _dt_wx.datetime.fromisoformat(
+                            _ko_str_wx.replace("Z", "+00:00")
+                        )
+                    except Exception:
+                        pass
+            _weather_info = _weather_adj(home_team, away_team, _ko_dt_wx)
+            exp_h *= _weather_info.get("xg_mult", 1.0)
+            exp_a *= _weather_info.get("xg_mult", 1.0)
+        except Exception:
+            pass
+
+    # ── Referee signal ────────────────────────────────────────────────────────
+    # High-card refs → more stoppages → slightly fewer goals
+    _referee_info = {"found": False, "xg_mult": 1.0}
+    if _REFEREE_OK and _referee_signal is not None:
+        try:
+            _ref_name = (fixture.get("fixture") or {}).get("referee") or None
+            _referee_info = _referee_signal(_ref_name)
+            exp_h *= _referee_info.get("xg_mult", 1.0)
+            exp_a *= _referee_info.get("xg_mult", 1.0)
+        except Exception:
+            pass
+
     home_g = np.random.poisson(exp_h)
     away_g = np.random.poisson(exp_a)
     if winner == "DRAW" and home_g != away_g:
         home_g = away_g = max(home_g, away_g)
 
     intensity_factor = (home_impact + away_impact) / 10.0
-    home_corners = int(np.random.poisson(4.5 + (home_impact * 0.2)))
-    away_corners = int(np.random.poisson(4.5 + (away_impact * 0.2)))
     home_fouls = int(np.random.poisson(11.0 + intensity_factor))
     away_fouls = int(np.random.poisson(11.0 + intensity_factor))
-    home_yellows = int(np.random.poisson(home_fouls * 0.15))
-    away_yellows = int(np.random.poisson(away_fouls * 0.15))
+
+    # --- Corner model (team-specific + xG-adjusted Poisson, not sampled noise) ---
+    # Priority: (1) trained team historical corner rate, (2) xG-share of league base
+    base_crn = _corner_base(league_name)
+    h_team_rate = _team_corner_rate(home_team, "home")
+    a_team_rate = _team_corner_rate(away_team, "away")
+    if h_team_rate is not None and a_team_rate is not None:
+        # Use team-specific rates adjusted by xG dominance
+        total_xg = max(exp_h + exp_a, 0.01)
+        xg_adj = (exp_h - exp_a) / total_xg  # positive = home dominant
+        lambda_home_corners = h_team_rate * (1.0 + xg_adj * 0.15)
+        lambda_away_corners = a_team_rate * (1.0 - xg_adj * 0.15)
+    else:
+        total_xg = max(exp_h + exp_a, 0.01)
+        h_xg_share = exp_h / total_xg
+        lambda_home_corners = base_crn * h_xg_share * 1.07
+        lambda_away_corners = base_crn * (1.0 - h_xg_share) * 0.97
+    lambda_corners_total = lambda_home_corners + lambda_away_corners
+    # Keep integer samples only for display fields (not for probability calculations)
+    home_corners = max(1, round(lambda_home_corners))
+    away_corners = max(1, round(lambda_away_corners))
+
+    # --- Card model (league calibrated) ---
+    lambda_cards_total = _card_base(league_name)
+    lambda_home_cards = lambda_cards_total * 0.47  # away teams get slightly more cards
+    lambda_away_cards = lambda_cards_total * 0.53
+    home_yellows = max(0, round(lambda_home_cards))
+    away_yellows = max(0, round(lambda_away_cards))
 
     # Calculate Market Probabilities for Betarabia UI
     def poisson_prob(lam, k):
@@ -870,11 +1371,64 @@ def predict_match(fixture, lineups, player_model, match_model, df):
             if (i + j) > 3.5:
                 prob_over_35 += p
 
+    # Extra lines needed for new markets
+    prob_over_30 = sum(
+        poisson_prob(exp_h, i) * poisson_prob(exp_a, j)
+        for i in range(8)
+        for j in range(8)
+        if (i + j) > 3.0
+    )
+    prob_over_20 = sum(
+        poisson_prob(exp_h, i) * poisson_prob(exp_a, j)
+        for i in range(8)
+        for j in range(8)
+        if (i + j) > 2.0
+    )
+
     # Normalize due to truncation at 7 goals
     total_1x2 = prob_1 + prob_x + prob_2
     prob_1 /= total_1x2
     prob_x /= total_1x2
     prob_2 /= total_1x2
+
+    # ── LightGBM ensemble (best practice: DC + form + market as features) ──
+    # Uses form from history.db + de-vigged market odds to refine DC probs.
+    # Falls back silently to DC if model not trained or team unknown.
+    _lgbm_result = None
+    if _LGBM_AVAILABLE and _lgbm_predict_1x2 is not None:
+        try:
+            import datetime as _dt
+
+            _today_ord = _dt.datetime.now().toordinal()
+            _hform = _get_form(home_team, _today_ord) if _get_form else {}
+            _aform = _get_form(away_team, _today_ord) if _get_form else {}
+            _h2h = _get_h2h(home_team, away_team, _today_ord) if _get_h2h else {}
+            # mkt_probs = (p_h, p_d, p_a) from Pinnacle (de-vigged) when available.
+            # These are the top LightGBM features; passing None degrades to 1/3 each.
+            _mh = mkt_probs[0] if mkt_probs else None
+            _md = mkt_probs[1] if mkt_probs else None
+            _ma = mkt_probs[2] if mkt_probs else None
+            _lgbm_result = _lgbm_predict_1x2(
+                dc_home_prob=prob_1,
+                dc_draw_prob=prob_x,
+                dc_away_prob=prob_2,
+                dc_exp_h=exp_h,
+                dc_exp_a=exp_a,
+                mkt_h_prob=_mh,
+                mkt_d_prob=_md,
+                mkt_a_prob=_ma,
+                home_form=_hform,
+                away_form=_aform,
+                h2h=_h2h,
+            )
+        except Exception:
+            _lgbm_result = None
+
+    if _lgbm_result is not None:
+        prob_1, prob_x, prob_2 = _lgbm_result
+        print(
+            f"[LGBM] {home_team} vs {away_team}: {prob_1:.3f}/{prob_x:.3f}/{prob_2:.3f}"
+        )
 
     total_ou = prob_over_25 + prob_under_25
     prob_over_25 /= total_ou
@@ -884,45 +1438,51 @@ def predict_match(fixture, lineups, player_model, match_model, df):
     prob_btts_yes /= total_btts
     prob_btts_no /= total_btts
 
-    # Generate player details based on position heuristic
+    # --- Player detail generation (xG-calibrated Poisson model) ---
+    # Distribute team expected goals across positions using empirical goal-share:
+    #   GK ~0%, DF ~10%, MF ~25%, FW ~65% of team's goals.
+    # Per-player anytime P = 1 - exp(-lambda_per_player) — properly calibrated
+    # to the match's Dixon-Coles xG rather than position*rating heuristics.
+    # Card probabilities use league-calibrated rates split by role.
     all_player_details = []
+
+    def _player_probs(idx, team_xg, team_cards_lambda, rating):
+        if idx == 0:  # GK
+            role = "GK"
+            goal_share, shot_rate, sot_rate = 0.002, 0.05, 0.01
+            card_rate = team_cards_lambda * 0.04
+        elif idx <= 4:  # DF (4 defenders)
+            role = "DF"
+            goal_share, shot_rate, sot_rate = 0.10 / 4, 0.8, 0.25
+            card_rate = team_cards_lambda * 0.28 / 4
+        elif idx <= 8:  # MF (4 midfielders)
+            role = "MF"
+            goal_share, shot_rate, sot_rate = 0.25 / 4, 1.5, 0.5
+            card_rate = team_cards_lambda * 0.38 / 4
+        else:  # FW (3 forwards)
+            role = "FW"
+            goal_share, shot_rate, sot_rate = 0.65 / 3, 2.5, 0.9
+            card_rate = team_cards_lambda * 0.30 / 3
+        lam_goal = team_xg * goal_share
+        anytime_pct = round((1.0 - math.exp(-lam_goal)) * 100.0, 1)
+        first_pct = round(anytime_pct * 0.28, 1)  # ~28% of anytime scorers score first
+        return (
+            role,
+            anytime_pct,
+            first_pct,
+            round(shot_rate, 2),
+            round(sot_rate, 2),
+            round(card_rate * 100, 1),
+        )
+
     # Home starting lineup
     for idx, p in enumerate(lineups[0].get("startXI", [])):
         pname = p["player"]["name"]
         pstats = get_player_rolling_stats(pname, df)
         rating = pstats.get("rating_roll", 6.5)
-        if idx == 0:
-            role = "GK"
-            anytime = 0.5
-            first = 0.2
-            shots = 0.0
-            sot = 0.0
-            yellow = 8.0
-            red = 0.5
-        elif idx <= 4:
-            role = "DF"
-            anytime = round(rating * 0.8, 1)
-            first = round(anytime * 0.3, 1)
-            shots = round(rating * 0.06, 1)
-            sot = round(shots * 0.3, 1)
-            yellow = round(20 + rating, 1)
-            red = round(1 + rating * 0.2, 1)
-        elif idx <= 8:
-            role = "MF"
-            anytime = round(rating * 2.2, 1)
-            first = round(anytime * 0.4, 1)
-            shots = round(rating * 0.22, 1)
-            sot = round(shots * 0.4, 1)
-            yellow = round(15 + rating * 1.2, 1)
-            red = round(0.5 + rating * 0.15, 1)
-        else:
-            role = "FW"
-            anytime = round(rating * 4.2, 1)
-            first = round(anytime * 0.45, 1)
-            shots = round(rating * 0.38, 1)
-            sot = round(shots * 0.45, 1)
-            yellow = round(8 + rating * 0.5, 1)
-            red = round(0.2 + rating * 0.05, 1)
+        role, anytime, first, shots, sot, yellow = _player_probs(
+            idx, exp_h, lambda_home_cards, rating
+        )
         all_player_details.append(
             {
                 "name": pname,
@@ -933,7 +1493,7 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                 "exp_shots": shots,
                 "exp_sot": sot,
                 "yellow_prob": yellow,
-                "red_prob": red,
+                "red_prob": round(yellow * 0.05, 1),
                 "rating": round(rating, 2),
             }
         )
@@ -943,38 +1503,9 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         pname = p["player"]["name"]
         pstats = get_player_rolling_stats(pname, df)
         rating = pstats.get("rating_roll", 6.5)
-        if idx == 0:
-            role = "GK"
-            anytime = 0.5
-            first = 0.2
-            shots = 0.0
-            sot = 0.0
-            yellow = 8.0
-            red = 0.5
-        elif idx <= 4:
-            role = "DF"
-            anytime = round(rating * 0.8, 1)
-            first = round(anytime * 0.3, 1)
-            shots = round(rating * 0.06, 1)
-            sot = round(shots * 0.3, 1)
-            yellow = round(20 + rating, 1)
-            red = round(1 + rating * 0.2, 1)
-        elif idx <= 8:
-            role = "MF"
-            anytime = round(rating * 2.2, 1)
-            first = round(anytime * 0.4, 1)
-            shots = round(rating * 0.22, 1)
-            sot = round(shots * 0.4, 1)
-            yellow = round(15 + rating * 1.2, 1)
-            red = round(0.5 + rating * 0.15, 1)
-        else:
-            role = "FW"
-            anytime = round(rating * 4.2, 1)
-            first = round(anytime * 0.45, 1)
-            shots = round(rating * 0.38, 1)
-            sot = round(shots * 0.45, 1)
-            yellow = round(8 + rating * 0.5, 1)
-            red = round(0.2 + rating * 0.05, 1)
+        role, anytime, first, shots, sot, yellow = _player_probs(
+            idx, exp_a, lambda_away_cards, rating
+        )
         all_player_details.append(
             {
                 "name": pname,
@@ -985,7 +1516,7 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                 "exp_shots": shots,
                 "exp_sot": sot,
                 "yellow_prob": yellow,
-                "red_prob": red,
+                "red_prob": round(yellow * 0.05, 1),
                 "rating": round(rating, 2),
             }
         )
@@ -1030,24 +1561,24 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         "corners_total": home_corners + away_corners,
         "corners_home": home_corners,
         "corners_away": away_corners,
-        "corners_over_75": round(
-            (1.0 - math.exp(-(home_corners + away_corners) / 4.0)) * 100, 1
-        ),
-        "corners_over_85": round(
-            (1.0 - math.exp(-(home_corners + away_corners) / 5.0)) * 100, 1
-        ),
-        "corners_over_95": round(
-            (1.0 - math.exp(-(home_corners + away_corners) / 6.0)) * 100, 1
-        ),
-        "corners_over_105": round(
-            (1.0 - math.exp(-(home_corners + away_corners) / 7.0)) * 100, 1
-        ),
+        "corners_lambda": round(lambda_corners_total, 2),
+        # Proper Poisson CDF — P(X > threshold) using exact series, not noisy samples
+        "corners_over_75": round(_poisson_sf(7.5, lambda_corners_total) * 100, 1),
+        "corners_over_85": round(_poisson_sf(8.5, lambda_corners_total) * 100, 1),
+        "corners_over_95": round(_poisson_sf(9.5, lambda_corners_total) * 100, 1),
+        "corners_over_105": round(_poisson_sf(10.5, lambda_corners_total) * 100, 1),
+        "corners_over_115": round(_poisson_sf(11.5, lambda_corners_total) * 100, 1),
+        "corners_over_125": round(_poisson_sf(12.5, lambda_corners_total) * 100, 1),
+        "cards_lambda": round(lambda_cards_total, 2),
         "cards_yellow_home": home_yellows,
         "cards_yellow_away": away_yellows,
         "cards_yellow_total": home_yellows + away_yellows,
-        "cards_red_total": round(
-            float(np.random.choice([0.0, 0.1, 0.2], p=[0.8, 0.15, 0.05])), 2
-        ),
+        # Proper Poisson CDF for cards
+        "cards_over_15": round(_poisson_sf(1.5, lambda_cards_total) * 100, 1),
+        "cards_over_25": round(_poisson_sf(2.5, lambda_cards_total) * 100, 1),
+        "cards_over_35": round(_poisson_sf(3.5, lambda_cards_total) * 100, 1),
+        "cards_over_45": round(_poisson_sf(4.5, lambda_cards_total) * 100, 1),
+        "cards_red_total": round(lambda_cards_total * 0.04, 2),
         "goalscorers": goalscorers_sorted[:8],
         "shots_players": shots_sorted[:8],
         "cards_players": cards_sorted[:6],
@@ -1101,15 +1632,31 @@ def predict_match(fixture, lineups, player_model, match_model, df):
         "detailed_prediction": detailed_pred,
         "markets": {
             "1X2": [
-                {"selection": "Home (1)", "prob": _calibrate_1x2(round(prob_1 * 100, 1))},
-                {"selection": "Draw (X)", "prob": _calibrate_1x2(round(prob_x * 100, 1))},
-                {"selection": "Away (2)", "prob": _calibrate_1x2(round(prob_2 * 100, 1))},
+                {
+                    "selection": "Home (1)",
+                    "prob": _calibrate_1x2(round(prob_1 * 100, 1)),
+                },
+                {
+                    "selection": "Draw (X)",
+                    "prob": _calibrate_1x2(round(prob_x * 100, 1)),
+                },
+                {
+                    "selection": "Away (2)",
+                    "prob": _calibrate_1x2(round(prob_2 * 100, 1)),
+                },
             ],
             "Over/Under 2.5": [
                 # Calibrated for honest display; O/U stays off the betting whitelist.
-                {"selection": "Over 2.5", "prob": _calibrate_over25(round(prob_over_25 * 100, 1))},
-                {"selection": "Under 2.5",
-                 "prob": round(100.0 - _calibrate_over25(round(prob_over_25 * 100, 1)), 1)},
+                {
+                    "selection": "Over 2.5",
+                    "prob": _calibrate_over25(round(prob_over_25 * 100, 1)),
+                },
+                {
+                    "selection": "Under 2.5",
+                    "prob": round(
+                        100.0 - _calibrate_over25(round(prob_over_25 * 100, 1)), 1
+                    ),
+                },
             ],
             "BTTS": [
                 {"selection": "Yes", "prob": round(prob_btts_yes * 100, 1)},
@@ -1146,6 +1693,88 @@ def predict_match(fixture, lineups, player_model, match_model, df):
                 for p in shots_sorted[:3]
                 if p["exp_shots"] > 1.5
             ],
+            # ── New markets (derived from DC xG) ─────────────────────────────
+            "Double Chance": [
+                {"selection": "1X", "prob": round((prob_1 + prob_x) * 100, 1)},
+                {"selection": "X2", "prob": round((prob_x + prob_2) * 100, 1)},
+                {"selection": "12", "prob": round((prob_1 + prob_2) * 100, 1)},
+            ],
+            "Draw No Bet": [
+                {
+                    "selection": "Home",
+                    "prob": round(prob_1 / max(prob_1 + prob_2, 0.001) * 100, 1),
+                },
+                {
+                    "selection": "Away",
+                    "prob": round(prob_2 / max(prob_1 + prob_2, 0.001) * 100, 1),
+                },
+            ],
+            "Over/Under 3.0": [
+                {"selection": "Over 3.0", "prob": round(prob_over_30 * 100, 1)},
+                {
+                    "selection": "Under 3.0",
+                    "prob": round((1.0 - prob_over_30) * 100, 1),
+                },
+            ],
+            "Over/Under 2.0": [
+                {"selection": "Over 2.0", "prob": round(prob_over_20 * 100, 1)},
+                {
+                    "selection": "Under 2.0",
+                    "prob": round((1.0 - prob_over_20) * 100, 1),
+                },
+            ],
+            "Team Total Home": [
+                {
+                    "selection": f"Home Over 0.5",
+                    "prob": round((1.0 - poisson_prob(exp_h, 0)) * 100, 1),
+                },
+                {
+                    "selection": f"Home Over 1.5",
+                    "prob": round(
+                        (1.0 - poisson_prob(exp_h, 0) - poisson_prob(exp_h, 1)) * 100, 1
+                    ),
+                },
+            ],
+            "Team Total Away": [
+                {
+                    "selection": f"Away Over 0.5",
+                    "prob": round((1.0 - poisson_prob(exp_a, 0)) * 100, 1),
+                },
+                {
+                    "selection": f"Away Over 1.5",
+                    "prob": round(
+                        (1.0 - poisson_prob(exp_a, 0) - poisson_prob(exp_a, 1)) * 100, 1
+                    ),
+                },
+            ],
+            "Asian Handicap": [
+                {"selection": f"{home_team} -0.5", "prob": round(prob_1 * 100, 1)},
+                {
+                    "selection": f"{home_team} +0.5",
+                    "prob": round((prob_1 + prob_x) * 100, 1),
+                },
+                {"selection": f"{away_team} -0.5", "prob": round(prob_2 * 100, 1)},
+                {
+                    "selection": f"{away_team} +0.5",
+                    "prob": round((prob_2 + prob_x) * 100, 1),
+                },
+            ],
+        },
+        # ── Signal metadata (displayed on dashboard cards) ─────────────────
+        "fatigue": _fatigue_info,
+        "weather": {
+            "rain": _weather_info.get("rain", False),
+            "heavy_wind": _weather_info.get("heavy_wind", False),
+            "wind_kmh": _weather_info.get("wind_kmh", 0.0),
+            "precipitation_mm": _weather_info.get("precipitation_mm", 0.0),
+            "source": _weather_info.get("source", "disabled"),
+        },
+        "referee": {
+            "name": _referee_info.get("referee"),
+            "found": _referee_info.get("found", False),
+            "booking_rate": _referee_info.get("booking_rate", 3.5),
+            "is_high_card": _referee_info.get("is_high_card", False),
+            "is_low_card": _referee_info.get("is_low_card", False),
         },
     }
 
@@ -1276,23 +1905,12 @@ def get_match_score(name1, name2):
         n = re.sub(r"[^a-z0-9\s]", " ", n)
         n = _apply_aliases(re.sub(r"\s+", " ", n).strip())
         noise = {
-            "fc",
-            "cf",
-            "sc",
-            "u23",
-            "pr",
-            "ii",
-            "u20",
-            "united",
-            "city",
-            "town",
-            "athletic",
-            "club",
-            "de",
-            "fk",
-            "afc",
-            "sv",
-            "sp",
+            "fc", "cf", "sc", "u23", "pr", "ii", "u20", "united", "city", "town",
+            "athletic", "club", "de", "fk", "afc", "sv", "sp",
+            # Scandinavian / Eastern European suffixes
+            "bk", "ik", "if", "sk", "aik", "ff", "bois",
+            # Other common suffixes
+            "ac", "hfc", "rfc", "utd", "jfc",
         }
         return [w for w in n.split() if w and w not in noise]
 
@@ -1422,8 +2040,12 @@ def find_betarabia_odds(home_team, away_team):
                 # Prefer the best name match; on a tie prefer the FRESHER fixture so a
                 # stale lingering duplicate never wins over today's odds (ISO timestamps
                 # sort lexically, so newer string == newer time).
-                fresher_tie = (total_score == best_score and sat and best_scraped_at
-                               and str(sat) > str(best_scraped_at))
+                fresher_tie = (
+                    total_score == best_score
+                    and sat
+                    and best_scraped_at
+                    and str(sat) > str(best_scraped_at)
+                )
                 if total_score > best_score or fresher_tie:
                     best_score = total_score
                     best_fid = fid
@@ -1437,7 +2059,8 @@ def find_betarabia_odds(home_team, away_team):
         if best_scraped_at:
             try:
                 _ts = datetime.datetime.fromisoformat(
-                    str(best_scraped_at).replace("Z", "+00:00")).timestamp()
+                    str(best_scraped_at).replace("Z", "+00:00")
+                ).timestamp()
                 _betarabia_odds_age_min = (time.time() - _ts) / 60.0
             except Exception:
                 _betarabia_odds_age_min = None
@@ -1446,9 +2069,14 @@ def find_betarabia_odds(home_team, away_team):
             conn.close()
             return None
 
-        # Query markets
+        # Query markets. ORDER BY market_id so canonical 3-way rows (hyphen IDs,
+        # e.g. "26935878-3-0-0-0-0") always sort before secondary 2-way duplicate
+        # markets (underscore IDs). Combined with setdefault below this prevents
+        # a stray 2-way line (e.g. Home@14.0 / Away@1.002) from overwriting the
+        # real 3-way 1X2 odds and inflating EV.
         cur.execute(
-            "SELECT market_name, selection_name, raw_odds FROM market WHERE fixture_id = ?",
+            "SELECT market_name, selection_name, raw_odds FROM market"
+            " WHERE fixture_id = ? ORDER BY market_id ASC",
             (best_fid,),
         )
         rows = cur.fetchall()
@@ -1457,9 +2085,15 @@ def find_betarabia_odds(home_team, away_team):
         odds_dict = {
             "1X2": {},
             "Over/Under 2.5": {},
+            "Over/Under 3.0": {},
+            "Over/Under 2.0": {},
             "BTTS": {},
+            "Double Chance": {},
+            "Draw No Bet": {},
             "Corners": {},
-            "Cards": {},
+            "Total Cards": {},
+            "Goalscorer": {},
+            "Player Shots on Target": {},
         }
 
         for mname, sname, price in rows:
@@ -1467,35 +2101,76 @@ def find_betarabia_odds(home_team, away_team):
             sname_lower = sname.lower()
 
             # Match Result (1X2)
+            # Use setdefault: first valid 3-way market wins; later 2-way duplicates
+            # (e.g. Asian handicap lines with extreme odds) are ignored.
             if "result" in mname_lower or "1x2" in mname_lower:
                 if sname_lower == "x" or "draw" in sname_lower:
-                    odds_dict["1X2"]["Draw"] = price
+                    odds_dict["1X2"].setdefault("Draw", price)
                 else:
                     h_score = get_match_score(sname, best_home)
                     a_score = get_match_score(sname, best_away)
                     if h_score >= 0.5 and h_score > a_score:
-                        odds_dict["1X2"]["Home"] = price
+                        odds_dict["1X2"].setdefault("Home", price)
                     elif a_score >= 0.5 and a_score > h_score:
-                        odds_dict["1X2"]["Away"] = price
+                        odds_dict["1X2"].setdefault("Away", price)
 
-            # Over/Under 2.5
-            elif "total" in mname_lower or "over/under" in mname_lower:
-                if "corner" in mname_lower:
-                    # Capture corner lines (e.g. Over 8.5 Corners)
-                    if "over" in sname_lower:
-                        odds_dict["Corners"][sname] = price
-                    elif "under" in sname_lower:
-                        odds_dict["Corners"][sname] = price
-                elif "card" in mname_lower or "booking" in mname_lower:
-                    if "over" in sname_lower:
-                        odds_dict["Cards"][sname] = price
-                    elif "under" in sname_lower:
-                        odds_dict["Cards"][sname] = price
-                elif "2.5" in sname:
-                    if "over" in sname_lower:
+            # Corners — sname is now "Corners OVER 9.5" after scraper fix
+            elif "corner" in mname_lower and "total" in mname_lower:
+                odds_dict["Corners"][sname] = price
+
+            # Total Cards / Yellow Cards
+            elif (
+                "card" in mname_lower
+                or "booking" in mname_lower
+                or "yellow" in mname_lower
+            ) and "total" in mname_lower:
+                odds_dict["Total Cards"][sname] = price
+
+            # Total Goals Over/Under — route by line value in selection name
+            elif ("total" in mname_lower and "goal" in mname_lower) or (
+                ("total" in mname_lower or "goals" in mname_lower)
+                and "total" in sname_lower
+            ):
+                import re as _re
+
+                _line_m = _re.search(r"(\d+\.?\d*)", sname)
+                _line_v = float(_line_m.group(1)) if _line_m else 2.5
+                if "over" in sname_lower:
+                    if abs(_line_v - 2.5) < 0.01:
                         odds_dict["Over/Under 2.5"]["Over"] = price
-                    elif "under" in sname_lower:
+                    elif abs(_line_v - 3.0) < 0.01:
+                        odds_dict["Over/Under 3.0"]["Over"] = price
+                    elif abs(_line_v - 2.0) < 0.01:
+                        odds_dict["Over/Under 2.0"]["Over"] = price
+                    else:
+                        odds_dict["Over/Under 2.5"].setdefault("Over", price)
+                elif "under" in sname_lower:
+                    if abs(_line_v - 2.5) < 0.01:
                         odds_dict["Over/Under 2.5"]["Under"] = price
+                    elif abs(_line_v - 3.0) < 0.01:
+                        odds_dict["Over/Under 3.0"]["Under"] = price
+                    elif abs(_line_v - 2.0) < 0.01:
+                        odds_dict["Over/Under 2.0"]["Under"] = price
+                    else:
+                        odds_dict["Over/Under 2.5"].setdefault("Under", price)
+
+            # Double Chance
+            elif "double chance" in mname_lower or "double_chance" in mname_lower:
+                if "1x" in sname_lower or "home or draw" in sname_lower:
+                    odds_dict["Double Chance"]["1X"] = price
+                elif "x2" in sname_lower or "draw or away" in sname_lower:
+                    odds_dict["Double Chance"]["X2"] = price
+                elif "12" in sname_lower or "home or away" in sname_lower:
+                    odds_dict["Double Chance"]["12"] = price
+
+            # Draw No Bet
+            elif "draw no bet" in mname_lower or "dnb" in mname_lower:
+                h_score_dnb = get_match_score(sname, best_home)
+                a_score_dnb = get_match_score(sname, best_away)
+                if h_score_dnb >= 0.5 and h_score_dnb > a_score_dnb:
+                    odds_dict["Draw No Bet"]["Home"] = price
+                elif a_score_dnb >= 0.5 and a_score_dnb > h_score_dnb:
+                    odds_dict["Draw No Bet"]["Away"] = price
 
             # BTTS
             elif "both teams" in mname_lower or "btts" in mname_lower:
@@ -1503,6 +2178,36 @@ def find_betarabia_odds(home_team, away_team):
                     odds_dict["BTTS"]["Yes"] = price
                 elif "no" in sname_lower:
                     odds_dict["BTTS"]["No"] = price
+
+            # Player anytime goalscorer — sname like "Kylian Mbappe Over 0.5"
+            # Store keyed by player name (strip " Over 0.5")
+            elif "goalscorer" in mname_lower or (
+                "anytime" in mname_lower and "goal" in mname_lower
+            ):
+                import re as _re
+
+                player = _re.sub(
+                    r"\s+Over\s+\d+\.?\d*$", "", sname, flags=_re.IGNORECASE
+                ).strip()
+                if player:
+                    odds_dict["Goalscorer"][player] = price
+
+            # Player shots on target — sname like "Mbappe Over 1.5"
+            elif "shots on target" in mname_lower and "player" in mname_lower:
+                import re as _re
+
+                player_sot = _re.sub(
+                    r"\s+(Over|Under)\s+\d+\.?\d*$", "", sname, flags=_re.IGNORECASE
+                ).strip()
+                if player_sot:
+                    line_m = _re.search(
+                        r"(Over|Under)\s+(\d+\.?\d*)", sname, _re.IGNORECASE
+                    )
+                    if line_m:
+                        direction = line_m.group(1).lower()
+                        line_val = float(line_m.group(2))
+                        key = f"{player_sot} {direction.title()} {line_val}"
+                        odds_dict["Player Shots on Target"][key] = price
 
         return odds_dict
 
@@ -1522,8 +2227,10 @@ def find_betarabia_odds(home_team, away_team):
 # the current Betarabia 1X2 price for every OPEN bet whose kickoff is imminent,
 # so the final pre-kickoff snapshot is a genuine closing line. Paper-safe — it
 # only appends to odds_history; it never places, settles, or sizes anything.
-CLOSING_WINDOW_MIN = 30          # snapshot when kickoff is within this many minutes
-CLOSING_CAPTURE_INTERVAL = 90    # seconds between capture passes (decoupled from the slow main loop)
+CLOSING_WINDOW_MIN = 30  # snapshot when kickoff is within this many minutes
+CLOSING_CAPTURE_INTERVAL = (
+    90  # seconds between capture passes (decoupled from the slow main loop)
+)
 _closing_started = False
 # Handle to the running Betarabia scraper subprocess. The scraper takes ~3 min
 # (it scouts each event's markets one-by-one); spawning a fresh one every cycle
@@ -1597,7 +2304,7 @@ def capture_closing_lines():
             odds_dict = None
         if not odds_dict:
             continue
-        key = str(side).split(" (")[0]          # "Home (1)" -> "Home"
+        key = str(side).split(" (")[0]  # "Home (1)" -> "Home"
         price = (odds_dict.get("1X2") or {}).get(key)
         if not price or price <= 0:
             continue
@@ -1616,7 +2323,9 @@ def capture_closing_lines():
         except Exception:
             continue
     if captured:
-        print(f"[CLOSING] Captured {captured} pre-kickoff closing line(s) for open bets.")
+        print(
+            f"[CLOSING] Captured {captured} pre-kickoff closing line(s) for open bets."
+        )
     return captured
 
 
@@ -1635,10 +2344,13 @@ def start_closing_capture():
     if _closing_started:
         return
     _closing_started = True
-    threading.Thread(target=_closing_capture_loop, daemon=True,
-                     name="closing-capture").start()
-    print("[*] Closing-line capture thread started "
-          f"(every {CLOSING_CAPTURE_INTERVAL}s, kickoff window {CLOSING_WINDOW_MIN}m).")
+    threading.Thread(
+        target=_closing_capture_loop, daemon=True, name="closing-capture"
+    ).start()
+    print(
+        "[*] Closing-line capture thread started "
+        f"(every {CLOSING_CAPTURE_INTERVAL}s, kickoff window {CLOSING_WINDOW_MIN}m)."
+    )
 
 
 # Sane decimal-odds bands per market. A price outside its band is almost always a STALE
@@ -1646,7 +2358,7 @@ def start_closing_capture():
 # results source could ever settle because the match didn't exist). Reject such bets at
 # logging time so they never enter the ledger as forever-OPEN "awaiting result" rows.
 _ODDS_BANDS = {
-    "1X2": (1.01, 34.0),            # big underdogs exist; >34 or <1.01 is impossible
+    "1X2": (1.01, 34.0),  # big underdogs exist; >34 or <1.01 is impossible
     "Over/Under 2.5": (1.20, 5.00),  # totals lines live in a tight range
     "BTTS": (1.20, 5.00),
     "Corners": (1.15, 7.00),
@@ -1664,30 +2376,25 @@ def _implausible_odds(market, odds):
     return o < lo or o > hi
 
 
-def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=None, league=None):
+def log_steam_bet(
+    match, market, selection, odds, steam_move_pct, fixture_id=None, league=None, monotonicity=None
+):
     """Shadow flat-stake bet for a fired STEAM (line-movement) signal.
 
     A SEPARATE strategy from the model: bet_source='STEAM', a FLAT stake (the edge is the
     move itself, not a model probability, so Kelly doesn't apply), settled by settle_open_bets
     like any other 1X2 bet. Paper only — never touches real money. Gated by
-    settings.steam_betting_enabled (default True) and deduped per fixture/market/selection."""
+    settings.steam_betting_enabled (default True) and deduped per fixture/market/selection.
+    """
     settings = load_settings()
     if not settings.get("steam_betting_enabled", True):
         return
     if _implausible_odds(market, odds):
-        print(f"[GUARD] Skipped STEAM bet on implausible {market} odds {odds}: "
-              f"{match} ({selection}) — stale/garbled price.")
+        print(
+            f"[GUARD] Skipped STEAM bet on implausible {market} odds {odds}: "
+            f"{match} ({selection}) — stale/garbled price."
+        )
         return
-    # COVERAGE GATE: the validated +20.9% steam edge is on LIQUID markets. Live, steam was
-    # firing on obscure non-Pinnacle leagues where line moves are NOISE (stale/thin-market
-    # artifacts), losing money and unmeasurable (no sharp close to grade against). Only fire
-    # steam when the match also exists on Pinnacle (a real, liquid market). This removes the
-    # losing tail while keeping steam where it was validated. Toggle: steam_covered_only.
-    if settings.get("steam_covered_only", True):
-        parts = (match or "").split(" vs ")
-        if len(parts) != 2 or sharp_edge._match_key(parts[0].strip(), parts[1].strip()) is None:
-            print(f"[STEAM] Skipped (not Pinnacle-covered — thin-market noise): {match} ({selection})")
-            return
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return
@@ -1696,7 +2403,9 @@ def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=Non
         cur = conn.cursor()
         cur.execute(
             "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
-            "AND bet_source='STEAM'", (match, market, selection))
+            "AND bet_source='STEAM'",
+            (match, market, selection),
+        )
         if cur.fetchone()[0] > 0:
             conn.close()
             return
@@ -1704,7 +2413,8 @@ def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=Non
         try:
             br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
             balance = br_conn.execute(
-                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1").fetchone()[0]
+                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1"
+            ).fetchone()[0]
             br_conn.close()
         except Exception:
             balance = 10000.0
@@ -1725,101 +2435,73 @@ def log_steam_bet(match, market, selection, odds, steam_move_pct, fixture_id=Non
             return
 
         from src.bankroll_tracker import register_bet
+
         if not register_bet(stake):
             conn.close()
             return
 
         bet_id = "STEAM_" + uuid.uuid4().hex[:12]
+
+        for col_sql in [
+            'ALTER TABLE bet_log ADD COLUMN signal_name TEXT',
+            'ALTER TABLE bet_log ADD COLUMN move_size REAL',
+            'ALTER TABLE bet_log ADD COLUMN monotonicity REAL',
+        ]:
+            try:
+                conn.execute(col_sql)
+            except Exception:
+                pass
+
         cur.execute(
             """INSERT INTO bet_log
                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
-                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (bet_id, match, f"{match} ({selection})", market, odds, odds,
-             round(steam_move_pct, 1), stake, "OPEN", 0.0,
-             datetime.datetime.now().isoformat(), "STEAM", 1, 2.5, selection,
-             str(fixture_id) if fixture_id is not None else None, league))
+                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, signal_name, move_size, monotonicity)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                bet_id,
+                match,
+                f"{match} ({selection})",
+                market,
+                odds,
+                odds,
+                round(steam_move_pct, 1),
+                stake,
+                "OPEN",
+                0.0,
+                datetime.datetime.now().isoformat(),
+                "STEAM",
+                1,
+                2.5,
+                selection,
+                str(fixture_id) if fixture_id is not None else None,
+                league,
+                'STEAM_FWD',
+                steam_move_pct,
+                monotonicity,
+            ),
+        )
         # Line-shop: record the BEST price across Betarabia + Kambi (metadata only — the bet
         # still books at Betarabia). Quantifies the +1.9% line-shopping edge before we act on it.
         try:
             from src.line_shop import best_1x2
+
             ls = best_1x2(match, selection, odds)
-            cur.execute("UPDATE bet_log SET best_odds=?, best_book=? WHERE bet_id=?",
-                        (ls["best_odds"], ls["best_book"], bet_id))
+            cur.execute(
+                "UPDATE bet_log SET best_odds=?, best_book=? WHERE bet_id=?",
+                (ls["best_odds"], ls["best_book"], bet_id),
+            )
         except Exception:
             pass
         conn.commit()
         conn.close()
-        print(f"[STEAM BET] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
-              f"move +{steam_move_pct:.1f}% stake {stake}")
+        print(
+            f"[STEAM BET] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
+            f"move +{steam_move_pct:.1f}% stake {stake}"
+        )
     except Exception as e:
         print(f"[STEAM BET] error: {e}")
 
 
-def log_sharp_bet(match, market, selection, odds, sharp_move_pct, fixture_id=None,
-                  league=None, source="SHARP"):
-    """Shadow flat-stake bet for a sharp-reference signal vs Betarabia. Two sub-strategies,
-    each its own bet_source so they're judged separately:
-      'SHARP'  - Pinnacle line steamed toward this side AND Betarabia still pays more.
-      'SHARPV' - Betarabia is +EV vs Pinnacle's de-vigged fair price (capped band).
-    Paper only; gated by settings.sharp_betting_enabled; deduped per pick/source."""
-    settings = load_settings()
-    if not settings.get("sharp_betting_enabled", True):
-        return
-    if _implausible_odds(market, odds):
-        print(f"[GUARD] Skipped {source} bet on implausible {market} odds {odds}: "
-              f"{match} ({selection}) — stale/garbled price.")
-        return
-    db_path = os.path.join(DATA_DIR, "bet_log.db")
-    if not os.path.exists(db_path):
-        return
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
-            "AND bet_source=?", (match, market, selection, source))
-        if cur.fetchone()[0] > 0:
-            conn.close()
-            return
-
-        try:
-            br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
-            balance = br_conn.execute(
-                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1").fetchone()[0]
-            br_conn.close()
-        except Exception:
-            balance = 10000.0
-
-        stake = float(settings.get("sharp_flat_stake", 25.0))
-        if stake > balance:
-            stake = balance
-        if stake <= 0:
-            conn.close()
-            return
-
-        from src.bankroll_tracker import register_bet
-        if not register_bet(stake):
-            conn.close()
-            return
-
-        bet_id = f"{source}_" + uuid.uuid4().hex[:12]
-        cur.execute(
-            """INSERT INTO bet_log
-               (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
-                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (bet_id, match, f"{match} ({selection})", market, odds, odds,
-             round(sharp_move_pct, 1), stake, "OPEN", 0.0,
-             datetime.datetime.now().isoformat(), source, 1, 2.5, selection,
-             str(fixture_id) if fixture_id is not None else None, league))
-        conn.commit()
-        conn.close()
-        _tag = "sharp move" if source == "SHARP" else "value EV"
-        print(f"[{source} BET] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
-              f"{_tag} +{sharp_move_pct:.1f}% stake {stake}")
-    except Exception as e:
-        print(f"[{source} BET] error: {e}")
 
 
 def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None):
@@ -1827,8 +2509,10 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
     if not os.path.exists(db_path):
         return
     if _implausible_odds(market, odds):
-        print(f"[GUARD] Skipped AI bet on implausible {market} odds {odds}: "
-              f"{match} ({selection}) — stale/garbled price.")
+        print(
+            f"[GUARD] Skipped AI bet on implausible {market} odds {odds}: "
+            f"{match} ({selection}) — stale/garbled price."
+        )
         return
 
     try:
@@ -1888,6 +2572,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
                 stake = 0.0
 
             from src.bankroll_tracker import register_bet
+
             if stake > 0:
                 if not register_bet(stake):
                     print(f"[!] Bankroll tracker blocked bet {bet_id} for ${stake:.2f}")
@@ -1932,6 +2617,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
             if ev >= 1.0:
                 try:
                     from src.services.alerting import notifier
+
                     edge_pct_val = round(ev * 100, 1)
                     alert_msg = (
                         f"🚨 *MASSIVE EDGE ALERT (+{edge_pct_val}%)* 🚨\n\n"
@@ -1941,7 +2627,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
                         f"*Stake:* ${stake:.2f}\n\n"
                         f"_The AI just sniped this mispriced line!_"
                     )
-                    if hasattr(notifier, '_send_whatsapp'):
+                    if hasattr(notifier, "_send_whatsapp"):
                         notifier._send_whatsapp(alert_msg)
                     else:
                         notifier.send_general_alert("Massive Edge Alert", alert_msg)
@@ -1990,7 +2676,9 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
                         headers=stair_headers,
                         timeout=10,
                     )
-                    print(f"[STAIR AI] Place bet response: {res.status_code} - {res.text}")
+                    print(
+                        f"[STAIR AI] Place bet response: {res.status_code} - {res.text}"
+                    )
                     if res.status_code in [200, 201]:
                         try:
                             res_data = res.json()
@@ -1998,7 +2686,9 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
                                 order_id = res_data["order_id"]
                             elif "orderId" in res_data:
                                 order_id = res_data["orderId"]
-                            elif "data" in res_data and isinstance(res_data["data"], dict):
+                            elif "data" in res_data and isinstance(
+                                res_data["data"], dict
+                            ):
                                 order_id = (
                                     res_data["data"].get("orderId")
                                     or res_data["data"].get("order_id")
@@ -2044,8 +2734,8 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
 # always "limit reached" and never actually settled anything. Cache per-date with a long
 # TTL so we spend only ~48 calls/day (2 dates x hourly), leaving the free source usable
 # all day. It has deep league coverage (often incl. Brazilian Serie C) that ESPN lacks.
-_apifootball_cache = {}          # date_str -> (epoch_fetched, {match: (hs, as)})
-_APIFOOTBALL_TTL = 3600          # 1 hour
+_apifootball_cache = {}  # date_str -> (epoch_fetched, {match: (hs, as)})
+_APIFOOTBALL_TTL = 3600  # 1 hour
 
 
 def fetch_api_football_results():
@@ -2070,7 +2760,7 @@ def fetch_api_football_results():
     headers = {"x-apisports-key": key}
     results = {}
     now = datetime.datetime.now(datetime.timezone.utc)
-    for delta in (0, 1):
+    for delta in range(3):  # free plan: today, yesterday, tomorrow only
         day = (now - datetime.timedelta(days=delta)).strftime("%Y-%m-%d")
         cached = _apifootball_cache.get(day)
         if cached and (time.time() - cached[0]) < _APIFOOTBALL_TTL:
@@ -2080,13 +2770,17 @@ def fetch_api_football_results():
         try:
             r = requests.get(
                 "https://v3.football.api-sports.io/fixtures",
-                headers=headers, params={"date": day}, timeout=20,
+                headers=headers,
+                params={"date": day},
+                timeout=20,
             )
             payload = r.json()
             if payload.get("errors"):
                 # Quota exhausted or auth error — don't cache an empty (so it retries
                 # next hour after the daily reset), just skip this date for now.
-                print(f"[SETTLEMENT] API-Football skipped for {day}: {payload['errors']}")
+                print(
+                    f"[SETTLEMENT] API-Football skipped for {day}: {payload['errors']}"
+                )
                 continue
             data = payload.get("response", [])
         except Exception as e:
@@ -2149,13 +2843,45 @@ def settle_open_bets():
                     away_score,
                 )
 
+    # Compute date range: cover the oldest open bet so bets >2 days old can settle.
+    # Both scrapers accept a `dates` list; default is today+yesterday only.
+    try:
+        _bl_conn = sqlite3.connect(os.path.join(DATA_DIR, "bet_log.db"))
+        _oldest = _bl_conn.execute(
+            "SELECT MIN(placed_at) FROM bet_log WHERE result='OPEN'"
+        ).fetchone()[0]
+        _bl_conn.close()
+    except Exception:
+        _oldest = None
+    _now_utc = datetime.datetime.now(datetime.timezone.utc)
+    if _oldest:
+        try:
+            _oldest_dt = datetime.datetime.fromisoformat(
+                str(_oldest).replace("Z", "+00:00")
+            ).replace(tzinfo=datetime.timezone.utc)
+            _days_back = max(1, (_now_utc.date() - _oldest_dt.date()).days)
+        except Exception:
+            _days_back = 3
+    else:
+        _days_back = 1
+    _days_back = min(
+        _days_back, 7
+    )  # cap at 7 so we don't hammer APIs with ancient bets
+    _settle_dates = [
+        (_now_utc - datetime.timedelta(days=d)).strftime("%Y-%m-%d")
+        for d in range(_days_back + 1)
+    ]
+
     # Sofascore is bot-blocked/empty — use the free, key-less results scraper
     # (ESPN + TheSportsDB) as the primary settlement feed.
     try:
         from src.free_results_scraper import get_finished_results
-        free_results = get_finished_results()
+
+        free_results = get_finished_results(dates=_settle_dates)
         finished_matches.update(free_results)
-        print(f"[SETTLEMENT] Free results scraper provided {len(free_results)} finished matches.")
+        print(
+            f"[SETTLEMENT] Free results scraper provided {len(free_results)} finished matches."
+        )
     except Exception as e:
         print("[SETTLEMENT] free results scraper failed:", e)
 
@@ -2163,7 +2889,8 @@ def settle_open_bets():
     # lower-division matches ESPN/TheSportsDB miss. Plain requests, cached, no browser.
     try:
         from src.flashscore_scraper import get_finished_results as fs_results
-        flash = fs_results()
+
+        flash = fs_results(dates=_settle_dates)
         finished_matches.update(flash)
         print(f"[SETTLEMENT] Flashscore provided {len(flash)} finished matches.")
     except Exception as e:
@@ -2174,6 +2901,16 @@ def settle_open_bets():
         finished_matches.update(fetch_api_football_results())
     except Exception as e:
         print("[SETTLEMENT] API-Football merge failed:", e)
+
+    # Sofascore via headless browser (covers leagues ESPN/Flashscore miss).
+    try:
+        from src.sofascore_results_scraper import get_finished_results as ss_results
+        sofa = ss_results(dates=_settle_dates)
+        before = len(finished_matches)
+        finished_matches.update(sofa)
+        print(f"[SETTLEMENT] Sofascore added {len(finished_matches) - before} new matches ({len(sofa)} total).")
+    except Exception as e:
+        print("[SETTLEMENT] Sofascore scraper failed:", e)
 
     if not finished_matches:
         print("[SETTLEMENT] No finished matches found from any source yet.")
@@ -2202,14 +2939,20 @@ def settle_open_bets():
         # have an open Corners/Total Cards bet (keeps it cheap). Replaces the old hash()
         # fabrication: a prop bet settles only from a real stat, else it stays OPEN.
         prop_stats = {}
-        prop_match_ids = {mid for (_, mid, _, mt, *_ ) in open_bets
-                          if mt in ("Corners", "Total Cards") and mid}
+        prop_match_ids = {
+            mid
+            for (_, mid, _, mt, *_) in open_bets
+            if mt in ("Corners", "Total Cards") and mid
+        }
         if prop_match_ids:
             try:
                 from src.flashscore_stats import stats_for_matches
+
                 prop_stats = stats_for_matches(prop_match_ids)
-                print(f"[SETTLEMENT] Flashscore stats for {len(prop_stats)}/{len(prop_match_ids)} "
-                      f"prop match(es).")
+                print(
+                    f"[SETTLEMENT] Flashscore stats for {len(prop_stats)}/{len(prop_match_ids)} "
+                    f"prop match(es)."
+                )
             except Exception as e:
                 print("[SETTLEMENT] Flashscore stats fetch failed:", e)
 
@@ -2241,6 +2984,10 @@ def settle_open_bets():
             words = [w for w in n.split() if w not in suffixes]
             return "".join(words)
 
+        # conn_bet / cur_bet are aliases for the already-open bet_log connection.
+        conn_bet = conn
+        cur_bet = cur
+
         for (
             bet_id,
             match_id,
@@ -2254,17 +3001,27 @@ def settle_open_bets():
         ) in open_bets:
             import re
 
-            match_match = re.match(r"^(.*) vs (.*) \((.*)\)$", player_id)
-            if not match_match:
-                match_name = match_id if match_id else "Unknown vs Unknown"
-                cur.execute("SELECT side FROM bet_log WHERE bet_id = ?", (bet_id,))
-                side_row = cur.fetchone()
-                selection = side_row[0] if side_row else "Home"
+            # Parse player_id: "Home vs Away (Selection)" where Selection may itself
+            # contain parens e.g. "Away (2)". The old greedy regex captured "Away "
+            # as part of away_t, producing a broken match_name.
+            # Fix: detect the outermost wrapping parens using a selection-pattern anchor.
+            _sel_re = re.search(
+                r" \((Home(?:\s*\(\d+\))?|Away(?:\s*\(\d+\))?|X|Draw"
+                r"|Over[\s\d.]+|Under[\s\d.]+|[12X])\)$",
+                player_id or "",
+            )
+            if _sel_re:
+                selection = _sel_re.group(1).strip()
+                _mn = player_id[: _sel_re.start()].strip()
+                _parts = _mn.split(" vs ", 1)
+                if len(_parts) == 2:
+                    home_t, away_t = _parts[0].strip(), _parts[1].strip()
+                    match_name = f"{home_t} vs {away_t}"
+                else:
+                    match_name = match_id if match_id else "Unknown vs Unknown"
             else:
-                home_t = match_match.group(1).strip()
-                away_t = match_match.group(2).strip()
-                selection = match_match.group(3).strip()
-                match_name = f"{home_t} vs {away_t}"
+                match_name = match_id if match_id else "Unknown vs Unknown"
+                selection = bet_side if bet_side else "Home"
 
             sel_lower = selection.lower()
 
@@ -2276,7 +3033,7 @@ def settle_open_bets():
             except Exception:
                 continue
 
-            candidates = []   # (total_name_score, result_score, finished_name)
+            candidates = []  # (total_name_score, result_score, finished_name)
             for finished_name, score in finished_matches.items():
                 try:
                     f_parts = finished_name.split(" vs ")
@@ -2292,6 +3049,7 @@ def settle_open_bets():
                     candidates.append((h_score + a_score, score, finished_name))
 
             if not candidates:
+                print(f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results.")
                 continue
 
             candidates.sort(key=lambda c: c[0], reverse=True)
@@ -2306,9 +3064,11 @@ def settle_open_bets():
             if len(candidates) > 1:
                 second_total, second_score, second_name = candidates[1]
                 if (best_total - second_total) < 0.30 and second_score != matched_score:
-                    print(f"[SETTLEMENT] Ambiguous result match for '{match_name}': "
-                          f"'{best_name}'{matched_score} vs '{second_name}'{second_score} "
-                          f"— skipping to avoid wrong settlement.")
+                    print(
+                        f"[SETTLEMENT] Ambiguous result match for '{match_name}': "
+                        f"'{best_name}'{matched_score} vs '{second_name}'{second_score} "
+                        f"— skipping to avoid wrong settlement."
+                    )
                     continue
 
             home_score, away_score = matched_score
@@ -2349,12 +3109,60 @@ def settle_open_bets():
                     won = home_score == away_score
                 elif "away" in sel_lower or "2" in sel_lower:
                     won = away_score > home_score
-            elif market_type == "Over/Under 2.5":
+            elif market_type in (
+                "Over/Under 2.5",
+                "Over/Under 3.0",
+                "Over/Under 2.0",
+                "Over/Under 1.5",
+                "Over/Under 0.5",
+            ):
+                import re as _sre
+
                 total_goals = home_score + away_score
+                _lm = _sre.search(r"(\d+\.?\d*)", market_type)
+                _line = float(_lm.group(1)) if _lm else 2.5
                 if "over" in sel_lower:
-                    won = total_goals > 2.5
+                    if total_goals == _line:
+                        # Push on exact integer line — void the bet
+                        cur_bet.execute(
+                            "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?",
+                            (bet_id,),
+                        )
+                        conn_bet.commit()
+                        continue
+                    won = total_goals > _line
                 elif "under" in sel_lower:
-                    won = total_goals < 2.5
+                    if total_goals == _line:
+                        cur_bet.execute(
+                            "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?",
+                            (bet_id,),
+                        )
+                        conn_bet.commit()
+                        continue
+                    won = total_goals < _line
+            elif market_type == "Double Chance":
+                home_won = home_score > away_score
+                draw = home_score == away_score
+                away_won = away_score > home_score
+                if sel_lower == "1x":
+                    won = home_won or draw
+                elif sel_lower == "x2":
+                    won = draw or away_won
+                elif sel_lower == "12":
+                    won = home_won or away_won
+            elif market_type == "Draw No Bet":
+                if home_score == away_score:
+                    # Push — void and refund
+                    cur_bet.execute(
+                        "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?",
+                        (bet_id,),
+                    )
+                    conn_bet.commit()
+                    continue
+                elif "home" in sel_lower:
+                    won = home_score > away_score
+                elif "away" in sel_lower:
+                    won = away_score > home_score
             elif market_type == "BTTS":
                 if "yes" in sel_lower:
                     won = home_score > 0 and away_score > 0
@@ -2460,11 +3268,15 @@ def settle_open_bets():
                     # UTC). This excludes in-play prices that would fake a huge CLV.
                     ko = ko_map.get(str(bet_fixture_id))
                     snap = sqlite3.connect(
-                        os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+                        os.path.join(
+                            DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+                        )
                     )
                     sc = snap.cursor()
                     if ko is not None:
-                        ko_utc = ko.astimezone(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                        ko_utc = ko.astimezone(datetime.timezone.utc).strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
                         sc.execute(
                             "SELECT odds FROM odds_history WHERE fixture_id = ? AND market = ? "
                             "AND selection = ? AND timestamp <= ? ORDER BY timestamp DESC LIMIT 1",
@@ -2473,7 +3285,9 @@ def settle_open_bets():
                         row = sc.fetchone()
                     else:
                         row = None
-                    if not row:  # no kickoff or no pre-kickoff snapshot -> best available
+                    if (
+                        not row
+                    ):  # no kickoff or no pre-kickoff snapshot -> best available
                         sc.execute(
                             "SELECT odds FROM odds_history WHERE fixture_id = ? AND market = ? "
                             "AND selection = ? ORDER BY rowid DESC LIMIT 1",
@@ -2490,118 +3304,127 @@ def settle_open_bets():
                             closing_odds = c_odds
                             clv = c_clv
                         else:
-                            closing_odds = c_odds  # keep the observed close for the record
+                            closing_odds = (
+                                c_odds  # keep the observed close for the record
+                            )
             except Exception:
                 pass
 
-            # CLV vs the SHARP (Pinnacle) close — the TRUSTWORTHY scoreboard. The Betarabia-self
-            # CLV above is self-referential (entry vs same book's later price); beating the SHARP
-            # de-vigged fair line is what actually predicts profit. Only fires for 1X2 bets that
-            # overlap Pinnacle (NULL otherwise). edge_status.py gates real money on this.
-            clv_sharp = None
-            if market_type == "1X2" and bet_side:
-                try:
-                    parts = (match_id or "").split(" vs ")
-                    if len(parts) == 2:
-                        ko = ko_map.get(str(bet_fixture_id))
-                        ko_ts = ko.timestamp() if ko is not None else None
-                        vs = sharp_edge.value_signal(parts[0].strip(), parts[1].strip(),
-                                                     bet_side, entry_odds, ko_ts)
-                        if vs.get("matched") and vs.get("sharp_fair_prob"):
-                            cs = round(entry_odds * vs["sharp_fair_prob"] - 1.0, 4)
-                            if abs(cs) <= 0.40:
-                                clv_sharp = cs
-                except Exception:
-                    pass
-
             cur.execute(
-                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ?, clv_sharp = ? "
+                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ? "
                 "WHERE bet_id = ?",
-                (result, pnl, closing_odds, clv, clv_sharp, bet_id),
+                (result, pnl, closing_odds, clv, bet_id),
             )
             _clv_str = f" CLV {clv*100:+.1f}%" if clv is not None else ""
-            print(f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f}){_clv_str}")
+            print(
+                f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f}){_clv_str}"
+            )
 
             # Capital adjustments via Central Tracker
             from src.bankroll_tracker import register_settlement
+
             register_settlement(payout, pnl)
 
         # PARLAY SETTLEMENT
-        cur.execute("SELECT parlay_id, legs_json, stake, total_odds FROM parlay_log WHERE result = 'OPEN'")
+        cur.execute(
+            "SELECT parlay_id, legs_json, stake, total_odds FROM parlay_log WHERE result = 'OPEN'"
+        )
         open_parlays = cur.fetchall()
-        
+
         for p_id, legs_json, p_stake, p_odds in open_parlays:
             import json
+
             legs = json.loads(legs_json)
             parlay_finished = True
             parlay_won = True
             any_leg_lost = False
             legs_updated = False
-            
+
             for leg in legs:
-                if leg.get('result') in ['W', 'L']:
-                    if leg['result'] == 'L':
+                if leg.get("result") in ["W", "L"]:
+                    if leg["result"] == "L":
                         any_leg_lost = True
                     continue
-                
+
                 # Try to settle this leg
-                leg_match_name = leg['match']
-                leg_market = leg['market']
-                leg_selection = leg['selection'].lower()
-                
+                leg_match_name = leg["match"]
+                leg_market = leg["market"]
+                leg_selection = leg["selection"].lower()
+
                 # Find score
                 best_s = 0.0
                 m_score = None
                 for fin_name, score in finished_matches.items():
-                    h_s = get_match_score(leg_match_name.split(' vs ')[0], fin_name.split(' vs ')[0])
-                    a_s = get_match_score(leg_match_name.split(' vs ')[1], fin_name.split(' vs ')[1])
+                    h_s = get_match_score(
+                        leg_match_name.split(" vs ")[0], fin_name.split(" vs ")[0]
+                    )
+                    a_s = get_match_score(
+                        leg_match_name.split(" vs ")[1], fin_name.split(" vs ")[1]
+                    )
                     if h_s >= 0.5 and a_s >= 0.5:
                         if (h_s + a_s) > best_s:
                             best_s = h_s + a_s
                             m_score = score
-                
+
                 if m_score:
                     h_score, a_score = m_score
                     # Basic 1X2 / OU settlement for parlay legs
                     leg_won = False
-                    if leg_market == 'Match Result':
-                        if '1' in leg_selection or 'home' in leg_selection: leg_won = h_score > a_score
-                        elif 'x' in leg_selection or 'draw' in leg_selection: leg_won = h_score == a_score
-                        else: leg_won = a_score > h_score
-                    elif 'Total Goals' in leg_market:
-                        line = 2.5 # Default
-                        if 'over' in leg_selection: leg_won = (h_score + a_score) > line
-                        else: leg_won = (h_score + a_score) < line
+                    if leg_market == "Match Result":
+                        if "1" in leg_selection or "home" in leg_selection:
+                            leg_won = h_score > a_score
+                        elif "x" in leg_selection or "draw" in leg_selection:
+                            leg_won = h_score == a_score
+                        else:
+                            leg_won = a_score > h_score
+                    elif "Total Goals" in leg_market:
+                        line = 2.5  # Default
+                        if "over" in leg_selection:
+                            leg_won = (h_score + a_score) > line
+                        else:
+                            leg_won = (h_score + a_score) < line
                     else:
                         # No real data for this leg's market → leave the parlay OPEN rather
                         # than fabricate a leg result from hash (the old "random for demo").
                         parlay_finished = False
                         continue
 
-                    leg['result'] = 'W' if leg_won else 'L'
-                    if not leg_won: any_leg_lost = True
+                    leg["result"] = "W" if leg_won else "L"
+                    if not leg_won:
+                        any_leg_lost = True
                     legs_updated = True
                 else:
-                    parlay_finished = False # Still waiting for some legs
-            
+                    parlay_finished = False  # Still waiting for some legs
+
             if any_leg_lost:
-                res = 'L'
+                res = "L"
                 pnl = -p_stake
-                cur.execute("UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?", (res, pnl, json.dumps(legs), p_id))
+                cur.execute(
+                    "UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?",
+                    (res, pnl, json.dumps(legs), p_id),
+                )
                 from src.bankroll_tracker import register_settlement
+
                 register_settlement(0.0, pnl)
                 print(f"[SETTLEMENT] Parlay {p_id} LOST.")
             elif parlay_finished:
-                res = 'W'
+                res = "W"
                 pnl = p_stake * (p_odds - 1)
                 payout = p_stake * p_odds
-                cur.execute("UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?", (res, pnl, json.dumps(legs), p_id))
+                cur.execute(
+                    "UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?",
+                    (res, pnl, json.dumps(legs), p_id),
+                )
                 from src.bankroll_tracker import register_settlement
+
                 register_settlement(payout, pnl)
                 print(f"[SETTLEMENT] Parlay {p_id} WON! (PnL: ${pnl:.2f})")
             elif legs_updated:
                 # Update legs even if parlay is still open
-                cur.execute("UPDATE parlay_log SET legs_json = ? WHERE parlay_id = ?", (json.dumps(legs), p_id))
+                cur.execute(
+                    "UPDATE parlay_log SET legs_json = ? WHERE parlay_id = ?",
+                    (json.dumps(legs), p_id),
+                )
 
         conn.commit()
         conn.close()
@@ -2643,8 +3466,9 @@ def update_dashboard_json(fixtures, results_cache):
         # future scraper regression can never silently bet old prices). Age was set by
         # the find_betarabia_odds call just above for this exact fixture.
         _max_stale_min = load_settings().get("max_odds_staleness_min", 60)
-        odds_fresh = (_betarabia_odds_age_min is None
-                      or _betarabia_odds_age_min <= _max_stale_min)
+        odds_fresh = (
+            _betarabia_odds_age_min is None or _betarabia_odds_age_min <= _max_stale_min
+        )
 
         # Prepare pre-match markets if available from Betarabia, regardless of lineups
         prematch_markets = None
@@ -2657,7 +3481,15 @@ def update_dashboard_json(fixtures, results_cache):
                     break
 
             if has_odds:
-                prematch_markets = {"1X2": [], "Over/Under 2.5": [], "BTTS": []}
+                prematch_markets = {
+                    "1X2": [],
+                    "Over/Under 2.5": [],
+                    "Over/Under 3.0": [],
+                    "Over/Under 2.0": [],
+                    "BTTS": [],
+                    "Double Chance": [],
+                    "Draw No Bet": [],
+                }
                 if "Home" in odds_dict.get("1X2", {}):
                     prematch_markets["1X2"].append(
                         {"selection": "Home (1)", "odds": odds_dict["1X2"]["Home"]}
@@ -2695,6 +3527,43 @@ def update_dashboard_json(fixtures, results_cache):
                         {"selection": "No", "odds": odds_dict["BTTS"]["No"]}
                     )
 
+                # Over/Under 3.0
+                for _dc_sel, _dc_key in (("Over 3.0", "Over"), ("Under 3.0", "Under")):
+                    if _dc_key in odds_dict.get("Over/Under 3.0", {}):
+                        prematch_markets["Over/Under 3.0"].append(
+                            {
+                                "selection": _dc_sel,
+                                "odds": odds_dict["Over/Under 3.0"][_dc_key],
+                            }
+                        )
+
+                # Over/Under 2.0
+                for _dc_sel, _dc_key in (("Over 2.0", "Over"), ("Under 2.0", "Under")):
+                    if _dc_key in odds_dict.get("Over/Under 2.0", {}):
+                        prematch_markets["Over/Under 2.0"].append(
+                            {
+                                "selection": _dc_sel,
+                                "odds": odds_dict["Over/Under 2.0"][_dc_key],
+                            }
+                        )
+
+                # Double Chance
+                for _sel in ("1X", "X2", "12"):
+                    if _sel in odds_dict.get("Double Chance", {}):
+                        prematch_markets["Double Chance"].append(
+                            {
+                                "selection": _sel,
+                                "odds": odds_dict["Double Chance"][_sel],
+                            }
+                        )
+
+                # Draw No Bet
+                for _sel in ("Home", "Away"):
+                    if _sel in odds_dict.get("Draw No Bet", {}):
+                        prematch_markets["Draw No Bet"].append(
+                            {"selection": _sel, "odds": odds_dict["Draw No Bet"][_sel]}
+                        )
+
         if prediction and "markets" in prediction:
             # Always attach the real Betarabia price to each market selection so the
             # dashboard shows actual odds (not "@ 0.00"), even for estimated XI.
@@ -2710,48 +3579,97 @@ def update_dashboard_json(fixtures, results_cache):
                         # Determine Key for odds lookup
                         key = None
                         if m_type == "1X2":
-                            if "Home" in sel_name or "1" in sel_name: key = "Home"
-                            elif "Draw" in sel_name or "X" in sel_name: key = "Draw"
-                            elif "Away" in sel_name or "2" in sel_name: key = "Away"
-                        elif m_type == "Over/Under 2.5":
-                            if "Over" in sel_name: key = "Over"
-                            elif "Under" in sel_name: key = "Under"
+                            if "Home" in sel_name or "1" in sel_name:
+                                key = "Home"
+                            elif "Draw" in sel_name or "X" in sel_name:
+                                key = "Draw"
+                            elif "Away" in sel_name or "2" in sel_name:
+                                key = "Away"
+                        elif m_type in (
+                            "Over/Under 2.5",
+                            "Over/Under 3.0",
+                            "Over/Under 2.0",
+                        ):
+                            if "Over" in sel_name:
+                                key = "Over"
+                            elif "Under" in sel_name:
+                                key = "Under"
                         elif m_type == "BTTS":
-                            if "Yes" in sel_name: key = "Yes"
-                            elif "No" in sel_name: key = "No"
-                        elif m_type == "Corners": key = sel_name
-                        elif m_type == "Total Cards": key = sel_name
+                            if "Yes" in sel_name:
+                                key = "Yes"
+                            elif "No" in sel_name:
+                                key = "No"
+                        elif m_type == "Double Chance":
+                            if sel_name in ("1X", "X2", "12"):
+                                key = sel_name
+                        elif m_type == "Draw No Bet":
+                            if "Home" in sel_name:
+                                key = "Home"
+                            elif "Away" in sel_name:
+                                key = "Away"
+                        elif m_type == "Corners":
+                            key = (
+                                sel_name  # "Corners OVER 9.5" must match scraper output
+                            )
+                        elif m_type == "Total Cards":
+                            key = sel_name  # "Cards OVER 3.5" must match scraper output
+                        elif m_type == "Goalscorer":
+                            # sel_name = "Kylian Mbappe Anytime Goal" → extract player name
+                            import re as _re
+
+                            key = _re.sub(
+                                r"\s+Anytime Goal$", "", sel_name, flags=_re.IGNORECASE
+                            ).strip()
+                        elif m_type == "Player Shots on Target":
+                            key = sel_name
 
                         odds = None
                         all_market_odds = []
                         if odds_dict:
-                            if m_type in odds_dict and key in odds_dict[m_type]:
+                            if m_type in odds_dict and key and key in odds_dict[m_type]:
                                 odds = odds_dict[m_type][key]
                                 all_market_odds = list(odds_dict[m_type].values())
-                            elif m_type == "Corners" and "Corners" in odds_dict:
-                                for o_name, o_price in odds_dict["Corners"].items():
-                                    if "8.5" in o_name and "over" in o_name.lower(): 
-                                        odds = o_price
-                                        all_market_odds = [o_price, 1.05] # Dummy under odds if missing
-                                        break
-                            elif m_type == "Total Cards" and "Cards" in odds_dict:
-                                for o_name, o_price in odds_dict["Cards"].items():
-                                    if "3.5" in o_name and "over" in o_name.lower(): 
-                                        odds = o_price
-                                        all_market_odds = [o_price, 1.05]
-                                        break
+                            elif (
+                                m_type == "Goalscorer"
+                                and key
+                                and "Goalscorer" in odds_dict
+                            ):
+                                # Fuzzy match player name (e.g. "Mbappe" vs "Kylian Mbappe")
+                                best_gscore, best_gprice = 0.0, None
+                                for pname, pprice in odds_dict["Goalscorer"].items():
+                                    gs = get_match_score(key, pname)
+                                    if gs > best_gscore:
+                                        best_gscore, best_gprice = gs, pprice
+                                if best_gscore >= 0.5 and best_gprice is not None:
+                                    odds = best_gprice
+                                    all_market_odds = list(
+                                        odds_dict["Goalscorer"].values()
+                                    )
 
                         if odds is not None:
                             # Sniper / Peak Logic
                             try:
-                                conn_sniper = sqlite3.connect(os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"))
+                                conn_sniper = sqlite3.connect(
+                                    os.path.join(
+                                        DATA_DIR,
+                                        "deepfield_browser_data",
+                                        "completed_fixtures.db",
+                                    )
+                                )
                                 cur_sniper = conn_sniper.cursor()
-                                cur_sniper.execute("INSERT INTO odds_history (fixture_id, market, selection, odds) VALUES (?, ?, ?, ?)", (str(fid), m_type, sel_name, odds))
+                                cur_sniper.execute(
+                                    "INSERT INTO odds_history (fixture_id, market, selection, odds) VALUES (?, ?, ?, ?)",
+                                    (str(fid), m_type, sel_name, odds),
+                                )
                                 conn_sniper.commit()
-                                cur_sniper.execute("SELECT MAX(odds) FROM odds_history WHERE fixture_id = ? AND market = ? AND selection = ?", (str(fid), m_type, sel_name))
+                                cur_sniper.execute(
+                                    "SELECT MAX(odds) FROM odds_history WHERE fixture_id = ? AND market = ? AND selection = ?",
+                                    (str(fid), m_type, sel_name),
+                                )
                                 max_seen_odds = cur_sniper.fetchone()[0] or odds
                                 conn_sniper.close()
-                            except: max_seen_odds = odds
+                            except:
+                                max_seen_odds = odds
 
                             # MARKET BLENDING: shade the model probability toward the
                             # de-vigged market consensus. The market is the single best
@@ -2764,17 +3682,97 @@ def update_dashboard_json(fixtures, results_cache):
                             # H/D/A prices). Computed unconditionally so the conviction
                             # cap below works regardless of the blend weight.
                             mkt_prob = None
-                            if all_market_odds and len(all_market_odds) >= 2 and odds and odds > 0:
+                            if (
+                                all_market_odds
+                                and len(all_market_odds) >= 2
+                                and odds
+                                and odds > 0
+                            ):
                                 inv = [1.0 / o for o in all_market_odds if o and o > 0]
                                 if inv:
                                     mkt_prob = (1.0 / odds) / sum(inv)
                             blend_w = settings.get("market_blend_weight", 0.5)
                             if blend_w < 1.0 and mkt_prob is not None:
-                                prob_used = blend_w * prob_used + (1.0 - blend_w) * mkt_prob
+                                prob_used = (
+                                    blend_w * prob_used + (1.0 - blend_w) * mkt_prob
+                                )
 
                             ev = prob_used * odds - 1.0
-                            prob = round(prob_used * 100.0, 1)   # downstream gates use blended prob
-                            is_at_peak = (odds >= max_seen_odds * 0.98)
+                            prob = round(
+                                prob_used * 100.0, 1
+                            )  # downstream gates use blended prob
+                            is_at_peak = odds >= max_seen_odds * 0.98
+
+                            # LINE SHOPPING: find best price across Pinnacle + The Odds API.
+                            # EV stays on Betarabia (what we actually bet); best_odds / ev_best
+                            # are display-only so the dashboard shows when to shop elsewhere.
+                            if _ODDS_AGG and _get_best_price and m_type == "1X2":
+                                try:
+                                    _bbo = odds_dict.get("1X2", {})
+                                    _bp = _get_best_price(
+                                        home,
+                                        away,
+                                        betarabia_h=_bbo.get("Home"),
+                                        betarabia_d=_bbo.get("Draw"),
+                                        betarabia_a=_bbo.get("Away"),
+                                    )
+                                    _sel_key = {
+                                        "Home": "home",
+                                        "Draw": "draw",
+                                        "Away": "away",
+                                    }.get(sel_name)
+                                    _best_o = (
+                                        _bp.get(_sel_key, odds) if _sel_key else odds
+                                    )
+                                    sel["best_odds"] = (
+                                        round(_best_o, 3) if _best_o else odds
+                                    )
+                                    sel["ev_best"] = (
+                                        round(prob_used * _best_o - 1.0, 4)
+                                        if _best_o
+                                        else ev
+                                    )
+                                    sel["pinnacle_odds"] = _bp.get(
+                                        f"pinnacle_{_sel_key}"
+                                    )
+                                    sel["line_shop_gain"] = (
+                                        round((_best_o - odds) / odds * 100, 1)
+                                        if odds and _best_o
+                                        else 0.0
+                                    )
+                                    # ARB / NEAR-ARB detection (display-only, no actual bets)
+                                    if _ARB_OK and _check_arb and m_type == "1X2":
+                                        try:
+                                            _pinn_raw = {
+                                                "home": _bp.get("pinnacle_home"),
+                                                "draw": _bp.get("pinnacle_draw"),
+                                                "away": _bp.get("pinnacle_away"),
+                                            }
+                                            _best_all = {
+                                                "home": _bp.get("home"),
+                                                "draw": _bp.get("draw"),
+                                                "away": _bp.get("away"),
+                                            }
+                                            _arb = _check_arb(
+                                                _best_all,
+                                                (
+                                                    _pinn_raw
+                                                    if any(_pinn_raw.values())
+                                                    else None
+                                                ),
+                                            )
+                                            if _arb["status"] != "NORMAL":
+                                                sel["arb_status"] = _arb["status"]
+                                                sel["arb_return_pct"] = _arb.get(
+                                                    "arb_return_pct", 0.0
+                                                )
+                                                sel["near_arb"] = _arb.get(
+                                                    "near_arb", []
+                                                )
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
 
                             # CONVICTION CAP (tools/backtest_1x2_lines.py finding): the model's
                             # BIGGEST disagreements with the market are where it is most WRONG —
@@ -2782,29 +3780,42 @@ def update_dashboard_json(fixtures, results_cache):
                             # bet only MODEST, market-adjacent value and skip "too good to be
                             # true" gaps (model error). edge = blended prob - market prob.
                             edge_cap_pct = settings.get("edge_cap_pct", 10.0)
-                            model_edge_pct = ((prob_used - mkt_prob) * 100.0) if mkt_prob is not None else 0.0
-                            conviction_ok = (mkt_prob is None) or (model_edge_pct <= edge_cap_pct)
-                            
+                            model_edge_pct = (
+                                ((prob_used - mkt_prob) * 100.0)
+                                if mkt_prob is not None
+                                else 0.0
+                            )
+                            conviction_ok = (mkt_prob is None) or (
+                                model_edge_pct <= edge_cap_pct
+                            )
+
                             # VALUE CHASER LOGIC: Chase high EV even if prob is lower.
                             # If EV > 15%, we allow prob down to 30%. Otherwise need 55%.
                             conf_threshold = settings.get("min_confidence_pct", 55)
-                            if ev >= 0.15: conf_threshold = 30.0
+                            if ev >= 0.15:
+                                conf_threshold = 30.0
 
                             # MARKET WHITELIST: only bet markets with a proven edge. The
                             # realized record shows ONLY 1X2 is +EV; all props lose 40-80%.
                             # Configurable via settings["allowed_markets"] (default 1X2 only).
                             allowed_markets = settings.get("allowed_markets", ["1X2"])
-                            market_allowed = (not allowed_markets) or (m_type in allowed_markets)
+                            market_allowed = (not allowed_markets) or (
+                                m_type in allowed_markets
+                            )
 
                             # LEAGUE BLOCKLIST: skip competitions that have shown no edge
                             # (populate from tools/league_report.py once CLV/ROI data exists).
-                            league_blocked = league in (settings.get("league_blocklist") or [])
+                            league_blocked = league in (
+                                settings.get("league_blocklist") or []
+                            )
 
                             # 1X2 DRAWS excluded: realized record is 0/9 (-100% ROI) and the
                             # model shows no skill on draws (its draw probs sit in the
                             # overconfident long-tail). The 1X2 profit is entirely Home/Away.
                             exclude_draws = settings.get("exclude_draws", True)
-                            draw_excluded = exclude_draws and (m_type == "1X2" and key == "Draw")
+                            draw_excluded = exclude_draws and (
+                                m_type == "1X2" and key == "Draw"
+                            )
 
                             # STEAM signal (line movement) — validated as genuinely
                             # predictive (tools/backtest_market_signals.py), unlike the
@@ -2812,60 +3823,58 @@ def update_dashboard_json(fixtures, results_cache):
                             # the odds_history ledger, capture fired picks to the research
                             # ledger, and (opt-in) use it to confirm model picks. 1X2 only.
                             steam_min = settings.get("steam_min_move_pct", 3.0) / 100.0
-                            steam_move = _steam_moves(fid, m_type).get(sel_name, 0.0) if market_allowed else 0.0
+                            _steam_result = _steam_moves(fid, m_type) if market_allowed else {}
+                            steam_move = _steam_result.get(sel_name, 0.0)
+                            _steam_meta_sel = (_steam_result.get('__meta__') or {}).get(sel_name, {})
+                            steam_mono = _steam_meta_sel.get('monotonicity', None)
                             sel["steam_move"] = round(steam_move * 100.0, 2)
+                            _registry = _load_signal_registry()
                             steam_fired = (
                                 steam_move >= steam_min
-                                and odds and odds >= dfp_settings.MODEL_MIN_ODDS
-                                and market_allowed and not league_blocked and not draw_excluded
+                                and odds
+                                and odds >= dfp_settings.MODEL_MIN_ODDS
+                                and market_allowed
+                                and not league_blocked
+                                and not draw_excluded
                                 and odds_fresh
+                                and _registry.get("STEAM_FWD", {}).get("enabled", True)
                             )
                             if steam_fired:
-                                _record_steam_signal(fid, league, f"{home} vs {away}",
-                                                     m_type, sel_name, odds, steam_move, match_time)
+                                _record_steam_signal(
+                                    fid,
+                                    league,
+                                    f"{home} vs {away}",
+                                    m_type,
+                                    sel_name,
+                                    odds,
+                                    steam_move,
+                                    match_time,
+                                    monotonicity=steam_mono,
+                                )
                                 # Flat-stake shadow bet for the steam signal (separate
                                 # strategy from the model; paper only; deduped internally).
-                                log_steam_bet(f"{home} vs {away}", m_type, sel_name, odds,
-                                              steam_move * 100.0, fid, league)
-                            # SHARP EDGE (Pinnacle): the strongest validated play — bet
-                            # Betarabia when the SHARP line steamed toward this side AND
-                            # Betarabia still offers a better price than Pinnacle (lagging
-                            # value). Separate strategy (bet_source='SHARP'); paper only.
-                            if (market_allowed and not league_blocked and not draw_excluded
-                                    and odds and odds_fresh):
+                                log_steam_bet(
+                                    f"{home} vs {away}",
+                                    m_type,
+                                    sel_name,
+                                    odds,
+                                    steam_move * 100.0,
+                                    fid,
+                                    league,
+                                    monotonicity=steam_mono,
+                                )
                                 try:
-                                    _ko = None
-                                    try:
-                                        _dt = datetime.datetime.fromisoformat(
-                                            str(match_time).replace("Z", "+00:00"))
-                                        if _dt.tzinfo is None:
-                                            _dt = _dt.replace(tzinfo=datetime.timezone.utc)
-                                        _ko = _dt.timestamp()
-                                    except Exception:
-                                        _ko = None
-                                    _sharp_min = settings.get("steam_min_move_pct", 5.0)
-                                    _sh = sharp_edge.qualifies(
-                                        home, away, sel_name, odds, _sharp_min, _ko)
-                                    sel["sharp_move"] = _sh.get("sharp_move", 0.0)
-                                    sel["sharp_lagging"] = _sh.get("lagging", False)
-                                    if _sh.get("qualifies"):
-                                        log_sharp_bet(f"{home} vs {away}", m_type, sel_name,
-                                                      odds, _sh["sharp_move"], fid, league)
-                                    # Pure value vs the sharp fair line (separate SHARPV
-                                    # strategy; fires on mispricing without needing a move).
-                                    if settings.get("sharp_value_enabled", True):
-                                        _min_ev = settings.get("sharp_value_min_ev", 0.02)
-                                        _max_ev = settings.get("sharp_value_max_ev", 0.10)
-                                        _v = sharp_edge.qualifies_value(
-                                            home, away, sel_name, odds, _min_ev, _max_ev, _ko)
-                                        sel["sharp_ev"] = round((_v.get("ev") or 0.0) * 100.0, 1)
-                                        if _v.get("qualifies"):
-                                            log_sharp_bet(f"{home} vs {away}", m_type, sel_name,
-                                                          odds, (_v["ev"] or 0.0) * 100.0,
-                                                          fid, league, source="SHARPV")
-                                except Exception as _she:
+                                    from src.services.alerting import notifier as _ntfy
+                                    _ntfy._notify(
+                                        f"STEAM {sel_name} @ {odds:.2f}\n"
+                                        f"{home} vs {away}\n"
+                                        f"Move: +{steam_move * 100:.1f}% | {league}",
+                                        title="DeepField STEAM",
+                                        priority="high",
+                                        tags="soccer,chart_with_upwards_trend",
+                                    )
+                                except Exception:
                                     pass
-
                             # Opt-in: require the market to be moving toward a model pick.
                             require_steam = settings.get("require_steam_confirm", False)
                             steam_ok = (not require_steam) or (steam_move >= steam_min)
@@ -2883,7 +3892,43 @@ def update_dashboard_json(fixtures, results_cache):
                                 and odds_fresh
                             )
 
-                            sel.update({"odds": odds, "max_seen_odds": max_seen_odds, "ev": ev, "m_type": m_type, "all_odds": all_market_odds})
+                            # ASIAN HANDICAP paper bet gate (opt-in; off by default)
+                            # AH -0.5 = home must WIN outright. AH +0.5 = home must not LOSE.
+                            # Probs come directly from DC/LightGBM 1X2; no separate model needed.
+                            if (
+                                settings.get("ah_betting_enabled", False)
+                                and m_type == "Asian Handicap"
+                                and not league_blocked
+                                and odds
+                                and odds_fresh
+                                and odds >= dfp_settings.MODEL_MIN_ODDS
+                            ):
+                                _ah_sel = sel_name  # e.g. "Arsenal -0.5"
+                                _ah_prob = prob_used  # already set from the iteration over selections
+                                _min_ev = settings.get("min_ev_threshold", 0.03)
+                                _ah_ev = _ah_prob * odds - 1.0
+                                if _ah_ev >= _min_ev and _ah_prob >= 0.50:
+                                    log_ai_bet(
+                                        f"{home} vs {away}",
+                                        "Asian Handicap",
+                                        _ah_sel,
+                                        odds,
+                                        _ah_ev,
+                                        _ah_prob * 100,
+                                        fid,
+                                        league,
+                                        source="AI_AH",
+                                    )
+
+                            sel.update(
+                                {
+                                    "odds": odds,
+                                    "max_seen_odds": max_seen_odds,
+                                    "ev": ev,
+                                    "m_type": m_type,
+                                    "all_odds": all_market_odds,
+                                }
+                            )
                             # Only stake when official lineups are confirmed; odds above
                             # are still attached for display on estimated-XI matches.
                             if is_recommended and bet_allowed:
@@ -2898,19 +3943,19 @@ def update_dashboard_json(fixtures, results_cache):
                 if match_bet_candidates:
                     # Sort by EV descending to pick the best value first
                     match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
-                    
+
                     # Selection: Only take the SINGLE BEST bet for the entire match.
                     # This eliminates all contradictory/random-feeling overlapping bets.
                     match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
                     best_bet = match_bet_candidates[0]
-                    
+
                     m_type = best_bet["m_type"]
                     sel_name = best_bet["selection"]
                     prob = best_bet["prob"]
                     odds = best_bet["odds"]
                     ev = best_bet["ev"]
                     all_odds = best_bet.get("all_odds", [odds])
-                    
+
                     try:
                         has_lineup = int(prediction.get("has_lineup", 0))
                         xmin_p10 = float(prediction.get("xmin_p10", 0.0))
@@ -2920,7 +3965,7 @@ def update_dashboard_json(fixtures, results_cache):
                         bet_id = place_bet(
                             fair_prob=prob / 100.0,
                             market_odds=odds,
-                            all_outcome_odds=all_odds, # Pass all odds for proper vig stripping
+                            all_outcome_odds=all_odds,  # Pass all odds for proper vig stripping
                             match_id=str(fid),
                             player_id=sel_name.split()[0],
                             market_type=m_type,
@@ -2933,14 +3978,27 @@ def update_dashboard_json(fixtures, results_cache):
                             has_lineup=has_lineup,
                             xmin_p10=xmin_p10,
                             xmin_p90=xmin_p90,
-                            expected_mean=expected_mean
+                            expected_mean=expected_mean,
                         )
                         if bet_id:
-                            print(f"[DAEMON] VALUE BET placed: {m_type} | {sel_name} @ {odds} (EV: {ev*100:.1f}%)")
+                            print(
+                                f"[DAEMON] VALUE BET placed: {m_type} | {sel_name} @ {odds} (EV: {ev*100:.1f}%)"
+                            )
                     except Exception as e:
                         print(f"[ERROR] Failed to place best bet: {e}")
 
-                    log_ai_bet(f"{home} vs {away}", m_type, sel_name, odds, prob, ev, fid, league)
+                    log_ai_bet(
+                        f"{home} vs {away}",
+                        m_type,
+                        sel_name,
+                        odds,
+                        prob,
+                        ev,
+                        fid,
+                        league,
+                    )
+
+                    # Arena autopilot handles real-bet notifications (one push per placed order)
 
         item = {
             "fixture_id": fid,
@@ -2962,17 +4020,36 @@ def update_dashboard_json(fixtures, results_cache):
     if settings.get("show_live_matches", True):
         try:
             from src.live_matches import get_live_matches
+
             def _nm(s):
                 return "".join(c for c in (s or "").lower() if c.isalnum())
-            existing = {_nm(d.get("match", "")) for d in dashboard_data}
+
+            # Map normalised name → index so we can update existing cards in-place.
+            existing = {
+                _nm(d.get("match", "")): i for i, d in enumerate(dashboard_data)
+            }
             added = 0
+            updated = 0
             for lm in get_live_matches():
-                if _nm(lm["match"]) not in existing:
+                key = _nm(lm["match"])
+                if key not in existing:
                     dashboard_data.append(lm)
-                    existing.add(_nm(lm["match"]))
+                    existing[key] = len(dashboard_data) - 1
                     added += 1
-            if added:
-                print(f"[LIVE] Injected {added} in-play match(es) into the dashboard.")
+                else:
+                    # Patch live score + status onto the existing prediction card so
+                    # the score refreshes automatically when a pre-match card goes live.
+                    d = dashboard_data[existing[key]]
+                    if not d.get("fixture"):
+                        d["fixture"] = {}
+                    lf = lm.get("fixture", {})
+                    d["fixture"]["home_score"] = lf.get("home_score")
+                    d["fixture"]["away_score"] = lf.get("away_score")
+                    if lm.get("status_code"):
+                        d["status_code"] = lm["status_code"]
+                    updated += 1
+            if added or updated:
+                print(f"[LIVE] {added} new, {updated} score-updated in-play match(es).")
         except Exception as e:
             print("[LIVE] inject failed:", e)
 
@@ -2980,6 +4057,8 @@ def update_dashboard_json(fixtures, results_cache):
         os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8"
     ) as f:
         json.dump(dashboard_data, f, indent=4)
+
+    # Notifications handled by Arena autopilot (one push per placed bet, not per cycle)
 
 
 def refresh_completed_comparisons():
@@ -3035,8 +4114,14 @@ def refresh_completed_comparisons():
                                 "fixture": {
                                     "id": e["id"],
                                     "status": {"short": status_code},
-                                    "home_score": e.get("homeScore", {}).get("normaltime", e.get("homeScore", {}).get("current")),
-                                    "away_score": e.get("awayScore", {}).get("normaltime", e.get("awayScore", {}).get("current")),
+                                    "home_score": e.get("homeScore", {}).get(
+                                        "normaltime",
+                                        e.get("homeScore", {}).get("current"),
+                                    ),
+                                    "away_score": e.get("awayScore", {}).get(
+                                        "normaltime",
+                                        e.get("awayScore", {}).get("current"),
+                                    ),
                                 },
                                 "league": {"name": e["tournament"]["name"]},
                                 "teams": {
@@ -3177,7 +4262,8 @@ def refresh_completed_comparisons():
 
 def _stair_api_key():
     """Resolve the STAIR-AI key resiliently: env first, else read .env directly.
-    (.env is NOT loaded into os.environ at daemon-thread startup, so env alone is empty.)"""
+    (.env is NOT loaded into os.environ at daemon-thread startup, so env alone is empty.)
+    """
     k = os.getenv("STAIR_AI_API_KEY")
     if k and k.strip():
         return k.strip()
@@ -3242,6 +4328,7 @@ def init_stair_ai_agent():
 
 def run_daemon():
     print("[*] Starting Smart Live Predictions Daemon...")
+    _init_signal_registry()
     init_stair_ai_agent()
 
     # Initialize new DeepFieldPro institutional modules
@@ -3250,12 +4337,16 @@ def run_daemon():
     try:
         player_model = joblib.load(os.path.join(MODELS_DIR, "player_impact_model.pkl"))
     except Exception as e:
-        print(f"[!] Failed to load player_impact_model.pkl: {e}. Continuing without it.")
+        print(
+            f"[!] Failed to load player_impact_model.pkl: {e}. Continuing without it."
+        )
         player_model = None
     try:
         match_model = joblib.load(os.path.join(MODELS_DIR, "bottom_up_match_model.pkl"))
     except Exception as e:
-        print(f"[!] Failed to load bottom_up_match_model.pkl: {e}. Continuing without it.")
+        print(
+            f"[!] Failed to load bottom_up_match_model.pkl: {e}. Continuing without it."
+        )
         match_model = None
     df = load_player_database()
     initialize_caches(df)
@@ -3265,10 +4356,6 @@ def run_daemon():
     #  - closing-line capture: true pre-kickoff prices for open bets (honest CLV)
     #  - sharp snapshots: Pinnacle line history for sharp-steam + lagging-value
     start_closing_capture()
-    try:
-        sharp_edge.start_sharp_snapshots()
-    except Exception as _sse:
-        print(f"[!] Sharp snapshot thread not started: {_sse}")
 
     # Run initial settlement on startup (may be slow — network result fetch).
     settle_open_bets()
@@ -3283,9 +4370,13 @@ def run_daemon():
 
             global _scraper_proc
             if _scraper_proc is not None and _scraper_proc.poll() is None:
-                print("[SCRAPER] Previous Betarabia scrape still running; skipping (no stacking).")
+                print(
+                    "[SCRAPER] Previous Betarabia scrape still running; skipping (no stacking)."
+                )
             else:
-                scraper_path = os.path.join(os.path.dirname(__file__), "betarabia_scraper.py")
+                scraper_path = os.path.join(
+                    os.path.dirname(__file__), "betarabia_scraper.py"
+                )
                 _scraper_proc = subprocess.Popen(
                     [sys.executable, scraper_path], close_fds=True
                 )
@@ -3312,27 +4403,32 @@ def run_daemon():
         fixtures = get_todays_fixtures()
         if not fixtures:
             # Fallback to Betarabia matches
-            print("[!] Sofascore fixtures empty! Falling back to Betarabia dummy fixtures...")
+            print(
+                "[!] Sofascore fixtures empty! Falling back to Betarabia dummy fixtures..."
+            )
             try:
                 import hashlib
+
                 b_odds, _ = fetch_betarabia_odds()
                 for b_name, b_info in b_odds.items():
-                    if ' vs ' in b_name:
-                        h, a = b_name.split(' vs ', 1)
-                        fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
+                    if " vs " in b_name:
+                        h, a = b_name.split(" vs ", 1)
+                        fid = (
+                            int(hashlib.md5(b_name.encode()).hexdigest(), 16)
+                            % 100000000
+                        )
                         info = b_info or {}
-                        fixtures.append({
-                            "fixture": {
-                                "id": fid,
-                                "date": info.get("kickoff") or now_utc.isoformat(),
-                                "status": {"short": info.get("status") or "NS"}
-                            },
-                            "teams": {
-                                "home": {"name": h},
-                                "away": {"name": a}
-                            },
-                            "league": {"name": info.get("league") or "Betarabia"}
-                        })
+                        fixtures.append(
+                            {
+                                "fixture": {
+                                    "id": fid,
+                                    "date": info.get("kickoff") or now_utc.isoformat(),
+                                    "status": {"short": info.get("status") or "NS"},
+                                },
+                                "teams": {"home": {"name": h}, "away": {"name": a}},
+                                "league": {"name": info.get("league") or "Betarabia"},
+                            }
+                        )
                 print(f"[!] Rebuilt {len(fixtures)} dummy fixtures from Betarabia.")
             except Exception as e:
                 print(f"[!] Fallback to Betarabia failed: {e}")
@@ -3389,6 +4485,24 @@ def run_daemon():
             except Exception as e:
                 print("Failed to run official lineup fetcher:", e)
 
+        # Pre-fetch Pinnacle 1X2 data once per loop so every predict_match()
+        # call gets real market probs for LightGBM (top features: mkt_d_prob,
+        # mkt_a_prob). Without this they defaulted to 1/3 — ignoring the market.
+        _pinn_data = {}
+        if _ODDS_AGG and _get_pinnacle_probs:
+            try:
+                from src.sharp_scraper import fetch_pinnacle_1x2 as _fp
+
+                _pinn_data = _fp()
+            except Exception:
+                pass
+
+        def _mkt_probs_for(home_name, away_name):
+            """Look up de-vigged Pinnacle probs for a fixture (None if not found)."""
+            if not _ODDS_AGG or not _get_pinnacle_probs:
+                return None
+            return _get_pinnacle_probs(home_name, away_name)
+
         # Predict fixtures
         for f in fixtures:
             fid = f["fixture"]["id"]
@@ -3410,14 +4524,18 @@ def run_daemon():
             except Exception:
                 time_to_kickoff = 999
 
+            _h_name = f["teams"]["home"]["name"]
+            _a_name = f["teams"]["away"]["name"]
+            _mkt_p = _mkt_probs_for(_h_name, _a_name)
+
             # Lineups window check
             if 0 < time_to_kickoff <= 45:
                 lineups = batch_lineups.get(fid, [])
                 if len(lineups) == 2 and len(lineups[0].get("startXI", [])) == 11:
-                    print(
-                        f"[!] Official lineup confirmed for: {f['teams']['home']['name']} vs {f['teams']['away']['name']}!"
+                    print(f"[!] Official lineup confirmed for: {_h_name} vs {_a_name}!")
+                    res = predict_match(
+                        f, lineups, player_model, match_model, df, mkt_probs=_mkt_p
                     )
-                    res = predict_match(f, lineups, player_model, match_model, df)
                     log_prediction_to_db(res, has_lineup=True)
                     new_lineup_found = True
                 else:
@@ -3425,25 +4543,32 @@ def run_daemon():
                     # Fallback to estimated prediction if not already in DB
                     if fid not in db_preds:
                         print(
-                            f"    -> Generating estimated prediction for T-45m match: {f['teams']['home']['name']} vs {f['teams']['away']['name']}"
+                            f"    -> Generating estimated prediction for T-45m match: {_h_name} vs {_a_name}"
                         )
-                        home_xi = get_predicted_lineup(f["teams"]["home"]["name"], df)
-                        away_xi = get_predicted_lineup(f["teams"]["away"]["name"], df)
+                        home_xi = get_predicted_lineup(_h_name, df)
+                        away_xi = get_predicted_lineup(_a_name, df)
                         est_lineups = [{"startXI": home_xi}, {"startXI": away_xi}]
                         res = predict_match(
-                            f, est_lineups, player_model, match_model, df
+                            f,
+                            est_lineups,
+                            player_model,
+                            match_model,
+                            df,
+                            mkt_probs=_mkt_p,
                         )
                         log_prediction_to_db(res, has_lineup=False)
             elif time_to_kickoff > 45:
                 # Kickoff is further away, generate estimated prediction if not already in DB
                 if fid not in db_preds:
                     print(
-                        f"    -> Generating estimated prediction for upcoming match: {f['teams']['home']['name']} vs {f['teams']['away']['name']}"
+                        f"    -> Generating estimated prediction for upcoming match: {_h_name} vs {_a_name}"
                     )
-                    home_xi = get_predicted_lineup(f["teams"]["home"]["name"], df)
-                    away_xi = get_predicted_lineup(f["teams"]["away"]["name"], df)
+                    home_xi = get_predicted_lineup(_h_name, df)
+                    away_xi = get_predicted_lineup(_a_name, df)
                     est_lineups = [{"startXI": home_xi}, {"startXI": away_xi}]
-                    res = predict_match(f, est_lineups, player_model, match_model, df)
+                    res = predict_match(
+                        f, est_lineups, player_model, match_model, df, mkt_probs=_mkt_p
+                    )
                     log_prediction_to_db(res, has_lineup=False)
 
         # Always update dashboard JSON to keep odds and recommendations fresh!
@@ -3455,7 +4580,7 @@ def run_daemon():
             print("[+] Artifact updated with latest confirmed lineups.")
 
         update_dashboard_json(fixtures, [])
-        
+
         # 4. Smart Parlays DISABLED (2026-06-15). Parlays compound per-leg edge, and the
         #    project has no proven +EV single bet (1X2 has no edge, props are -EV), so every
         #    parlay is structurally more -EV than its legs. Live record was 22% hit / ~-31% ROI,
@@ -3471,16 +4596,22 @@ def run_daemon():
         try:
             # Steam Move Alerts Disabled by User Request
             # Lineup Sniper Disabled by User Request
-            
+
             # Daily Audit (Run at 23:55)
             now = datetime.datetime.now()
             if now.hour == 23 and now.minute >= 55:
                 from src.services.daily_audit import run_daily_audit
+
                 # Only run once per night
-                if not os.path.exists(os.path.join(DATA_DIR, f"audit_{now.date()}.done")):
+                if not os.path.exists(
+                    os.path.join(DATA_DIR, f"audit_{now.date()}.done")
+                ):
                     run_daily_audit()
-                    with open(os.path.join(DATA_DIR, f"audit_{now.date()}.done"), "w") as f: f.write("done")
-                    
+                    with open(
+                        os.path.join(DATA_DIR, f"audit_{now.date()}.done"), "w"
+                    ) as f:
+                        f.write("done")
+
         except Exception as e:
             print(f"[MONITORING ERROR] {e}")
 

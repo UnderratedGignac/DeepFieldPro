@@ -3,7 +3,8 @@ import pandas as pd
 import os
 import re
 
-MODEL_PATH = 'models/lineup_model.txt'
+MODEL_PATH = "models/lineup_model.txt"
+
 
 class LineupPredictor:
     def __init__(self):
@@ -18,13 +19,14 @@ class LineupPredictor:
         player_features: dict matching feature names
         """
         if not self.model:
-            return 0.5 # Fallback
-            
+            return 0.5  # Fallback
+
         # Ensure features match what model was trained on
         feature_names = self.model.feature_name()
         input_data = [player_features.get(f, 0) for f in feature_names]
-        
+
         prob = self.model.predict([input_data])[0]
         return prob
+
 
 lineup_predictor = LineupPredictor()

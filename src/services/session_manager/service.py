@@ -56,9 +56,13 @@ class SessionMetrics:
     websocket_disconnects: int = 0
     captcha_events: int = 0
     avg_response_latency_ms: float = 0.0
-    created_at: datetime = field(default_factory=lambda: datetime.now(datetime.timezone.utc))
+    created_at: datetime = field(
+        default_factory=lambda: datetime.now(datetime.timezone.utc)
+    )
 
-    last_health_check: datetime = field(default_factory=lambda: datetime.now(datetime.timezone.utc))
+    last_health_check: datetime = field(
+        default_factory=lambda: datetime.now(datetime.timezone.utc)
+    )
 
 
 class SessionManager:

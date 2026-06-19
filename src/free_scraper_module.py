@@ -8,7 +8,7 @@ from seleniumbase import SB  # still used by lineup / stats helpers below
 
 _UA = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Accept": "application/json",
 }
 
@@ -17,26 +17,105 @@ _ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 # Same league coverage as free_results_scraper — over-listing is harmless (unknown slugs
 # return 0 events). Remove usa.nwsl (women's) since we only want men's fixtures.
 _ESPN_LEAGUES = [
-    "eng.1", "eng.2", "eng.3", "eng.4", "eng.fa", "eng.league_cup",
-    "esp.1", "esp.2", "esp.copa_del_rey",
-    "ita.1", "ita.2", "ita.coppa_italia",
-    "ger.1", "ger.2", "ger.dfb_pokal",
-    "fra.1", "fra.2", "fra.coupe_de_france",
-    "ned.1", "ned.2", "por.1", "por.2",
-    "sco.1", "sco.2", "sui.1", "aut.1", "bel.1", "gre.1", "tur.1", "rus.1",
-    "ukr.1", "den.1", "nor.1", "swe.1", "pol.1", "cze.1", "cro.1", "rou.1",
-    "srb.1", "hun.1", "bul.1", "svk.1", "slv.1", "isr.1", "cyp.1", "fin.1",
-    "usa.1", "usa.usl.1", "mex.1", "mex.2",
-    "bra.1", "bra.2", "arg.1", "arg.2", "chi.1", "col.1", "uru.1", "per.1",
-    "ecu.1", "par.1", "ven.1", "bol.1", "crc.1", "gua.1", "hon.1",
-    "jpn.1", "kor.1", "chn.1", "aus.1", "ksa.1", "qat.1", "are.1", "ind.1",
-    "idn.1", "tha.1", "mys.1", "rsa.1", "egy.1", "mar.1", "nga.1", "tun.1",
-    "fifa.world", "fifa.friendly", "fifa.cwc",
-    "uefa.champions", "uefa.europa", "uefa.europa.conf", "uefa.nations",
-    "conmebol.libertadores", "conmebol.sudamericana",
-    "concacaf.champions", "concacaf.league", "afc.champions", "caf.champions_league",
-    "fifa.worldq.conmebol", "fifa.worldq.uefa", "fifa.worldq.concacaf",
-    "fifa.worldq.afc", "fifa.worldq.caf",
+    "eng.1",
+    "eng.2",
+    "eng.3",
+    "eng.4",
+    "eng.fa",
+    "eng.league_cup",
+    "esp.1",
+    "esp.2",
+    "esp.copa_del_rey",
+    "ita.1",
+    "ita.2",
+    "ita.coppa_italia",
+    "ger.1",
+    "ger.2",
+    "ger.dfb_pokal",
+    "fra.1",
+    "fra.2",
+    "fra.coupe_de_france",
+    "ned.1",
+    "ned.2",
+    "por.1",
+    "por.2",
+    "sco.1",
+    "sco.2",
+    "sui.1",
+    "aut.1",
+    "bel.1",
+    "gre.1",
+    "tur.1",
+    "rus.1",
+    "ukr.1",
+    "den.1",
+    "nor.1",
+    "swe.1",
+    "pol.1",
+    "cze.1",
+    "cro.1",
+    "rou.1",
+    "srb.1",
+    "hun.1",
+    "bul.1",
+    "svk.1",
+    "slv.1",
+    "isr.1",
+    "cyp.1",
+    "fin.1",
+    "usa.1",
+    "usa.usl.1",
+    "mex.1",
+    "mex.2",
+    "bra.1",
+    "bra.2",
+    "arg.1",
+    "arg.2",
+    "chi.1",
+    "col.1",
+    "uru.1",
+    "per.1",
+    "ecu.1",
+    "par.1",
+    "ven.1",
+    "bol.1",
+    "crc.1",
+    "gua.1",
+    "hon.1",
+    "jpn.1",
+    "kor.1",
+    "chn.1",
+    "aus.1",
+    "ksa.1",
+    "qat.1",
+    "are.1",
+    "ind.1",
+    "idn.1",
+    "tha.1",
+    "mys.1",
+    "rsa.1",
+    "egy.1",
+    "mar.1",
+    "nga.1",
+    "tun.1",
+    "fifa.world",
+    "fifa.friendly",
+    "fifa.cwc",
+    "uefa.champions",
+    "uefa.europa",
+    "uefa.europa.conf",
+    "uefa.nations",
+    "conmebol.libertadores",
+    "conmebol.sudamericana",
+    "concacaf.champions",
+    "concacaf.league",
+    "afc.champions",
+    "caf.champions_league",
+    "fifa.worldq.conmebol",
+    "fifa.worldq.uefa",
+    "fifa.worldq.concacaf",
+    "fifa.worldq.afc",
+    "fifa.worldq.caf",
 ]
 
 # Cache ESPN results for 5 minutes — the daemon loops every ~30s but fixtures
@@ -71,13 +150,16 @@ def _espn_fixtures_today():
             if r.status_code != 200:
                 continue
             data = r.json()
-            league_name = ((data.get("leagues") or [{}])[0].get("name") or lg)
+            league_name = (data.get("leagues") or [{}])[0].get("name") or lg
 
             # Skip women's leagues that sneak through
-            if any(kw in league_name.lower() for kw in ("women", "female", "feminin", "nwsl")):
+            if any(
+                kw in league_name.lower()
+                for kw in ("women", "female", "feminin", "nwsl")
+            ):
                 continue
 
-            for e in (data.get("events") or []):
+            for e in data.get("events") or []:
                 comp = (e.get("competitions") or [{}])[0]
                 cs = comp.get("competitors") or []
                 if len(cs) != 2:
@@ -115,35 +197,47 @@ def _espn_fixtures_today():
                     hs, as_ = None, None
                 else:
                     try:
-                        hs = int(home["score"]) if home.get("score") not in (None, "") else None
+                        hs = (
+                            int(home["score"])
+                            if home.get("score") not in (None, "")
+                            else None
+                        )
                     except (TypeError, ValueError):
                         hs = None
                     try:
-                        as_ = int(away["score"]) if away.get("score") not in (None, "") else None
+                        as_ = (
+                            int(away["score"])
+                            if away.get("score") not in (None, "")
+                            else None
+                        )
                     except (TypeError, ValueError):
                         as_ = None
 
-                kickoff_iso = comp.get("date") or e.get("date") or today_str + "T00:00:00+00:00"
+                kickoff_iso = (
+                    comp.get("date") or e.get("date") or today_str + "T00:00:00+00:00"
+                )
 
                 try:
                     fid = int(e.get("id", 0))
                 except (TypeError, ValueError):
                     fid = int(hashlib.md5(key.encode()).hexdigest(), 16) % 100000000
 
-                fixtures.append({
-                    "fixture": {
-                        "id": fid,
-                        "date": kickoff_iso,
-                        "status": {"short": status_short},
-                        "home_score": hs,
-                        "away_score": as_,
-                    },
-                    "league": {"name": league_name},
-                    "teams": {
-                        "home": {"name": hn},
-                        "away": {"name": an},
-                    },
-                })
+                fixtures.append(
+                    {
+                        "fixture": {
+                            "id": fid,
+                            "date": kickoff_iso,
+                            "status": {"short": status_short},
+                            "home_score": hs,
+                            "away_score": as_,
+                        },
+                        "league": {"name": league_name},
+                        "teams": {
+                            "home": {"name": hn},
+                            "away": {"name": an},
+                        },
+                    }
+                )
         except Exception:
             continue
 
@@ -157,6 +251,7 @@ def _betarabia_fixture_fallback():
     Has real kickoff times and league names from the scraper, but no live scores.
     """
     from src.live_predictions_daemon import fetch_betarabia_odds
+
     fixtures = []
     try:
         b_odds, _ = fetch_betarabia_odds()
@@ -165,20 +260,23 @@ def _betarabia_fixture_fallback():
                 h, a = b_name.split(" vs ", 1)
                 fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
                 info = b_info or {}
-                fixtures.append({
-                    "fixture": {
-                        "id": fid,
-                        "date": info.get("kickoff") or datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                        "status": {"short": info.get("status") or "NS"},
-                        "home_score": None,
-                        "away_score": None,
-                    },
-                    "league": {"name": info.get("league") or "Betarabia"},
-                    "teams": {
-                        "home": {"name": h},
-                        "away": {"name": a},
-                    },
-                })
+                fixtures.append(
+                    {
+                        "fixture": {
+                            "id": fid,
+                            "date": info.get("kickoff")
+                            or datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "status": {"short": info.get("status") or "NS"},
+                            "home_score": None,
+                            "away_score": None,
+                        },
+                        "league": {"name": info.get("league") or "Betarabia"},
+                        "teams": {
+                            "home": {"name": h},
+                            "away": {"name": a},
+                        },
+                    }
+                )
     except Exception as ex:
         print(f"[!] Betarabia fallback failed: {ex}")
     return fixtures
@@ -235,6 +333,7 @@ def get_todays_fixtures_free():
 # fetched on-demand before kickoff, not in the hot loop, so occasional failures
 # are acceptable). These are unchanged.
 # ---------------------------------------------------------------------------
+
 
 def get_fixture_lineups_free(fixture_id):
     url = f"https://api.sofascore.com/api/v1/event/{fixture_id}/lineups"

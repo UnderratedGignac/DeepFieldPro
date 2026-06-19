@@ -16,14 +16,19 @@ Public API:
     fetch_kambi_1x2() -> { 'Home vs Away': {home,draw,away,home_team,away_team,start,starts_ts,league} }
 Cached (90s).
 """
+
 import time
 import datetime
 import requests
 
-_URL = ("https://eu-offering-api.kambicdn.com/offering/v2018/ub/listView/football.json"
-        "?lang=en_GB&market=GB")
-_H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0 Safari/537.36",
-      "Accept": "application/json"}
+_URL = (
+    "https://eu-offering-api.kambicdn.com/offering/v2018/ub/listView/football.json"
+    "?lang=en_GB&market=GB"
+)
+_H = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0 Safari/537.36",
+    "Accept": "application/json",
+}
 _cache = {"ts": 0.0, "data": {}}
 _TTL = 90
 
@@ -31,7 +36,8 @@ _TTL = 90
 def _starts_ts(iso):
     try:
         return datetime.datetime.fromisoformat(
-            str(iso).replace("Z", "+00:00")).timestamp()
+            str(iso).replace("Z", "+00:00")
+        ).timestamp()
     except Exception:
         return None
 
@@ -56,7 +62,10 @@ def fetch_kambi_1x2():
         # Skip eSports / virtual football (FIFA player names in parens, "Esports"/"Cyber"
         # leagues) — not real matches, would pollute line-shopping.
         league_l = (e.get("group") or "").lower()
-        if any(t in league_l for t in ("esport", "cyber", "battle", "2x4", "2x5", "2x6", "virtual")):
+        if any(
+            t in league_l
+            for t in ("esport", "cyber", "battle", "2x4", "2x5", "2x6", "virtual")
+        ):
             continue
         if "(" in home and ")" in home:  # "Real Madrid (player)" = esports
             continue
@@ -79,9 +88,13 @@ def fetch_kambi_1x2():
             break
         if "home" in prices and "away" in prices:
             out[f"{home} vs {away}"] = {
-                "home": prices.get("home"), "draw": prices.get("draw"),
-                "away": prices.get("away"), "home_team": home, "away_team": away,
-                "start": e.get("start"), "starts_ts": _starts_ts(e.get("start")),
+                "home": prices.get("home"),
+                "draw": prices.get("draw"),
+                "away": prices.get("away"),
+                "home_team": home,
+                "away_team": away,
+                "start": e.get("start"),
+                "starts_ts": _starts_ts(e.get("start")),
                 "league": (e.get("group") or ""),
             }
     _cache["ts"] = time.time()
@@ -91,6 +104,7 @@ def fetch_kambi_1x2():
 
 if __name__ == "__main__":
     import io, sys
+
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
     d = fetch_kambi_1x2()
     print(f"Kambi 1X2 markets: {len(d)}")

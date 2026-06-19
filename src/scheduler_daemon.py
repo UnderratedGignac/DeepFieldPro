@@ -148,7 +148,9 @@ class PipelineDaemon:
         # Weekly Recalibration Job
         self.scheduler.add_job(
             self.recalibrate_platt_scaler,
-            CronTrigger(day_of_week='sun', hour=3, minute=0),  # Every Sunday at 03:00 UTC
+            CronTrigger(
+                day_of_week="sun", hour=3, minute=0
+            ),  # Every Sunday at 03:00 UTC
             id="platt_recalibration",
             replace_existing=True,
         )

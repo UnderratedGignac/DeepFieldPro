@@ -27,7 +27,9 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "bankroll.db")
 STARTING_BANKROLL = 300.0  # Your initial capital
 # Real circuit-breakers (were 1.0 = disabled). Survival lets a small edge compound;
 # a noisy/over-estimated edge can't run the bankroll to zero before halting.
-MAX_DAILY_EXPOSURE_PCT = 0.50  # daily VOLUME cap (cumulative stakes); daily stop-loss is the real brake
+MAX_DAILY_EXPOSURE_PCT = (
+    0.50  # daily VOLUME cap (cumulative stakes); daily stop-loss is the real brake
+)
 MAX_DRAWDOWN_PCT = 0.30  # halt globally at -30% from peak
 DAILY_STOP_LOSS_PCT = 0.10  # halt for the day at -10% of today's start
 
@@ -95,10 +97,9 @@ def get_status():
     conn.close()
 
     if not row:
-        return {
-            "status": "HALT",
-            "reason": "DB not initialized. Run init_bankroll_db() first.",
-        }
+        conn.close()
+        init_bankroll_db()
+        return get_status()  # retry once after auto-init
 
     current_balance, daily_exposure, system_status, peak_balance, starting_balance = row
     return {
@@ -127,11 +128,9 @@ def register_bet(stake):
     row = cursor.fetchone()
 
     if not row:
-        print(
-            "ERROR: Bankroll not initialized for today. Call init_bankroll_db() first."
-        )
         conn.close()
-        return False
+        init_bankroll_db()
+        return register_bet(stake)  # retry once after auto-init
 
     current_balance, daily_exposure, system_status, starting_balance = row
 
@@ -192,9 +191,9 @@ def register_settlement(payout, pnl):
     )
     row = cursor.fetchone()
     if not row:
-        print("ERROR: No bankroll record for today.")
         conn.close()
-        return
+        init_bankroll_db()
+        return register_settlement(payout, pnl)  # retry once after auto-init
 
     current_balance, daily_pnl, peak_balance, starting_balance = row
 
@@ -212,7 +211,10 @@ def register_settlement(payout, pnl):
         status = "HALT"
 
     # Check daily stop-loss
-    if new_daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT) and starting_balance > 0:
+    if (
+        new_daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT)
+        and starting_balance > 0
+    ):
         print(
             f"🛑 CRITICAL: Daily stop-loss hit (${new_daily_pnl:.2f}). "
             f"Halting bets for the rest of today."

@@ -2,6 +2,7 @@
 bet_gatekeeper.py — BetGatekeeperAgent
 Applies EV filter, conviction cap, and fractional-Kelly sizing.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

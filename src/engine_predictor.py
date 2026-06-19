@@ -153,23 +153,21 @@ def load_dataset():
 
 def load_models():
     """Load regime-specific ensemble models."""
-    models = {
-        'club': {},
-        'international': {}
-    }
+    models = {"club": {}, "international": {}}
     for t in TARGETS:
         # Load Club
         path_club = os.path.join(MODEL_DIR, f"lgbm_{t}_club_v2.pkl")
         if os.path.exists(path_club):
-            with open(path_club, 'rb') as f:
-                models['club'][t] = pickle.load(f)
-        
+            with open(path_club, "rb") as f:
+                models["club"][t] = pickle.load(f)
+
         # Load International
         path_int = os.path.join(MODEL_DIR, f"lgbm_{t}_int_v2.pkl")
         if os.path.exists(path_int):
-            with open(path_int, 'rb') as f:
-                models['international'][t] = pickle.load(f)
+            with open(path_int, "rb") as f:
+                models["international"][t] = pickle.load(f)
     return models
+
 
 def get_todays_fixtures(target_date: str) -> list[dict]:
     """Fetch fixtures from API-Football for the given date that have DB coverage."""
