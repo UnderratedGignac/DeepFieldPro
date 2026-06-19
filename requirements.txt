@@ -2,6 +2,7 @@ aiohttp
 python-dotenv
 pandas
 requests
+openai
 schedule
 betfairlightweight
 websockets
