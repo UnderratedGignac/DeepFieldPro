@@ -773,6 +773,12 @@
             <a class="nav-item" onclick="switchView('edge-view', this)">
                 <i class="fa-solid fa-fire"></i> Edge Report
             </a>
+            <a class="nav-item" onclick="switchView('clv-view', this); loadClv();">
+                <i class="fa-solid fa-microscope"></i> CLV Intelligence
+            </a>
+            <a class="nav-item" onclick="switchView('research-view', this); loadResearch();">
+                <i class="fa-solid fa-flask-vial"></i> Research Ops
+            </a>
             <a class="nav-item" onclick="switchView('arena-view', this)">
                 <i class="fa-solid fa-futbol"></i> World Cup Arena
             </a>
@@ -1105,6 +1111,332 @@
             </div>
         </div>
 
+        <!-- CLV INTELLIGENCE VIEW -->
+        <div id="clv-view" class="view-section">
+            <div style="display:grid; gap:24px;">
+
+                <!-- Row 1: four headline cards -->
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:20px;">
+
+                    <!-- Research Confidence -->
+                    <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:28px;text-align:center;">
+                        <div style="color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Research Confidence</div>
+                        <div id="clv-confidence-ring" style="position:relative;width:110px;height:110px;margin:0 auto 14px;">
+                            <svg viewBox="0 0 110 110" style="width:110px;height:110px;transform:rotate(-90deg);">
+                                <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+                                <circle id="clv-ring-arc" cx="55" cy="55" r="46" fill="none" stroke="var(--primary)" stroke-width="10"
+                                    stroke-dasharray="289 289" stroke-dashoffset="289" stroke-linecap="round"
+                                    style="transition:stroke-dashoffset 1s ease;"/>
+                            </svg>
+                            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                                <span id="clv-conf-pct" style="font-size:1.5rem;font-weight:700;color:var(--primary);">0%</span>
+                            </div>
+                        </div>
+                        <div id="clv-conf-label" style="color:var(--text-muted);font-size:0.8rem;">— bets recorded</div>
+                        <div style="margin-top:12px;font-size:0.72rem;color:var(--text-muted);opacity:0.6;">Reaches 80% at 300 bets · 95% at 500</div>
+                    </div>
+
+                    <!-- CLV Signal -->
+                    <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:28px;text-align:center;">
+                        <div style="color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Avg Closing-Line Value</div>
+                        <div id="clv-big-number" style="font-size:3rem;font-weight:800;color:var(--primary);line-height:1.1;margin-bottom:4px;">—</div>
+                        <div id="clv-ci-badge" style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;min-height:18px;"></div>
+                        <div id="clv-clv-n" style="color:var(--text-muted);font-size:0.78rem;margin-bottom:14px;">— bets with closing odds</div>
+                        <div id="clv-verdict-badge" style="display:inline-block;padding:5px 14px;border-radius:20px;font-size:0.78rem;font-weight:600;background:rgba(255,255,255,0.06);color:var(--text-muted);">Loading…</div>
+                        <div style="margin-top:14px;font-size:0.72rem;color:var(--text-muted);opacity:0.6;">Positive CLV = beating the closing line = real edge</div>
+                    </div>
+
+                    <!-- Sample milestones -->
+                    <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:28px;">
+                        <div style="color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Milestone Progress</div>
+                        <div id="clv-milestones" style="display:flex;flex-direction:column;gap:10px;"></div>
+                    </div>
+
+                    <!-- Research Health Score -->
+                    <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:28px;text-align:center;">
+                        <div style="color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Research Health</div>
+                        <div id="health-score-ring" style="position:relative;width:110px;height:110px;margin:0 auto 14px;">
+                            <svg viewBox="0 0 100 100" style="width:110px;height:110px;transform:rotate(-90deg);">
+                                <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="8"/>
+                                <circle id="health-ring-arc" cx="50" cy="50" r="46" fill="none" stroke="#00ff88"
+                                        stroke-width="8" stroke-linecap="round"
+                                        stroke-dasharray="289" stroke-dashoffset="289"
+                                        style="transition:stroke-dashoffset 1.2s ease,stroke 0.4s ease;"/>
+                            </svg>
+                            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                                <span id="health-score-pct" style="font-size:1.5rem;font-weight:800;color:var(--primary);">—</span>
+                                <span style="font-size:0.62rem;color:var(--text-muted);">/ 100</span>
+                            </div>
+                        </div>
+                        <div id="health-score-label" style="color:var(--text-muted);font-size:0.78rem;margin-bottom:6px;">—</div>
+                        <div id="health-score-breakdown" style="font-size:0.72rem;color:var(--text-muted);opacity:0.65;text-align:left;margin-top:10px;"></div>
+                    </div>
+                </div>
+
+                <!-- Row 1.5: Regime / Rolling windows -->
+                <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                    <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-rotate"></i> Regime Detection — Rolling CLV Windows</h3>
+                    <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 16px;">If 7-day CLV is significantly below 30-day CLV, the edge may be decaying. A shrinking edge on shorter windows is an early warning sign.</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;" id="clv-rolling-grid">
+                        <div style="text-align:center;padding:16px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border-color);">
+                            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">7 DAYS</div>
+                            <div id="rolling-7d-clv" style="font-size:1.6rem;font-weight:800;color:var(--primary);">—</div>
+                            <div id="rolling-7d-n" style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">— bets</div>
+                            <div id="rolling-7d-status" style="font-size:0.68rem;margin-top:4px;"></div>
+                        </div>
+                        <div style="text-align:center;padding:16px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border-color);">
+                            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">30 DAYS</div>
+                            <div id="rolling-30d-clv" style="font-size:1.6rem;font-weight:800;color:var(--primary);">—</div>
+                            <div id="rolling-30d-n" style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">— bets</div>
+                            <div id="rolling-30d-status" style="font-size:0.68rem;margin-top:4px;"></div>
+                        </div>
+                        <div style="text-align:center;padding:16px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border-color);">
+                            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">90 DAYS</div>
+                            <div id="rolling-90d-clv" style="font-size:1.6rem;font-weight:800;color:var(--primary);">—</div>
+                            <div id="rolling-90d-n" style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">— bets</div>
+                            <div id="rolling-90d-status" style="font-size:0.68rem;margin-top:4px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: CLV by league + by move intensity -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+
+                    <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                        <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-flag"></i> CLV by League</h3>
+                        <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 16px;">Leagues with negative CLV ≥3 bets are blacklist candidates.</p>
+                        <table class="data-table" style="font-size:0.82rem;">
+                            <thead><tr><th>League</th><th>N</th><th>Avg CLV</th><th>ROI</th><th>Signal</th></tr></thead>
+                            <tbody id="clv-league-body"><tr><td colspan="5" style="text-align:center;">Loading…</td></tr></tbody>
+                        </table>
+                    </div>
+
+                    <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                        <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-wave-square"></i> CLV by Steam Intensity</h3>
+                        <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 16px;">Does a stronger line move mean more CLV?</p>
+                        <table class="data-table" style="font-size:0.82rem;">
+                            <thead><tr><th>Move bucket</th><th>N</th><th>Avg CLV</th><th>ROI</th><th>Hit%</th></tr></thead>
+                            <tbody id="clv-move-body"><tr><td colspan="5" style="text-align:center;">Loading…</td></tr></tbody>
+                        </table>
+                        <div style="margin-top:16px;padding:12px;background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.1);border-radius:10px;">
+                            <div style="color:var(--text-muted);font-size:0.75rem;">Backtested edge: ≥5% move → +20.9% ROI (2,386-bet held-out season)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Monotonicity breakdown + Signal decay -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+
+                    <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                        <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-arrow-trend-up"></i> CLV by Monotonicity</h3>
+                        <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 16px;">Does a cleaner (less choppy) steam move predict higher CLV? Requires bets placed after the CLV attribution upgrade.</p>
+                        <table class="data-table" style="font-size:0.82rem;">
+                            <thead><tr><th>Monotonicity</th><th>N</th><th>Avg CLV</th><th>Hit%</th></tr></thead>
+                            <tbody id="clv-mono-body"><tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Accumulating data…</td></tr></tbody>
+                        </table>
+                        <p style="color:var(--text-muted);font-size:0.72rem;margin-top:10px;opacity:0.65;">1.0 = perfectly directional move. 0.0 = spike-and-reverse. Only bets with new monotonicity field appear here.</p>
+                    </div>
+
+                    <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                        <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-hourglass-half"></i> Signal Decay</h3>
+                        <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 16px;">Is the STEAM edge holding? If the last-50 CLV is declining vs lifetime, the market may be adapting.</p>
+                        <table class="data-table" style="font-size:0.82rem;">
+                            <thead><tr><th>Window</th><th>N</th><th>Avg CLV</th><th>ROI</th><th>Status</th></tr></thead>
+                            <tbody id="clv-decay-body"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Loading…</td></tr></tbody>
+                        </table>
+                        <p style="color:var(--text-muted);font-size:0.72rem;margin-top:10px;opacity:0.65;">If "Last 50" CLV is significantly below "Lifetime", investigate whether the edge is degrading.</p>
+                    </div>
+                </div>
+
+                <!-- Row 3.5: CLV Attribution Scatter Plot -->
+                <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                    <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-circle-dot"></i> CLV Attribution: Move Size vs CLV</h3>
+                    <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 18px;">Each dot = one bet. X = steam move%, Y = CLV%. Bubble size = monotonicity score. Requires bets with CLV attribution (placed after 2026-06-19).</p>
+                    <div id="clv-scatter-chart" style="min-height:200px;"></div>
+                </div>
+
+                <!-- Row 4: Weekly CLV trend (SVG bar chart) -->
+                <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                    <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-chart-line"></i> CLV Trend</h3>
+                    <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 18px;">Weekly average CLV — watch for decay or improvement over time.</p>
+                    <div id="clv-trend-chart" style="min-height:120px;"></div>
+                </div>
+
+                <!-- Row 5: Signal discovery leaderboard -->
+                <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                    <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-flask"></i> Signal Leaderboard</h3>
+                    <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 4px;">Ranked by CLV from the last <code>signal_discovery.py</code> run. Auto-promotion: PROMOTE at ≥100 bets &amp; CLV ≥ 3%, DISABLE at CLV &lt; 0%.</p>
+                    <p style="color:var(--text-muted);font-size:0.72rem;margin:0 0 16px;opacity:0.6;">STRONG = avg CLV ≥ 5% &nbsp;·&nbsp; WATCH = 0–5% &nbsp;·&nbsp; DEAD = negative CLV</p>
+                    <table class="data-table" style="font-size:0.82rem;">
+                        <thead><tr><th>Signal</th><th>Matches</th><th>Hit%</th><th>Avg CLV</th><th>Status</th><th>Auto</th></tr></thead>
+                        <tbody id="clv-signals-body"><tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Run <code>python tools/signal_discovery.py</code> to populate</td></tr></tbody>
+                    </table>
+                </div>
+
+                <!-- Row 6: Signal Registry Control Panel -->
+                <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:16px;padding:25px;">
+                    <h3 style="color:var(--primary);margin:0 0 4px;font-size:1.05rem;"><i class="fa-solid fa-sliders"></i> Signal Registry</h3>
+                    <p style="color:var(--text-muted);font-size:0.78rem;margin:0 0 16px;">Live switch for each signal. Disabled signals still appear in leaderboard but generate no paper bets. Toggling takes effect on the next daemon cycle (60s cache).</p>
+                    <table class="data-table" style="font-size:0.82rem;">
+                        <thead><tr><th>Signal</th><th>Enabled</th><th>Promoted</th><th>Last Updated</th><th>Action</th></tr></thead>
+                        <tbody id="signal-registry-body"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Loading…</td></tr></tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- REPLAY EXPLORER MODAL -->
+        <div id="replay-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;">
+            <div style="background:var(--surface-color);border:1px solid var(--border-color);border-radius:20px;padding:32px;max-width:780px;width:90%;max-height:85vh;overflow-y:auto;position:relative;">
+                <button onclick="closeReplay()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.06);border:1px solid var(--border-color);color:var(--text-muted);border-radius:8px;padding:4px 12px;cursor:pointer;font-size:0.85rem;">&#x2715; Close</button>
+                <h3 id="replay-title" style="color:var(--primary);margin:0 0 6px;font-size:1.1rem;"><i class="fa-solid fa-play"></i> Bet Replay</h3>
+                <p id="replay-subtitle" style="color:var(--text-muted);font-size:0.8rem;margin:0 0 20px;"></p>
+                <!-- Bet metadata -->
+                <div id="replay-meta" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;"></div>
+                <!-- Odds timeline -->
+                <div style="color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Odds Evolution</div>
+                <div id="replay-timeline-chart" style="min-height:140px;margin-bottom:16px;"></div>
+                <div id="replay-prob-chart" style="min-height:100px;margin-bottom:16px;"></div>
+                <p style="color:var(--text-muted);font-size:0.72rem;opacity:0.65;margin:0;">Note: CLV matters more than outcome. A losing bet with positive CLV was still a good bet. A winning bet with negative CLV was still a bad process.</p>
+            </div>
+        </div>
+
+        <!-- RESEARCH OPS VIEW -->
+        <div id="research-view" class="view-section">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+                <h2 style="margin:0;font-size:1.2rem;font-weight:700;letter-spacing:0.04em;">
+                    <i class="fa-solid fa-flask-vial" style="color:var(--accent-gold);margin-right:8px;"></i>Research Operations Center
+                </h2>
+                <button onclick="loadResearch()" style="background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-muted);padding:6px 16px;border-radius:10px;cursor:pointer;font-size:0.8rem;">
+                    <i class="fa-solid fa-rotate"></i> Refresh
+                </button>
+            </div>
+
+            <!-- Row 1: Command Center cards -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;">
+                <div class="card" style="text-align:center;padding:20px 16px;">
+                    <div style="color:var(--text-muted);font-size:0.72rem;letter-spacing:0.08em;margin-bottom:8px;">HEALTH SCORE</div>
+                    <div id="rc-health-score" style="font-size:2.2rem;font-weight:800;color:#00ff88;">—</div>
+                    <div id="rc-health-label" style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">—</div>
+                </div>
+                <div class="card" style="text-align:center;padding:20px 16px;">
+                    <div style="color:var(--text-muted);font-size:0.72rem;letter-spacing:0.08em;margin-bottom:8px;">VALIDATION CLV</div>
+                    <div id="rc-val-clv" style="font-size:2.2rem;font-weight:800;">—</div>
+                    <div id="rc-val-ci" style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">95% CI —</div>
+                </div>
+                <div class="card" style="text-align:center;padding:20px 16px;">
+                    <div style="color:var(--text-muted);font-size:0.72rem;letter-spacing:0.08em;margin-bottom:8px;">REGIME</div>
+                    <div id="rc-regime-30d" style="font-size:1.3rem;font-weight:700;margin-bottom:2px;">—</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">30d CLV</div>
+                    <div id="rc-regime-7d" style="font-size:1rem;margin-top:4px;font-weight:600;">—</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">7d CLV</div>
+                </div>
+                <div class="card" style="text-align:center;padding:20px 16px;">
+                    <div style="color:var(--text-muted);font-size:0.72rem;letter-spacing:0.08em;margin-bottom:8px;">SIGNALS</div>
+                    <div id="rc-signal-counts" style="display:flex;flex-direction:column;gap:4px;align-items:center;margin-top:4px;font-size:0.82rem;"></div>
+                </div>
+            </div>
+
+            <!-- Row 2: Signal Lifecycle + Audit Trail -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                <div class="card" style="padding:20px;">
+                    <div style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:14px;">SIGNAL LIFECYCLE</div>
+                    <table class="data-table" style="font-size:0.78rem;">
+                        <thead><tr>
+                            <th>Signal</th><th>Stage</th><th>CLV</th><th>Val CLV</th><th>Days</th>
+                        </tr></thead>
+                        <tbody id="rc-lifecycle-body">
+                            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card" style="padding:20px;">
+                    <div style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:14px;">AUDIT TRAIL — LAST 10 RUNS</div>
+                    <table class="data-table" style="font-size:0.75rem;">
+                        <thead><tr>
+                            <th>Date</th><th>Bets</th><th>Health</th><th>Avg CLV</th><th>Promoted</th><th>Disabled</th>
+                        </tr></thead>
+                        <tbody id="rc-audit-body">
+                            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No nightly runs yet — run tools/nightly_jobs.py</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Row 3: Edge Attribution -->
+            <div class="card" style="padding:20px;margin-bottom:20px;">
+                <div style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:14px;">EDGE ATTRIBUTION — CLV CONTRIBUTION BY FACTOR</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+                    <div>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">BY MOVE SIZE</div>
+                        <div id="rc-attr-move"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">BY MONOTONICITY</div>
+                        <div id="rc-attr-mono"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">BY LEAGUE</div>
+                        <div id="rc-attr-league"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">BY TIMING</div>
+                        <div id="rc-attr-timing"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 4: Alerts -->
+            <div class="card" style="padding:20px;margin-bottom:20px;">
+                <div style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:12px;">ALERTS &amp; MILESTONES</div>
+                <div id="rc-alerts" style="display:flex;flex-direction:column;gap:8px;font-size:0.82rem;"></div>
+            </div>
+
+            <!-- Row 5: Counterfactual Engine -->
+            <div class="card" style="padding:20px;margin-bottom:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                    <div style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;color:var(--text-muted);">COUNTERFACTUAL ENGINE — THRESHOLD SWEEP</div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span style="font-size:0.72rem;color:var(--text-muted);">Thresholds (%):</span>
+                        <input id="cf-thresholds" value="3,5,7,10,15" style="width:120px;background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-primary);border-radius:6px;padding:3px 8px;font-size:0.75rem;"/>
+                        <button onclick="runCounterfactual()" style="background:rgba(240,192,64,0.15);border:1px solid var(--accent-gold);color:var(--accent-gold);padding:4px 14px;border-radius:8px;cursor:pointer;font-size:0.75rem;font-weight:600;">Run</button>
+                    </div>
+                </div>
+                <div id="cf-result">
+                    <div style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:16px;">Click Run to sweep thresholds against historical data.</div>
+                </div>
+                <div id="cf-verdict" style="margin-top:12px;font-size:0.8rem;"></div>
+            </div>
+
+            <!-- Row 6: Experiment Registry -->
+            <div class="card" style="padding:20px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                    <div style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;color:var(--text-muted);">EXPERIMENT REGISTRY</div>
+                    <button onclick="document.getElementById('new-exp-form').style.display=document.getElementById('new-exp-form').style.display==='none'?'flex':'none'"
+                        style="background:rgba(0,255,136,0.1);border:1px solid #00ff88;color:#00ff88;padding:4px 14px;border-radius:8px;cursor:pointer;font-size:0.75rem;font-weight:600;">
+                        + New Experiment
+                    </button>
+                </div>
+                <div id="new-exp-form" style="display:none;gap:8px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;">
+                    <input id="new-exp-hypothesis" placeholder="Hypothesis, e.g. Raise steam threshold to 7%"
+                        style="flex:1;min-width:260px;background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-primary);border-radius:8px;padding:6px 12px;font-size:0.8rem;"/>
+                    <label style="display:flex;align-items:center;gap:4px;font-size:0.75rem;color:var(--text-muted);">
+                        <input type="checkbox" id="new-exp-supersede"/> Complete active
+                    </label>
+                    <button onclick="createExperiment()" style="background:rgba(0,255,136,0.15);border:1px solid #00ff88;color:#00ff88;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;">Create</button>
+                </div>
+                <table class="data-table" style="font-size:0.75rem;">
+                    <thead><tr>
+                        <th>ID</th><th>Hypothesis</th><th>Start</th><th>End</th><th>Status</th><th>Hash</th><th>Action</th>
+                    </tr></thead>
+                    <tbody id="rc-experiments-body">
+                        <tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No experiments yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- COMPARISON VIEW -->
         <div id="comparison-view" class="view-section">
             <div style="display: grid; grid-template-columns: 300px 1fr; gap: 24px; min-height: 500px;">
@@ -1297,7 +1629,8 @@
                 'comparison-view': 'AI vs Reality Comparisons',
                 'arena-view': 'World Cup Arena (Stair AI)',
                 'settled-view': 'P&L Ledger',
-                'edge-view': 'Edge Report'
+                'edge-view': 'Edge Report',
+                'clv-view': 'CLV Intelligence'
             };
             document.getElementById('page-title').innerText = titles[viewId] || 'DeepField';
 
@@ -1368,6 +1701,129 @@
             });
         }
 
+        const LEAGUE_NATIONS = {
+            // England
+            "Premier League": "England", "Championship": "England", "League One": "England",
+            "League Two": "England", "FA Cup": "England", "EFL Cup": "England",
+            "National League": "England", "National League North": "England", "National League South": "England",
+            // Spain
+            "La Liga": "Spain", "La Liga 2": "Spain", "Copa del Rey": "Spain", "Segunda": "Spain",
+            // Germany
+            "Bundesliga": "Germany", "2. Bundesliga": "Germany", "3. Liga": "Germany",
+            "DFB Pokal": "Germany", "Regionalliga": "Germany",
+            // Italy
+            "Serie A": "Italy", "Serie B": "Italy", "Serie C": "Italy", "Coppa Italia": "Italy",
+            // France
+            "Ligue 1": "France", "Ligue 2": "France", "Coupe de France": "France",
+            // Netherlands
+            "Eredivisie": "Netherlands", "Eerste Divisie": "Netherlands", "KNVB Cup": "Netherlands",
+            // Portugal
+            "Primeira Liga": "Portugal", "Liga Portugal 2": "Portugal", "Taca de Portugal": "Portugal",
+            // Belgium
+            "Pro League": "Belgium", "First Division B": "Belgium",
+            // Turkey
+            "Süper Lig": "Turkey", "Super Lig": "Turkey", "TFF 1. Lig": "Turkey",
+            // Russia
+            "Premier League Russia": "Russia", "Russian Premier League": "Russia", "FNL": "Russia",
+            // Ukraine
+            "Premier League Ukraine": "Ukraine", "Ukrainian Premier League": "Ukraine",
+            // Scotland
+            "Premiership": "Scotland", "Scottish Premiership": "Scotland", "Championship Scotland": "Scotland",
+            // Greece
+            "Super League": "Greece", "Super League 2": "Greece",
+            // Austria
+            "Bundesliga Austria": "Austria", "Austrian Bundesliga": "Austria",
+            // Switzerland
+            "Super League Switzerland": "Switzerland", "Challenge League": "Switzerland",
+            // Denmark
+            "Superliga": "Denmark", "1. Division": "Denmark",
+            // Sweden
+            "Allsvenskan": "Sweden", "Superettan": "Sweden", "Division 1": "Sweden",
+            "Division 2": "Sweden", "Division 3": "Sweden",
+            // Norway
+            "Eliteserien": "Norway", "1. divisjon": "Norway", "3. divisjon": "Norway",
+            "1. Divisjon": "Norway", "3. Divisjon": "Norway",
+            // Finland
+            "Veikkausliiga": "Finland", "Ykkosliiga": "Finland", "Ykkönen": "Finland",
+            // Iceland
+            "Urvalsdeild": "Iceland", "1. deild": "Iceland", "2. deild": "Iceland",
+            "3. deild": "Iceland", "4. deild": "Iceland",
+            // Czech Republic
+            "Czech First League": "Czech Republic", "Czech National Football League": "Czech Republic",
+            // Slovakia
+            "Slovak Super Liga": "Slovakia", "Fortuna Liga": "Slovakia",
+            // Poland
+            "Ekstraklasa": "Poland", "I liga": "Poland",
+            // Hungary
+            "OTP Bank Liga": "Hungary", "Nemzeti Bajnokság": "Hungary",
+            // Romania
+            "Liga I": "Romania", "Liga II": "Romania",
+            // Croatia
+            "HNL": "Croatia", "Prva HNL": "Croatia",
+            // Serbia
+            "SuperLiga Serbia": "Serbia", "Srpska Liga": "Serbia",
+            // Lithuania
+            "A Lyga": "Lithuania", "I lyga": "Lithuania",
+            // Latvia
+            "Virsliga": "Latvia", "1. Liga Latvia": "Latvia",
+            // Estonia
+            "Meistriliiga": "Estonia", "Esiliiga": "Estonia",
+            // Georgia
+            "Erovnuli Liga": "Georgia", "Liga 2 Georgia": "Georgia",
+            // Moldova
+            "Divizia Nationala": "Moldova",
+            // Belarus
+            "Vysshaya Liga": "Belarus",
+            // Kazakhstan
+            "Premier League Kazakhstan": "Kazakhstan",
+            // Azerbaijan
+            "Premier League Azerbaijan": "Azerbaijan",
+            // Armenia
+            "Armenian Premier League": "Armenia",
+            // Brazil
+            "Serie A Brazil": "Brazil", "Serie B Brazil": "Brazil",
+            "Campeonato Mineiro": "Brazil", "Campeonato Paulista": "Brazil",
+            "Campeonato Carioca": "Brazil", "Campeonato Gaúcho": "Brazil",
+            "Campeonato Brasileiro": "Brazil",
+            // Argentina
+            "Primera División": "Argentina", "Primera C Metropolitana": "Argentina",
+            "Primera B Nacional": "Argentina", "Primera B Metropolitana": "Argentina",
+            "Primera": "Argentina", "Primera A": "Argentina",
+            // Colombia
+            "Liga BetPlay": "Colombia", "Categoria Primera A": "Colombia",
+            // Chile
+            "Primera División Chile": "Chile", "Primera B Chile": "Chile",
+            // Mexico
+            "Liga MX": "Mexico", "Ascenso MX": "Mexico",
+            // USA
+            "MLS": "USA", "USL Championship": "USA", "USL League One": "USA",
+            "USL League Two": "USA", "NISA": "USA", "USL Super League": "USA",
+            // Australia
+            "A-League": "Australia", "A-League Men": "Australia", "A-League Women": "Australia",
+            "National Premier League": "Australia", "National Premier League 2": "Australia",
+            "National Premier League 3": "Australia", "Queensland Premier League": "Australia",
+            "Darwin Premier League": "Australia", "Reserve League": "Australia",
+            "Victoria. National Premier League (U-23)": "Australia",
+            // Morocco
+            "Botola Pro": "Morocco", "Botola 2": "Morocco",
+            // Ireland
+            "League of Ireland": "Ireland", "Leinster Senior League": "Ireland",
+            "First Division Ireland": "Ireland",
+            // International
+            "FIFA World Cup": "International", "UEFA Champions League": "Europe",
+            "UEFA Europa League": "Europe", "UEFA Conference League": "Europe",
+            "UEFA Nations League": "Europe", "Club Friendlies": "International",
+            "International Friendlies": "International", "AFC Champions League": "Asia",
+            "CONMEBOL Libertadores": "South America", "CONMEBOL Sudamericana": "South America",
+            "CAF Champions League": "Africa", "CONCACAF Champions Cup": "CONCACAF",
+        };
+
+        function leagueWithNation(name) {
+            if (!name) return '';
+            const nation = LEAGUE_NATIONS[name];
+            return nation ? `${name} (${nation})` : name;
+        }
+
         function renderLedger() {
             const filtered = _ledgerFiltered();
             const totalPages = Math.max(1, Math.ceil(filtered.length / LEDGER_PER_PAGE));
@@ -1417,12 +1873,14 @@
                         else tag = `<span class="tag-loss" style="background:rgba(255,255,255,0.08);color:#888;">${s.result}</span>`;
                         const pnlStr = pnl >= 0 ? `<span style="color:#00ff88;font-weight:700;">+$${pnl.toFixed(2)}</span>` : `<span style="color:#ff4d4d;font-weight:700;">-$${Math.abs(pnl).toFixed(2)}</span>`;
                         const src = s.bet_source ? `<span style="font-size:0.62rem;background:rgba(255,255,255,0.06);color:var(--text-muted);padding:1px 5px;border-radius:3px;margin-left:5px;vertical-align:middle;">${s.bet_source}</span>` : '';
+                        const leagueBadge = s.league ? `<br><span style="font-size:0.7rem;color:var(--text-muted);"><i class="fa-solid fa-flag" style="font-size:0.6rem;margin-right:2px;"></i>${leagueWithNation(s.league)}</span>` : '';
                         const time = s.placed_at ? new Date(s.placed_at).toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit'}) : '';
+                        const toWin = stake > 0 && s.entry_odds ? `<span style="color:#00ff88;font-size:0.75rem;">+$${(stake * (s.entry_odds - 1)).toFixed(2)}</span>` : '—';
                         return `<tr>
                             <td style="color:var(--text-muted);font-size:0.8rem;white-space:nowrap;">${time}</td>
-                            <td><strong>${s.match_id || ''}</strong>${src}<br><span style="font-size:0.75rem;color:var(--text-muted);">${s.player_id || s.market_type || ''}</span></td>
+                            <td><strong>${s.match_id || ''}</strong>${src}${leagueBadge}<br><span style="font-size:0.75rem;color:var(--text-muted);">${s.player_id || s.market_type || ''}</span></td>
                             <td>@ ${s.entry_odds || '—'}</td>
-                            <td>$${stake.toFixed(2)}</td>
+                            <td>$${stake.toFixed(2)}<br>${toWin}</td>
                             <td>${tag}</td>
                             <td>${pnlStr}</td>
                         </tr>`;
@@ -2083,11 +2541,14 @@
                         timeRemaining = `<span style="color:var(--text-muted);">Resolved</span>`;
                     }
 
+                    const trackerLeague = b.league ? `<br><span style="font-size:0.7rem;color:var(--text-muted);"><i class="fa-solid fa-flag" style="font-size:0.6rem;margin-right:2px;"></i>${leagueWithNation(b.league)}</span>` : '';
+                    const trackerStake = b.stake || 0;
+                    const trackerToWin = trackerStake > 0 && b.entry_odds ? `<br><span style="color:#00ff88;font-size:0.75rem;">+$${(trackerStake * (b.entry_odds - 1)).toFixed(2)}</span>` : '';
                     return `<tr>
                         <td><span style="font-size:0.8rem; padding: 2px 6px; border-radius: 4px; background: ${b.bet_source === 'AI' ? '#00ff8822' : '#ffffff22'}; color: ${b.bet_source === 'AI' ? '#00ff88' : '#fff'};">${b.bet_source || 'AI'}</span></td>
-                        <td><strong>${b.player_id}</strong><br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
+                        <td><strong>${b.player_id}</strong>${trackerLeague}<br><span style="font-size:0.75rem; color:var(--text-muted)">${b.market_type}</span></td>
                         <td>${b.entry_odds}</td>
-                        <td>$${(b.stake || 0).toFixed(2)}</td>
+                        <td>$${trackerStake.toFixed(2)}${trackerToWin}</td>
                         <td>${edgeStr}</td>
                         <td style="color: ${pnlColor}">${pnlStr}</td>
                         <td>${timeRemaining}</td>
@@ -2146,6 +2607,807 @@
                 sortEdgeLeagues(_edgeLeagueSort);
             } catch(e) {
                 console.error('Edge report load error:', e);
+            }
+        }
+
+        // ── CLV Intelligence ──────────────────────────────────────────────────
+        function _confidenceScore(n) {
+            const pts = [[0,0],[50,15],[100,35],[200,60],[300,80],[500,95],[1000,99]];
+            for (let i = 1; i < pts.length; i++) {
+                if (n <= pts[i][0]) {
+                    const [x0,y0] = pts[i-1], [x1,y1] = pts[i];
+                    return y0 + (n - x0) / (x1 - x0) * (y1 - y0);
+                }
+            }
+            return 99;
+        }
+
+        function _clvColor(clv) {
+            if (clv === null || clv === undefined) return 'var(--text-muted)';
+            return clv >= 3 ? '#00ff88' : clv >= 0 ? '#f0c040' : '#ff4d4d';
+        }
+
+        function _clvBadge(clv) {
+            if (clv === null || clv === undefined) return '<span style="color:var(--text-muted)">—</span>';
+            const c = _clvColor(clv);
+            return `<span style="color:${c};font-weight:700;">${clv >= 0 ? '+' : ''}${clv.toFixed(1)}%</span>`;
+        }
+
+        function _signalStatus(clv, n) {
+            if (n < 10) return {label:'SMALL SAMPLE', color:'#888'};
+            if (clv === null) return {label:'NO CLV DATA', color:'#888'};
+            if (clv >= 5)  return {label:'STRONG', color:'#00ff88'};
+            if (clv >= 0)  return {label:'WATCH', color:'#f0c040'};
+            if (clv >= -5) return {label:'WEAK', color:'#ff9900'};
+            return {label:'DEAD', color:'#ff4d4d'};
+        }
+
+        async function loadClv() {
+            try {
+                const res  = await fetch('/api/clv');
+                const data = await res.json();
+                const ov   = data.overall || {};
+                const n    = ov.n || 0;
+                const conf = _confidenceScore(n);
+
+                // ── Confidence ring ───────────────────────────────────────────
+                const CIRC = 2 * Math.PI * 46; // circumference ≈ 289
+                const arc  = document.getElementById('clv-ring-arc');
+                if (arc) {
+                    const offset = CIRC * (1 - conf / 100);
+                    arc.style.strokeDashoffset = offset;
+                    arc.style.stroke = conf >= 60 ? '#00ff88' : conf >= 30 ? '#f0c040' : '#ff4d4d';
+                }
+                const pctEl = document.getElementById('clv-conf-pct');
+                if (pctEl) pctEl.textContent = Math.round(conf) + '%';
+                const lblEl = document.getElementById('clv-conf-label');
+                if (lblEl) lblEl.textContent = `${n} bets recorded`;
+
+                // ── Big CLV number + 95% CI ──────────────────────────────────
+                const avgClv = ov.avg_clv;
+                const bigEl  = document.getElementById('clv-big-number');
+                if (bigEl) {
+                    bigEl.textContent = avgClv !== null && avgClv !== undefined
+                        ? (avgClv >= 0 ? '+' : '') + avgClv.toFixed(2) + '%'
+                        : '—';
+                    bigEl.style.color = _clvColor(avgClv);
+                }
+                const ciBadge = document.getElementById('clv-ci-badge');
+                if (ciBadge) {
+                    const lo = ov.ci_lower, hi = ov.ci_upper;
+                    if (lo !== null && lo !== undefined && hi !== null && hi !== undefined) {
+                        const ciColor = lo > 0 ? '#00ff88' : hi < 0 ? '#ff4d4d' : '#f0c040';
+                        const ciLabel = lo > 0 ? 'CI entirely positive — VALIDATED'
+                                      : hi < 0 ? 'CI entirely negative — DEAD'
+                                      : 'CI crosses zero — UNPROVEN';
+                        ciBadge.innerHTML = `<span style="color:${ciColor};">95% CI [${lo >= 0 ? '+' : ''}${lo}%, ${hi >= 0 ? '+' : ''}${hi}%]</span>
+                            <span style="color:var(--text-muted);font-size:0.68rem;margin-left:6px;">${ciLabel}</span>`;
+                    } else {
+                        ciBadge.textContent = '';
+                    }
+                }
+                const clvNEl = document.getElementById('clv-clv-n');
+                if (clvNEl) clvNEl.textContent = `${ov.clv_n || 0} bets with closing odds`;
+
+                // Verdict badge
+                const vEl = document.getElementById('clv-verdict-badge');
+                if (vEl) {
+                    const st = _signalStatus(avgClv, ov.clv_n || 0);
+                    vEl.textContent = st.label;
+                    vEl.style.background = st.color + '22';
+                    vEl.style.color = st.color;
+                    vEl.style.border = `1px solid ${st.color}44`;
+                }
+
+                // ── Research Health Score ─────────────────────────────────────
+                const healthScore = data.health_score || 0;
+                const healthArc   = document.getElementById('health-ring-arc');
+                const HCIRC = 2 * Math.PI * 46;
+                if (healthArc) {
+                    healthArc.style.strokeDashoffset = HCIRC * (1 - healthScore / 100);
+                    healthArc.style.stroke = healthScore >= 70 ? '#00ff88' : healthScore >= 40 ? '#f0c040' : '#ff4d4d';
+                }
+                const hPct = document.getElementById('health-score-pct');
+                if (hPct) { hPct.textContent = healthScore; hPct.style.color = healthScore >= 70 ? '#00ff88' : healthScore >= 40 ? '#f0c040' : '#ff4d4d'; }
+                const hLbl = document.getElementById('health-score-label');
+                if (hLbl) hLbl.textContent = healthScore >= 80 ? 'EXCELLENT' : healthScore >= 60 ? 'GOOD' : healthScore >= 40 ? 'DEVELOPING' : 'EARLY STAGE';
+                const hBreak = document.getElementById('health-score-breakdown');
+                if (hBreak) {
+                    const roll = data.rolling || {};
+                    const c7  = (roll['7d']  || {}).avg_clv, c30 = (roll['30d'] || {}).avg_clv;
+                    const trend = c7 != null && c30 != null ? (c7 >= c30 ? '&#8593; Improving' : c7 >= c30 - 3 ? '&#8776; Stable' : '&#8595; Decaying') : '—';
+                    const ci = ov.ci_lower != null && ov.ci_upper != null
+                        ? (ov.ci_lower > 0 ? 'Validated' : ov.ci_upper < 0 ? 'Dead' : 'Unproven') : '—';
+                    hBreak.innerHTML = `<div>Sample: ${n}/300 bets</div><div>CLV: ${avgClv != null ? (avgClv >= 0 ? '+' : '') + avgClv.toFixed(1) + '%' : '—'}</div><div>CI: ${ci}</div><div>Trend: ${trend}</div>`;
+                }
+
+                // ── Rolling windows (regime detection) ────────────────────────
+                const roll = data.rolling || {};
+                const lifeCLV = (data.overall || {}).avg_clv;
+                [['7d','rolling-7d'], ['30d','rolling-30d'], ['90d','rolling-90d']].forEach(([key, id]) => {
+                    const s = roll[key] || {};
+                    const clvEl = document.getElementById(id + '-clv');
+                    const nEl   = document.getElementById(id + '-n');
+                    const stEl  = document.getElementById(id + '-status');
+                    if (!clvEl) return;
+                    const c = s.avg_clv;
+                    clvEl.textContent = c != null ? (c >= 0 ? '+' : '') + c.toFixed(1) + '%' : '—';
+                    clvEl.style.color  = _clvColor(c);
+                    if (nEl) nEl.textContent = (s.n || 0) + ' bets';
+                    if (stEl && c != null && lifeCLV != null) {
+                        const delta = c - lifeCLV;
+                        stEl.innerHTML = delta > 2 ? '<span style="color:#00ff88;">&#8593; vs lifetime</span>'
+                                       : delta < -3 ? '<span style="color:#ff4d4d;">&#8595; vs lifetime</span>'
+                                       : '<span style="color:#888;">&#8776; vs lifetime</span>';
+                    }
+                });
+
+                // ── Milestones ────────────────────────────────────────────────
+                const msEl = document.getElementById('clv-milestones');
+                if (msEl) {
+                    const milestones = [50, 100, 200, 300, 500];
+                    msEl.innerHTML = milestones.map(m => {
+                        const done  = n >= m;
+                        const pct   = Math.min(100, Math.round(n / m * 100));
+                        const color = done ? '#00ff88' : 'var(--primary)';
+                        return `<div>
+                            <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                                <span style="font-size:0.75rem;color:${done ? '#00ff88' : 'var(--text-muted)'};">${done ? '✓' : ''} ${m} bets</span>
+                                <span style="font-size:0.75rem;color:var(--text-muted);">${done ? 'DONE' : n + ' / ' + m}</span>
+                            </div>
+                            <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                                <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 1s ease;"></div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+
+                // ── CLV by league ─────────────────────────────────────────────
+                const lgBody = document.getElementById('clv-league-body');
+                if (lgBody) {
+                    const leagues = Object.entries(data.by_league || {})
+                        .sort((a, b) => (b[1].n || 0) - (a[1].n || 0));
+                    if (leagues.length === 0) {
+                        lgBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No settled bets yet</td></tr>';
+                    } else {
+                        lgBody.innerHTML = leagues.map(([lg, s]) => {
+                            const st = _signalStatus(s.avg_clv, s.clv_n || 0);
+                            const warn = s.clv_n >= 3 && s.avg_clv !== null && s.avg_clv < 0
+                                ? ' <span style="color:#ff4d4d;font-size:0.65rem;">⚠ blacklist?</span>' : '';
+                            return `<tr>
+                                <td style="font-weight:600;">${leagueWithNation(lg)}${warn}</td>
+                                <td>${s.n}</td>
+                                <td>${_clvBadge(s.avg_clv)}</td>
+                                <td style="color:${s.roi >= 0 ? '#00ff88' : '#ff4d4d'}">${s.roi >= 0 ? '+' : ''}${s.roi}%</td>
+                                <td><span style="font-size:0.72rem;padding:2px 7px;border-radius:10px;background:${st.color}22;color:${st.color};">${st.label}</span></td>
+                            </tr>`;
+                        }).join('');
+                    }
+                }
+
+                // ── CLV by move bucket ────────────────────────────────────────
+                const mvBody = document.getElementById('clv-move-body');
+                if (mvBody) {
+                    const buckets = data.by_move_bucket || {};
+                    const order   = ['5-8%', '8-12%', '12-20%', '20%+'];
+                    const rows    = order.map(label => {
+                        const s = buckets[label];
+                        if (!s) return `<tr><td>${label}</td><td colspan="4" style="color:var(--text-muted);">—</td></tr>`;
+                        return `<tr>
+                            <td style="font-weight:600;">${label}</td>
+                            <td>${s.n}</td>
+                            <td>${_clvBadge(s.avg_clv)}</td>
+                            <td style="color:${s.roi >= 0 ? '#00ff88' : '#ff4d4d'}">${s.roi >= 0 ? '+' : ''}${s.roi}%</td>
+                            <td style="color:var(--text-muted);">${s.hit_rate !== undefined ? s.hit_rate.toFixed(0) + '%' : '—'}</td>
+                        </tr>`;
+                    });
+                    mvBody.innerHTML = rows.join('') || '<tr><td colspan="5" style="text-align:center;">No data</td></tr>';
+                }
+
+                // ── CLV by Monotonicity ───────────────────────────────────────
+                const monoBody = document.getElementById('clv-mono-body');
+                if (monoBody) {
+                    const monoBuckets = data.by_monotonicity || {};
+                    const monoOrder = ['0.0-0.25', '0.25-0.5', '0.5-0.75', '0.75-1.0'];
+                    const monoHasData = monoOrder.some(k => monoBuckets[k] && monoBuckets[k].n > 0);
+                    if (!monoHasData) {
+                        monoBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">Accumulating data — needs bets placed after CLV attribution upgrade.</td></tr>';
+                    } else {
+                        monoBody.innerHTML = monoOrder.map(label => {
+                            const s = monoBuckets[label];
+                            if (!s || s.n === 0) return `<tr><td style="color:var(--text-muted);">${label}</td><td colspan="3" style="color:var(--text-muted);">—</td></tr>`;
+                            return `<tr>
+                                <td style="font-weight:600;">${label}</td>
+                                <td>${s.n}</td>
+                                <td>${_clvBadge(s.avg_clv)}</td>
+                                <td style="color:var(--text-muted);">${s.hit_rate !== undefined ? s.hit_rate.toFixed(0) + '%' : '—'}</td>
+                            </tr>`;
+                        }).join('');
+                    }
+                }
+
+                // ── Signal decay windows ──────────────────────────────────────
+                const decayBody = document.getElementById('clv-decay-body');
+                if (decayBody && data.decay) {
+                    const decay = data.decay;
+                    const windows = [
+                        { key: 'last_50',  label: 'Last 50 bets' },
+                        { key: 'last_100', label: 'Last 100 bets' },
+                        { key: 'lifetime', label: 'Lifetime' },
+                    ];
+                    const lifetimeClv = (decay.lifetime || {}).avg_clv;
+                    decayBody.innerHTML = windows.map(({ key, label }) => {
+                        const s = decay[key];
+                        if (!s) return `<tr><td>${label}</td><td colspan="4" style="color:var(--text-muted);">—</td></tr>`;
+                        const clvS = s.avg_clv !== null && s.avg_clv !== undefined
+                            ? (s.avg_clv >= 0 ? '+' : '') + s.avg_clv.toFixed(1) + '%' : '—';
+                        const clvC = _clvColor(s.avg_clv);
+                        let decayStatus = '';
+                        if (key !== 'lifetime' && lifetimeClv != null && s.avg_clv != null) {
+                            const delta = s.avg_clv - lifetimeClv;
+                            if (delta < -3) decayStatus = '<span style="color:#ff4d4d;font-size:0.72rem;"> ↓ DECAYING</span>';
+                            else if (delta > 2) decayStatus = '<span style="color:#00ff88;font-size:0.72rem;"> ↑ IMPROVING</span>';
+                            else decayStatus = '<span style="color:#aaa;font-size:0.72rem;"> STABLE</span>';
+                        }
+                        return `<tr>
+                            <td style="font-weight:600;">${label}</td>
+                            <td>${s.n}</td>
+                            <td style="color:${clvC};font-weight:700;">${clvS}</td>
+                            <td style="color:${s.roi >= 0 ? '#00ff88' : '#ff4d4d'}">${s.roi >= 0 ? '+' : ''}${s.roi}%</td>
+                            <td>${decayStatus}</td>
+                        </tr>`;
+                    }).join('');
+                }
+
+                // ── CLV trend sparkline ───────────────────────────────────────
+                const trendEl = document.getElementById('clv-trend-chart');
+                if (trendEl) {
+                    const weeks = Object.entries(data.by_week || {}).sort((a,b) => a[0].localeCompare(b[0]));
+                    if (weeks.length === 0) {
+                        trendEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;">Accumulating data — check back after more bets settle.</div>';
+                    } else {
+                        const clvVals = weeks.map(([,s]) => s.avg_clv || 0);
+                        const maxAbs  = Math.max(Math.abs(Math.min(...clvVals)), Math.abs(Math.max(...clvVals)), 5);
+                        const W = 60, H = 90, gap = 4;
+                        const totalW = weeks.length * (W + gap) + 40;
+                        const bars   = weeks.map(([week, s], i) => {
+                            const clv    = s.avg_clv || 0;
+                            const pct    = clv / maxAbs;
+                            const barH   = Math.abs(pct) * (H / 2 - 4);
+                            const midY   = H / 2;
+                            const y      = pct >= 0 ? midY - barH : midY;
+                            const color  = clv >= 0 ? '#00ff88' : '#ff4d4d';
+                            const x      = 30 + i * (W + gap);
+                            const label  = week.replace(/^\d{4}-/, '');
+                            const nLabel = `n=${s.n}`;
+                            return `
+                                <rect x="${x}" y="${y}" width="${W}" height="${Math.max(barH,2)}" fill="${color}" opacity="0.8" rx="3"/>
+                                <text x="${x + W/2}" y="${H + 14}" text-anchor="middle" fill="#888" font-size="9">${label}</text>
+                                <text x="${x + W/2}" y="${pct >= 0 ? y - 4 : y + barH + 12}" text-anchor="middle"
+                                      fill="${color}" font-size="9" font-weight="700">
+                                    ${clv >= 0 ? '+' : ''}${clv.toFixed(1)}%
+                                </text>
+                                <text x="${x + W/2}" y="${H + 24}" text-anchor="middle" fill="#555" font-size="8">${nLabel}</text>`;
+                        }).join('');
+                        trendEl.innerHTML = `<svg viewBox="0 0 ${totalW} ${H + 34}" style="width:100%;max-width:${totalW}px;overflow:visible;">
+                            <line x1="30" y1="${H/2}" x2="${totalW}" y2="${H/2}" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="4,4"/>
+                            <text x="26" y="${H/2 + 4}" text-anchor="end" fill="#555" font-size="8">0%</text>
+                            ${bars}
+                        </svg>`;
+                    }
+                }
+
+                // ── Signal leaderboard (from /api/clv signals key) ────────────
+                const sigBody = document.getElementById('clv-signals-body');
+                if (sigBody && data.signals) {
+                    const sigs = Object.entries(data.signals)
+                        .sort((a, b) => (b[1].avg_clv || -999) - (a[1].avg_clv || -999));
+                    if (sigs.length === 0) {
+                        sigBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Run <code>python tools/signal_discovery.py</code></td></tr>';
+                    } else {
+                        sigBody.innerHTML = sigs.map(([name, s]) => {
+                            const st   = _signalStatus(s.avg_clv, s.n);
+                            const clvS = s.avg_clv !== null && s.avg_clv !== undefined
+                                ? (s.avg_clv >= 0 ? '+' : '') + s.avg_clv.toFixed(1) + '%' : '—';
+                            const clvC = _clvColor(s.avg_clv);
+                            const auto = s.auto_status || (s.n < 100 ? 'WATCH' : '—');
+                            const autoColor = auto === 'PROMOTE' ? '#00ff88' : auto === 'DISABLE' ? '#ff4d4d' : '#888';
+                            const autoIcon  = auto === 'PROMOTE' ? '&#8593;' : auto === 'DISABLE' ? '&#8595;' : '&#8776;';
+                            return `<tr>
+                                <td style="font-weight:600;font-family:monospace;font-size:0.8rem;">${name}</td>
+                                <td>${s.n}</td>
+                                <td style="color:var(--text-muted);">${s.hit !== undefined ? s.hit.toFixed(0) + '%' : '—'}</td>
+                                <td style="color:${clvC};font-weight:700;">${clvS}</td>
+                                <td><span style="font-size:0.72rem;padding:2px 8px;border-radius:10px;background:${st.color}22;color:${st.color};">${st.label}</span></td>
+                                <td><span style="font-size:0.72rem;font-weight:700;color:${autoColor};">${autoIcon} ${auto}</span></td>
+                            </tr>`;
+                        }).join('');
+                    }
+                }
+
+                // ── CLV Attribution Scatter Plot ──────────────────────────────
+                const scatterEl = document.getElementById('clv-scatter-chart');
+                if (scatterEl) {
+                    const pts = (data.scatter || []).filter(p => p.move_size != null && p.clv != null);
+                    if (pts.length === 0) {
+                        scatterEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;">No attribution data yet — needs bets placed after CLV attribution upgrade with closing odds.</div>';
+                    } else {
+                        const W = 700, H = 180, padL = 45, padB = 28, padT = 12, padR = 20;
+                        const allX = pts.map(p => p.move_size), allY = pts.map(p => p.clv);
+                        const minX = Math.min(...allX), maxX = Math.max(...allX, minX + 1);
+                        const minY = Math.min(...allY, -10), maxY = Math.max(...allY, 10);
+                        const toSvgX = x => padL + (x - minX) / (maxX - minX) * (W - padL - padR);
+                        const toSvgY = y => padT + (maxY - y) / (maxY - minY) * (H - padT - padB);
+                        const zeroY  = toSvgY(0);
+                        const dots = pts.map(p => {
+                            const cx = toSvgX(p.move_size), cy = toSvgY(p.clv);
+                            const r  = 4 + (p.monotonicity || 0.5) * 6;
+                            const c  = p.clv >= 0 ? '#00ff88' : '#ff4d4d';
+                            const clickAttr = p.bet_id ? `onclick="openReplay('${p.bet_id}')" style="cursor:pointer;"` : '';
+                            return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${c}" opacity="0.6" ${clickAttr}>
+                                <title>${p.match}\nMove: ${p.move_size}%  CLV: ${p.clv >= 0 ? '+' : ''}${p.clv}%\nMonotonicity: ${p.monotonicity || '?'}${p.bet_id ? '\n(click to replay)' : ''}</title></circle>`;
+                        }).join('');
+                        // X axis ticks
+                        const xTicks = [5,8,12,15,20,25].filter(v => v >= minX && v <= maxX + 2).map(v =>
+                            `<line x1="${toSvgX(v).toFixed(1)}" y1="${H - padB}" x2="${toSvgX(v).toFixed(1)}" y2="${H - padB + 4}" stroke="#444"/>
+                             <text x="${toSvgX(v).toFixed(1)}" y="${H - padB + 14}" text-anchor="middle" fill="#666" font-size="9">${v}%</text>`
+                        ).join('');
+                        const yMid = (minY + maxY) / 2;
+                        scatterEl.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">
+                            <line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${W - padR}" y2="${zeroY.toFixed(1)}" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="4,4"/>
+                            <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#333"/>
+                            <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#333"/>
+                            <text x="${padL - 6}" y="${toSvgY(maxY).toFixed(1)}" text-anchor="end" fill="#555" font-size="8">${maxY >= 0 ? '+' : ''}${maxY.toFixed(0)}%</text>
+                            <text x="${padL - 6}" y="${zeroY.toFixed(1)}" text-anchor="end" fill="#666" font-size="8">0%</text>
+                            <text x="${padL - 6}" y="${toSvgY(minY).toFixed(1)}" text-anchor="end" fill="#555" font-size="8">${minY >= 0 ? '+' : ''}${minY.toFixed(0)}%</text>
+                            <text x="${(W / 2).toFixed(0)}" y="${H}" text-anchor="middle" fill="#555" font-size="9">Steam Move %</text>
+                            ${xTicks}
+                            ${dots}
+                        </svg>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">
+                            ${pts.length} bets plotted &nbsp;·&nbsp; bubble size = monotonicity score &nbsp;·&nbsp; hover for details
+                        </div>`;
+                    }
+                }
+
+                // ── Signal Registry (load separately) ────────────────────────
+                loadSignalRegistry();
+
+            } catch(e) {
+                console.error('CLV load error', e);
+            }
+        }
+
+        async function loadSignalRegistry() {
+            const body = document.getElementById('signal-registry-body');
+            if (!body) return;
+            try {
+                const res  = await fetch('/api/signal_registry');
+                const rows = await res.json();
+                if (!rows.length) {
+                    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No registry entries yet — start the daemon to initialise.</td></tr>';
+                    return;
+                }
+                body.innerHTML = rows.map(r => {
+                    const enColor   = r.enabled  ? '#00ff88' : '#ff4d4d';
+                    const promColor = r.promoted ? '#00ff88' : '#888';
+                    const updated   = (r.updated_at || '').split('T')[0] || '—';
+                    return `<tr>
+                        <td style="font-weight:600;font-family:monospace;font-size:0.8rem;">${r.signal_name}</td>
+                        <td><span style="color:${enColor};font-weight:700;">${r.enabled ? 'YES' : 'NO'}</span></td>
+                        <td><span style="color:${promColor};">${r.promoted ? 'PROMOTED' : '—'}</span></td>
+                        <td style="color:var(--text-muted);font-size:0.75rem;">${updated}</td>
+                        <td>
+                            <button onclick="toggleSignal('${r.signal_name}', ${!r.enabled})"
+                                style="font-size:0.72rem;padding:3px 10px;border-radius:8px;cursor:pointer;
+                                       background:${r.enabled ? '#ff4d4d22' : '#00ff8822'};
+                                       color:${r.enabled ? '#ff4d4d' : '#00ff88'};
+                                       border:1px solid ${r.enabled ? '#ff4d4d44' : '#00ff8844'};">
+                                ${r.enabled ? 'Disable' : 'Enable'}
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch(e) {
+                body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#ff4d4d;">Error: ${e.message}</td></tr>`;
+            }
+        }
+
+        async function toggleSignal(name, enabled) {
+            try {
+                await fetch(`/api/signal_registry/${name}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled}),
+                });
+                loadSignalRegistry();
+            } catch(e) {
+                console.error('toggleSignal error', e);
+            }
+        }
+
+        function closeReplay() {
+            document.getElementById('replay-modal').style.display = 'none';
+        }
+
+        async function openReplay(betId) {
+            const modal = document.getElementById('replay-modal');
+            modal.style.display = 'flex';
+            document.getElementById('replay-title').innerHTML = '<i class="fa-solid fa-play"></i> Loading replay…';
+            document.getElementById('replay-subtitle').textContent = '';
+            document.getElementById('replay-meta').innerHTML = '';
+            document.getElementById('replay-timeline-chart').innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center;">Fetching odds history…</div>';
+            document.getElementById('replay-prob-chart').innerHTML = '';
+            try {
+                const res  = await fetch(`/api/bet_replay/${betId}`);
+                const data = await res.json();
+                if (data.error) { document.getElementById('replay-title').textContent = 'Error: ' + data.error; return; }
+                const bet = data.bet || {};
+                const tl  = data.timeline || [];
+                // Title
+                document.getElementById('replay-title').innerHTML = `<i class="fa-solid fa-play"></i> ${bet.match_id || 'Unknown Match'}`;
+                document.getElementById('replay-subtitle').textContent =
+                    `${bet.market_type || ''} · ${bet.signal_name || 'STEAM'} · ${(bet.placed_at || '').slice(0,10)}`;
+                // Meta cards
+                const clvPct = bet.clv_pct != null ? (bet.clv_pct >= 0 ? '+' : '') + bet.clv_pct.toFixed(2) + '%' : '—';
+                const clvCol = bet.clv_pct > 0 ? '#00ff88' : bet.clv_pct < 0 ? '#ff4d4d' : '#888';
+                const resCol = (bet.result || '').startsWith('W') ? '#00ff88' : '#ff4d4d';
+                document.getElementById('replay-meta').innerHTML = [
+                    ['Entry Odds', (bet.entry_odds || '—')],
+                    ['Closing Odds', (bet.closing_odds || '—')],
+                    ['CLV', `<span style="color:${clvCol};font-weight:700;">${clvPct}</span>`],
+                    ['Result', `<span style="color:${resCol};font-weight:700;">${bet.result || '—'} P&L ${bet.pnl >= 0 ? '+' : ''}$${(bet.pnl || 0).toFixed(2)}</span>`],
+                    ['Move Size', bet.move_size != null ? bet.move_size.toFixed(1) + '%' : '—'],
+                    ['Monotonicity', bet.monotonicity != null ? bet.monotonicity.toFixed(2) : '—'],
+                    ['League', bet.league || '—'],
+                    ['Stake', '$' + (bet.stake || 0).toFixed(2)],
+                ].map(([k,v]) => `<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:10px;padding:12px;text-align:center;">
+                    <div style="color:var(--text-muted);font-size:0.7rem;margin-bottom:4px;">${k}</div>
+                    <div style="font-weight:700;font-size:0.9rem;">${v}</div></div>`).join('');
+                // Timeline chart
+                const timelineEl = document.getElementById('replay-timeline-chart');
+                if (tl.length === 0) {
+                    timelineEl.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">No odds history for this fixture (history starts 2026-06-16).</div>';
+                } else {
+                    const sels = Object.keys(tl[0].odds || {});
+                    const selColors = {'Home (1)': '#00ff88', 'Draw': '#f0c040', 'Away (2)': '#4d9fff'};
+                    const allOdds = tl.flatMap(s => Object.values(s.odds || {})).filter(Boolean);
+                    const minO = Math.min(...allOdds) * 0.97, maxO = Math.max(...allOdds) * 1.03;
+                    const W = 680, H = 130, padL = 42, padB = 22, padT = 8, padR = 16;
+                    const iW = W - padL - padR, iH = H - padT - padB;
+                    const tx = i => padL + (i / (tl.length - 1 || 1)) * iW;
+                    const ty = o => padT + (1 - (o - minO) / (maxO - minO || 1)) * iH;
+                    const paths = sels.map(sel => {
+                        const pts = tl.map((s, i) => s.odds[sel] ? `${i === 0 ? 'M' : 'L'}${tx(i).toFixed(1)},${ty(s.odds[sel]).toFixed(1)}` : '').filter(Boolean).join(' ');
+                        const c = selColors[sel] || '#888';
+                        return `<path d="${pts}" fill="none" stroke="${c}" stroke-width="2" opacity="0.85"/>`;
+                    }).join('');
+                    const legend = sels.map(sel => `<span style="color:${selColors[sel] || '#888'};font-size:0.72rem;margin-right:12px;">&#9679; ${sel}</span>`).join('');
+                    timelineEl.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">
+                        <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#333"/>
+                        <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#333"/>
+                        <text x="${padL-4}" y="${padT+6}" text-anchor="end" fill="#555" font-size="8">${maxO.toFixed(2)}</text>
+                        <text x="${padL-4}" y="${H-padB}" text-anchor="end" fill="#555" font-size="8">${minO.toFixed(2)}</text>
+                        ${paths}
+                    </svg><div style="margin-top:4px;">${legend}</div>
+                    <div style="color:var(--text-muted);font-size:0.7rem;margin-top:2px;">${tl.length} snapshots · X = time · Y = decimal odds</div>`;
+                    // Prob chart (de-vigged)
+                    const probEl = document.getElementById('replay-prob-chart');
+                    const allProbs = tl.flatMap(s => Object.values(s.prob || {})).filter(Boolean);
+                    if (allProbs.length > 0) {
+                        const minP = 0, maxP = Math.max(...allProbs) * 1.05;
+                        const probPaths = sels.map(sel => {
+                            const pts = tl.map((s, i) => s.prob[sel] != null ? `${i === 0 ? 'M' : 'L'}${tx(i).toFixed(1)},${(padT + (1 - s.prob[sel] / maxP) * iH).toFixed(1)}` : '').filter(Boolean).join(' ');
+                            const c = selColors[sel] || '#888';
+                            return `<path d="${pts}" fill="none" stroke="${c}" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>`;
+                        }).join('');
+                        probEl.innerHTML = `<div style="color:var(--text-muted);font-size:0.72rem;margin-bottom:4px;">De-vigged implied probability (%)</div>
+                        <svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">
+                            <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#333"/>
+                            <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#333"/>
+                            <text x="${padL-4}" y="${padT+6}" text-anchor="end" fill="#555" font-size="8">${maxP.toFixed(0)}%</text>
+                            ${probPaths}
+                        </svg>`;
+                    }
+                }
+            } catch(e) {
+                document.getElementById('replay-timeline-chart').innerHTML = `<div style="color:#ff4d4d;padding:20px;">Error: ${e.message}</div>`;
+            }
+        }
+
+        // ── Research Ops ──────────────────────────────────────────────────────────
+        async function loadResearch() {
+            try {
+                const [clvData, lifecycleData, auditData, attrData] = await Promise.all([
+                    fetch('/api/clv').then(r => r.json()),
+                    fetch('/api/signal_lifecycle').then(r => r.json()),
+                    fetch('/api/research_runs?limit=10').then(r => r.json()),
+                    fetch('/api/edge_attribution').then(r => r.json()),
+                ]);
+
+                // ── Health score card
+                const health = (clvData.health_score || 0);
+                const hEl = document.getElementById('rc-health-score');
+                if (hEl) { hEl.textContent = health; hEl.style.color = health >= 70 ? '#00ff88' : health >= 40 ? '#f0c040' : '#ff4d4d'; }
+                const hLbl = document.getElementById('rc-health-label');
+                if (hLbl) hLbl.textContent = health >= 80 ? 'EXCELLENT' : health >= 60 ? 'GOOD' : health >= 40 ? 'BUILDING' : 'EARLY STAGE';
+
+                // ── Validation CLV (STEAM_FWD from validation)
+                const sigs = (clvData.signals || {});
+                const steamSig = sigs['STEAM_FWD'] || {};
+                const valCLV = steamSig.val_avg_clv ?? steamSig.avg_clv ?? null;
+                const valCI  = { lo: steamSig.val_ci_lower, hi: steamSig.val_ci_upper };
+                const vcEl = document.getElementById('rc-val-clv');
+                if (vcEl) {
+                    vcEl.textContent = valCLV != null ? (valCLV >= 0 ? '+' : '') + valCLV.toFixed(1) + '%' : '—';
+                    vcEl.style.color = valCLV > 0 ? '#00ff88' : valCLV < 0 ? '#ff4d4d' : '#888';
+                }
+                const vcCI = document.getElementById('rc-val-ci');
+                if (vcCI) vcCI.textContent = (valCI.lo != null && valCI.hi != null)
+                    ? `95% CI [${valCI.lo >= 0 ? '+' : ''}${valCI.lo}, ${valCI.hi >= 0 ? '+' : ''}${valCI.hi}]`
+                    : 'CI: need more data';
+
+                // ── Regime cards
+                const roll = clvData.rolling || {};
+                const clv30 = (roll['30d'] || {}).avg_clv, clv7 = (roll['7d'] || {}).avg_clv;
+                const r30El = document.getElementById('rc-regime-30d');
+                if (r30El) { r30El.textContent = clv30 != null ? (clv30 >= 0 ? '+' : '') + clv30.toFixed(1) + '%' : '—'; r30El.style.color = clv30 > 0 ? '#00ff88' : '#ff4d4d'; }
+                const r7El = document.getElementById('rc-regime-7d');
+                if (r7El) { r7El.textContent = clv7 != null ? (clv7 >= 0 ? '+' : '') + clv7.toFixed(1) + '%' : '—'; r7El.style.color = clv7 > 0 ? '#00ff88' : '#ff4d4d'; }
+
+                // ── Signal counts by lifecycle stage
+                const lc = lifecycleData.current || {};
+                const stageCounts = {};
+                Object.values(lc).forEach(s => { stageCounts[s.stage] = (stageCounts[s.stage] || 0) + 1; });
+                const stageOrder = ['ACTIVE','VALIDATED','PROMOTED','INCUBATING','DISCOVERED','DECAYING','DISABLED','UNKNOWN'];
+                const stageColors = {ACTIVE:'#00ff88',VALIDATED:'#4d9fff',PROMOTED:'#a8ff78',INCUBATING:'#f0c040',DISCOVERED:'#888',DECAYING:'#ff8c00',DISABLED:'#ff4d4d',UNKNOWN:'#555'};
+                const scEl = document.getElementById('rc-signal-counts');
+                if (scEl) scEl.innerHTML = stageOrder.filter(s => stageCounts[s]).map(s =>
+                    `<div style="display:flex;justify-content:space-between;width:130px;">
+                        <span style="color:${stageColors[s]||'#888'};">${s}</span>
+                        <span style="font-weight:700;">${stageCounts[s]}</span>
+                     </div>`
+                ).join('') || '<div style="color:var(--text-muted);">Run nightly_jobs.py first</div>';
+
+                // ── Signal Lifecycle table
+                const lcBody = document.getElementById('rc-lifecycle-body');
+                if (lcBody) {
+                    const lcRows = Object.values(lc).sort((a, b) => stageOrder.indexOf(a.stage) - stageOrder.indexOf(b.stage));
+                    if (lcRows.length === 0) {
+                        lcBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Run nightly_jobs.py to populate lifecycle data.</td></tr>';
+                    } else {
+                        lcBody.innerHTML = lcRows.map(r => {
+                            const sc = stageColors[r.stage] || '#888';
+                            const clvStr = r.avg_clv != null ? (r.avg_clv >= 0 ? '+' : '') + Number(r.avg_clv).toFixed(1) + '%' : '—';
+                            const vClvSig = sigs[r.signal_name] || {};
+                            const vClv = vClvSig.val_avg_clv ?? vClvSig.avg_clv;
+                            const vStr = vClv != null ? (vClv >= 0 ? '+' : '') + Number(vClv).toFixed(1) + '%' : '—';
+                            return `<tr>
+                                <td style="font-family:monospace;font-size:0.75rem;font-weight:600;">${r.signal_name}</td>
+                                <td><span style="color:${sc};font-weight:700;font-size:0.72rem;">${r.stage}</span></td>
+                                <td style="color:${r.avg_clv > 0 ? '#00ff88' : '#ff4d4d'};">${clvStr}</td>
+                                <td style="color:${vClv > 0 ? '#00ff88' : '#ff4d4d'};">${vStr}</td>
+                                <td style="color:var(--text-muted);">${r.days_in_stage ?? '—'}d</td>
+                            </tr>`;
+                        }).join('');
+                    }
+                }
+
+                // ── Audit trail table
+                const auditBody = document.getElementById('rc-audit-body');
+                if (auditBody) {
+                    if (!auditData.length) {
+                        auditBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No nightly runs yet.</td></tr>';
+                    } else {
+                        auditBody.innerHTML = auditData.map(r => {
+                            const hColor = (r.health_score || 0) >= 70 ? '#00ff88' : (r.health_score || 0) >= 40 ? '#f0c040' : '#ff4d4d';
+                            const cColor = r.avg_clv > 0 ? '#00ff88' : r.avg_clv < 0 ? '#ff4d4d' : '#888';
+                            const promoted = (r.promoted || []).join(', ') || '—';
+                            const disabled = (r.disabled || []).join(', ') || '—';
+                            return `<tr>
+                                <td style="font-family:monospace;">${r.run_id}</td>
+                                <td>${r.bets_analyzed ?? '—'}</td>
+                                <td style="color:${hColor};font-weight:700;">${r.health_score ?? '—'}</td>
+                                <td style="color:${cColor};">${r.avg_clv != null ? (r.avg_clv >= 0 ? '+' : '') + r.avg_clv.toFixed(1) + '%' : '—'}</td>
+                                <td style="color:#a8ff78;font-size:0.7rem;">${promoted}</td>
+                                <td style="color:#ff4d4d;font-size:0.7rem;">${disabled}</td>
+                            </tr>`;
+                        }).join('');
+                    }
+                }
+
+                // ── Edge attribution bars
+                function _attrBars(containerId, rows) {
+                    const el = document.getElementById(containerId);
+                    if (!el || !rows || !rows.length) return;
+                    const maxAbs = Math.max(...rows.map(r => Math.abs(r.avg_clv || 0)), 1);
+                    el.innerHTML = rows.map(r => {
+                        const clv = r.avg_clv || 0;
+                        const barW = Math.abs(clv) / maxAbs * 80;
+                        const barC = clv >= 0 ? '#00ff88' : '#ff4d4d';
+                        const contrib = r.contribution >= 0 ? '+' + r.contribution.toFixed(1) : r.contribution.toFixed(1);
+                        return `<div style="margin-bottom:8px;">
+                            <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:2px;">
+                                <span style="color:var(--text-secondary);">${r.label}</span>
+                                <span style="color:var(--text-muted);">n=${r.n}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <div style="height:8px;width:${barW.toFixed(0)}px;background:${barC};border-radius:3px;min-width:2px;"></div>
+                                <span style="font-size:0.7rem;color:${barC};font-weight:600;">${clv >= 0 ? '+' : ''}${clv.toFixed(1)}%</span>
+                                <span style="font-size:0.65rem;color:var(--text-muted);">(${contrib})</span>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+                _attrBars('rc-attr-move',   attrData.by_move_size);
+                _attrBars('rc-attr-mono',   attrData.by_monotonicity);
+                _attrBars('rc-attr-league', attrData.by_league);
+                _attrBars('rc-attr-timing', attrData.by_timing);
+
+                // ── Alerts & Milestones
+                const alertsEl = document.getElementById('rc-alerts');
+                if (alertsEl) {
+                    const alerts = [];
+                    const overallN   = (clvData.overall || {}).n || 0;
+                    const steamFwd   = sigs['STEAM_FWD'] || {};
+                    const valN       = steamFwd.val_n || steamFwd.n || 0;
+                    const valCLVVal  = steamFwd.val_avg_clv ?? steamFwd.avg_clv;
+                    const valCILo    = steamFwd.val_ci_lower;
+
+                    // Milestone: 100 walk-forward samples
+                    if (valN >= 100 && valCLVVal > 0 && valCILo >= 0) {
+                        alerts.push(['✅', '#00ff88', `STEAM_FWD: ${valN} validated samples, CLV ${valCLVVal >= 0 ? '+' : ''}${(valCLVVal||0).toFixed(1)}%, 95% CI clears zero — statistically defensible edge.`]);
+                    } else if (valN < 100) {
+                        const remaining = 100 - valN;
+                        alerts.push(['🎯', '#f0c040', `Milestone: ${remaining} more validated samples needed to reach statistical significance (current: ${valN}/100).`]);
+                    }
+
+                    // Decay alert
+                    if (clv7 != null && clv30 != null && clv7 < clv30 - 3) {
+                        alerts.push(['⚠️', '#ff8c00', `Regime warning: 7d CLV (${clv7 >= 0 ? '+' : ''}${clv7.toFixed(1)}%) is trailing 30d CLV (${clv30 >= 0 ? '+' : ''}${clv30.toFixed(1)}%) by more than 3pp — possible decay.`]);
+                    } else if (clv7 != null && clv30 != null) {
+                        alerts.push(['✅', '#00ff88', `Regime stable: 7d CLV (${clv7 >= 0 ? '+' : ''}${clv7.toFixed(1)}%) consistent with 30d CLV (${clv30 >= 0 ? '+' : ''}${clv30.toFixed(1)}%).`]);
+                    }
+
+                    // Health alert
+                    if (health < 40) alerts.push(['ℹ️', '#888', 'Health score below 40 — accumulate more settled bets and run nightly validation.']);
+
+                    if (!alerts.length) alerts.push(['ℹ️', '#888', 'No alerts. Run nightly_jobs.py to populate audit data.']);
+                    alertsEl.innerHTML = alerts.map(([icon, col, msg]) =>
+                        `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;background:rgba(255,255,255,0.03);border-left:3px solid ${col};border-radius:0 8px 8px 0;">
+                            <span>${icon}</span>
+                            <span style="color:var(--text-secondary);font-size:0.8rem;">${msg}</span>
+                         </div>`
+                    ).join('');
+                }
+
+            // load experiments separately (independent request)
+            loadExperiments();
+
+            } catch(e) {
+                console.error('loadResearch error', e);
+            }
+        }
+
+        // ── Counterfactual Engine ─────────────────────────────────────────────────
+        async function runCounterfactual() {
+            const thr = document.getElementById('cf-thresholds').value.trim() || '3,5,7,10,15';
+            const cfEl = document.getElementById('cf-result');
+            const vrEl = document.getElementById('cf-verdict');
+            cfEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.8rem;text-align:center;padding:16px;">Running sweep…</div>';
+            if (vrEl) vrEl.innerHTML = '';
+            try {
+                const data = await fetch(`/api/counterfactual?thresholds=${encodeURIComponent(thr)}`).then(r => r.json());
+                if (data.error) { cfEl.innerHTML = `<div style="color:#ff4d4d;">Error: ${data.error}</div>`; return; }
+                const rows  = data.results || [];
+                const opt   = data.optimal;
+                const maxN  = Math.max(...rows.map(r => r.n), 1);
+                cfEl.innerHTML = `
+                    <table class="data-table" style="font-size:0.78rem;">
+                        <thead><tr>
+                            <th>Threshold</th><th>N bets</th><th>Hit%</th><th>Avg CLV%</th><th>CLV n</th><th>Verdict</th><th>Bar</th>
+                        </tr></thead>
+                        <tbody>
+                        ${rows.map(r => {
+                            const clvColor = r.avg_clv > 0 ? '#00ff88' : r.avg_clv < 0 ? '#ff4d4d' : '#888';
+                            const clvStr   = r.avg_clv != null ? (r.avg_clv >= 0 ? '+' : '') + r.avg_clv.toFixed(1) + '%' : '—';
+                            const hitStr   = r.n > 0 ? r.hit.toFixed(1) + '%' : '—';
+                            const isOpt    = opt && r.threshold_pct === opt.threshold_pct;
+                            const verdict  = r.avg_clv >= 5 ? 'STRONG' : r.avg_clv >= 0 ? 'weak' : r.avg_clv < -5 ? 'DEAD' : r.n >= 3 ? 'marginal' : 'no data';
+                            const barW     = Math.round(r.n / maxN * 80);
+                            return `<tr style="${isOpt ? 'background:rgba(0,255,136,0.06);' : ''}">
+                                <td style="font-weight:${isOpt ? '700' : '400'};color:${isOpt ? '#00ff88' : 'inherit'};">${r.threshold_pct}%${isOpt ? ' ★' : ''}</td>
+                                <td>${r.n}</td>
+                                <td style="color:var(--text-muted);">${hitStr}</td>
+                                <td style="color:${clvColor};font-weight:700;">${clvStr}</td>
+                                <td style="color:var(--text-muted);">${r.clv_n}</td>
+                                <td style="color:${r.avg_clv >= 5 ? '#00ff88' : r.avg_clv >= 0 ? '#f0c040' : '#ff4d4d'};font-size:0.72rem;">${verdict}</td>
+                                <td><div style="height:6px;width:${barW}px;background:${clvColor};border-radius:3px;min-width:2px;"></div></td>
+                            </tr>`;
+                        }).join('')}
+                        </tbody>
+                    </table>`;
+                // Selectivity verdict
+                const withData = rows.filter(r => r.avg_clv != null && r.n >= 5);
+                if (withData.length >= 2) {
+                    const lo = withData[0], hi = withData[withData.length - 1];
+                    const delta = hi.avg_clv - lo.avg_clv;
+                    const improving = delta > 0;
+                    if (vrEl) vrEl.innerHTML = `
+                        <div style="padding:10px 14px;background:rgba(255,255,255,0.03);border-left:3px solid ${improving ? '#00ff88' : '#f0c040'};border-radius:0 8px 8px 0;font-size:0.8rem;">
+                            ${improving ? '✅' : '⚠️'}
+                            <strong>Selectivity ${improving ? 'improves' : 'degrades'} CLV (${delta >= 0 ? '+' : ''}${delta.toFixed(1)}pp).</strong>
+                            ${improving ? 'The edge is real — higher thresholds filter better.' : 'Model\'s high-conviction disagreements are model error, not edge.'}
+                            ${opt ? ` Optimal threshold: <strong>${opt.threshold_pct}%</strong> (CLV ${opt.avg_clv >= 0 ? '+' : ''}${opt.avg_clv.toFixed(1)}%, n=${opt.n}).` : ''}
+                        </div>`;
+                }
+            } catch(e) {
+                cfEl.innerHTML = `<div style="color:#ff4d4d;padding:12px;">Error: ${e.message}</div>`;
+            }
+        }
+
+        // ── Experiment Registry ───────────────────────────────────────────────────
+        async function loadExperiments() {
+            const body = document.getElementById('rc-experiments-body');
+            if (!body) return;
+            try {
+                const rows = await fetch('/api/experiments').then(r => r.json());
+                if (!rows.length) {
+                    body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No experiments yet. Click "+ New Experiment" to start one.</td></tr>';
+                    return;
+                }
+                const statusColors = {ACTIVE:'#00ff88', COMPLETED:'#4d9fff', CANCELLED:'#888'};
+                body.innerHTML = rows.map(r => {
+                    const sc = statusColors[r.status] || '#888';
+                    return `<tr>
+                        <td style="font-family:monospace;font-weight:700;font-size:0.72rem;">${r.id}</td>
+                        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${r.hypothesis}">${r.hypothesis || '—'}</td>
+                        <td style="color:var(--text-muted);font-size:0.72rem;">${(r.start_date || '').slice(0,10)}</td>
+                        <td style="color:var(--text-muted);font-size:0.72rem;">${(r.end_date || '').slice(0,10) || '—'}</td>
+                        <td><span style="color:${sc};font-weight:700;font-size:0.72rem;">${r.status}</span></td>
+                        <td style="font-family:monospace;color:var(--text-muted);font-size:0.7rem;">${r.config_hash || '—'}</td>
+                        <td>
+                            ${r.status === 'ACTIVE' ? `<button onclick="completeExperiment('${r.id}')"
+                                style="font-size:0.68rem;padding:2px 8px;border-radius:6px;cursor:pointer;background:rgba(77,159,255,0.15);color:#4d9fff;border:1px solid #4d9fff;">
+                                Complete</button>` : '—'}
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch(e) {
+                console.error('loadExperiments error', e);
+            }
+        }
+
+        async function createExperiment() {
+            const hyp = (document.getElementById('new-exp-hypothesis').value || '').trim();
+            if (!hyp) { alert('Enter a hypothesis first.'); return; }
+            const supersede = document.getElementById('new-exp-supersede').checked;
+            try {
+                const res = await fetch('/api/experiments', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({hypothesis: hyp, supersede}),
+                });
+                const data = await res.json();
+                if (data.error) { alert('Error: ' + data.error); return; }
+                document.getElementById('new-exp-hypothesis').value = '';
+                document.getElementById('new-exp-form').style.display = 'none';
+                await loadExperiments();
+            } catch(e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function completeExperiment(id) {
+            try {
+                await fetch(`/api/experiments/${id}`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({status: 'COMPLETED'}),
+                });
+                await loadExperiments();
+            } catch(e) {
+                console.error('completeExperiment error', e);
             }
         }
 

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     DISCORD_WEBHOOK_URL: Optional[str] = None
     WHATSAPP_PHONE: Optional[str] = None  # Format: +961XXXXXXXX
     WHATSAPP_API_KEY: Optional[str] = None  # CallMeBot API Key
+    NTFY_TOPIC: Optional[str] = None  # ntfy.sh topic (e.g. deepfieldpro-elie)
 
     # Sportsbook Credentials
     BETARABIA_USERNAME: Optional[str] = None

@@ -258,7 +258,7 @@ def parse_kickertech_events(ApiResponses_P: list) -> dict:
     EventsById_V = {}
 
     for Response_V in ApiResponses_P:
-        Data_V = Response_V.get("data", {})
+        Data_V = Response_V.get("data") or {}  # guard: json() can return None
         Url_V = Response_V.get("url", "")
 
         # Only process SBTech domain responses
@@ -351,7 +351,7 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
     MarketsByEvent_V = {eid: [] for eid in EventsById_P}
 
     for Response_V in ApiResponses_P:
-        Data_V = Response_V.get("data", {})
+        Data_V = Response_V.get("data") or {}  # guard: json() can return None
         Url_V = Response_V.get("url", "")
 
         if not any(D_V in Url_V for D_V in SBTECH_DOMAINS):

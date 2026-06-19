@@ -222,9 +222,6 @@ def train_sot_club_model(df):
 
     print(f"Ensemble model saved to {ModelPath_V}")
     return ensemble
-    print(f"\n[OK] Saved: {ModelPath_V}")
-
-    return Model_V
 
 
 def train_sot_international_model(df):

@@ -77,7 +77,6 @@ except Exception:
     _check_arb = None
     _ARB_OK = False
 from src.execution_engine import place_bet  # TASK 1: Import place_bet
-from src import sharp_edge  # Pinnacle sharp-line steam + Betarabia lagging-value engine
 
 # Unicode-safe print override for Windows console compatibility
 _orig_print = print
@@ -346,10 +345,71 @@ def _odds_history_db():
     return os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
 
 
-def _purge_odds_history(days=3):
-    """Bound odds_history growth. Steam detection needs only same-day pre-kickoff
-    history and CLV settles within a day, so anything older than `days` is dead weight
-    (the table was at 31k rows and climbing every scrape)."""
+_SIGNAL_REGISTRY_DEFAULTS = {
+    "STEAM_FWD":       {"enabled": 1, "promoted": 0, "min_samples": 100},
+    "STEAM_REV":       {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "DOG_DRIFT":       {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "FAV_DRIFT":       {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "EARLY_STEAM":     {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "LATE_STEAM":      {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "FAV_DRIFT_REV":   {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "MOMENTUM_ACCEL":  {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "LARGE_SPREAD":    {"enabled": 0, "promoted": 0, "min_samples": 100},
+}
+
+
+def _init_signal_registry():
+    """Create signal_registry table and seed default rows if not present."""
+    try:
+        con = sqlite3.connect(_odds_history_db())
+        con.execute("""CREATE TABLE IF NOT EXISTS signal_registry (
+            signal_name  TEXT PRIMARY KEY,
+            enabled      INTEGER DEFAULT 1,
+            promoted     INTEGER DEFAULT 0,
+            min_samples  INTEGER DEFAULT 100,
+            owner        TEXT    DEFAULT 'system',
+            updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""")
+        for sig, vals in _SIGNAL_REGISTRY_DEFAULTS.items():
+            con.execute(
+                "INSERT OR IGNORE INTO signal_registry (signal_name, enabled, promoted, min_samples) "
+                "VALUES (?,?,?,?)",
+                (sig, vals["enabled"], vals["promoted"], vals["min_samples"]),
+            )
+        con.commit()
+        con.close()
+    except Exception:
+        pass
+
+
+_signal_registry_cache: dict = {}
+_signal_registry_cache_ts: float = 0.0
+
+
+def _load_signal_registry() -> dict:
+    """Return {signal_name: {enabled, promoted}} from the registry, cached for 60s."""
+    import time as _time
+    global _signal_registry_cache, _signal_registry_cache_ts
+    if _time.time() - _signal_registry_cache_ts < 60 and _signal_registry_cache:
+        return _signal_registry_cache
+    try:
+        con = sqlite3.connect(_odds_history_db())
+        rows = con.execute(
+            "SELECT signal_name, enabled, promoted FROM signal_registry"
+        ).fetchall()
+        con.close()
+        _signal_registry_cache = {r[0]: {"enabled": bool(r[1]), "promoted": bool(r[2])} for r in rows}
+        _signal_registry_cache_ts = _time.time()
+        return _signal_registry_cache
+    except Exception:
+        return {k: {"enabled": v["enabled"], "promoted": v["promoted"]}
+                for k, v in _SIGNAL_REGISTRY_DEFAULTS.items()}
+
+
+def _purge_odds_history(days=30):
+    """Bound odds_history growth. Keep 30 days so signal_discovery.py can evaluate
+    signals against a rolling month of settled fixtures. Steam detection only needs
+    same-day data but the research pipeline needs longer history."""
     try:
         con = sqlite3.connect(_odds_history_db())
         con.execute(
@@ -363,9 +423,19 @@ def _purge_odds_history(days=3):
 
 
 def _steam_moves(fid, m_type):
-    """Return {selection: latest_prob - earliest_prob} for a fixture+market, or {}.
-    Both snapshots come from the odds_history ledger (latest = most recent logged
-    price per selection, which the sniper writes just before this gate runs)."""
+    """Return {selection: effective_move} using time-series pattern analysis.
+
+    Upgrades from earliest-vs-latest to a monotonicity-weighted signal:
+      effective_move = raw_move * monotonicity_score
+
+    Monotonicity score (0..1): fraction of consecutive probability steps that go
+    in the dominant direction. A smooth 2.10→2.05→1.98→1.92 pattern scores 1.0.
+    A spike-and-reverse 2.10→1.90→2.08 scores 0.33. This filters "fake steam"
+    (single large print then reversal) while rewarding sustained sharp-money flow.
+
+    Also computes recent_momentum (last 2 snapshots only) and returns it in a
+    secondary key "__meta__" so callers can display both measures if wanted.
+    """
     try:
         conn = sqlite3.connect(_odds_history_db())
         rows = conn.execute(
@@ -376,20 +446,72 @@ def _steam_moves(fid, m_type):
         conn.close()
     except Exception:
         return {}
-    if len({ts for _, _, ts in rows}) < 2:  # need an actual move over time
+
+    unique_ts = {ts for _, _, ts in rows}
+    if len(unique_ts) < 2:
         return {}
-    earliest, latest = {}, {}
-    for sel, o, _ts in rows:
+
+    # Build per-selection time series of devigged probabilities
+    from collections import defaultdict
+    by_ts: dict = defaultdict(dict)
+    for sel, o, ts in rows:
         if o and o > 0:
-            earliest.setdefault(sel, o)  # first (oldest) price per selection
-            latest[sel] = o  # overwritten -> ends at newest
-    early, late = _devig_map(earliest), _devig_map(latest)
+            by_ts[ts][sel] = o
+
+    # Sort timestamps and build per-selection prob series
+    sorted_ts = sorted(by_ts)
+    all_sels = {sel for snap in by_ts.values() for sel in snap}
+    prob_series: dict = {sel: [] for sel in all_sels}
+
+    for ts in sorted_ts:
+        snap = by_ts[ts]
+        if len(snap) < 2:
+            continue
+        dv = _devig_map(snap)
+        if not dv:
+            continue
+        for sel in all_sels:
+            if sel in dv:
+                prob_series[sel].append(dv[sel])
+
+    # Need earliest and latest devigged maps for the raw move
+    snapshots_with_all = [by_ts[ts] for ts in sorted_ts if len(by_ts[ts]) >= 2]
+    if len(snapshots_with_all) < 2:
+        return {}
+    early = _devig_map(snapshots_with_all[0])
+    late  = _devig_map(snapshots_with_all[-1])
     if not early or not late:
         return {}
-    return {s: late[s] - early.get(s, late[s]) for s in late}
+
+    result = {}
+    meta = {}
+    for sel in late:
+        raw_move = late[sel] - early.get(sel, late[sel])
+        series = prob_series.get(sel, [])
+
+        # Monotonicity: count steps in the dominant direction
+        if len(series) >= 2:
+            direction = 1 if raw_move >= 0 else -1
+            steps = [series[i+1] - series[i] for i in range(len(series)-1)]
+            aligned = sum(1 for s in steps if s * direction > 0)
+            monotonicity = aligned / len(steps) if steps else 0.5
+
+            # Recent momentum: last 2 points
+            recent_move = series[-1] - series[-2] if len(series) >= 2 else 0
+        else:
+            monotonicity = 0.5
+            recent_move = raw_move
+
+        effective_move = raw_move * monotonicity
+        result[sel] = effective_move
+        meta[sel] = {"raw": raw_move, "monotonicity": round(monotonicity, 2),
+                     "recent": recent_move, "n_snaps": len(series)}
+
+    result["__meta__"] = meta
+    return result
 
 
-def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kickoff):
+def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kickoff, monotonicity=None):
     """Append a fired steam pick to the steam_signals research ledger (one row per
     fixture/market/selection — first detection's price sticks). Settled offline by
     tools/steam_report.py. Independent of the model bet path / staking."""
@@ -398,15 +520,19 @@ def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kicko
         conn.execute(
             """CREATE TABLE IF NOT EXISTS steam_signals (
                    fixture_id TEXT, league TEXT, match TEXT, market TEXT, selection TEXT,
-                   entry_odds REAL, steam_move REAL, kickoff TEXT,
+                   entry_odds REAL, steam_move REAL, kickoff TEXT, monotonicity REAL,
                    detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                    UNIQUE(fixture_id, market, selection))"""
         )
+        try:
+            conn.execute("ALTER TABLE steam_signals ADD COLUMN monotonicity REAL")
+        except Exception:
+            pass
         conn.execute(
             """INSERT OR IGNORE INTO steam_signals
-                   (fixture_id, league, match, market, selection, entry_odds, steam_move, kickoff)
-               VALUES (?,?,?,?,?,?,?,?)""",
-            (str(fid), league, match, m_type, sel_name, odds, move, kickoff),
+                   (fixture_id, league, match, market, selection, entry_odds, steam_move, kickoff, monotonicity)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (str(fid), league, match, m_type, sel_name, odds, move, kickoff, monotonicity),
         )
         conn.commit()
         conn.close()
@@ -1779,23 +1905,12 @@ def get_match_score(name1, name2):
         n = re.sub(r"[^a-z0-9\s]", " ", n)
         n = _apply_aliases(re.sub(r"\s+", " ", n).strip())
         noise = {
-            "fc",
-            "cf",
-            "sc",
-            "u23",
-            "pr",
-            "ii",
-            "u20",
-            "united",
-            "city",
-            "town",
-            "athletic",
-            "club",
-            "de",
-            "fk",
-            "afc",
-            "sv",
-            "sp",
+            "fc", "cf", "sc", "u23", "pr", "ii", "u20", "united", "city", "town",
+            "athletic", "club", "de", "fk", "afc", "sv", "sp",
+            # Scandinavian / Eastern European suffixes
+            "bk", "ik", "if", "sk", "aik", "ff", "bois",
+            # Other common suffixes
+            "ac", "hfc", "rfc", "utd", "jfc",
         }
         return [w for w in n.split() if w and w not in noise]
 
@@ -2262,7 +2377,7 @@ def _implausible_odds(market, odds):
 
 
 def log_steam_bet(
-    match, market, selection, odds, steam_move_pct, fixture_id=None, league=None
+    match, market, selection, odds, steam_move_pct, fixture_id=None, league=None, monotonicity=None
 ):
     """Shadow flat-stake bet for a fired STEAM (line-movement) signal.
 
@@ -2280,21 +2395,6 @@ def log_steam_bet(
             f"{match} ({selection}) — stale/garbled price."
         )
         return
-    # COVERAGE GATE: the validated +20.9% steam edge is on LIQUID markets. Live, steam was
-    # firing on obscure non-Pinnacle leagues where line moves are NOISE (stale/thin-market
-    # artifacts), losing money and unmeasurable (no sharp close to grade against). Only fire
-    # steam when the match also exists on Pinnacle (a real, liquid market). This removes the
-    # losing tail while keeping steam where it was validated. Toggle: steam_covered_only.
-    if settings.get("steam_covered_only", True):
-        parts = (match or "").split(" vs ")
-        if (
-            len(parts) != 2
-            or sharp_edge._match_key(parts[0].strip(), parts[1].strip()) is None
-        ):
-            print(
-                f"[STEAM] Skipped (not Pinnacle-covered — thin-market noise): {match} ({selection})"
-            )
-            return
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return
@@ -2341,11 +2441,22 @@ def log_steam_bet(
             return
 
         bet_id = "STEAM_" + uuid.uuid4().hex[:12]
+
+        for col_sql in [
+            'ALTER TABLE bet_log ADD COLUMN signal_name TEXT',
+            'ALTER TABLE bet_log ADD COLUMN move_size REAL',
+            'ALTER TABLE bet_log ADD COLUMN monotonicity REAL',
+        ]:
+            try:
+                conn.execute(col_sql)
+            except Exception:
+                pass
+
         cur.execute(
             """INSERT INTO bet_log
                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
-                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, signal_name, move_size, monotonicity)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 bet_id,
                 match,
@@ -2364,6 +2475,9 @@ def log_steam_bet(
                 selection,
                 str(fixture_id) if fixture_id is not None else None,
                 league,
+                'STEAM_FWD',
+                steam_move_pct,
+                monotonicity,
             ),
         )
         # Line-shop: record the BEST price across Betarabia + Kambi (metadata only — the bet
@@ -2388,102 +2502,6 @@ def log_steam_bet(
         print(f"[STEAM BET] error: {e}")
 
 
-def log_sharp_bet(
-    match,
-    market,
-    selection,
-    odds,
-    sharp_move_pct,
-    fixture_id=None,
-    league=None,
-    source="SHARP",
-):
-    """Shadow flat-stake bet for a sharp-reference signal vs Betarabia. Two sub-strategies,
-    each its own bet_source so they're judged separately:
-      'SHARP'  - Pinnacle line steamed toward this side AND Betarabia still pays more.
-      'SHARPV' - Betarabia is +EV vs Pinnacle's de-vigged fair price (capped band).
-    Paper only; gated by settings.sharp_betting_enabled; deduped per pick/source."""
-    settings = load_settings()
-    if not settings.get("sharp_betting_enabled", True):
-        return
-    if _implausible_odds(market, odds):
-        print(
-            f"[GUARD] Skipped {source} bet on implausible {market} odds {odds}: "
-            f"{match} ({selection}) — stale/garbled price."
-        )
-        return
-    db_path = os.path.join(DATA_DIR, "bet_log.db")
-    if not os.path.exists(db_path):
-        return
-    try:
-        conn = sqlite3.connect(db_path)
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
-            "AND bet_source=?",
-            (match, market, selection, source),
-        )
-        if cur.fetchone()[0] > 0:
-            conn.close()
-            return
-
-        try:
-            br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
-            balance = br_conn.execute(
-                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1"
-            ).fetchone()[0]
-            br_conn.close()
-        except Exception:
-            balance = 10000.0
-
-        stake = float(settings.get("sharp_flat_stake", 25.0))
-        if stake > balance:
-            stake = balance
-        if stake <= 0:
-            conn.close()
-            return
-
-        from src.bankroll_tracker import register_bet
-
-        if not register_bet(stake):
-            conn.close()
-            return
-
-        bet_id = f"{source}_" + uuid.uuid4().hex[:12]
-        cur.execute(
-            """INSERT INTO bet_log
-               (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
-                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                bet_id,
-                match,
-                f"{match} ({selection})",
-                market,
-                odds,
-                odds,
-                round(sharp_move_pct, 1),
-                stake,
-                "OPEN",
-                0.0,
-                datetime.datetime.now().isoformat(),
-                source,
-                1,
-                2.5,
-                selection,
-                str(fixture_id) if fixture_id is not None else None,
-                league,
-            ),
-        )
-        conn.commit()
-        conn.close()
-        _tag = "sharp move" if source == "SHARP" else "value EV"
-        print(
-            f"[{source} BET] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
-            f"{_tag} +{sharp_move_pct:.1f}% stake {stake}"
-        )
-    except Exception as e:
-        print(f"[{source} BET] error: {e}")
 
 
 def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None):
@@ -2884,6 +2902,16 @@ def settle_open_bets():
     except Exception as e:
         print("[SETTLEMENT] API-Football merge failed:", e)
 
+    # Sofascore via headless browser (covers leagues ESPN/Flashscore miss).
+    try:
+        from src.sofascore_results_scraper import get_finished_results as ss_results
+        sofa = ss_results(dates=_settle_dates)
+        before = len(finished_matches)
+        finished_matches.update(sofa)
+        print(f"[SETTLEMENT] Sofascore added {len(finished_matches) - before} new matches ({len(sofa)} total).")
+    except Exception as e:
+        print("[SETTLEMENT] Sofascore scraper failed:", e)
+
     if not finished_matches:
         print("[SETTLEMENT] No finished matches found from any source yet.")
         return
@@ -2956,6 +2984,10 @@ def settle_open_bets():
             words = [w for w in n.split() if w not in suffixes]
             return "".join(words)
 
+        # conn_bet / cur_bet are aliases for the already-open bet_log connection.
+        conn_bet = conn
+        cur_bet = cur
+
         for (
             bet_id,
             match_id,
@@ -2969,17 +3001,27 @@ def settle_open_bets():
         ) in open_bets:
             import re
 
-            match_match = re.match(r"^(.*) vs (.*) \((.*)\)$", player_id)
-            if not match_match:
-                match_name = match_id if match_id else "Unknown vs Unknown"
-                cur.execute("SELECT side FROM bet_log WHERE bet_id = ?", (bet_id,))
-                side_row = cur.fetchone()
-                selection = side_row[0] if side_row else "Home"
+            # Parse player_id: "Home vs Away (Selection)" where Selection may itself
+            # contain parens e.g. "Away (2)". The old greedy regex captured "Away "
+            # as part of away_t, producing a broken match_name.
+            # Fix: detect the outermost wrapping parens using a selection-pattern anchor.
+            _sel_re = re.search(
+                r" \((Home(?:\s*\(\d+\))?|Away(?:\s*\(\d+\))?|X|Draw"
+                r"|Over[\s\d.]+|Under[\s\d.]+|[12X])\)$",
+                player_id or "",
+            )
+            if _sel_re:
+                selection = _sel_re.group(1).strip()
+                _mn = player_id[: _sel_re.start()].strip()
+                _parts = _mn.split(" vs ", 1)
+                if len(_parts) == 2:
+                    home_t, away_t = _parts[0].strip(), _parts[1].strip()
+                    match_name = f"{home_t} vs {away_t}"
+                else:
+                    match_name = match_id if match_id else "Unknown vs Unknown"
             else:
-                home_t = match_match.group(1).strip()
-                away_t = match_match.group(2).strip()
-                selection = match_match.group(3).strip()
-                match_name = f"{home_t} vs {away_t}"
+                match_name = match_id if match_id else "Unknown vs Unknown"
+                selection = bet_side if bet_side else "Home"
 
             sel_lower = selection.lower()
 
@@ -3007,6 +3049,7 @@ def settle_open_bets():
                     candidates.append((h_score + a_score, score, finished_name))
 
             if not candidates:
+                print(f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results.")
                 continue
 
             candidates.sort(key=lambda c: c[0], reverse=True)
@@ -3267,35 +3310,10 @@ def settle_open_bets():
             except Exception:
                 pass
 
-            # CLV vs the SHARP (Pinnacle) close — the TRUSTWORTHY scoreboard. The Betarabia-self
-            # CLV above is self-referential (entry vs same book's later price); beating the SHARP
-            # de-vigged fair line is what actually predicts profit. Only fires for 1X2 bets that
-            # overlap Pinnacle (NULL otherwise). edge_status.py gates real money on this.
-            clv_sharp = None
-            if market_type == "1X2" and bet_side:
-                try:
-                    parts = (match_id or "").split(" vs ")
-                    if len(parts) == 2:
-                        ko = ko_map.get(str(bet_fixture_id))
-                        ko_ts = ko.timestamp() if ko is not None else None
-                        vs = sharp_edge.value_signal(
-                            parts[0].strip(),
-                            parts[1].strip(),
-                            bet_side,
-                            entry_odds,
-                            ko_ts,
-                        )
-                        if vs.get("matched") and vs.get("sharp_fair_prob"):
-                            cs = round(entry_odds * vs["sharp_fair_prob"] - 1.0, 4)
-                            if abs(cs) <= 0.40:
-                                clv_sharp = cs
-                except Exception:
-                    pass
-
             cur.execute(
-                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ?, clv_sharp = ? "
+                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ? "
                 "WHERE bet_id = ?",
-                (result, pnl, closing_odds, clv, clv_sharp, bet_id),
+                (result, pnl, closing_odds, clv, bet_id),
             )
             _clv_str = f" CLV {clv*100:+.1f}%" if clv is not None else ""
             print(
@@ -3805,12 +3823,12 @@ def update_dashboard_json(fixtures, results_cache):
                             # the odds_history ledger, capture fired picks to the research
                             # ledger, and (opt-in) use it to confirm model picks. 1X2 only.
                             steam_min = settings.get("steam_min_move_pct", 3.0) / 100.0
-                            steam_move = (
-                                _steam_moves(fid, m_type).get(sel_name, 0.0)
-                                if market_allowed
-                                else 0.0
-                            )
+                            _steam_result = _steam_moves(fid, m_type) if market_allowed else {}
+                            steam_move = _steam_result.get(sel_name, 0.0)
+                            _steam_meta_sel = (_steam_result.get('__meta__') or {}).get(sel_name, {})
+                            steam_mono = _steam_meta_sel.get('monotonicity', None)
                             sel["steam_move"] = round(steam_move * 100.0, 2)
+                            _registry = _load_signal_registry()
                             steam_fired = (
                                 steam_move >= steam_min
                                 and odds
@@ -3819,6 +3837,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 and not league_blocked
                                 and not draw_excluded
                                 and odds_fresh
+                                and _registry.get("STEAM_FWD", {}).get("enabled", True)
                             )
                             if steam_fired:
                                 _record_steam_signal(
@@ -3830,6 +3849,7 @@ def update_dashboard_json(fixtures, results_cache):
                                     odds,
                                     steam_move,
                                     match_time,
+                                    monotonicity=steam_mono,
                                 )
                                 # Flat-stake shadow bet for the steam signal (separate
                                 # strategy from the model; paper only; deduped internally).
@@ -3841,82 +3861,20 @@ def update_dashboard_json(fixtures, results_cache):
                                     steam_move * 100.0,
                                     fid,
                                     league,
+                                    monotonicity=steam_mono,
                                 )
-                            # SHARP EDGE (Pinnacle): the strongest validated play — bet
-                            # Betarabia when the SHARP line steamed toward this side AND
-                            # Betarabia still offers a better price than Pinnacle (lagging
-                            # value). Separate strategy (bet_source='SHARP'); paper only.
-                            if (
-                                market_allowed
-                                and not league_blocked
-                                and not draw_excluded
-                                and odds
-                                and odds_fresh
-                            ):
                                 try:
-                                    _ko = None
-                                    try:
-                                        _dt = datetime.datetime.fromisoformat(
-                                            str(match_time).replace("Z", "+00:00")
-                                        )
-                                        if _dt.tzinfo is None:
-                                            _dt = _dt.replace(
-                                                tzinfo=datetime.timezone.utc
-                                            )
-                                        _ko = _dt.timestamp()
-                                    except Exception:
-                                        _ko = None
-                                    _sharp_min = settings.get("steam_min_move_pct", 5.0)
-                                    _sh = sharp_edge.qualifies(
-                                        home, away, sel_name, odds, _sharp_min, _ko
+                                    from src.services.alerting import notifier as _ntfy
+                                    _ntfy._notify(
+                                        f"STEAM {sel_name} @ {odds:.2f}\n"
+                                        f"{home} vs {away}\n"
+                                        f"Move: +{steam_move * 100:.1f}% | {league}",
+                                        title="DeepField STEAM",
+                                        priority="high",
+                                        tags="soccer,chart_with_upwards_trend",
                                     )
-                                    sel["sharp_move"] = _sh.get("sharp_move", 0.0)
-                                    sel["sharp_lagging"] = _sh.get("lagging", False)
-                                    if _sh.get("qualifies"):
-                                        log_sharp_bet(
-                                            f"{home} vs {away}",
-                                            m_type,
-                                            sel_name,
-                                            odds,
-                                            _sh["sharp_move"],
-                                            fid,
-                                            league,
-                                        )
-                                    # Pure value vs the sharp fair line (separate SHARPV
-                                    # strategy; fires on mispricing without needing a move).
-                                    if settings.get("sharp_value_enabled", True):
-                                        _min_ev = settings.get(
-                                            "sharp_value_min_ev", 0.02
-                                        )
-                                        _max_ev = settings.get(
-                                            "sharp_value_max_ev", 0.10
-                                        )
-                                        _v = sharp_edge.qualifies_value(
-                                            home,
-                                            away,
-                                            sel_name,
-                                            odds,
-                                            _min_ev,
-                                            _max_ev,
-                                            _ko,
-                                        )
-                                        sel["sharp_ev"] = round(
-                                            (_v.get("ev") or 0.0) * 100.0, 1
-                                        )
-                                        if _v.get("qualifies"):
-                                            log_sharp_bet(
-                                                f"{home} vs {away}",
-                                                m_type,
-                                                sel_name,
-                                                odds,
-                                                (_v["ev"] or 0.0) * 100.0,
-                                                fid,
-                                                league,
-                                                source="SHARPV",
-                                            )
-                                except Exception as _she:
+                                except Exception:
                                     pass
-
                             # Opt-in: require the market to be moving toward a model pick.
                             require_steam = settings.get("require_steam_confirm", False)
                             steam_ok = (not require_steam) or (steam_move >= steam_min)
@@ -4040,30 +3998,7 @@ def update_dashboard_json(fixtures, results_cache):
                         league,
                     )
 
-                    # WhatsApp alert — send immediately when a new bet is recommended
-                    try:
-                        from src.services.alerting import notifier
-
-                        _steam_pct = best_bet.get("steam_move", 0.0)
-                        _sharp_pct = best_bet.get("sharp_move", 0.0) or 0.0
-                        _kelly_mult = settings.get("kelly_multiplier", 0.25)
-                        _max_exp = settings.get("max_exposure_pct", 0.05)
-                        notifier.send_bet_alert(
-                            home=home,
-                            away=away,
-                            selection=sel_name,
-                            league=league or "Unknown",
-                            odds=odds,
-                            prob=prob,
-                            ev=ev,
-                            steam_move=_steam_pct,
-                            sharp_move=_sharp_pct,
-                            bankroll=10.0,
-                            kelly_mult=_kelly_mult,
-                            max_exp=_max_exp,
-                        )
-                    except Exception as _alert_err:
-                        print(f"[ALERT] WhatsApp bet alert skipped: {_alert_err}")
+                    # Arena autopilot handles real-bet notifications (one push per placed order)
 
         item = {
             "fixture_id": fid,
@@ -4122,6 +4057,8 @@ def update_dashboard_json(fixtures, results_cache):
         os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8"
     ) as f:
         json.dump(dashboard_data, f, indent=4)
+
+    # Notifications handled by Arena autopilot (one push per placed bet, not per cycle)
 
 
 def refresh_completed_comparisons():
@@ -4391,6 +4328,7 @@ def init_stair_ai_agent():
 
 def run_daemon():
     print("[*] Starting Smart Live Predictions Daemon...")
+    _init_signal_registry()
     init_stair_ai_agent()
 
     # Initialize new DeepFieldPro institutional modules
@@ -4418,10 +4356,6 @@ def run_daemon():
     #  - closing-line capture: true pre-kickoff prices for open bets (honest CLV)
     #  - sharp snapshots: Pinnacle line history for sharp-steam + lagging-value
     start_closing_capture()
-    try:
-        sharp_edge.start_sharp_snapshots()
-    except Exception as _sse:
-        print(f"[!] Sharp snapshot thread not started: {_sse}")
 
     # Run initial settlement on startup (may be slow — network result fetch).
     settle_open_bets()
