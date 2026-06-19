@@ -333,6 +333,67 @@ def _calibrate_over25(prob_pct):
 # (+8.8% at >=3% moves, +20% at >=5%), the OPPOSITE of the model. This reads the
 # odds_history ledger the daemon already writes (fixture_id, market, selection,
 # odds, timestamp) and returns the de-vigged probability move per selection.
+
+_LEAGUE_NATION = {
+    # Top European leagues
+    "premier league": "England",
+    "championship": "England",
+    "league one": "England",
+    "league two": "England",
+    "fa cup": "England",
+    "la liga": "Spain",
+    "segunda división": "Spain",
+    "copa del rey": "Spain",
+    "bundesliga": "Germany",
+    "2. bundesliga": "Germany",
+    "serie a": "Italy",
+    "serie b": "Italy",
+    "coppa italia": "Italy",
+    "ligue 1": "France",
+    "ligue 2": "France",
+    "eredivisie": "Netherlands",
+    "primeira liga": "Portugal",
+    "super lig": "Turkey",
+    "premier league ukraine": "Ukraine",
+    "scottish premiership": "Scotland",
+    "belgian pro league": "Belgium",
+    # International / multi-nation
+    "champions league": "Europe",
+    "europa league": "Europe",
+    "conference league": "Europe",
+    "nations league": "International",
+    "world cup": "International",
+    "copa america": "South America",
+    "gold cup": "CONCACAF",
+    "afcon": "Africa",
+    "euro": "Europe",
+    "u21": "International",
+    "u20": "International",
+    "u17": "International",
+    "club friendlies": "International",
+}
+
+
+def _nation_from_league(league: str) -> str:
+    """Extract the nation/region for a league string.
+
+    Priority:
+    1. Country in parentheses, e.g. 'National Premier League 2 (Australia)' → 'Australia'
+    2. Hardcoded lookup on lowercased league name substring.
+    3. 'International' as fallback.
+    """
+    import re
+
+    m = re.search(r"\(([^)]+)\)$", league.strip())
+    if m:
+        return m.group(1).strip()
+    low = league.lower()
+    for key, nation in _LEAGUE_NATION.items():
+        if key in low:
+            return nation
+    return "International"
+
+
 def _devig_map(odds_by_sel):
     inv = {s: 1.0 / o for s, o in odds_by_sel.items() if o and o > 0}
     tot = sum(inv.values())
@@ -3929,11 +3990,21 @@ def update_dashboard_json(fixtures, results_cache):
                                 try:
                                     from src.services.alerting import notifier as _ntfy
 
+                                    _nation = _nation_from_league(league or "")
+                                    if "(1)" in sel_name or "home" in sel_name.lower():
+                                        _pick = f"{home} to win"
+                                    elif (
+                                        "(2)" in sel_name or "away" in sel_name.lower()
+                                    ):
+                                        _pick = f"{away} to win"
+                                    else:
+                                        _pick = sel_name
                                     _ntfy._notify(
-                                        f"STEAM {sel_name} @ {odds:.2f}\n"
+                                        f"Bet {_pick}\n"
                                         f"{home} vs {away}\n"
-                                        f"Move: +{steam_move * 100:.1f}% | {league}",
-                                        title="DeepField STEAM",
+                                        f"{league} · {_nation}\n"
+                                        f"@ {odds:.2f}",
+                                        title="STEAM Signal",
                                         priority="high",
                                         tags="soccer,chart_with_upwards_trend",
                                     )
