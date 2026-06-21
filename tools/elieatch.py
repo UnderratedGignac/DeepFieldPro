@@ -705,86 +705,111 @@ _SLASH_CMDS: list[tuple[str, str]] = [
     ("/help",        "show all commands"),
     ("/tui",         "launch the Textual UI"),
     ("/model list",  "list available models"),
-    ("/model ",      "switch model  →  /model <name>"),
+    ("/model",       "switch model  →  /model <name>"),
     ("/providers",   "list connected providers"),
-    ("/cd ",         "change directory  →  /cd <path>"),
+    ("/cd",          "change directory  →  /cd <path>"),
     ("/cwd",         "show working directory"),
     ("/tokens",      "session token estimate"),
     ("/clear",       "clear the screen"),
     ("/exit",        "quit ElieAtch"),
 ]
 
-
-def _pt_prompt(prompt_str: str, _state: dict = {}) -> str:
-    """
-    Prompt with prompt_toolkit slash-command autocomplete + persistent history.
-    Falls back to plain input() if prompt_toolkit is unavailable or no console attached.
-    Session is created lazily on the first call.
-    """
-    if "failed" in _state:
-        return input(prompt_str)
-
-    if "session" not in _state:
-        try:
-            from prompt_toolkit import PromptSession
-            from prompt_toolkit.completion import Completer, Completion
-            from prompt_toolkit.history import FileHistory
-            from prompt_toolkit.styles import Style
-
-            class _SlashCompleter(Completer):
-                def get_completions(self, document, complete_event):
-                    text = document.text_before_cursor
-                    if not text.startswith("/"):
-                        return
-                    for cmd, meta in _SLASH_CMDS:
-                        key = cmd.rstrip()
-                        if key.startswith(text):
-                            yield Completion(
-                                key[len(text):],
-                                start_position=0,
-                                display=key,
-                                display_meta=meta,
-                            )
-
-            style = Style.from_dict({
-                "completion-menu":                         "bg:#07081a #95d5ff",
-                "completion-menu.completion":              "bg:#07081a #d8d8ff",
-                "completion-menu.completion.current":      "bg:#1a1040 bold #bf7fff",
-                "completion-menu.meta.completion":         "bg:#07081a #4a4880",
-                "completion-menu.meta.completion.current": "bg:#1a1040 #7a60a0",
-                "scrollbar.background":                    "bg:#050510",
-                "scrollbar.button":                        "bg:#2a1060",
-            })
-
-            history_path = Path(_ROOT) / ".elieatch_history"
-            _state["session"] = PromptSession(
-                completer=_SlashCompleter(),
-                complete_while_typing=True,
-                history=FileHistory(str(history_path)),
-                style=style,
-                mouse_support=False,
-            )
-        except Exception:
-            _state["failed"] = True
-            return input(prompt_str)
-
+# Plain-text prompt for prompt_toolkit (strip ANSI so it renders cleanly)
+def _plain_prompt(session: "Session") -> str:
     try:
-        from prompt_toolkit.formatted_text import ANSI
-        return _state["session"].prompt(ANSI(prompt_str))
-    except (KeyboardInterrupt, EOFError):
-        raise
-    except Exception:
-        _state["failed"] = True
-        return input(prompt_str)
+        rel  = session.cwd.relative_to(Path.home())
+        disp = "~\\" + str(rel)
+    except ValueError:
+        disp = str(session.cwd)
+    mdl = f" [{session.model}]" if session._ready else ""
+    return f"{disp}{mdl} > "
+
+
+def _make_pt_session():
+    """Create a prompt_toolkit PromptSession with slash toolbar + Tab completion."""
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.completion import Completer, Completion
+    from prompt_toolkit.history import InMemoryHistory
+    from prompt_toolkit.application.current import get_app
+    from prompt_toolkit.styles import Style
+
+    class _SlashCompleter(Completer):
+        def get_completions(self, document, complete_event):
+            text = document.text_before_cursor
+            if not text.startswith("/"):
+                return
+            for cmd, meta in _SLASH_CMDS:
+                if cmd.startswith(text):
+                    yield Completion(
+                        cmd[len(text):],
+                        start_position=0,
+                        display=cmd,
+                        display_meta=meta,
+                    )
+
+    def _toolbar():
+        try:
+            text = get_app().current_buffer.text
+        except Exception:
+            text = ""
+        if not text.startswith("/"):
+            return "  /help  /model  /cd  /clear  /exit  —  Tab=complete"
+        matches = [(c, d) for c, d in _SLASH_CMDS if c.startswith(text)]
+        if not matches:
+            return "  (no matching command)"
+        parts = []
+        for cmd, desc in matches[:6]:
+            parts.append(f"{cmd}  {desc}")
+        return "  " + "    │    ".join(parts)
+
+    style = Style.from_dict({
+        "bottom-toolbar":                          "bg:#1a1040 #bf7fff",
+        "completion-menu":                         "bg:#0d0820 #95d5ff",
+        "completion-menu.completion":              "bg:#0d0820 #d0d0ff",
+        "completion-menu.completion.current":      "bg:#2a1060 bold #ffffff",
+        "completion-menu.meta.completion":         "bg:#0d0820 #5a5888",
+        "completion-menu.meta.completion.current": "bg:#2a1060 #9a80c0",
+    })
+
+    return PromptSession(
+        completer=_SlashCompleter(),
+        complete_while_typing=True,
+        history=InMemoryHistory(),
+        bottom_toolbar=_toolbar,
+        style=style,
+        mouse_support=False,
+    )
+
+
+def _init_pt() -> tuple:
+    """
+    Try to create the prompt_toolkit session.
+    Returns (session, True) on success, (None, False) on failure.
+    Must be called when a real console is attached (inside run_repl).
+    """
+    try:
+        return _make_pt_session(), True
+    except Exception as e:
+        return None, False
 
 
 def run_repl(session: Session):
     os.system("cls")
     _print_banner()
 
+    # Try to enable rich autocomplete
+    pt, pt_ok = _init_pt()
+    if pt_ok:
+        print(f"  {GY}autocomplete active  ·  type {CY}/{GY} to see all commands{R}\n")
+    else:
+        print(f"  {GY}/help for commands{R}\n")
+
     while True:
         try:
-            line = _pt_prompt(session.prompt).strip()
+            if pt_ok:
+                line = pt.prompt(_plain_prompt(session)).strip()
+            else:
+                line = input(session.prompt).strip()
         except (KeyboardInterrupt, EOFError):
             print(f"\n{GY}  bye.{R}\n"); return
 
