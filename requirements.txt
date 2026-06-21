@@ -40,3 +40,4 @@ mypy
 Flask
 joblib
 mcp>=1.0.0
+prompt_toolkit
