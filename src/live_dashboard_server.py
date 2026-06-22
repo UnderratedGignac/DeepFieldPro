@@ -235,7 +235,7 @@ def stream_state():
     return Response(event_stream(), mimetype="text/event-stream")
 
 
-INITIAL_CAPITAL = 300.0  # paper bankroll seed
+INITIAL_CAPITAL = 1000.0  # paper bankroll seed (reset 2026-06-22)
 
 
 @app.route("/api/bankroll")

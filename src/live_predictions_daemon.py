@@ -2766,6 +2766,106 @@ def log_steam_bet(
         print(f"[STEAM BET] error: {e}")
 
 
+def log_pinnacle_value_bet(
+    match,
+    market,
+    selection,
+    odds,
+    pinnacle_edge_pct,
+    fixture_id=None,
+    league=None,
+    pinnacle_data=None,
+):
+    """Shadow bet when Betarabia price exceeds de-vigged Pinnacle fair value by >= min_edge.
+
+    Uses the same Kelly sizing as STEAM (bankroll-proportional or flat fallback).
+    bet_source='PINNACLE_VALUE', settled automatically by settle_open_bets.
+    Gated by settings.pinnacle_value_betting_enabled (default False — measure first).
+    """
+    settings = load_settings()
+    if not settings.get("pinnacle_value_betting_enabled", False):
+        return
+    if _implausible_odds(market, odds):
+        return
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
+    if not os.path.exists(db_path):
+        return
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
+            "AND bet_source='PINNACLE_VALUE'",
+            (match, market, selection),
+        )
+        if cur.fetchone()[0] > 0:
+            conn.close()
+            return
+
+        try:
+            br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
+            balance = br_conn.execute(
+                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1"
+            ).fetchone()[0]
+            br_conn.close()
+        except Exception:
+            balance = 10000.0
+
+        frac = settings.get("steam_kelly_frac", 0.02)
+        if frac and frac > 0:
+            stake = round(balance * frac, 2)
+            stake = max(1.0, min(stake, balance * 0.03))
+        else:
+            stake = float(settings.get("steam_flat_stake", 25.0))
+        if stake > balance:
+            stake = balance
+        if stake <= 0:
+            conn.close()
+            return
+
+        from src.bankroll_tracker import register_bet
+
+        if not register_bet(stake):
+            conn.close()
+            return
+
+        bet_id = "PV_" + uuid.uuid4().hex[:12]
+        fair_odds_val = (pinnacle_data or {}).get("fair_odds", odds)
+        cur.execute(
+            """INSERT INTO bet_log
+               (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
+                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                bet_id,
+                match,
+                f"{match} ({selection})",
+                market,
+                odds,
+                round(fair_odds_val, 4) if fair_odds_val else odds,
+                round(pinnacle_edge_pct, 2),
+                stake,
+                "OPEN",
+                0.0,
+                datetime.datetime.now().isoformat(),
+                "PINNACLE_VALUE",
+                1,
+                2.5,
+                selection,
+                str(fixture_id) if fixture_id is not None else None,
+                league,
+            ),
+        )
+        conn.commit()
+        conn.close()
+        print(
+            f"[PINNACLE VALUE] Shadow bet: {match} ({selection}) @ {odds} "
+            f"edge +{pinnacle_edge_pct:.1f}% vs Pinnacle fair stake {stake}"
+        )
+    except Exception as e:
+        print(f"[PINNACLE VALUE BET] error: {e}")
+
+
 def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None, source=None):
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
@@ -3606,14 +3706,35 @@ def settle_open_bets():
             except Exception:
                 pass
 
+            # PINNACLE CLV: the gold-standard metric. Compare our entry price to the
+            # last pre-kickoff Pinnacle snapshot in sharp_odds_history. This tells us
+            # objectively whether we beat the sharp market — even when our closing
+            # Betarabia odds may not be representative.
+            pinnacle_clv = None
+            try:
+                if market_type == "1X2":
+                    from tools.pinnacle_value import clv_from_pinnacle as _pclv
+
+                    _pclv_val = _pclv(bet_home, bet_away, bet_side or selection, entry_odds)
+                    if _pclv_val is not None and abs(_pclv_val) <= 0.40:
+                        pinnacle_clv = _pclv_val
+            except Exception:
+                pass
+
+            try:
+                cur.execute("ALTER TABLE bet_log ADD COLUMN pinnacle_clv REAL")
+            except Exception:
+                pass
+
             cur.execute(
-                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ? "
+                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ?, pinnacle_clv = ? "
                 "WHERE bet_id = ?",
-                (result, pnl, closing_odds, clv, bet_id),
+                (result, pnl, closing_odds, clv, pinnacle_clv, bet_id),
             )
             _clv_str = f" CLV {clv*100:+.1f}%" if clv is not None else ""
+            _pclv_str = f" PinCLV {pinnacle_clv*100:+.1f}%" if pinnacle_clv is not None else ""
             print(
-                f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f}){_clv_str}"
+                f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f}){_clv_str}{_pclv_str}"
             )
 
             # Capital adjustments via Central Tracker
@@ -4189,6 +4310,16 @@ def update_dashboard_json(fixtures, results_cache):
                             steam_mono = _steam_meta_sel.get("monotonicity", None)
                             sel["steam_move"] = round(steam_move * 100.0, 2)
                             _registry = _load_signal_registry()
+                            # League whitelist: only fire STEAM on liquid markets where
+                            # the backtested edge was demonstrated. Obscure leagues
+                            # (Reserve League, USL League Two, 4. deild, etc.) show
+                            # noise-driven moves with no real edge.
+                            _steam_wl = settings.get("steam_league_whitelist", [])
+                            _league_lower = (league or "").lower()
+                            _steam_league_ok = (
+                                not _steam_wl
+                                or any(w in _league_lower for w in _steam_wl)
+                            )
                             steam_fired = (
                                 steam_move >= steam_min
                                 and odds
@@ -4197,6 +4328,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 and not league_blocked
                                 and not draw_excluded
                                 and odds_fresh
+                                and _steam_league_ok
                                 and _registry.get("STEAM_FWD", {}).get("enabled", True)
                             )
                             if steam_fired:
@@ -4249,6 +4381,67 @@ def update_dashboard_json(fixtures, results_cache):
                             # Opt-in: require the market to be moving toward a model pick.
                             require_steam = settings.get("require_steam_confirm", False)
                             steam_ok = (not require_steam) or (steam_move >= steam_min)
+
+                            # PINNACLE VALUE: compare Betarabia live price to de-vigged
+                            # Pinnacle fair price from sharp_odds_history. Edge > 0 means
+                            # Betarabia is more generous than Pinnacle's implied probability.
+                            # CLV is guaranteed positive when this fires (we're buying below
+                            # the sharp consensus price). Annotated on every selection for
+                            # the dashboard; fires a separate PINNACLE_VALUE bet when enabled.
+                            _pin_min_edge = settings.get("pinnacle_min_edge_pct", 3.0) / 100.0
+                            _pin_edge, _pin_data = 0.0, None
+                            if (
+                                m_type == "1X2"
+                                and market_allowed
+                                and not draw_excluded
+                                and odds
+                                and odds > 1.0
+                            ):
+                                try:
+                                    from tools.pinnacle_value import check_value as _pv_check
+
+                                    _pin_edge, _pin_data = _pv_check(
+                                        home,
+                                        away,
+                                        sel_name,
+                                        odds,
+                                        kickoff_ts=match_time,
+                                        min_edge=_pin_min_edge,
+                                    )
+                                except Exception:
+                                    pass
+                            sel["pinnacle_edge"] = round(_pin_edge * 100.0, 2)
+
+                            # Optional: require Pinnacle to confirm value before STEAM bets.
+                            _require_pin_confirm = settings.get("require_pinnacle_confirm", False)
+                            if _require_pin_confirm and steam_fired and _pin_edge <= 0:
+                                steam_fired = False  # Pinnacle doesn't agree — skip
+
+                            # PINNACLE VALUE bet (separate strategy; paper only; off by default)
+                            _pv_league_ok = (
+                                not _steam_wl
+                                or any(w in _league_lower for w in _steam_wl)
+                            )
+                            if (
+                                _pin_edge > 0
+                                and odds
+                                and odds >= dfp_settings.MODEL_MIN_ODDS
+                                and market_allowed
+                                and not league_blocked
+                                and not draw_excluded
+                                and odds_fresh
+                                and _pv_league_ok
+                            ):
+                                log_pinnacle_value_bet(
+                                    f"{home} vs {away}",
+                                    m_type,
+                                    sel_name,
+                                    odds,
+                                    _pin_edge * 100.0,
+                                    fixture_id=fid,
+                                    league=league,
+                                    pinnacle_data=_pin_data,
+                                )
 
                             require_dc = settings.get("require_dc_coverage", True)
                             dc_covered = (prediction or {}).get("dc_covered", False)
