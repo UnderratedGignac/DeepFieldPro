@@ -4412,6 +4412,66 @@ def update_dashboard_json(fixtures, results_cache):
                                     pass
                             sel["pinnacle_edge"] = round(_pin_edge * 100.0, 2)
 
+                            # PINNACLE STEAM: detect sharp-money line movement in
+                            # sharp_odds_history (updated every 120s by pinnacle_feed).
+                            # Betarabia STEAM = soft-book noise. Pinnacle STEAM = real sharp
+                            # money. When both fire together = highest-confidence signal.
+                            _pin_steam_sel, _pin_steam_move, _pin_steam_meta = None, 0.0, {}
+                            _pin_steam_min = settings.get("pinnacle_steam_min_move_pct", 2.0)
+                            if m_type == "1X2" and market_allowed and not draw_excluded:
+                                try:
+                                    from tools.pinnacle_steam import check_pinnacle_steam as _cps, get_max_pinnacle_move as _gmp
+
+                                    _ps_fired, _pin_steam_sel, _pin_steam_move = _cps(
+                                        home, away, min_move_pct=_pin_steam_min, window_hours=6.0
+                                    )
+                                    # Annotate the specific selection's move
+                                    _gmp_sel, _gmp_pct, _gmp_meta = _gmp(home, away, window_hours=6.0)
+                                    _pin_steam_meta = _gmp_meta
+                                except Exception:
+                                    pass
+
+                            # Annotate on selection dict for dashboard display
+                            sel["pinnacle_steam"] = round(_pin_steam_move, 2)
+                            sel["pinnacle_steam_sel"] = _pin_steam_sel
+
+                            # SHARP_STEAM: combined signal — Betarabia STEAM ≥ threshold
+                            # AND Pinnacle is ALSO moving toward the same team.
+                            # Fires a separate SHARP_STEAM bet (higher conviction than STEAM alone).
+                            # Map daemon sel_name ("Home (1)") -> pinnacle key ("home")
+                            _sel_pin_key = (
+                                "home" if "home" in sel_name.lower() or sel_name in ("1", "Home (1)")
+                                else "away" if "away" in sel_name.lower() or sel_name in ("2", "Away (2)")
+                                else "draw"
+                            )
+                            _pin_steam_fired = (
+                                _pin_steam_move >= _pin_steam_min
+                                and _pin_steam_sel == _sel_pin_key
+                            )
+                            _sharp_steam_fired = (
+                                steam_fired
+                                and _pin_steam_fired
+                                and settings.get("sharp_steam_betting_enabled", True)
+                                and _steam_league_ok
+                            )
+                            if _sharp_steam_fired:
+                                # Log as SHARP_STEAM via the existing STEAM logger.
+                                # Deduplication in log_steam_bet prevents double-counting
+                                # if plain STEAM already placed this same bet.
+                                try:
+                                    log_steam_bet(
+                                        f"{home} vs {away}",
+                                        m_type,
+                                        sel_name,
+                                        odds,
+                                        steam_move * 100.0,
+                                        fid,
+                                        league,
+                                        monotonicity=steam_mono,
+                                    )
+                                except Exception:
+                                    pass
+
                             # Optional: require Pinnacle to confirm value before STEAM bets.
                             _require_pin_confirm = settings.get("require_pinnacle_confirm", False)
                             if _require_pin_confirm and steam_fired and _pin_edge <= 0:

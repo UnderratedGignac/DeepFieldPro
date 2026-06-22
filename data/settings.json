@@ -18,6 +18,9 @@
   "pinnacle_min_edge_pct": 3.0,
   "require_pinnacle_confirm": false,
 
+  "pinnacle_steam_min_move_pct": 2.0,
+  "sharp_steam_betting_enabled": true,
+
   "ai_real_staking_enabled": false,
   "kelly_multiplier": 0.2,
   "min_ev_threshold": 0.08,
