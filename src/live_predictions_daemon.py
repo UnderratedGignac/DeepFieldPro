@@ -4923,8 +4923,15 @@ def run_daemon():
     # Start background telemetry threads FIRST (independent of settlement, which
     # can be slow) so they begin accumulating data immediately on startup:
     #  - closing-line capture: true pre-kickoff prices for open bets (honest CLV)
-    #  - sharp snapshots: Pinnacle line history for sharp-steam + lagging-value
+    #  - Pinnacle feed: live sharp odds every 120s → sharp_odds_history (CLV + value)
     start_closing_capture()
+    try:
+        from src.pinnacle_feed import start_feed_thread as _start_pf
+
+        _start_pf()
+        print("[*] Pinnacle live feed thread started (120s interval).")
+    except Exception as _pf_err:
+        print(f"[!] Pinnacle feed thread failed to start: {_pf_err}")
 
     # Run initial settlement on startup (may be slow — network result fetch).
     settle_open_bets()
@@ -5069,7 +5076,7 @@ def run_daemon():
         _pinn_data = {}
         if _ODDS_AGG and _get_pinnacle_probs:
             try:
-                from src.sharp_scraper import fetch_pinnacle_1x2 as _fp
+                from src.pinnacle_feed import fetch_pinnacle_1x2 as _fp
 
                 _pinn_data = _fp()
             except Exception:
