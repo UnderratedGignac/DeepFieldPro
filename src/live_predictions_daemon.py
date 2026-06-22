@@ -83,7 +83,7 @@ _orig_print = print
 
 
 def print(*args, **kwargs):
-    enc = sys.stdout.encoding or "utf-8"
+    enc = (sys.stdout.encoding if sys.stdout else None) or "utf-8"
     cleaned = []
     for a in args:
         if isinstance(a, str):
@@ -632,6 +632,7 @@ _DC_MODEL = "unloaded"
 _DC_TEAM_CACHE = {}
 # Map the daemon's live league names -> football-data.co.uk league codes.
 _DC_LEAGUE_MAP = {
+    # ── Top 8 European leagues (original training set) ───────────────────────
     "premier league": "E0",
     "epl": "E0",
     "england 1": "E0",
@@ -658,6 +659,148 @@ _DC_LEAGUE_MAP = {
     "premiership": "SC0",
     "scottish premiership": "SC0",
     "scotland 1": "SC0",
+    # ── football-data.co.uk new-format leagues ───────────────────────────────
+    "irish premier division": "IRL",
+    "league of ireland premier": "IRL",
+    "sse airtricity premier": "IRL",
+    "norway 1": "NOR",
+    "norwegian eliteserien": "NOR",
+    "eliteserien": "NOR",
+    "tippeligaen": "NOR",
+    "sweden 1": "SWE",
+    "swedish allsvenskan": "SWE",
+    "allsvenskan": "SWE",
+    "romanian liga 1": "ROM",
+    "liga 1 betano": "ROM",
+    "liga i": "ROM",
+    "argentina 1": "ARG",
+    "argentine primera division": "ARG",
+    "primera division argentina": "ARG",
+    "liga profesional": "ARG",
+    "a-league": "AUS",
+    "a league": "AUS",
+    "a-league men": "AUS",
+    "australian a-league": "AUS",
+    "austrian bundesliga": "AUT",
+    "osterreichische bundesliga": "AUT",
+    "admiral bundesliga": "AUT",
+    "austria 1": "AUT",
+    "brasileirao": "BRA",
+    "brazilian serie a": "BRA",
+    "serie a brasil": "BRA",
+    "china 1": "CHN",
+    "chinese super league": "CHN",
+    "csl": "CHN",
+    "danish superliga": "DNK",
+    "superliga denmark": "DNK",
+    "superliga": "DNK",
+    "denmark 1": "DNK",
+    "finnish veikkausliiga": "FIN",
+    "veikkausliiga": "FIN",
+    "finland 1": "FIN",
+    "greek super league": "GRC",
+    "super league greece": "GRC",
+    "greece 1": "GRC",
+    "hungarian nb i": "HUN",
+    "otp bank liga": "HUN",
+    "nb i": "HUN",
+    "hungary 1": "HUN",
+    "israeli premier league": "ISR",
+    "ligat haal": "ISR",
+    "winner league": "ISR",
+    "israel 1": "ISR",
+    "japanese j1 league": "JPN",
+    "j1 league": "JPN",
+    "j1": "JPN",
+    "japan 1": "JPN",
+    "mexican liga mx": "MEX",
+    "liga mx": "MEX",
+    "clausura": "MEX",
+    "apertura": "MEX",
+    "mexico 1": "MEX",
+    "polish ekstraklasa": "POL",
+    "ekstraklasa": "POL",
+    "poland 1": "POL",
+    # South African data not available (RSA.csv contains MLS — skip, gate via require_dc)
+    "russian premier league": "RUS",
+    "rpl": "RUS",
+    "russia 1": "RUS",
+    "american mls": "USA",
+    "mls": "USA",
+    "major league soccer": "USA",
+    "usa 1": "USA",
+    "turkish super lig": "TUR",
+    "sper lig": "TUR",
+    "super lig": "TUR",
+    "turkey 1": "TUR",
+    "czech first league": "CZE",
+    "fortuna liga": "CZE",
+    "czech liga": "CZE",
+    "1. liga": "CZE",
+    "czech republic 1": "CZE",
+    "slovak super liga": "SVK",
+    "fortuna liga slovakia": "SVK",
+    "slovakia 1": "SVK",
+    # ── TheSportsDB extra leagues ────────────────────────────────────────────
+    "icelandic urvalsdeild": "ISL",
+    "urvalsdeild": "ISL",
+    "besta deild karla": "ISL",
+    "iceland 1": "ISL",
+    "faroe islands premier league": "FAR",
+    "faroese premier league": "FAR",
+    "faroe islands 1": "FAR",
+    "kuwaiti premier league": "KUW",
+    "kuwait premier league": "KUW",
+    "kuwait 1": "KUW",
+    "moroccan botola pro": "MAR",
+    "botola pro": "MAR",
+    "botola maroc": "MAR",
+    "inwi botola pro": "MAR",
+    "morocco 1": "MAR",
+    "peruvian liga 1": "PER",
+    "liga 1 peru": "PER",
+    "liga 1 movistar": "PER",
+    "peru 1": "PER",
+    "estonian meistriliiga": "EST",
+    "meistriliiga": "EST",
+    "esiliiga": "EST",
+    "estonia 1": "EST",
+    "norwegian 1. divisjon": "NOR2",
+    "1. divisjon": "NOR2",
+    "norway 2": "NOR2",
+    "norwegian 2. divisjon": "NOR3",
+    "2. divisjon": "NOR3",
+    "norway 3": "NOR3",
+    "swedish superettan": "SWE2",
+    "superettan": "SWE2",
+    "sweden 2": "SWE2",
+    "swedish division 1": "SWE3",
+    "sweden 3": "SWE3",
+    "irish first division": "IRL2",
+    "league of ireland first": "IRL2",
+    "sse airtricity first": "IRL2",
+    "ireland 2": "IRL2",
+    "kazakhstani premier league": "KAZ",
+    "kazakhstan premier league": "KAZ",
+    "kazakhstan 1": "KAZ",
+    "azerbaijani premier league": "AZE",
+    "azerbaycan premyer liqasi": "AZE",
+    "azerbaijan 1": "AZE",
+    "mozambican mocambola": "MOZ",
+    "mocambola": "MOZ",
+    "mozambique 1": "MOZ",
+    "qatari stars league": "QAT",
+    "qatar stars league": "QAT",
+    "qatar 1": "QAT",
+    "saudi pro league": "SAU",
+    "saudi professional league": "SAU",
+    "saudi arabia 1": "SAU",
+    "uae pro league": "UAE",
+    "arabian gulf league": "UAE",
+    "uae 1": "UAE",
+    "primera nacional": "ARG2",
+    "argentina 2": "ARG2",
+    "primera b metropolitana": "ARG2",
 }
 
 
@@ -979,6 +1122,7 @@ def log_prediction_to_db(pred_res, has_lineup):
             "away_players": pred_res.get("away_players", []),
             "detailed_prediction": pred_res.get("detailed_prediction", {}),
             "markets": pred_res.get("markets", {}),
+            "dc_covered": pred_res.get("dc_covered", False),
         }
         extra_json = json.dumps(extra_data)
 
@@ -1167,6 +1311,7 @@ def load_predictions_from_db():
                 "prediction": r["prediction"],
                 "expected_score": r["expected_score"],
                 "has_lineup": bool(r["has_lineup"]),
+                "dc_covered": extra.get("dc_covered", False),
                 "team_impacts": extra.get("team_impacts", ""),
                 "corners": extra.get("corners", ""),
                 "fouls": extra.get("fouls", ""),
@@ -1300,6 +1445,7 @@ def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=Non
     # model-derived ones so probabilities reflect HOW strong each side is. Falls
     # back to the heuristic above for unknown leagues/teams (e.g. World Cup).
     _dc_eg = _dc_expected_goals(home_team, away_team, league_name)
+    _dc_covered = bool(_dc_eg)  # True only when DC has ratings for both teams
     if _dc_eg:
         exp_h, exp_a = _dc_eg
         if exp_h > exp_a:
@@ -1715,6 +1861,7 @@ def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=Non
         "home_players": home_player_stats[:3],
         "away_players": away_player_stats[:3],
         "detailed_prediction": detailed_pred,
+        "dc_covered": _dc_covered,
         "markets": {
             "1X2": [
                 {
@@ -2619,7 +2766,7 @@ def log_steam_bet(
         print(f"[STEAM BET] error: {e}")
 
 
-def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None):
+def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None, source=None):
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return
@@ -2711,7 +2858,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
                     "OPEN",
                     0.0,
                     datetime.datetime.now().isoformat(),
-                    "AI",
+                    source or "AI",
                     1,
                     2.5,
                     selection,
@@ -3030,6 +3177,32 @@ def settle_open_bets():
     except Exception as e:
         print("[SETTLEMENT] Sofascore scraper failed:", e)
 
+    # Dashboard state — same fixture_ids as our bets; covers ALL Betarabia leagues
+    # regardless of ESPN/Flashscore/SofaScore gaps.  Indexed by fixture_id for
+    # zero-fuzzy-matching direct lookup.
+    _fid_to_score: dict = {}  # str(fixture_id) -> (home_score, away_score)
+    try:
+        _dash_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
+        if os.path.exists(_dash_path):
+            with open(_dash_path, "r", encoding="utf-8") as _f:
+                _dash = json.load(_f)
+            _added = 0
+            for _m in _dash:
+                _fix = _m.get("fixture") or {}
+                _st = (_fix.get("status") or {}).get("short", "")
+                _hs = _fix.get("home_score")
+                _aws = _fix.get("away_score")
+                _fid = _m.get("fixture_id")
+                if _st == "FT" and _hs is not None and _aws is not None and _fid:
+                    _mn = _m.get("match", "")
+                    finished_matches[_mn] = (int(_hs), int(_aws))
+                    _fid_to_score[str(_fid)] = (int(_hs), int(_aws))
+                    _added += 1
+            if _added:
+                print(f"[SETTLEMENT] Dashboard state added {_added} FT matches (direct fixture_id).")
+    except Exception as e:
+        print(f"[SETTLEMENT] Dashboard state load failed: {e}")
+
     if not finished_matches:
         print("[SETTLEMENT] No finished matches found from any source yet.")
         return
@@ -3151,39 +3324,42 @@ def settle_open_bets():
             except Exception:
                 continue
 
-            candidates = []  # (total_name_score, result_score, finished_name)
-            for finished_name, score in finished_matches.items():
-                try:
-                    f_parts = finished_name.split(" vs ")
-                    fin_home = f_parts[0].strip()
-                    fin_away = f_parts[1].strip()
-                except Exception:
+            # Direct fixture_id lookup — bypasses fuzzy matching entirely for
+            # leagues (Ethiopian, Georgian, Estonian) that external sources can't name-match.
+            _direct = _fid_to_score.get(str(bet_fixture_id)) if bet_fixture_id else None
+            if _direct:
+                matched_score = _direct
+                best_name = match_name + " [fid-direct]"
+                print(f"[SETTLEMENT] Direct fid match for '{match_name}': {matched_score}")
+            else:
+                candidates = []  # (total_name_score, result_score, finished_name)
+                for finished_name, score in finished_matches.items():
+                    try:
+                        f_parts = finished_name.split(" vs ")
+                        fin_home = f_parts[0].strip()
+                        fin_away = f_parts[1].strip()
+                    except Exception:
+                        continue
+
+                    h_score = get_match_score(bet_home, fin_home)
+                    a_score = get_match_score(bet_away, fin_away)
+
+                    if h_score >= 0.5 and a_score >= 0.5:
+                        candidates.append((h_score + a_score, score, finished_name))
+
+                if not candidates:
+                    print(
+                        f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results."
+                    )
                     continue
 
-                h_score = get_match_score(bet_home, fin_home)
-                a_score = get_match_score(bet_away, fin_away)
+                candidates.sort(key=lambda c: c[0], reverse=True)
+                best_total, matched_score, best_name = candidates[0]
 
-                if h_score >= 0.5 and a_score >= 0.5:
-                    candidates.append((h_score + a_score, score, finished_name))
-
-            if not candidates:
-                print(
-                    f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results."
-                )
-                continue
-
-            candidates.sort(key=lambda c: c[0], reverse=True)
-            best_total, matched_score, best_name = candidates[0]
-
-            # AMBIGUITY GUARD: if a DIFFERENT finished match is nearly as good a name
-            # match AND reports a DIFFERENT score, refuse to settle this cycle rather
-            # than grade the bet against possibly the wrong game. (Loose 0.5 name
-            # matching with no date check can otherwise settle on the wrong fixture —
-            # the same false-match class as the sharp engine's Iraq->Iran bug.) The bet
-            # stays OPEN and retries next cycle; a wrong settlement would corrupt ROI/CLV.
-            if len(candidates) > 1:
+            # AMBIGUITY GUARD (fuzzy-match path only — direct fid is unambiguous).
+            if not _direct and len(candidates) > 1:
                 second_total, second_score, second_name = candidates[1]
-                if (best_total - second_total) < 0.30 and second_score != matched_score:
+                if (best_total - second_total) < 0.50 and second_score != matched_score:
                     print(
                         f"[SETTLEMENT] Ambiguous result match for '{match_name}': "
                         f"'{best_name}'{matched_score} vs '{second_name}'{second_score} "
@@ -3545,6 +3721,61 @@ def settle_open_bets():
                     "UPDATE parlay_log SET legs_json = ? WHERE parlay_id = ?",
                     (json.dumps(legs), p_id),
                 )
+
+        # VOID bets/parlays that are permanently stuck OPEN after match time.
+        # This handles obscure leagues (Ethiopian, Georgian, Estonian, Swedish lower-div)
+        # where no external result source has coverage.  Only fires when the bet is
+        # genuinely past its window — not a race against a delayed result feed.
+        _now_void = datetime.datetime.now(datetime.timezone.utc)
+
+        # Individual bets: VOID 1X2 bets whose kickoff was >48h ago with no result.
+        # Kickoff comes from the predictions table (same bet_log.db) via fixture_id.
+        try:
+            cur.execute(
+                """
+                SELECT b.bet_id, p.kickoff
+                FROM bet_log b
+                LEFT JOIN predictions p ON p.fixture_id = CAST(b.fixture_id AS TEXT)
+                WHERE b.result = 'OPEN'
+                """
+            )
+            for _b_id, _kick in cur.fetchall():
+                if not _kick:
+                    continue
+                try:
+                    _kick_dt = datetime.datetime.fromisoformat(
+                        str(_kick).replace("Z", "+00:00")
+                    ).astimezone(datetime.timezone.utc)
+                    if (_now_void - _kick_dt).total_seconds() > 48 * 3600:
+                        cur.execute(
+                            "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?",
+                            (_b_id,),
+                        )
+                        print(
+                            f"[SETTLEMENT] VOID {_b_id} — no result found 48h+ past kickoff"
+                        )
+                except Exception:
+                    pass
+        except Exception as _ve:
+            print(f"[SETTLEMENT] VOID pass failed: {_ve}")
+
+        # Parlays: VOID any parlay still OPEN that is >7 days old.
+        # These are typically old prop-market parlays (Player Shots) where
+        # we will never obtain the required player stats.
+        try:
+            _void_cutoff = (_now_void - datetime.timedelta(days=7)).isoformat()
+            cur.execute(
+                "SELECT parlay_id, stake FROM parlay_log WHERE result='OPEN' AND placed_at < ?",
+                (_void_cutoff,),
+            )
+            for _p_id, _p_stake in cur.fetchall():
+                cur.execute(
+                    "UPDATE parlay_log SET result='VOID', pnl=0 WHERE parlay_id=?",
+                    (_p_id,),
+                )
+                print(f"[SETTLEMENT] VOID parlay {_p_id} — open >7 days, no stats available")
+        except Exception as _pe:
+            print(f"[SETTLEMENT] Parlay VOID pass failed: {_pe}")
 
         conn.commit()
         conn.close()
@@ -3909,15 +4140,16 @@ def update_dashboard_json(fixtures, results_cache):
                                 if mkt_prob is not None
                                 else 0.0
                             )
-                            conviction_ok = (mkt_prob is None) or (
+                            # Block when market prob can't be computed — no benchmark means
+                            # we can't measure real edge; this is how 86%+ "edge" slips through.
+                            conviction_ok = (mkt_prob is not None) and (
                                 model_edge_pct <= edge_cap_pct
                             )
 
-                            # VALUE CHASER LOGIC: Chase high EV even if prob is lower.
-                            # If EV > 15%, we allow prob down to 30%. Otherwise need 55%.
+                            # Confidence threshold — fixed, no value-chaser discount.
+                            # Dropping to 30% at high EV selected exactly the unknown-league
+                            # heuristic bets (fake 40-140% EV) that caused all the losses.
                             conf_threshold = settings.get("min_confidence_pct", 55)
-                            if ev >= 0.15:
-                                conf_threshold = 30.0
 
                             # MARKET WHITELIST: only bet markets with a proven edge. The
                             # realized record shows ONLY 1X2 is +EV; all props lose 40-80%.
@@ -4018,17 +4250,20 @@ def update_dashboard_json(fixtures, results_cache):
                             require_steam = settings.get("require_steam_confirm", False)
                             steam_ok = (not require_steam) or (steam_move >= steam_min)
 
+                            require_dc = settings.get("require_dc_coverage", True)
+                            dc_covered = (prediction or {}).get("dc_covered", False)
+
                             is_recommended = (
                                 ev >= min_ev_threshold
                                 and prob >= conf_threshold
                                 and odds >= dfp_settings.MODEL_MIN_ODDS
-                                and is_at_peak
                                 and market_allowed
                                 and not league_blocked
                                 and not draw_excluded
                                 and conviction_ok
                                 and steam_ok
                                 and odds_fresh
+                                and (not require_dc or dc_covered)
                             )
 
                             # ASIAN HANDICAP paper bet gate (opt-in; off by default)
@@ -4192,10 +4427,12 @@ def update_dashboard_json(fixtures, results_cache):
         except Exception as e:
             print("[LIVE] inject failed:", e)
 
-    with open(
-        os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8"
-    ) as f:
+    # Atomic write: write to temp file then rename so readers never see a partial file
+    _state_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
+    _state_tmp = _state_path + ".tmp"
+    with open(_state_tmp, "w", encoding="utf-8") as f:
         json.dump(dashboard_data, f, indent=4)
+    os.replace(_state_tmp, _state_path)
 
     # Notifications handled by Arena autopilot (one push per placed bet, not per cycle)
 
@@ -4513,6 +4750,15 @@ def run_daemon():
                     "[SCRAPER] Previous Betarabia scrape still running; skipping (no stacking)."
                 )
             else:
+                # Reap finished/crashed process before spawning a new one
+                if _scraper_proc is not None:
+                    rc = _scraper_proc.poll()
+                    if rc is not None and rc != 0:
+                        print(f"[SCRAPER] Previous scrape exited with code {rc} — restarting.")
+                    try:
+                        _scraper_proc.wait(timeout=1)
+                    except Exception:
+                        pass
                 scraper_path = os.path.join(
                     os.path.dirname(__file__), "betarabia_scraper.py"
                 )

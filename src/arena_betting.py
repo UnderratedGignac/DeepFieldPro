@@ -88,21 +88,22 @@ SEASON_ID = 26618  # World Cup 2026 (Sportmonks)
 PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 
 # ---- Risk defaults (overridable per request) -------------------------------
-CONF_MIN_DEFAULT = 0.35  # lower bar — more picks qualify
-EDGE_MIN_DEFAULT = 0.00  # bet on any outcome where model >= market
+CONF_MIN_DEFAULT = 0.45  # require model confidence >= 45%
+EDGE_MIN_DEFAULT = 0.10  # require at least 10pp model edge over market
 MAX_USD_PER_BET = 25.00  # raised ceiling — high-EV picks deserve real size
 MIN_USD_PER_BET = 1.00  # arena minimum per order
-WALLET_BUFFER = 0.01  # keep almost nothing back — use full wallet
-MAX_BETS_PER_RUN = 100  # cover every qualifying WC match in one cycle
+WALLET_BUFFER = 2.00  # keep $2 reserve — never spend the entire wallet
+MAX_BETS_PER_RUN = 5   # at most 5 real-money bets per scan cycle
 LIMIT_BUFFER = 0.02  # pay up to mid + this to get filled
 TIF_SECONDS = 30  # limit order expires if unfilled
 
 # DFP flat-heuristic filter: only use our own model when it gives a clear winner;
 # fall back to Sportmonks (WC-specific) otherwise.
-DFP_USEFUL_THRESHOLD = 0.45
+DFP_USEFUL_THRESHOLD = 0.52  # 0.48 is the fallback heuristic output — this blocks it
+DFP_MAX_RATIO = 3.0  # if model/market > 3x, DC model does not know this team
 
 # Max fraction of wallet per single bet
-MAX_WALLET_FRACTION = 0.35  # up to 35% of wallet on one bet
+MAX_WALLET_FRACTION = 0.12  # max 12% of wallet on any single bet
 
 arena_bp = Blueprint("arena", __name__)
 
@@ -450,6 +451,9 @@ def analyze(
             model_p = probs.get(outcome)
             if mid is None or model_p is None:
                 continue
+            # Sanity: DFP is 3x more bullish than market → DC model doesn't know this team
+            if prob_source == "DFP" and mid > 0.01 and model_p / mid > DFP_MAX_RATIO:
+                continue
             edge = model_p - mid
             qualifies = bool(model_p >= conf_min and edge >= edge_min)
             limit_price = round(min(0.99, mid + LIMIT_BUFFER), 2)
@@ -752,6 +756,10 @@ def autopilot_cycle():
     budget = max(0.0, wallet_balance - WALLET_BUFFER) if wallet else 0.0
     daily_remaining = max(0.0, DAILY_SPEND_CAP - state["daily"]["spent"])
     placed_keys = set(state.get("placed_keys", []))
+    # Rebuild from placed history to catch keys lost during state resets
+    for _p in state.get("placed", []):
+        if _p.get("ok"):
+            placed_keys.add(_p["key"])
     ledger_keys = set(state.get("ledger_keys", []))
     now_ts = time.time()
 
@@ -1152,6 +1160,10 @@ def arena_analyze():
 
 @arena_bp.route("/arena/api/place", methods=["POST"])
 def arena_place():
+    # Restrict real-money placement to requests originating from localhost only
+    remote = request.remote_addr or ""
+    if remote not in ("127.0.0.1", "::1", "localhost"):
+        return jsonify({"error": "Forbidden: placement only allowed from localhost."}), 403
     body = request.get_json(silent=True) or {}
     if not body.get("confirm"):
         return (

@@ -90,32 +90,70 @@ def get_state():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    # Fetch open bets + bankroll status to enrich the state response for the UI
+    _open_bets = []
+    _bankroll_status = {}
+    _bk = 0.0
+    try:
+        import sqlite3 as _sq2
+
+        _betdb = os.path.join(DATA_DIR, "bet_log.db")
+        _bkdb = os.path.join(DATA_DIR, "bankroll.db")
+
+        _bc = _sq2.connect(_betdb)
+        _bc.row_factory = _sq2.Row
+        _open_rows = _bc.execute(
+            "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
+            "FROM bet_log WHERE result='OPEN' ORDER BY placed_at DESC"
+        ).fetchall()
+        _open_bets = [dict(r) for r in _open_rows]
+        _bc.close()
+
+        _bkc = _sq2.connect(_bkdb)
+        _bkrow = _bkc.execute(
+            "SELECT current_balance, daily_exposure, daily_pnl, starting_balance, system_status "
+            "FROM bankroll ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        _bkc.close()
+        if _bkrow:
+            _bal, _exp, _dpnl, _start, _stat = _bkrow
+            _bk = float(_bal)
+            _cap_pct = (_exp / _start * 100.0) if _start else 0.0
+            _bankroll_status = {
+                "current_balance": round(float(_bal), 2),
+                "daily_exposure": round(float(_exp), 2),
+                "daily_pnl": round(float(_dpnl), 2),
+                "starting_balance": round(float(_start), 2),
+                "system_status": _stat,
+                "is_halted": _stat == "HALT",
+                "daily_cap_pct": round(_cap_pct, 1),
+                "open_bet_count": len(_open_bets),
+            }
+    except Exception:
+        pass
+
     try:
         from src.a2ui_builder import build_dashboard_ui
 
-        _bk = 0.0
-        try:
-            import sqlite3 as _sq2
-
-            _bkdb = os.path.join(DATA_DIR, "bankroll.db")
-            _bkc = _sq2.connect(_bkdb)
-            _bkr = _bkc.execute(
-                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1"
-            ).fetchone()
-            _bkc.close()
-            if _bkr:
-                _bk = float(_bkr[0])
-        except Exception:
-            pass
         return jsonify(
             {
                 "data": state,
                 "ui": build_dashboard_ui(state or [], {}, _bk),
                 "ui_available": True,
+                "open_bets": _open_bets,
+                "bankroll_status": _bankroll_status,
             }
         )
     except Exception as _ui_err:
-        return jsonify({"data": state, "ui": None, "ui_available": False})
+        return jsonify(
+            {
+                "data": state,
+                "ui": None,
+                "ui_available": False,
+                "open_bets": _open_bets,
+                "bankroll_status": _bankroll_status,
+            }
+        )
 
 
 @app.route("/api/stream")
@@ -125,24 +163,70 @@ def stream_state():
             os.path.dirname(__file__), "..", "data", "todays_dashboard_state.json"
         )
         last_mtime = 0
+        last_heartbeat = 0
         while True:
             try:
+                # Keep-alive heartbeat every 30s so proxies/firewalls don't kill the connection
+                now = time.time()
+                if now - last_heartbeat >= 30:
+                    yield ": heartbeat\n\n"
+                    last_heartbeat = now
                 if os.path.exists(state_path):
                     mtime = os.path.getmtime(state_path)
                     if mtime > last_mtime:
                         last_mtime = mtime
-                        with open(state_path, "r", encoding="utf-8") as f:
-                            state = json.load(f)
+                        try:
+                            with open(state_path, "r", encoding="utf-8") as f:
+                                state = json.load(f)
+                        except (json.JSONDecodeError, OSError) as _e:
+                            print(f"[SSE] state file error: {_e}")
+                            time.sleep(2)
+                            continue
+                        # Enrich stream with open bets + bankroll status
+                        _s_open = []
+                        _s_bk = {}
+                        _s_bal = 0.0
+                        try:
+                            import sqlite3 as _ssq
+                            _sbc = _ssq.connect(os.path.join(DATA_DIR, "bet_log.db"))
+                            _sbc.row_factory = _ssq.Row
+                            _s_open = [dict(r) for r in _sbc.execute(
+                                "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
+                                "FROM bet_log WHERE result='OPEN' ORDER BY placed_at DESC"
+                            ).fetchall()]
+                            _sbc.close()
+                            _sbkc = _ssq.connect(os.path.join(DATA_DIR, "bankroll.db"))
+                            _sbkr = _sbkc.execute(
+                                "SELECT current_balance, daily_exposure, daily_pnl, starting_balance, system_status "
+                                "FROM bankroll ORDER BY id DESC LIMIT 1"
+                            ).fetchone()
+                            _sbkc.close()
+                            if _sbkr:
+                                _s_bal = float(_sbkr[0])
+                                _s_bk = {
+                                    "current_balance": round(float(_sbkr[0]), 2),
+                                    "daily_exposure": round(float(_sbkr[1]), 2),
+                                    "daily_pnl": round(float(_sbkr[2]), 2),
+                                    "starting_balance": round(float(_sbkr[3]), 2),
+                                    "system_status": _sbkr[4],
+                                    "is_halted": _sbkr[4] == "HALT",
+                                    "daily_cap_pct": round(float(_sbkr[1]) / float(_sbkr[3]) * 100, 1) if _sbkr[3] else 0.0,
+                                    "open_bet_count": len(_s_open),
+                                }
+                        except Exception:
+                            pass
                         try:
                             from src.a2ui_builder import build_dashboard_ui as _bdu
-
                             _pl = {
                                 "data": state,
-                                "ui": _bdu(state or [], {}, 0.0),
+                                "ui": _bdu(state or [], {}, _s_bal),
                                 "ui_available": True,
+                                "open_bets": _s_open,
+                                "bankroll_status": _s_bk,
                             }
                         except Exception:
-                            _pl = {"data": state, "ui": None, "ui_available": False}
+                            _pl = {"data": state, "ui": None, "ui_available": False,
+                                   "open_bets": _s_open, "bankroll_status": _s_bk}
                         yield f"data: {json.dumps(_pl)}\n\n"
             except Exception:
                 pass
@@ -349,17 +433,29 @@ def get_tracker():
 @app.route("/api/place_bet", methods=["POST"])
 def place_bet():
     try:
-        data = request.json
+        data = request.get_json(silent=True) or {}
         bet_id = "UI_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        match = data.get("match", "Unknown")
-        market = data.get("market", "1X2")
-        selection = data.get("selection", "Home")
-        stake = float(data.get("stake", 10.0))
-        prob = float(data.get("prob", 50.0))
-        entry_odds = float(
-            data.get("odds", round(100.0 / prob, 2) if prob > 0 else 1.0)
-        )
-        is_recommended = int(data.get("recommended", 0))
+        match = str(data.get("match", "Unknown"))[:200]
+        market = str(data.get("market", "1X2"))[:50]
+        selection = str(data.get("selection", "Home"))[:100]
+        try:
+            stake = float(data.get("stake", 10.0))
+            prob = float(data.get("prob", 50.0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "stake and prob must be numbers"}), 400
+        if not (0.01 <= stake <= 500):
+            return jsonify({"error": "stake must be between 0.01 and 500"}), 400
+        if not (0.1 <= prob <= 99.9):
+            return jsonify({"error": "prob must be between 0.1 and 99.9"}), 400
+        try:
+            entry_odds = float(
+                data.get("odds", round(100.0 / prob, 2) if prob > 0 else 1.0)
+            )
+        except (TypeError, ValueError):
+            return jsonify({"error": "odds must be a number"}), 400
+        if not (1.01 <= entry_odds <= 1000):
+            return jsonify({"error": "odds must be between 1.01 and 1000"}), 400
+        is_recommended = int(bool(data.get("recommended", 0)))
 
         closing_odds = round(entry_odds - 0.05, 2)
         edge = round((prob / 100.0) * entry_odds - 1.0, 3) * 100
@@ -396,7 +492,7 @@ def place_bet():
         conn.close()
 
         # Deduct stake from bankroll via tracker
-        from bankroll_tracker import register_bet
+        from src.bankroll_tracker import register_bet
 
         register_bet(stake)
 
@@ -1333,11 +1429,77 @@ def get_counterfactual():
     )
 
 
+_SETTINGS_SCHEMA = {
+    # key: (type, min, max)  — only whitelisted keys accepted
+    "allowed_markets": list,
+    "exclude_draws": bool,
+    "league_blocklist": list,
+    "steam_betting_enabled": bool,
+    "steam_flat_stake": (float, 0, 500),
+    "steam_min_move_pct": (float, 0, 50),
+    "steam_kelly_frac": (float, 0, 1),
+    "ai_real_staking_enabled": bool,
+    "kelly_multiplier": (float, 0.01, 1.0),
+    "min_ev_threshold": (float, 0, 1),
+    "max_exposure_pct": (float, 0, 0.25),
+    "min_confidence_pct": (float, 0, 100),
+    "require_steam_confirm": bool,
+    "edge_cap_pct": (float, 0, 50),
+    "market_blend_weight": (float, 0, 1),
+    "refresh_interval_sec": (float, 5, 300),
+    "show_live_matches": bool,
+    "max_odds_staleness_min": (float, 1, 1440),
+    "arena_max_per_order": (float, 0.5, 25),
+    "arena_daily_cap": (float, 0, 100),
+    "arena_wallet_buffer": (float, 0.5, 50),
+    "conf_min": (float, 0.3, 0.99),
+    "edge_min": (float, 0, 0.5),
+    "ah_betting_enabled": bool,
+    "daily_stop_loss_pct": (float, 0.01, 1.0),
+    "max_drawdown_pct": (float, 0.01, 1.0),
+    "max_daily_exposure_pct": (float, 0.01, 1.0),
+}
+
+
 @app.route("/api/settings", methods=["GET", "POST"])
 def manage_settings():
     if request.method == "POST":
+        incoming = request.get_json(silent=True) or {}
+        # Load current settings to merge into (unknown keys preserved, not overwritten)
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                current = json.load(f)
+        except (OSError, ValueError):
+            current = {}
+        errors = []
+        for key, val in incoming.items():
+            spec = _SETTINGS_SCHEMA.get(key)
+            if spec is None:
+                errors.append(f"Unknown setting: {key}")
+                continue
+            if isinstance(spec, tuple):
+                typ, lo, hi = spec
+                try:
+                    val = typ(val)
+                except (TypeError, ValueError):
+                    errors.append(f"{key} must be {typ.__name__}")
+                    continue
+                if not (lo <= val <= hi):
+                    errors.append(f"{key}={val} out of range [{lo}, {hi}]")
+                    continue
+            elif spec is bool:
+                if not isinstance(val, bool):
+                    errors.append(f"{key} must be boolean")
+                    continue
+            elif spec is list:
+                if not isinstance(val, list):
+                    errors.append(f"{key} must be a list")
+                    continue
+            current[key] = val
+        if errors:
+            return jsonify({"error": "Validation failed", "details": errors}), 400
         with open(SETTINGS_FILE, "w") as f:
-            json.dump(request.json, f, indent=4)
+            json.dump(current, f, indent=2)
         return jsonify({"status": "success"})
 
     with open(SETTINGS_FILE, "r") as f:
@@ -1593,6 +1755,22 @@ def start_background_prediction_worker():
 
 if __name__ == "__main__":
     init_databases()
+
+    # Warn loudly if the arena autopilot is already armed from a previous session
+    try:
+        import json as _j
+        _ap_state_path = os.path.join(DATA_DIR, "arena_autopilot.json")
+        if os.path.exists(_ap_state_path):
+            _ap_state = _j.loads(open(_ap_state_path).read())
+            if _ap_state.get("enabled") and os.getenv("DEEPFIELD_ARENA_LIVE") == "1":
+                print("[!] WARNING: arena_autopilot.json::enabled=True AND DEEPFIELD_ARENA_LIVE=1")
+                print("[!] Arena autopilot will resume LIVE betting immediately.")
+                print("[!] Visit /arena and click Pause to halt before it fires.")
+            elif _ap_state.get("enabled"):
+                print("[*] Arena autopilot enabled (predict-only; DEEPFIELD_ARENA_LIVE not set).")
+    except Exception:
+        pass
+
     if os.getenv("DEEPFIELD_DISABLE_DAEMON") != "1":
         start_background_prediction_worker()
         # Start the autonomous Stair AI arena betting loop (real money, WC-only, pre-kickoff).

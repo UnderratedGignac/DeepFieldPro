@@ -33,7 +33,7 @@ HDRS = {"User-Agent": "Mozilla/5.0"}
 
 # Top leagues with reliable odds coverage.
 DEFAULT_LEAGUES = ["E0", "E1", "SP1", "I1", "D1", "F1", "N1", "P1", "B1", "SC0"]
-DEFAULT_SEASONS = ["2122", "2223", "2324", "2425"]
+DEFAULT_SEASONS = ["2122", "2223", "2324", "2425", "2526"]
 
 
 def _f(row, *keys):

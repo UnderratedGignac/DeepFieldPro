@@ -41,9 +41,9 @@ def main():
     today = datetime.date.today().isoformat()
 
     con.execute(
-        "UPDATE bankroll SET current_balance = ?, daily_exposure = 0, daily_pnl = 0, "
+        "UPDATE bankroll SET current_balance = ?, starting_balance = ?, daily_exposure = 0, daily_pnl = 0, "
         "peak_balance = MAX(peak_balance, ?), system_status = 'ACTIVE' WHERE id = ?",
-        (target, target, row["id"]),
+        (target, target, target, row["id"]),
     )
     # ensure today's date row reflects the reset (register_bet keys on date)
     con.execute("UPDATE bankroll SET date = ? WHERE id = ?", (today, row["id"]))

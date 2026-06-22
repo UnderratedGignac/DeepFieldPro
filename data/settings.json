@@ -8,22 +8,29 @@
   "steam_min_move_pct": 3.0,
   "steam_kelly_frac": 0,
 
+  "ai_real_staking_enabled": false,
   "kelly_multiplier": 0.2,
   "min_ev_threshold": 0.08,
   "max_exposure_pct": 0.05,
   "min_confidence_pct": 60,
   "require_steam_confirm": false,
-  "edge_cap_pct": 10.0,
+  "edge_cap_pct": 20.0,
   "market_blend_weight": 0.5,
 
   "refresh_interval_sec": 30,
   "show_live_matches": true,
   "max_odds_staleness_min": 60,
 
-  "arena_max_per_order": 25.0,
-  "arena_daily_cap": 999.0,
-  "arena_wallet_buffer": 1.0,
-  "conf_min": 0.35,
-  "edge_min": 0.0,
-  "ah_betting_enabled": false
+  "arena_max_per_order": 5.0,
+  "arena_daily_cap": 25.0,
+  "arena_wallet_buffer": 2.0,
+  "conf_min": 0.45,
+  "edge_min": 0.10,
+  "ah_betting_enabled": false,
+
+  "require_dc_coverage": true,
+
+  "daily_stop_loss_pct": 0.50,
+  "max_drawdown_pct": 0.30,
+  "max_daily_exposure_pct": 0.50
 }

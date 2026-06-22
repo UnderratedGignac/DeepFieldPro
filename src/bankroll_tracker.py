@@ -15,23 +15,31 @@ CONVENTION (critical — must be consistent across all callers):
 This means: current_balance = cash_in_hand (excludes stakes currently at risk).
 """
 
+import json
 import os
 import sqlite3
 from datetime import datetime, timezone
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "bankroll.db")
+_SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "settings.json")
 
-# ─────────────────────────────────────────────────────────
-# Configuration — Edit these to match your actual bankroll
-# ─────────────────────────────────────────────────────────
-STARTING_BANKROLL = 300.0  # Your initial capital
-# Real circuit-breakers (were 1.0 = disabled). Survival lets a small edge compound;
-# a noisy/over-estimated edge can't run the bankroll to zero before halting.
-MAX_DAILY_EXPOSURE_PCT = (
-    0.50  # daily VOLUME cap (cumulative stakes); daily stop-loss is the real brake
-)
-MAX_DRAWDOWN_PCT = 0.30  # halt globally at -30% from peak
-DAILY_STOP_LOSS_PCT = 0.10  # halt for the day at -10% of today's start
+STARTING_BANKROLL = 300.0  # paper bankroll seed (overridden at runtime by DB)
+
+
+def _load_bankroll_limits():
+    try:
+        with open(_SETTINGS_PATH, "r") as _f:
+            _s = json.load(_f)
+        return (
+            float(_s.get("max_daily_exposure_pct", 0.50)),
+            float(_s.get("max_drawdown_pct", 0.30)),
+            float(_s.get("daily_stop_loss_pct", 0.50)),
+        )
+    except Exception:
+        return 0.50, 0.30, 0.50
+
+
+MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = _load_bankroll_limits()
 
 
 def init_bankroll_db():
@@ -116,6 +124,9 @@ def register_bet(stake):
     Called BEFORE a bet is placed. Checks limits, then deducts stake from balance.
     Returns True if the bet can proceed, False if it was blocked.
     """
+    # Reload limits from settings.json so changes apply without restart
+    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = _load_bankroll_limits()
+
     today = datetime.now(timezone.utc).date().isoformat()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -180,12 +191,14 @@ def register_settlement(payout, pnl):
     payout: Actual money returned to balance (0 for Loss, stake*odds for Win)
     pnl: Net profit/loss (profit for Win, -stake for Loss)
     """
+    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = _load_bankroll_limits()
+
     today = datetime.now(timezone.utc).date().isoformat()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT current_balance, daily_pnl, peak_balance, starting_balance "
+        "SELECT current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure "
         "FROM bankroll WHERE date = ?",
         (today,),
     )
@@ -195,22 +208,27 @@ def register_settlement(payout, pnl):
         init_bankroll_db()
         return register_settlement(payout, pnl)  # retry once after auto-init
 
-    current_balance, daily_pnl, peak_balance, starting_balance = row
+    current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure = row
 
     new_balance = current_balance + payout
     new_daily_pnl = daily_pnl + pnl
-    new_peak = max(peak_balance, new_balance)
+    # Stake returned to pool on this settlement (WIN: payout-pnl, LOSS: 0-(-stake)=stake, VOID: payout)
+    stake_settled = payout - pnl
+    # Total portfolio value = liquid + remaining at-risk bets
+    remaining_exposure = max(0.0, (daily_exposure or 0.0) - stake_settled)
+    effective_balance = new_balance + remaining_exposure
+    new_peak = max(peak_balance, effective_balance)
     status = "ACTIVE"
 
-    # Check peak-to-valley drawdown
-    drawdown_pct = (new_peak - new_balance) / new_peak if new_peak > 0 else 0
+    # Drawdown vs today's starting balance using total portfolio value (not just liquid)
+    drawdown_pct = (starting_balance - effective_balance) / starting_balance if starting_balance > 0 else 0
     if drawdown_pct >= MAX_DRAWDOWN_PCT:
         print(
-            f"🛑 CRITICAL: Peak drawdown {drawdown_pct*100:.1f}% reached. System GLOBALLY HALTED."
+            f"🛑 CRITICAL: Drawdown {drawdown_pct*100:.1f}% from today's start (${starting_balance:.2f} → ${effective_balance:.2f}). System HALTED."
         )
         status = "HALT"
 
-    # Check daily stop-loss
+    # Check daily stop-loss (settled P&L only, not unrealised open bets)
     if (
         new_daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT)
         and starting_balance > 0
