@@ -279,7 +279,14 @@ try:
     con.close()
     check("bet_log has 'clv' column", "clv" in columns)
     if "pinnacle_clv" not in columns:
-        warn("bet_log has 'pinnacle_clv' column", "Run first settlement to create it")
+        try:
+            con2 = sqlite3.connect(BET_LOG_DB, timeout=3)
+            con2.execute("ALTER TABLE bet_log ADD COLUMN pinnacle_clv REAL")
+            con2.commit()
+            con2.close()
+            check("bet_log pinnacle_clv added proactively", True)
+        except Exception as _e:
+            warn("bet_log has 'pinnacle_clv' column", str(_e))
     else:
         check("bet_log has 'pinnacle_clv' column", True)
     check("bet_log has 'closing_odds' column", "closing_odds" in columns)
@@ -294,7 +301,8 @@ REQUIRED_KEYS = [
     "allowed_markets", "exclude_draws", "steam_betting_enabled",
     "steam_min_move_pct", "steam_league_whitelist", "steam_flat_stake",
     "pinnacle_value_betting_enabled", "pinnacle_min_edge_pct",
-    "require_pinnacle_confirm", "kelly_multiplier", "min_ev_threshold",
+    "require_pinnacle_confirm", "pinnacle_steam_min_move_pct",
+    "sharp_steam_betting_enabled", "kelly_multiplier", "min_ev_threshold",
     "require_dc_coverage", "daily_stop_loss_pct", "max_drawdown_pct",
 ]
 
@@ -324,6 +332,101 @@ for fname in ["dixon_coles.json", "calibrator_1x2.json"]:
             check(f"models/{fname} valid JSON", True, f"{len(data)} keys" if isinstance(data, dict) else "array")
         except Exception as e:
             check(f"models/{fname} valid JSON", False, str(e))
+
+# ─── SECTION 10: Pinnacle STEAM detector ─────────────────────────────────────
+
+print("\n=== 10. PINNACLE STEAM DETECTOR ===")
+
+try:
+    from tools.pinnacle_steam import pinnacle_steam_moves, check_pinnacle_steam, get_max_pinnacle_move
+
+    check("pinnacle_steam imports", True)
+
+    # Unknown match should return empty dict without error
+    moves = pinnacle_steam_moves("FakeHome FC", "FakeAway SC")
+    check(
+        "pinnacle_steam_moves returns dict for unknown match",
+        isinstance(moves, dict),
+        f"keys={list(moves.keys())}",
+    )
+
+    # check_pinnacle_steam returns (bool, str|None, float)
+    fired, sel, move_pct = check_pinnacle_steam("FakeHome FC", "FakeAway SC")
+    check(
+        "check_pinnacle_steam returns (bool, str|None, float)",
+        isinstance(fired, bool) and isinstance(move_pct, float),
+        f"fired={fired}, sel={sel}, move={move_pct:.2f}",
+    )
+    check("unknown match does not fire", fired is False)
+
+    # get_max_pinnacle_move returns tuple of 3
+    result = get_max_pinnacle_move("FakeHome FC", "FakeAway SC")
+    check(
+        "get_max_pinnacle_move returns 3-tuple",
+        isinstance(result, tuple) and len(result) == 3,
+    )
+
+    # Live test with a real WC match if sharp_odds_history has data
+    try:
+        con = sqlite3.connect(COMPLETED_DB, timeout=3)
+        sample = con.execute(
+            "SELECT home_team, away_team FROM sharp_odds_history "
+            "WHERE (league LIKE '%World Cup%' OR league LIKE '%world cup%') "
+            "GROUP BY match_key HAVING COUNT(DISTINCT ts) >= 2 LIMIT 1"
+        ).fetchone()
+        con.close()
+        if sample:
+            h, a = sample
+            moves_live = pinnacle_steam_moves(h, a)
+            check(
+                "pinnacle_steam_moves returns dict for real WC match",
+                isinstance(moves_live, dict),
+                f"{h} vs {a} -> {len(moves_live)} keys",
+            )
+            if "__meta__" in moves_live:
+                selections = [k for k in moves_live if k != "__meta__"]
+                check(
+                    "pinnacle_steam has home/draw/away selections",
+                    any(s in selections for s in ("home", "draw", "away")),
+                    f"selections={selections}",
+                )
+        else:
+            warn("pinnacle_steam live test", "No WC match with >= 2 snapshots yet")
+    except Exception as e:
+        warn("pinnacle_steam live test", str(e))
+
+except ImportError as e:
+    check("pinnacle_steam module", False, str(e))
+except Exception as e:
+    check("pinnacle_steam tests", False, f"{e}\n{traceback.format_exc()}")
+
+# ─── SECTION 11: World Cup analysis script ───────────────────────────────────
+
+print("\n=== 11. WORLDCUP ANALYSIS ===")
+
+wc_script = os.path.join(ROOT, "tools", "worldcup_analysis.py")
+check("worldcup_analysis.py exists", os.path.exists(wc_script))
+
+try:
+    import subprocess
+    result_wc = subprocess.run(
+        [sys.executable, wc_script],
+        capture_output=True, text=True, timeout=15,
+        cwd=ROOT,
+    )
+    check(
+        "worldcup_analysis.py runs without error",
+        result_wc.returncode == 0,
+        f"exit={result_wc.returncode}" + (f": {result_wc.stderr[:120]}" if result_wc.returncode else ""),
+    )
+    if result_wc.returncode == 0:
+        check(
+            "worldcup_analysis output contains WC header",
+            "WORLD CUP" in result_wc.stdout,
+            f"stdout preview: {result_wc.stdout[:80]}...",
+        )
+except Exception as e:
+    check("worldcup_analysis.py run", False, str(e))
 
 # ─── Summary ──────────────────────────────────────────────────────────────────
 
