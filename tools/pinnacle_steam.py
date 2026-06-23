@@ -23,7 +23,14 @@ def _norm(name: str) -> str:
     return (name or "").lower().strip().replace(".", "").replace("-", " ")
 
 
-def pinnacle_steam_moves(home: str, away: str, min_snapshots: int = 2, window_hours: float = 6.0) -> dict:
+def pinnacle_steam_moves(
+    home: str,
+    away: str,
+    min_snapshots: int = 3,
+    window_hours: float = 6.0,
+    live_only: bool = False,
+    min_time_gap_seconds: int = 600,
+) -> dict:
     """
     Detect Pinnacle line movement for a match pre-kickoff.
 
@@ -40,6 +47,17 @@ def pinnacle_steam_moves(home: str, away: str, min_snapshots: int = 2, window_ho
       }
 
     Returns {} if fewer than min_snapshots exist for any selection, or on error.
+
+    Args:
+        min_snapshots: Minimum snapshots required per selection (raised from 2→3 to
+            prevent scraper-artifact signals; with only 2 points monotonicity is
+            always 1.0 and any floating-point noise looks like a trend).
+        live_only: If True, skip the all-historical fallback and return {} when the
+            windowed query has insufficient data. Set True for live bet detection;
+            False for offline analysis.
+        min_time_gap_seconds: Minimum elapsed seconds between earliest and latest
+            snapshot. A gap < this threshold means the "move" is just scraper noise
+            (two rows written seconds apart). Default 600s = 10 minutes.
     """
     if not os.path.exists(_COMPLETED_DB):
         return {}
@@ -76,9 +94,16 @@ def pinnacle_steam_moves(home: str, away: str, min_snapshots: int = 2, window_ho
             (f"%{h_norm}%", f"%{a_norm}%", window_start),
         ).fetchall()
 
-        # If not enough recent snapshots, fall back to ALL available pre-kickoff data
-        # so historical data is still usable for analysis (not live detection).
-        if not rows or max(len([r for r in rows if r[0] == s]) for s in ("home", "away")) < min_snapshots:
+        # If not enough recent snapshots: fall back to ALL available pre-kickoff data
+        # only when live_only=False (i.e. offline analysis). In live detection mode
+        # (live_only=True) we return {} — yesterday's or last-week's Pinnacle line drift
+        # is NOT a "live steam" signal and would produce false bet triggers.
+        _counts = {s: len([r for r in rows if r[0] == s]) for s in ("home", "away")}
+        _need_fallback = not rows or max(_counts.values(), default=0) < min_snapshots
+        if _need_fallback:
+            if live_only:
+                con.close()
+                return {}
             rows = con.execute(
                 f"""
                 SELECT selection, devig_prob, ts, starts_ts
@@ -124,6 +149,17 @@ def pinnacle_steam_moves(home: str, away: str, min_snapshots: int = 2, window_ho
         earliest_ts, earliest_prob = snaps[0]
         latest_ts, latest_prob = snaps[-1]
 
+        # Time-gap guard: two rows written seconds apart are scraper noise, not a
+        # genuine market move. min_time_gap_seconds (default 600 = 10 min) prevents
+        # a single partial re-scrape from firing a PINNACLE_STEAM bet.
+        if (latest_ts - earliest_ts) < min_time_gap_seconds:
+            result[sel] = 0.0
+            meta[sel] = {"snapshot_count": len(snaps), "earliest_prob": round(earliest_prob, 4),
+                         "latest_prob": round(latest_prob, 4),
+                         "earliest_ts": earliest_ts, "latest_ts": latest_ts,
+                         "skipped": "time_gap_too_short"}
+            continue
+
         move = latest_prob - earliest_prob  # positive = market moved TOWARD this selection
         result[sel] = round(move, 4)
         meta[sel] = {
@@ -138,12 +174,13 @@ def pinnacle_steam_moves(home: str, away: str, min_snapshots: int = 2, window_ho
     return result
 
 
-def get_max_pinnacle_move(home: str, away: str, window_hours: float = 6.0):
+def get_max_pinnacle_move(home: str, away: str, window_hours: float = 6.0, live_only: bool = True):
     """
     Return (selection, move_pct, meta) for the selection with the largest positive move.
     Returns (None, 0.0, {}) if no movement detected.
+    live_only=True (default for live detection): skip historical-data fallback.
     """
-    moves = pinnacle_steam_moves(home, away, window_hours=window_hours)
+    moves = pinnacle_steam_moves(home, away, window_hours=window_hours, live_only=live_only)
     if not moves:
         return None, 0.0, {}
 
@@ -158,12 +195,19 @@ def get_max_pinnacle_move(home: str, away: str, window_hours: float = 6.0):
     return best_sel, round(best_move * 100.0, 2), meta  # return move as percentage points
 
 
-def check_pinnacle_steam(home: str, away: str, min_move_pct: float = 2.0, window_hours: float = 6.0):
+def check_pinnacle_steam(
+    home: str,
+    away: str,
+    min_move_pct: float = 3.0,
+    window_hours: float = 6.0,
+    live_only: bool = True,
+):
     """
     Check if any selection has Pinnacle line movement >= min_move_pct percentage points.
     Returns (fired: bool, selection: str | None, move_pct: float).
+    live_only=True: skip historical fallback (required for live bet detection).
     """
-    sel, move_pct, meta = get_max_pinnacle_move(home, away, window_hours=window_hours)
+    sel, move_pct, meta = get_max_pinnacle_move(home, away, window_hours=window_hours, live_only=live_only)
     fired = sel is not None and move_pct >= min_move_pct
     return fired, sel if fired else None, move_pct
 

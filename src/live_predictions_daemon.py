@@ -2674,6 +2674,16 @@ def log_steam_bet(
         if cur.fetchone()[0] > 0:
             conn.close()
             return
+        # Cross-source dedup: one open bet per fixture total — prevents AI + STEAM doubling
+        # up on the same game from opposite/same sides, which doubles loss risk.
+        if fixture_id is not None:
+            cur.execute(
+                "SELECT COUNT(*) FROM bet_log WHERE fixture_id=? AND result='OPEN'",
+                (str(fixture_id),),
+            )
+            if cur.fetchone()[0] > 0:
+                conn.close()
+                return
 
         try:
             br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
@@ -2719,7 +2729,7 @@ def log_steam_bet(
                 pass
 
         cur.execute(
-            """INSERT INTO bet_log
+            """INSERT OR IGNORE INTO bet_log
                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
                 result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, signal_name, move_size, monotonicity)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -2883,15 +2893,23 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
-        # Check if already logged
+        # Check if already logged by any AI source
         cur.execute(
             """
-            SELECT COUNT(*) FROM bet_log 
+            SELECT COUNT(*) FROM bet_log
             WHERE match_id = ? AND market_type = ? AND side = ? AND bet_source = 'AI'
         """,
             (match, market, selection),
         )
         exists = cur.fetchone()[0] > 0
+        # Cross-source dedup: skip if ANY source already has an open bet on this fixture
+        if not exists and fixture_id is not None:
+            cur.execute(
+                "SELECT COUNT(*) FROM bet_log WHERE fixture_id=? AND result='OPEN'",
+                (str(fixture_id),),
+            )
+            if cur.fetchone()[0] > 0:
+                exists = True
 
         if not exists:
             bet_id = "AI_" + uuid.uuid4().hex[:14]
@@ -3429,6 +3447,7 @@ def settle_open_bets():
             # Direct fixture_id lookup — bypasses fuzzy matching entirely for
             # leagues (Ethiopian, Georgian, Estonian) that external sources can't name-match.
             _direct = _fid_to_score.get(str(bet_fixture_id)) if bet_fixture_id else None
+            candidates = []  # reset per-bet — prevents scope leak from previous iteration
             if _direct:
                 matched_score = _direct
                 best_name = match_name + " [fid-direct]"
@@ -3461,6 +3480,9 @@ def settle_open_bets():
             # AMBIGUITY GUARD (fuzzy-match path only — direct fid is unambiguous).
             if not _direct and len(candidates) > 1:
                 second_total, second_score, second_name = candidates[1]
+                # Only skip when candidates are close AND disagree on the final score.
+                # If both candidates have the same score, settle anyway — the outcome
+                # is unambiguous regardless of which specific match it is.
                 if (best_total - second_total) < 0.50 and second_score != matched_score:
                     print(
                         f"[SETTLEMENT] Ambiguous result match for '{match_name}': "
@@ -3851,31 +3873,41 @@ def settle_open_bets():
         # genuinely past its window — not a race against a delayed result feed.
         _now_void = datetime.datetime.now(datetime.timezone.utc)
 
-        # Individual bets: VOID 1X2 bets whose kickoff was >48h ago with no result.
-        # Kickoff comes from the predictions table (same bet_log.db) via fixture_id.
+        # Individual bets: VOID prop-market bets whose kickoff was >48h ago with no result.
+        # Score-settleable markets (1X2, O/U 2.5, BTTS) are given 7 days before VOID —
+        # they should ALWAYS be settleable from score data, so a 48h window risked masking
+        # genuine LOSSES as VOID when result scrapers were slow or had coverage gaps.
+        # Prop markets (Player Shots, Corners, Cards) may never get stats → 48h is correct.
+        _SCORE_MARKETS = {"1X2", "Over/Under 2.5", "BTTS", "Double Chance",
+                          "Draw No Bet", "Asian Handicap"}
         try:
             cur.execute(
                 """
-                SELECT b.bet_id, p.kickoff
+                SELECT b.bet_id, b.market_type, p.kickoff
                 FROM bet_log b
                 LEFT JOIN predictions p ON p.fixture_id = CAST(b.fixture_id AS TEXT)
                 WHERE b.result = 'OPEN'
                 """
             )
-            for _b_id, _kick in cur.fetchall():
+            for _b_id, _b_mkt, _kick in cur.fetchall():
                 if not _kick:
                     continue
                 try:
                     _kick_dt = datetime.datetime.fromisoformat(
                         str(_kick).replace("Z", "+00:00")
                     ).astimezone(datetime.timezone.utc)
-                    if (_now_void - _kick_dt).total_seconds() > 48 * 3600:
+                    _elapsed_h = (_now_void - _kick_dt).total_seconds() / 3600
+                    # Score markets: 7-day window (should always be settleable from scores)
+                    # Prop markets: 48h window (stats may genuinely never arrive)
+                    _void_threshold_h = 168 if (_b_mkt in _SCORE_MARKETS) else 48
+                    if _elapsed_h > _void_threshold_h:
                         cur.execute(
                             "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?",
                             (_b_id,),
                         )
                         print(
-                            f"[SETTLEMENT] VOID {_b_id} — no result found 48h+ past kickoff"
+                            f"[SETTLEMENT] VOID {_b_id} ({_b_mkt}) — "
+                            f"no result found {_elapsed_h:.0f}h past kickoff"
                         )
                 except Exception:
                     pass
@@ -4314,13 +4346,16 @@ def update_dashboard_json(fixtures, results_cache):
                             _registry = _load_signal_registry()
                             # League whitelist: only fire STEAM on liquid markets where
                             # the backtested edge was demonstrated. Obscure leagues
-                            # (Reserve League, USL League Two, 4. deild, etc.) show
-                            # noise-driven moves with no real edge.
+                            # (Reserve League, USL League Two, 4. deild, Australian NPL, etc.)
+                            # show noise-driven moves with no real edge.
+                            # EXACT match only — substring matching caused "Queensland Premier
+                            # League" to pass as "premier league" (catastrophic false positive).
                             _steam_wl = settings.get("steam_league_whitelist", [])
-                            _league_lower = (league or "").lower()
+                            _league_lower = (league or "").lower().strip()
+                            _steam_wl_set = {w.lower().strip() for w in _steam_wl}
                             _steam_league_ok = (
                                 not _steam_wl
-                                or any(w in _league_lower for w in _steam_wl)
+                                or _league_lower in _steam_wl_set
                             )
                             steam_fired = (
                                 steam_move >= steam_min
@@ -4425,7 +4460,8 @@ def update_dashboard_json(fixtures, results_cache):
                                     from tools.pinnacle_steam import check_pinnacle_steam as _cps, get_max_pinnacle_move as _gmp
 
                                     _ps_fired, _pin_steam_sel, _pin_steam_move = _cps(
-                                        home, away, min_move_pct=_pin_steam_min, window_hours=6.0
+                                        home, away, min_move_pct=_pin_steam_min,
+                                        window_hours=6.0,
                                     )
                                     # Annotate the specific selection's move
                                     _gmp_sel, _gmp_pct, _gmp_meta = _gmp(home, away, window_hours=6.0)
@@ -4457,9 +4493,10 @@ def update_dashboard_json(fixtures, results_cache):
                                 and _steam_league_ok
                             )
                             if _sharp_steam_fired:
-                                # Log as SHARP_STEAM via the existing STEAM logger.
-                                # Deduplication in log_steam_bet prevents double-counting
-                                # if plain STEAM already placed this same bet.
+                                # Log as SHARP_STEAM — both Betarabia AND Pinnacle are
+                                # moving toward the same side (highest-conviction signal).
+                                # Use bet_source="SHARP_STEAM" so P&L can be tracked
+                                # separately from plain STEAM bets in the ledger.
                                 try:
                                     log_steam_bet(
                                         f"{home} vs {away}",
@@ -4470,6 +4507,7 @@ def update_dashboard_json(fixtures, results_cache):
                                         fid,
                                         league,
                                         monotonicity=steam_mono,
+                                        bet_source="SHARP_STEAM",
                                     )
                                 except Exception:
                                     pass
@@ -4479,6 +4517,7 @@ def update_dashboard_json(fixtures, results_cache):
                             # is a static soft book). This is the main high-volume bet path.
                             # Requires Betarabia to have a current price (odds is not None here)
                             # so the bet has a real price to record.
+                            _pin_steam_max_odds = settings.get("pinnacle_steam_max_odds", 10.0)
                             if (
                                 _pin_steam_fired
                                 and _pin_steam_sel == _sel_pin_key
@@ -4486,6 +4525,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 and not draw_excluded
                                 and odds
                                 and odds >= dfp_settings.MODEL_MIN_ODDS
+                                and odds <= _pin_steam_max_odds  # no extreme longshots (e.g. 23.0)
                                 and odds_fresh
                                 and _steam_league_ok
                                 and settings.get("pinnacle_steam_betting_enabled", True)
@@ -4510,10 +4550,8 @@ def update_dashboard_json(fixtures, results_cache):
                                 steam_fired = False  # Pinnacle doesn't agree — skip
 
                             # PINNACLE VALUE bet (separate strategy; paper only; off by default)
-                            _pv_league_ok = (
-                                not _steam_wl
-                                or any(w in _league_lower for w in _steam_wl)
-                            )
+                            # Reuse same exact-match whitelist check computed above for STEAM.
+                            _pv_league_ok = _steam_league_ok
                             if (
                                 _pin_edge > 0
                                 and odds
@@ -4549,6 +4587,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 and steam_ok
                                 and odds_fresh
                                 and (not require_dc or dc_covered)
+                                and _steam_league_ok  # AI bets respect the same league whitelist
                             )
 
                             # ASIAN HANDICAP paper bet gate (opt-in; off by default)

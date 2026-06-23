@@ -39,9 +39,6 @@ def _load_bankroll_limits():
         return 0.50, 0.30, 0.50
 
 
-MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = _load_bankroll_limits()
-
-
 def init_bankroll_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -67,7 +64,6 @@ def init_bankroll_db():
     last_row = cursor.fetchone()
 
     if not last_row:
-        # First ever run
         cursor.execute(
             """
             INSERT INTO bankroll (date, starting_balance, current_balance, peak_balance, daily_exposure, daily_pnl)
@@ -105,7 +101,7 @@ def get_status():
     conn.close()
 
     if not row:
-        conn.close()
+        # conn already closed above — don't call conn.close() again
         init_bankroll_db()
         return get_status()  # retry once after auto-init
 
@@ -128,33 +124,63 @@ def register_bet(stake):
     MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = _load_bankroll_limits()
 
     today = datetime.now(timezone.utc).date().isoformat()
-    conn = sqlite3.connect(DB_PATH)
+    # BEGIN IMMEDIATE serialises the read-modify-write under SQLite's write lock,
+    # preventing two concurrent threads from both passing the exposure cap check.
+    conn = sqlite3.connect(DB_PATH, isolation_level=None)
+    conn.execute("BEGIN IMMEDIATE")
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT current_balance, daily_exposure, system_status, starting_balance "
+        "SELECT current_balance, daily_exposure, system_status, starting_balance, daily_pnl "
         "FROM bankroll WHERE date = ?",
         (today,),
     )
     row = cursor.fetchone()
 
     if not row:
+        conn.execute("ROLLBACK")
         conn.close()
         init_bankroll_db()
         return register_bet(stake)  # retry once after auto-init
 
-    current_balance, daily_exposure, system_status, starting_balance = row
+    current_balance, daily_exposure, system_status, starting_balance, daily_pnl = row
 
     if system_status == "HALT":
         print("System HALTED. No bet registered.")
+        conn.execute("ROLLBACK")
         conn.close()
         return False
+
+    # Check daily stop-loss at placement time (not just at settlement).
+    # Without this, multiple bets can be placed before any settle, bypassing the gate.
+    if starting_balance > 0 and daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT):
+        print(
+            f"[BANKROLL] Daily stop-loss hit at placement: P&L={daily_pnl:.2f} on "
+            f"start={starting_balance:.2f} — no new bets today."
+        )
+        conn.execute("ROLLBACK")
+        conn.close()
+        return False
+
+    # Check drawdown limit at placement time as well
+    effective_balance = current_balance + daily_exposure  # liquid + at-risk
+    if starting_balance > 0:
+        drawdown_pct = (starting_balance - effective_balance) / starting_balance
+        if drawdown_pct >= MAX_DRAWDOWN_PCT:
+            print(
+                f"[BANKROLL] Max drawdown reached at placement: "
+                f"{drawdown_pct*100:.1f}% >= {MAX_DRAWDOWN_PCT*100:.0f}%"
+            )
+            conn.execute("ROLLBACK")
+            conn.close()
+            return False
 
     # Block bets that would drive the liquid balance negative.
     if stake > current_balance:
         print(
             f"BLOCKED: Stake ${stake:.2f} exceeds current liquid balance ${current_balance:.2f}."
         )
+        conn.execute("ROLLBACK")
         conn.close()
         return False
 
@@ -165,16 +191,17 @@ def register_bet(stake):
             f"BLOCKED: Exposure ${daily_exposure + stake:.2f} would exceed daily cap "
             f"${exposure_cap:.2f} ({MAX_DAILY_EXPOSURE_PCT:.0%} of ${starting_balance:.2f})."
         )
+        conn.execute("ROLLBACK")
         conn.close()
         return False
 
-    # All checks passed — deduct stake atomically (avoids lost-update races on the balance).
+    # All checks passed — deduct stake atomically within the IMMEDIATE transaction.
     cursor.execute(
         "UPDATE bankroll SET current_balance = current_balance - ?, "
         "daily_exposure = daily_exposure + ? WHERE date = ?",
         (stake, stake, today),
     )
-    conn.commit()
+    conn.execute("COMMIT")
     conn.close()
 
     print(
@@ -214,7 +241,7 @@ def register_settlement(payout, pnl):
     new_daily_pnl = daily_pnl + pnl
     # Stake returned to pool on this settlement (WIN: payout-pnl, LOSS: 0-(-stake)=stake, VOID: payout)
     stake_settled = payout - pnl
-    # Total portfolio value = liquid + remaining at-risk bets
+    # Decrement exposure — stake is no longer at risk after settlement
     remaining_exposure = max(0.0, (daily_exposure or 0.0) - stake_settled)
     effective_balance = new_balance + remaining_exposure
     new_peak = max(peak_balance, effective_balance)
@@ -224,7 +251,8 @@ def register_settlement(payout, pnl):
     drawdown_pct = (starting_balance - effective_balance) / starting_balance if starting_balance > 0 else 0
     if drawdown_pct >= MAX_DRAWDOWN_PCT:
         print(
-            f"🛑 CRITICAL: Drawdown {drawdown_pct*100:.1f}% from today's start (${starting_balance:.2f} → ${effective_balance:.2f}). System HALTED."
+            f"CRITICAL: Drawdown {drawdown_pct*100:.1f}% from today's start "
+            f"(${starting_balance:.2f} -> ${effective_balance:.2f}). System HALTED."
         )
         status = "HALT"
 
@@ -234,18 +262,20 @@ def register_settlement(payout, pnl):
         and starting_balance > 0
     ):
         print(
-            f"🛑 CRITICAL: Daily stop-loss hit (${new_daily_pnl:.2f}). "
+            f"CRITICAL: Daily stop-loss hit (${new_daily_pnl:.2f}). "
             f"Halting bets for the rest of today."
         )
         status = "HALT"
 
+    # Write back balance, P&L, peak, status AND updated exposure (prevents cap over-counting)
     cursor.execute(
         """
         UPDATE bankroll
-        SET current_balance = ?, daily_pnl = ?, peak_balance = ?, system_status = ?
+        SET current_balance = ?, daily_pnl = ?, peak_balance = ?,
+            system_status = ?, daily_exposure = ?
         WHERE date = ?
     """,
-        (new_balance, new_daily_pnl, new_peak, status, today),
+        (new_balance, new_daily_pnl, new_peak, status, remaining_exposure, today),
     )
 
     conn.commit()
