@@ -53,15 +53,22 @@ def pinnacle_steam_moves(home: str, away: str, min_snapshots: int = 2, window_ho
         window_start = now_ts - window_hours * 3600  # snapshots within last window_hours
 
         # Fetch pre-kickoff snapshots within the live window (most recent N hours).
-        # This detects RECENT Pinnacle movement — the sharp-money signal.
+        # Exclude Bookings/Corners/specials: Pinnacle stores them as "Team (Bookings)"
+        # which also matches LIKE '%team%' and has wildly different home/draw/away probs.
+        _EXCL = ("%(bookings)%", "%(corners)%", "%(hits)%", "%(fouls)%", "%(shots)%")
+        excl_clause = " AND ".join(
+            f"LOWER(home_team) NOT LIKE '{p}'" for p in _EXCL
+        )
+
         rows = con.execute(
-            """
+            f"""
             SELECT selection, devig_prob, ts, starts_ts
             FROM sharp_odds_history
             WHERE (
                 LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' ')) LIKE ?
                 AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' ')) LIKE ?
             )
+            AND {excl_clause}
             AND (starts_ts IS NULL OR ts <= starts_ts + 300)
             AND ts >= ?
             ORDER BY selection, ts ASC
@@ -73,13 +80,14 @@ def pinnacle_steam_moves(home: str, away: str, min_snapshots: int = 2, window_ho
         # so historical data is still usable for analysis (not live detection).
         if not rows or max(len([r for r in rows if r[0] == s]) for s in ("home", "away")) < min_snapshots:
             rows = con.execute(
-                """
+                f"""
                 SELECT selection, devig_prob, ts, starts_ts
                 FROM sharp_odds_history
                 WHERE (
                     LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' ')) LIKE ?
                     AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' ')) LIKE ?
                 )
+                AND {excl_clause}
                 AND (starts_ts IS NULL OR ts <= starts_ts + 300)
                 ORDER BY selection, ts ASC
                 """,

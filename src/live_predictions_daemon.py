@@ -2642,6 +2642,7 @@ def log_steam_bet(
     fixture_id=None,
     league=None,
     monotonicity=None,
+    bet_source="STEAM",
 ):
     """Shadow flat-stake bet for a fired STEAM (line-movement) signal.
 
@@ -2667,8 +2668,8 @@ def log_steam_bet(
         cur = conn.cursor()
         cur.execute(
             "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
-            "AND bet_source='STEAM'",
-            (match, market, selection),
+            "AND bet_source=?",
+            (match, market, selection, bet_source),
         )
         if cur.fetchone()[0] > 0:
             conn.close()
@@ -2704,7 +2705,8 @@ def log_steam_bet(
             conn.close()
             return
 
-        bet_id = "STEAM_" + uuid.uuid4().hex[:12]
+        src_prefix = bet_source.replace("_", "")[:10]
+        bet_id = f"{src_prefix}_" + uuid.uuid4().hex[:10]
 
         for col_sql in [
             "ALTER TABLE bet_log ADD COLUMN signal_name TEXT",
@@ -2733,13 +2735,13 @@ def log_steam_bet(
                 "OPEN",
                 0.0,
                 datetime.datetime.now().isoformat(),
-                "STEAM",
+                bet_source,
                 1,
                 2.5,
                 selection,
                 str(fixture_id) if fixture_id is not None else None,
                 league,
-                "STEAM_FWD",
+                bet_source,
                 steam_move_pct,
                 monotonicity,
             ),
@@ -2759,7 +2761,7 @@ def log_steam_bet(
         conn.commit()
         conn.close()
         print(
-            f"[STEAM BET] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
+            f"[{bet_source}] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
             f"move +{steam_move_pct:.1f}% stake {stake}"
         )
     except Exception as e:
@@ -4471,6 +4473,36 @@ def update_dashboard_json(fixtures, results_cache):
                                     )
                                 except Exception:
                                     pass
+
+                            # STANDALONE PINNACLE STEAM: bet when Pinnacle moves >= threshold
+                            # even when Betarabia hasn't moved (which is almost always — Betarabia
+                            # is a static soft book). This is the main high-volume bet path.
+                            # Requires Betarabia to have a current price (odds is not None here)
+                            # so the bet has a real price to record.
+                            if (
+                                _pin_steam_fired
+                                and _pin_steam_sel == _sel_pin_key
+                                and sel_name not in ("Draw (X)",)  # no draw bets (exclude_draws gate)
+                                and not draw_excluded
+                                and odds
+                                and odds >= dfp_settings.MODEL_MIN_ODDS
+                                and odds_fresh
+                                and _steam_league_ok
+                                and settings.get("pinnacle_steam_betting_enabled", True)
+                            ):
+                                try:
+                                    log_steam_bet(
+                                        f"{home} vs {away}",
+                                        m_type,
+                                        sel_name,
+                                        odds,
+                                        _pin_steam_move,  # already in pp units from check_pinnacle_steam
+                                        fid,
+                                        league,
+                                        bet_source="PINNACLE_STEAM",
+                                    )
+                                except Exception as _pse:
+                                    print(f"[PINNACLE_STEAM] bet error: {_pse}")
 
                             # Optional: require Pinnacle to confirm value before STEAM bets.
                             _require_pin_confirm = settings.get("require_pinnacle_confirm", False)
