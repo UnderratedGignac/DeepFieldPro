@@ -3549,6 +3549,11 @@ def settle_open_bets():
                             (bet_id,),
                         )
                         conn_bet.commit()
+                        try:
+                            from src.bankroll_tracker import register_settlement as _rs_push
+                            _rs_push(payout=float(stake or 0), pnl=0.0)
+                        except Exception:
+                            pass
                         continue
                     won = total_goals > _line
                 elif "under" in sel_lower:
@@ -3558,6 +3563,11 @@ def settle_open_bets():
                             (bet_id,),
                         )
                         conn_bet.commit()
+                        try:
+                            from src.bankroll_tracker import register_settlement as _rs_push
+                            _rs_push(payout=float(stake or 0), pnl=0.0)
+                        except Exception:
+                            pass
                         continue
                     won = total_goals < _line
             elif market_type == "Double Chance":
@@ -3578,6 +3588,11 @@ def settle_open_bets():
                         (bet_id,),
                     )
                     conn_bet.commit()
+                    try:
+                        from src.bankroll_tracker import register_settlement as _rs_push
+                        _rs_push(payout=float(stake or 0), pnl=0.0)
+                    except Exception:
+                        pass
                     continue
                 elif "home" in sel_lower:
                     won = home_score > away_score
@@ -3883,13 +3898,13 @@ def settle_open_bets():
         try:
             cur.execute(
                 """
-                SELECT b.bet_id, b.market_type, p.kickoff
+                SELECT b.bet_id, b.market_type, p.kickoff, b.stake
                 FROM bet_log b
                 LEFT JOIN predictions p ON p.fixture_id = CAST(b.fixture_id AS TEXT)
                 WHERE b.result = 'OPEN'
                 """
             )
-            for _b_id, _b_mkt, _kick in cur.fetchall():
+            for _b_id, _b_mkt, _kick, _b_stake in cur.fetchall():
                 if not _kick:
                     continue
                 try:
@@ -3909,6 +3924,12 @@ def settle_open_bets():
                             f"[SETTLEMENT] VOID {_b_id} ({_b_mkt}) — "
                             f"no result found {_elapsed_h:.0f}h past kickoff"
                         )
+                        # Credit stake back to bankroll (void = full refund)
+                        try:
+                            from src.bankroll_tracker import register_settlement as _rs_void
+                            _rs_void(payout=float(_b_stake or 0), pnl=0.0)
+                        except Exception:
+                            pass
                 except Exception:
                     pass
         except Exception as _ve:
@@ -3929,6 +3950,11 @@ def settle_open_bets():
                     (_p_id,),
                 )
                 print(f"[SETTLEMENT] VOID parlay {_p_id} — open >7 days, no stats available")
+                try:
+                    from src.bankroll_tracker import register_settlement as _rs_parlay
+                    _rs_parlay(payout=float(_p_stake or 0), pnl=0.0)
+                except Exception:
+                    pass
         except Exception as _pe:
             print(f"[SETTLEMENT] Parlay VOID pass failed: {_pe}")
 
