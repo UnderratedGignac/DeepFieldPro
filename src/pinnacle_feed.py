@@ -253,7 +253,14 @@ def _feed_loop():
         try:
             snap = fetch_1x2_snapshot()
             n = write_snapshot(snap)
-            logger.info("[PinFeed] Wrote %d matches (%d prices)", n, n * 3)
+            # Also persist O/U 2.5 prices so CLV can be computed at settlement
+            try:
+                totals = fetch_pinnacle_totals(line=2.5)
+                n_ou = write_ou25_snapshot(totals)
+                logger.info("[PinFeed] Wrote %d matches 1X2 + %d matches OU25", n, n_ou)
+            except Exception as _ou_err:
+                logger.warning("[PinFeed] OU25 snapshot error (non-fatal): %s", _ou_err)
+                logger.info("[PinFeed] Wrote %d matches (%d prices)", n, n * 3)
             consecutive_errors = 0
         except Exception as e:
             consecutive_errors += 1
@@ -282,7 +289,7 @@ SOCCER = 29  # Pinnacle sport ID for soccer
 
 
 def fetch_pinnacle_totals(line=2.5):
-    """Return dict of 'Home vs Away' -> {'over': dec, 'under': dec, 'p_over': float, ...}."""
+    """Return dict of 'Home vs Away' -> {'over': dec, 'under': dec, 'p_over': float, 'p_under': float, 'starts_ts': float|None}."""
     try:
         matchups = _get("/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"})
         markets = _get("/sports/29/markets/straight")
@@ -324,12 +331,62 @@ def fetch_pinnacle_totals(line=2.5):
                     "over": o_dec, "under": u_dec,
                     "p_over": round((1 / o_dec) / inv, 4),
                     "p_under": round((1 / u_dec) / inv, 4),
+                    "starts_ts": starts_ts,
+                    "_home": home_p["name"],
+                    "_away": away_p["name"],
                 }
                 break
         return result
     except Exception as e:
         logger.debug("fetch_pinnacle_totals error: %s", e)
         return {}
+
+
+def write_ou25_snapshot(totals: dict) -> int:
+    """Write O/U 2.5 Pinnacle prices to sharp_odds_history for CLV tracking.
+
+    Selection values are stored as 'over_2.5' and 'under_2.5' so they are
+    distinct from the 1X2 rows ('home', 'draw', 'away') and can be looked up
+    at settlement time by clv_from_pinnacle_ou25().
+
+    Returns the number of matches written (0 on error or empty input).
+    """
+    if not totals:
+        return 0
+    if not os.path.exists(os.path.dirname(_COMPLETED_DB)):
+        return 0
+
+    ts = time.time()
+    rows = []
+    for match_key, data in totals.items():
+        h = data.get("_home") or match_key.split(" vs ")[0]
+        a = data.get("_away") or (match_key.split(" vs ")[1] if " vs " in match_key else "")
+        sts = data.get("starts_ts")
+        o_dec = data.get("over")
+        u_dec = data.get("under")
+        p_over = data.get("p_over")
+        p_under = data.get("p_under")
+        if o_dec and p_over:
+            rows.append((match_key, h, a, "", "over_2.5", o_dec, p_over, ts, sts))
+        if u_dec and p_under:
+            rows.append((match_key, h, a, "", "under_2.5", u_dec, p_under, ts, sts))
+
+    if not rows:
+        return 0
+
+    conn = sqlite3.connect(_COMPLETED_DB, timeout=10)
+    try:
+        _ensure_table(conn)
+        conn.executemany(
+            "INSERT INTO sharp_odds_history "
+            "(match_key, home_team, away_team, league, selection, decimal_odds, devig_prob, ts, starts_ts) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            rows,
+        )
+        conn.commit()
+        return len(rows) // 2
+    finally:
+        conn.close()
 
 
 # ─── Standalone ───────────────────────────────────────────────────────────────

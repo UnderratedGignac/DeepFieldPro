@@ -78,6 +78,57 @@ except Exception:
     _ARB_OK = False
 from src.execution_engine import place_bet  # TASK 1: Import place_bet
 
+# ── NEW ARCHITECTURE: Pinnacle-value strategy + CLV tracking + shadow gate ──
+try:
+    from src.pinnacle_value_engine import (
+        find_value_bets as _pv_find_value,
+        log_value_bet as _pv_log_bet,
+        is_liquid_league as _pv_liquid_league,
+        normalize_league as _pv_normalize_league,
+        LIQUID_LEAGUES as _PV_LIQUID_LEAGUES,
+    )
+    _PV_ENGINE_OK = True
+except Exception as _pv_exc:
+    _pv_find_value = None
+    _pv_log_bet = None
+    _pv_liquid_league = None
+    _pv_normalize_league = None
+    _PV_LIQUID_LEAGUES = set()
+    _PV_ENGINE_OK = False
+
+try:
+    from src.clv_tracker_v2 import (
+        record_bet as _clv_record_bet,
+        record_closing_odds as _clv_record_closing,
+        settle_bet as _clv_settle_bet,
+        generate_weekly_report as _clv_weekly_report,
+    )
+    _CLV_TRACKER_OK = True
+except Exception as _clv_exc:
+    _clv_record_bet = None
+    _clv_record_closing = None
+    _clv_settle_bet = None
+    _clv_weekly_report = None
+    _CLV_TRACKER_OK = False
+
+try:
+    from src.shadow_framework import (
+        refuse_real_money_if_not_ready as _shadow_refuse,
+        get_shadow_status as _shadow_status,
+    )
+    _SHADOW_OK = True
+except Exception:
+    _shadow_refuse = None
+    _shadow_status = None
+    _SHADOW_OK = False
+
+try:
+    from src.gatekeeper import check_real_money_gate as _gatekeeper_check
+    _GATEKEEPER_OK = True
+except Exception:
+    _gatekeeper_check = None
+    _GATEKEEPER_OK = False
+
 # Unicode-safe print override for Windows console compatibility
 _orig_print = print
 
@@ -2874,11 +2925,44 @@ def log_pinnacle_value_bet(
             f"[PINNACLE VALUE] Shadow bet: {match} ({selection}) @ {odds} "
             f"edge +{pinnacle_edge_pct:.1f}% vs Pinnacle fair stake {stake}"
         )
+
+        # ── CLV TRACKING: Record this bet in the CLV tracking system ──
+        if _CLV_TRACKER_OK and _clv_record_bet:
+            try:
+                pin_devig_prob = (pinnacle_data or {}).get("devig_prob", 0)
+                pin_fair_odds = (pinnacle_data or {}).get("fair_odds", odds)
+                _clv_record_bet(
+                    bet_id=bet_id,
+                    fixture_id=fixture_id,
+                    match_name=match,
+                    league=league or "",
+                    selection=selection,
+                    bet_source="PINNACLE_VALUE",
+                    opening_odds=odds,
+                    bet_odds=odds,
+                    pinnacle_devig_prob=pin_devig_prob,
+                    pinnacle_opening_odds=pin_fair_odds,
+                    pinnacle_bet_odds=pin_fair_odds,
+                    edge=pinnacle_edge_pct / 100.0,
+                    ev=pinnacle_edge_pct / 100.0,
+                    stake=stake,
+                    market_type=market,
+                )
+            except Exception as _clv_err:
+                print(f"[CLV TRACKING] Error recording PV bet: {_clv_err}")
     except Exception as e:
         print(f"[PINNACLE VALUE BET] error: {e}")
 
 
 def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None, source=None):
+    """DISABLED: AI model has no proven edge (failed 2,386-bet out-of-sample test).
+    All AI bets are now zero-stake shadow bets. Pinnacle-value is the only strategy."""
+    # ARCHITECTURE CHANGE: Model-dependent AI bets are disabled.
+    # The model outputs identical probabilities for different matches (35.6/28.7/36.1)
+    # and uses fake placeholder player data. Only Pinnacle-value bets are allowed.
+    settings = load_settings()
+    if settings.get("model_predictions_disabled", True):
+        return
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return
@@ -3753,8 +3837,12 @@ def settle_open_bets():
             try:
                 if market_type == "1X2":
                     from tools.pinnacle_value import clv_from_pinnacle as _pclv
-
                     _pclv_val = _pclv(bet_home, bet_away, bet_side or selection, entry_odds)
+                    if _pclv_val is not None and abs(_pclv_val) <= 0.40:
+                        pinnacle_clv = _pclv_val
+                elif market_type == "Over/Under 2.5":
+                    from tools.pinnacle_value import clv_from_pinnacle_ou25 as _pclv_ou
+                    _pclv_val = _pclv_ou(bet_home, bet_away, bet_side or selection, entry_odds)
                     if _pclv_val is not None and abs(_pclv_val) <= 0.40:
                         pinnacle_clv = _pclv_val
             except Exception:
@@ -3775,6 +3863,33 @@ def settle_open_bets():
             print(
                 f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f}){_clv_str}{_pclv_str}"
             )
+
+            # ── CLV TRACKER: Sync closing odds + result to clv_tracking.db ──
+            if _CLV_TRACKER_OK:
+                # Record closing odds (both Betarabia close and Pinnacle close)
+                try:
+                    _pin_closing = None
+                    if pinnacle_clv is not None and entry_odds:
+                        # Back-calculate Pinnacle closing decimal from CLV
+                        _pin_closing = round(entry_odds / (1.0 + pinnacle_clv), 4)
+                    _clv_record_closing(
+                        bet_id=bet_id,
+                        closing_odds=closing_odds,
+                        pinnacle_closing_odds=_pin_closing,
+                    )
+                except Exception as _clv_close_err:
+                    print(f"[CLV TRACKER] Error recording closing odds for {bet_id}: {_clv_close_err}")
+
+                # Settle the bet in CLV tracker
+                try:
+                    _clv_settle_bet(
+                        bet_id=bet_id,
+                        result=result,
+                        pnl=pnl,
+                        actual_prob=0.0,
+                    )
+                except Exception as _clv_sett_err:
+                    print(f"[CLV TRACKER] Error settling {bet_id}: {_clv_sett_err}")
 
             # Capital adjustments via Central Tracker
             from src.bankroll_tracker import register_settlement
@@ -3970,6 +4085,15 @@ def update_dashboard_json(fixtures, results_cache):
 
     settings = load_settings()
     min_ev_threshold = settings.get("min_ev_threshold", 0.05)
+
+    # Fetch Pinnacle O/U 2.5 totals once per cycle for the OU25 value check.
+    # Keyed by "Home vs Away" (Pinnacle team names) with p_over/p_under/over/under.
+    _pin_ou25_all = {}
+    try:
+        from src.pinnacle_feed import fetch_pinnacle_totals as _fpt_ou
+        _pin_ou25_all = _fpt_ou(line=2.5) or {}
+    except Exception as _ou_fetch_err:
+        print(f"[OU25] Pinnacle totals fetch failed (non-fatal): {_ou_fetch_err}")
 
     for f in fixtures:
         fid = f["fixture"]["id"]
@@ -4346,10 +4470,9 @@ def update_dashboard_json(fixtures, results_cache):
                                 settings.get("league_blocklist") or []
                             )
 
-                            # 1X2 DRAWS excluded: realized record is 0/9 (-100% ROI) and the
-                            # model shows no skill on draws (its draw probs sit in the
-                            # overconfident long-tail). The 1X2 profit is entirely Home/Away.
-                            exclude_draws = settings.get("exclude_draws", True)
+                            # Draw exclusion: configurable via settings["exclude_draws"].
+                            # Defaults to False — all three 1X2 outcomes are evaluated.
+                            exclude_draws = settings.get("exclude_draws", False)
                             draw_excluded = exclude_draws and (
                                 m_type == "1X2" and key == "Draw"
                             )
@@ -4379,9 +4502,13 @@ def update_dashboard_json(fixtures, results_cache):
                             _steam_wl = settings.get("steam_league_whitelist", [])
                             _league_lower = (league or "").lower().strip()
                             _steam_wl_set = {w.lower().strip() for w in _steam_wl}
+                            # Normalize league name (strip "England - " etc.) for matching
+                            from src.pinnacle_value_engine import normalize_league as _norm_league
+                            _league_normalized = _norm_league(league or "")
                             _steam_league_ok = (
                                 not _steam_wl
                                 or _league_lower in _steam_wl_set
+                                or _league_normalized in _steam_wl_set
                             )
                             steam_fired = (
                                 steam_move >= steam_min
@@ -4473,6 +4600,33 @@ def update_dashboard_json(fixtures, results_cache):
                                     )
                                 except Exception:
                                     pass
+                            elif (
+                                m_type == "Over/Under 2.5"
+                                and market_allowed
+                                and odds
+                                and odds > 1.0
+                            ):
+                                try:
+                                    from tools.pinnacle_value import (
+                                        _fuzzy_match_ou25 as _pv_fuzzy,
+                                        check_ou25_value as _pv_ou25_check,
+                                    )
+                                    # Exact match first; fall back to fuzzy (handles
+                                    # "Manchester City" vs "Man City" etc.)
+                                    _pin_ou25 = _pin_ou25_all.get(f"{home} vs {away}")
+                                    if _pin_ou25 is None:
+                                        _pin_ou25 = _pv_fuzzy(home, away, _pin_ou25_all)
+                                    if _pin_ou25:
+                                        _pin_edge, _pin_data = _pv_ou25_check(
+                                            home,
+                                            away,
+                                            sel_name,
+                                            odds,
+                                            _pin_ou25,
+                                            min_edge=_pin_min_edge,
+                                        )
+                                except Exception:
+                                    pass
                             sel["pinnacle_edge"] = round(_pin_edge * 100.0, 2)
 
                             # PINNACLE STEAM: detect sharp-money line movement in
@@ -4547,7 +4701,6 @@ def update_dashboard_json(fixtures, results_cache):
                             if (
                                 _pin_steam_fired
                                 and _pin_steam_sel == _sel_pin_key
-                                and sel_name not in ("Draw (X)",)  # no draw bets (exclude_draws gate)
                                 and not draw_excluded
                                 and odds
                                 and odds >= dfp_settings.MODEL_MIN_ODDS
@@ -4602,6 +4755,14 @@ def update_dashboard_json(fixtures, results_cache):
                             require_dc = settings.get("require_dc_coverage", True)
                             dc_covered = (prediction or {}).get("dc_covered", False)
 
+                            # Draw-specific guard: model draw probabilities are poorly
+                            # calibrated (overconfident long-tail). For AI-path draws,
+                            # require Pinnacle to also price this as value (_pin_edge > 0)
+                            # before recommending. This keeps draw bets to situations where
+                            # the sharp market independently agrees, not just the model.
+                            _is_draw = m_type == "1X2" and key == "Draw"
+                            _draw_pin_ok = (not _is_draw) or (_pin_edge > 0)
+
                             is_recommended = (
                                 ev >= min_ev_threshold
                                 and prob >= conf_threshold
@@ -4614,6 +4775,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 and odds_fresh
                                 and (not require_dc or dc_covered)
                                 and _steam_league_ok  # AI bets respect the same league whitelist
+                                and _draw_pin_ok  # draws need Pinnacle value confirmation
                             )
 
                             # ASIAN HANDICAP paper bet gate (opt-in; off by default)
@@ -5353,6 +5515,32 @@ def run_daemon():
                         os.path.join(DATA_DIR, f"audit_{now.date()}.done"), "w"
                     ) as f:
                         f.write("done")
+
+            # Weekly CLV Report & Diagnostics (Run on Sundays at 23:50)
+            if now.weekday() == 6 and now.hour == 23 and now.minute >= 50:
+                clv_report_file = os.path.join(DATA_DIR, f"clv_weekly_{now.date()}.done")
+                if not os.path.exists(clv_report_file):
+                    try:
+                        from src.clv_tracker_v2 import generate_weekly_report
+                        from src.diagnostics import run_diagnostics
+                        from src.shadow_framework import get_shadow_status
+
+                        report = generate_weekly_report()
+                        diag = run_diagnostics()
+                        shadow = get_shadow_status()
+
+                        print(f"[CLV WEEKLY REPORT] Bets: {report.get('total_bets', 0)}, "
+                              f"Avg CLV: {report.get('avg_clv_pct', 0):.2f}%, "
+                              f"ROI: {report.get('roi_pct', 0):.2f}%")
+                        print(f"[DIAGNOSTICS] Disabled markets: {len(diag.get('disabled_markets', []))}, "
+                              f"leagues: {len(diag.get('disabled_leagues', []))}")
+                        print(f"[SHADOW] Ready for real money: {shadow.get('ready', False)}, "
+                              f"Paper bets: {shadow.get('paper_bets', 0)}/500")
+
+                        with open(clv_report_file, "w") as f:
+                            f.write("done")
+                    except Exception as clv_err:
+                        print(f"[CLV REPORT ERROR] {clv_err}")
 
         except Exception as e:
             print(f"[MONITORING ERROR] {e}")
