@@ -121,7 +121,9 @@ def register_bet(stake):
     Returns True if the bet can proceed, False if it was blocked.
     """
     # Reload limits from settings.json so changes apply without restart
-    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = _load_bankroll_limits()
+    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = (
+        _load_bankroll_limits()
+    )
 
     today = datetime.now(timezone.utc).date().isoformat()
     # BEGIN IMMEDIATE serialises the read-modify-write under SQLite's write lock,
@@ -218,7 +220,9 @@ def register_settlement(payout, pnl):
     payout: Actual money returned to balance (0 for Loss, stake*odds for Win)
     pnl: Net profit/loss (profit for Win, -stake for Loss)
     """
-    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = _load_bankroll_limits()
+    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = (
+        _load_bankroll_limits()
+    )
 
     today = datetime.now(timezone.utc).date().isoformat()
     conn = sqlite3.connect(DB_PATH)
@@ -248,7 +252,11 @@ def register_settlement(payout, pnl):
     status = "ACTIVE"
 
     # Drawdown vs today's starting balance using total portfolio value (not just liquid)
-    drawdown_pct = (starting_balance - effective_balance) / starting_balance if starting_balance > 0 else 0
+    drawdown_pct = (
+        (starting_balance - effective_balance) / starting_balance
+        if starting_balance > 0
+        else 0
+    )
     if drawdown_pct >= MAX_DRAWDOWN_PCT:
         print(
             f"CRITICAL: Drawdown {drawdown_pct*100:.1f}% from today's start "

@@ -73,22 +73,54 @@ LIQUID_LEAGUES = {
 ALLOWED_MARKETS = {"1X2", "Over/Under 2.5"}
 
 # ── Minimum thresholds ────────────────────────────────────────────────────
-DEFAULT_MIN_EDGE_PCT = 0.03   # 3% minimum edge over Pinnacle fair
-DEFAULT_MIN_ODDS = 1.30       # don't bet on extreme favorites
-DEFAULT_MAX_ODDS = 10.0       # don't bet on extreme longshots
+DEFAULT_MIN_EDGE_PCT = 0.03  # 3% minimum edge over Pinnacle fair
+DEFAULT_MIN_ODDS = 1.30  # don't bet on extreme favorites
+DEFAULT_MAX_ODDS = 10.0  # don't bet on extreme longshots
 
 # ── League normalization prefixes to strip ─────────────────────────────────
 _COUNTRY_PREFIXES = [
-    "england - ", "spain - ", "germany - ", "italy - ", "france - ",
-    "netherlands - ", "portugal - ", "belgium - ", "turkey - ",
-    "scotland - ", "usa - ", "europe - ", "world - ",
-    "international - ", "south america - ", "asia - ", "africa - ",
-    "north america - ", "australia - ", "austria - ", "switzerland - ",
-    "denmark - ", "sweden - ", "norway - ", "poland - ", "russia - ",
-    "greece - ", "czech republic - ", "croatia - ", "serbia - ",
-    "ukraine - ", "romania - ", "hungary - ", "israel - ",
-    "japan - ", "south korea - ", "china - ", "mexico - ",
-    "brazil - ", "argentina - ", "colombia - ", "chile - ",
+    "england - ",
+    "spain - ",
+    "germany - ",
+    "italy - ",
+    "france - ",
+    "netherlands - ",
+    "portugal - ",
+    "belgium - ",
+    "turkey - ",
+    "scotland - ",
+    "usa - ",
+    "europe - ",
+    "world - ",
+    "international - ",
+    "south america - ",
+    "asia - ",
+    "africa - ",
+    "north america - ",
+    "australia - ",
+    "austria - ",
+    "switzerland - ",
+    "denmark - ",
+    "sweden - ",
+    "norway - ",
+    "poland - ",
+    "russia - ",
+    "greece - ",
+    "czech republic - ",
+    "croatia - ",
+    "serbia - ",
+    "ukraine - ",
+    "romania - ",
+    "hungary - ",
+    "israel - ",
+    "japan - ",
+    "south korea - ",
+    "china - ",
+    "mexico - ",
+    "brazil - ",
+    "argentina - ",
+    "colombia - ",
+    "chile - ",
 ]
 
 
@@ -112,7 +144,7 @@ def normalize_league(name: str) -> str:
     # Strip country prefix (e.g. "england - premier league" → "premier league")
     for prefix in _COUNTRY_PREFIXES:
         if n.startswith(prefix):
-            n = n[len(prefix):]
+            n = n[len(prefix) :]
             break
 
     # Strip "uefa " prefix (e.g. "uefa champions league" → "champions league")
@@ -125,6 +157,7 @@ def normalize_league(name: str) -> str:
 
     # Strip trailing season markers like " 2025/2026" or " 2026"
     import re
+
     n = re.sub(r"\s+\d{4}(/\d{4})?$", "", n)
 
     return n.strip()
@@ -184,8 +217,9 @@ def compute_ev(soft_book_odds: float, pinnacle_devig_prob: float) -> float:
     return pinnacle_devig_prob * soft_book_odds - 1.0
 
 
-def kelly_fraction(edge: float, odds: float, devig_prob: float,
-                   kelly_frac: float = 0.15) -> float:
+def kelly_fraction(
+    edge: float, odds: float, devig_prob: float, kelly_frac: float = 0.15
+) -> float:
     """
     Fractional Kelly stake as a fraction of bankroll.
 
@@ -250,17 +284,19 @@ def find_value_bets(
 
         qualifies = edge >= min_edge
 
-        bets.append({
-            "selection": sel,
-            "edge": round(edge, 4),
-            "ev": round(ev, 4),
-            "betarabia_odds": round(ba_odds, 3),
-            "pinnacle_odds": round(pin_odds, 3),
-            "pinnacle_fair_odds": round(fair_odds, 3),
-            "pinnacle_devig_prob": round(pin_prob, 6),
-            "kelly_frac": round(kf, 4),
-            "qualifies": qualifies,
-        })
+        bets.append(
+            {
+                "selection": sel,
+                "edge": round(edge, 4),
+                "ev": round(ev, 4),
+                "betarabia_odds": round(ba_odds, 3),
+                "pinnacle_odds": round(pin_odds, 3),
+                "pinnacle_fair_odds": round(fair_odds, 3),
+                "pinnacle_devig_prob": round(pin_prob, 6),
+                "kelly_frac": round(kf, 4),
+                "qualifies": qualifies,
+            }
+        )
 
     return bets
 

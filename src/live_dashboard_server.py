@@ -188,12 +188,16 @@ def stream_state():
                         _s_bal = 0.0
                         try:
                             import sqlite3 as _ssq
+
                             _sbc = _ssq.connect(os.path.join(DATA_DIR, "bet_log.db"))
                             _sbc.row_factory = _ssq.Row
-                            _s_open = [dict(r) for r in _sbc.execute(
-                                "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
-                                "FROM bet_log WHERE result='OPEN' ORDER BY placed_at DESC"
-                            ).fetchall()]
+                            _s_open = [
+                                dict(r)
+                                for r in _sbc.execute(
+                                    "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
+                                    "FROM bet_log WHERE result='OPEN' ORDER BY placed_at DESC"
+                                ).fetchall()
+                            ]
                             _sbc.close()
                             _sbkc = _ssq.connect(os.path.join(DATA_DIR, "bankroll.db"))
                             _sbkr = _sbkc.execute(
@@ -210,13 +214,20 @@ def stream_state():
                                     "starting_balance": round(float(_sbkr[3]), 2),
                                     "system_status": _sbkr[4],
                                     "is_halted": _sbkr[4] == "HALT",
-                                    "daily_cap_pct": round(float(_sbkr[1]) / float(_sbkr[3]) * 100, 1) if _sbkr[3] else 0.0,
+                                    "daily_cap_pct": (
+                                        round(
+                                            float(_sbkr[1]) / float(_sbkr[3]) * 100, 1
+                                        )
+                                        if _sbkr[3]
+                                        else 0.0
+                                    ),
                                     "open_bet_count": len(_s_open),
                                 }
                         except Exception:
                             pass
                         try:
                             from src.a2ui_builder import build_dashboard_ui as _bdu
+
                             _pl = {
                                 "data": state,
                                 "ui": _bdu(state or [], {}, _s_bal),
@@ -225,8 +236,13 @@ def stream_state():
                                 "bankroll_status": _s_bk,
                             }
                         except Exception:
-                            _pl = {"data": state, "ui": None, "ui_available": False,
-                                   "open_bets": _s_open, "bankroll_status": _s_bk}
+                            _pl = {
+                                "data": state,
+                                "ui": None,
+                                "ui_available": False,
+                                "open_bets": _s_open,
+                                "bankroll_status": _s_bk,
+                            }
                         yield f"data: {json.dumps(_pl)}\n\n"
             except Exception:
                 pass
@@ -1759,15 +1775,20 @@ if __name__ == "__main__":
     # Warn loudly if the arena autopilot is already armed from a previous session
     try:
         import json as _j
+
         _ap_state_path = os.path.join(DATA_DIR, "arena_autopilot.json")
         if os.path.exists(_ap_state_path):
             _ap_state = _j.loads(open(_ap_state_path).read())
             if _ap_state.get("enabled") and os.getenv("DEEPFIELD_ARENA_LIVE") == "1":
-                print("[!] WARNING: arena_autopilot.json::enabled=True AND DEEPFIELD_ARENA_LIVE=1")
+                print(
+                    "[!] WARNING: arena_autopilot.json::enabled=True AND DEEPFIELD_ARENA_LIVE=1"
+                )
                 print("[!] Arena autopilot will resume LIVE betting immediately.")
                 print("[!] Visit /arena and click Pause to halt before it fires.")
             elif _ap_state.get("enabled"):
-                print("[*] Arena autopilot enabled (predict-only; DEEPFIELD_ARENA_LIVE not set).")
+                print(
+                    "[*] Arena autopilot enabled (predict-only; DEEPFIELD_ARENA_LIVE not set)."
+                )
     except Exception:
         pass
 

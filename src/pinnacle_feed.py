@@ -30,13 +30,18 @@ _HEADERS = {
 }
 
 _COMPLETED_DB = os.path.join(
-    os.path.dirname(__file__), "..", "data", "deepfield_browser_data", "completed_fixtures.db"
+    os.path.dirname(__file__),
+    "..",
+    "data",
+    "deepfield_browser_data",
+    "completed_fixtures.db",
 )
 
 _STOP = threading.Event()
 
 
 # ─── Pinnacle API helpers ──────────────────────────────────────────────────────
+
 
 def _get(path, params=None, timeout=15):
     if requests is None:
@@ -71,6 +76,7 @@ def _devig(h, d, a):
 
 # ─── Core fetch ───────────────────────────────────────────────────────────────
 
+
 def fetch_1x2_snapshot():
     """
     Fetch current Pinnacle 1X2 odds for all upcoming soccer matches.
@@ -78,8 +84,10 @@ def fetch_1x2_snapshot():
       match_key, home_team, away_team, league,
       h_dec, d_dec, a_dec, p_home, p_draw, p_away, starts_ts
     """
-    matchups = _get("/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"})
-    markets  = _get("/sports/29/markets/straight")
+    matchups = _get(
+        "/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"}
+    )
+    markets = _get("/sports/29/markets/straight")
 
     # Index markets by matchupId — keep only moneyline period=0
     mk_idx = {}
@@ -104,7 +112,11 @@ def fetch_1x2_snapshot():
             continue
         m = ml_list[0]
 
-        prices = {pr["designation"]: pr["price"] for pr in m.get("prices", []) if "designation" in pr}
+        prices = {
+            pr["designation"]: pr["price"]
+            for pr in m.get("prices", [])
+            if "designation" in pr
+        }
         if "home" not in prices or "away" not in prices:
             continue
 
@@ -125,6 +137,7 @@ def fetch_1x2_snapshot():
         if start_str:
             try:
                 import datetime
+
                 dt = datetime.datetime.fromisoformat(start_str.replace("Z", "+00:00"))
                 starts_ts = dt.timestamp()
             except Exception:
@@ -138,24 +151,27 @@ def fetch_1x2_snapshot():
         away_name = away_p.get("name", "")
         league = item.get("league", {}).get("name", "")
 
-        results.append({
-            "match_key": f"{home_name} vs {away_name}",
-            "home_team": home_name,
-            "away_team": away_name,
-            "league": league,
-            "h_dec": h_dec,
-            "d_dec": d_dec,
-            "a_dec": a_dec,
-            "p_home": p_h,
-            "p_draw": p_d,
-            "p_away": p_a,
-            "starts_ts": starts_ts,
-        })
+        results.append(
+            {
+                "match_key": f"{home_name} vs {away_name}",
+                "home_team": home_name,
+                "away_team": away_name,
+                "league": league,
+                "h_dec": h_dec,
+                "d_dec": d_dec,
+                "a_dec": a_dec,
+                "p_home": p_h,
+                "p_draw": p_d,
+                "p_away": p_a,
+                "starts_ts": starts_ts,
+            }
+        )
 
     return results
 
 
 # ─── DB writer ────────────────────────────────────────────────────────────────
+
 
 def _ensure_table(conn):
     conn.execute(
@@ -164,9 +180,7 @@ def _ensure_table(conn):
             selection TEXT, decimal_odds REAL, devig_prob REAL, ts REAL, starts_ts REAL
         )"""
     )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_soh_ts ON sharp_odds_history(ts)"
-    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_soh_ts ON sharp_odds_history(ts)")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_soh_teams ON sharp_odds_history(home_team, away_team, selection)"
     )
@@ -218,6 +232,7 @@ def write_snapshot(snapshot):
 
 # ─── Public function for odds_aggregator / pinnacle_value ────────────────────
 
+
 def fetch_pinnacle_1x2():
     """
     Return current Pinnacle 1X2 data as a dict keyed by
@@ -246,6 +261,7 @@ def fetch_pinnacle_1x2():
 
 # ─── Background thread ────────────────────────────────────────────────────────
 
+
 def _feed_loop():
     logger.info("[PinFeed] Starting Pinnacle odds feed (interval=%ds)", POLL_INTERVAL)
     consecutive_errors = 0
@@ -265,7 +281,12 @@ def _feed_loop():
         except Exception as e:
             consecutive_errors += 1
             backoff = min(30 * consecutive_errors, 300)
-            logger.warning("[PinFeed] Error (attempt %d): %s — retrying in %ds", consecutive_errors, e, backoff)
+            logger.warning(
+                "[PinFeed] Error (attempt %d): %s — retrying in %ds",
+                consecutive_errors,
+                e,
+                backoff,
+            )
             _STOP.wait(backoff)
             continue
         _STOP.wait(POLL_INTERVAL)
@@ -291,7 +312,9 @@ SOCCER = 29  # Pinnacle sport ID for soccer
 def fetch_pinnacle_totals(line=2.5):
     """Return dict of 'Home vs Away' -> {'over': dec, 'under': dec, 'p_over': float, 'p_under': float, 'starts_ts': float|None}."""
     try:
-        matchups = _get("/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"})
+        matchups = _get(
+            "/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"}
+        )
         markets = _get("/sports/29/markets/straight")
         mk_idx = {}
         for m in markets:
@@ -310,7 +333,10 @@ def fetch_pinnacle_totals(line=2.5):
             starts_ts = None
             try:
                 import datetime
-                dt = datetime.datetime.fromisoformat(item.get("startTime", "").replace("Z", "+00:00"))
+
+                dt = datetime.datetime.fromisoformat(
+                    item.get("startTime", "").replace("Z", "+00:00")
+                )
                 starts_ts = dt.timestamp()
             except Exception:
                 pass
@@ -319,7 +345,11 @@ def fetch_pinnacle_totals(line=2.5):
             for m in mk_idx.get(item["id"], []):
                 if abs((m.get("key") or "").count(str(line))) == 0:
                     continue
-                prices = {pr["designation"]: pr["price"] for pr in m.get("prices", []) if "designation" in pr}
+                prices = {
+                    pr["designation"]: pr["price"]
+                    for pr in m.get("prices", [])
+                    if "designation" in pr
+                }
                 if "over" not in prices or "under" not in prices:
                     continue
                 o_dec = _amer_to_dec(prices["over"])
@@ -328,7 +358,8 @@ def fetch_pinnacle_totals(line=2.5):
                     continue
                 inv = 1 / o_dec + 1 / u_dec
                 result[f"{home_p['name']} vs {away_p['name']}"] = {
-                    "over": o_dec, "under": u_dec,
+                    "over": o_dec,
+                    "under": u_dec,
                     "p_over": round((1 / o_dec) / inv, 4),
                     "p_under": round((1 / u_dec) / inv, 4),
                     "starts_ts": starts_ts,
@@ -360,7 +391,9 @@ def write_ou25_snapshot(totals: dict) -> int:
     rows = []
     for match_key, data in totals.items():
         h = data.get("_home") or match_key.split(" vs ")[0]
-        a = data.get("_away") or (match_key.split(" vs ")[1] if " vs " in match_key else "")
+        a = data.get("_away") or (
+            match_key.split(" vs ")[1] if " vs " in match_key else ""
+        )
         sts = data.get("starts_ts")
         o_dec = data.get("over")
         u_dec = data.get("under")

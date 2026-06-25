@@ -93,7 +93,7 @@ EDGE_MIN_DEFAULT = 0.10  # require at least 10pp model edge over market
 MAX_USD_PER_BET = 25.00  # raised ceiling — high-EV picks deserve real size
 MIN_USD_PER_BET = 1.00  # arena minimum per order
 WALLET_BUFFER = 2.00  # keep $2 reserve — never spend the entire wallet
-MAX_BETS_PER_RUN = 5   # at most 5 real-money bets per scan cycle
+MAX_BETS_PER_RUN = 5  # at most 5 real-money bets per scan cycle
 LIMIT_BUFFER = 0.02  # pay up to mid + this to get filled
 TIF_SECONDS = 30  # limit order expires if unfilled
 
@@ -555,6 +555,40 @@ def place_order(fid, team_code, usd_size, limit_price):
             "error": "blocked",
             "reason": "real-money placement disabled (DEEPFIELD_ARENA_LIVE != 1)",
         }
+
+    # NEW ARCHITECTURE GATE — shadow validation, diagnostics, and bankroll checks.
+    # Refuses real money until 500+ paper bets with positive CLV/ROI.
+    try:
+        from src.gatekeeper import check_real_money_gate
+
+        _gate_block = check_real_money_gate(
+            market="1X2",
+            league="arena",
+            strategy="arena_dixon_coles",
+            stake=float(usd_size),
+        )
+        if _gate_block:
+            if _AP2 and _ap2_row:
+                try:
+                    _log_result(
+                        _ap2_row,
+                        None,
+                        "blocked",
+                        f"Gatekeeper: {_gate_block.get('reason', 'unknown')}",
+                    )
+                except Exception:
+                    pass
+            return 0, {
+                "error": "blocked",
+                "reason": f"Gatekeeper validation failed: {_gate_block.get('reason', 'unknown')}",
+                "details": _gate_block,
+            }
+    except ImportError:
+        pass  # Gatekeeper module not available, allow flow to continue
+    except Exception as _gate_err:
+        print(f"[ARENA GATE ERROR] {_gate_err}")
+        # On error, block real money (fail-safe)
+        return 0, {"error": "blocked", "reason": f"Gatekeeper error: {_gate_err}"}
 
     payload = {
         "fixture_id": str(fid),
@@ -1163,7 +1197,10 @@ def arena_place():
     # Restrict real-money placement to requests originating from localhost only
     remote = request.remote_addr or ""
     if remote not in ("127.0.0.1", "::1", "localhost"):
-        return jsonify({"error": "Forbidden: placement only allowed from localhost."}), 403
+        return (
+            jsonify({"error": "Forbidden: placement only allowed from localhost."}),
+            403,
+        )
     body = request.get_json(silent=True) or {}
     if not body.get("confirm"):
         return (
