@@ -914,6 +914,9 @@
             <a class="nav-item" onclick="switchView('arena-view', this)">
                 <i class="fa-solid fa-futbol"></i> World Cup Arena
             </a>
+            <a class="nav-item" onclick="switchView('wc-predictor-view', this)">
+                <i class="fa-solid fa-trophy"></i> WC 2026 Winner
+            </a>
             <a class="nav-item" onclick="switchView('settings-view', this)">
                 <i class="fa-solid fa-microchip"></i> Engine Settings
             </a>
@@ -1093,6 +1096,12 @@
         <!-- WORLD CUP ARENA VIEW (Stair AI real-money value betting) -->
         <div id="arena-view" class="view-section">
             <iframe src="/arena" title="World Cup Arena Betting"
+                style="width:100%; height:calc(100vh - 130px); min-height:600px; border:0; border-radius:10px; background:#0f1216;"></iframe>
+        </div>
+
+        <!-- WC 2026 WINNER PREDICTOR -->
+        <div id="wc-predictor-view" class="view-section">
+            <iframe src="/wc/" title="WC 2026 Winner Predictor"
                 style="width:100%; height:calc(100vh - 130px); min-height:600px; border:0; border-radius:10px; background:#0f1216;"></iframe>
         </div>
 

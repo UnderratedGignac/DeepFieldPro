@@ -20,6 +20,14 @@ try:
 except Exception as _arena_err:  # never let the arena page break the main dashboard
     print(f"[!] Arena betting page not loaded: {_arena_err}")
 
+# WC 2026 Winner Predictor (read-only model, no betting).
+try:
+    from src.wc_blueprint import wc_bp
+
+    app.register_blueprint(wc_bp)
+except Exception as _wc_err:
+    print(f"[!] WC predictor page not loaded: {_wc_err}")
+
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 
