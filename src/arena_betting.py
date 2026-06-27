@@ -802,6 +802,23 @@ def autopilot_cycle():
     all_candidates = analyze(AUTO_SCAN_LIMIT, wallet_balance=wallet_balance or None)
     qualifying = [c for c in all_candidates if c["qualifies"]]
     state["last_candidates"] = qualifying[:50]
+    # All scanned matches with edge info (for the "all matches" edge table in the UI)
+    _keep = (
+        "match",
+        "kickoff",
+        "team_code",
+        "model_prob",
+        "market_mid",
+        "edge_pp",
+        "qualifies",
+        "suggested_usd",
+        "kickoff_ts",
+    )
+    state["last_all_candidates"] = sorted(
+        [{k: c[k] for k in _keep if k in c} for c in all_candidates],
+        key=lambda x: x.get("edge_pp", 0) or 0,
+        reverse=True,
+    )[:100]
 
     spent = 0.0
     placed_now = 0
@@ -1128,8 +1145,9 @@ def autopilot_status():
         "max_usd": MAX_USD_PER_BET,
         "max_bets_per_run": MAX_BETS_PER_RUN,
         "wallet": get_wallet(),
-        "placed": state.get("placed", [])[:50],
+        "placed": [p for p in state.get("placed", []) if p.get("ok")],
         "candidates": state.get("last_candidates", []),
+        "all_candidates": state.get("last_all_candidates", []),
         "total_placed": len(state.get("placed_keys", [])),
         "total_ledger": len(state.get("ledger_keys", [])),
     }

@@ -81,13 +81,18 @@
   </div>
 
   <div class="panel">
-    <h2><i class="fa-solid fa-bolt" style="color:var(--primary)"></i> Live Auto-Bets <span class="count" id="placedCount"></span></h2>
-    <div id="placedWrap"><div class="empty">No bets placed yet.</div></div>
+    <h2><i class="fa-solid fa-bolt" style="color:var(--primary)"></i> Successful Bets <span class="count" id="placedCount"></span></h2>
+    <div id="placedWrap"><div class="empty">No successful bets yet.</div></div>
   </div>
 
   <div class="panel">
-    <h2><i class="fa-solid fa-crosshairs" style="color:var(--secondary)"></i> Watching — Qualifying Picks <span class="count" id="candCount"></span></h2>
+    <h2><i class="fa-solid fa-crosshairs" style="color:var(--secondary)"></i> Qualifying Picks <span class="count" id="candCount"></span></h2>
     <div id="candWrap"><div class="empty">Waiting for the first scan…</div></div>
+  </div>
+
+  <div class="panel">
+    <h2><i class="fa-solid fa-table-list" style="color:var(--amber)"></i> All Matches — Edge Scan <span class="count" id="allCount"></span></h2>
+    <div id="allWrap"><div class="empty">Waiting for the first scan…</div></div>
   </div>
 
   <p class="err" id="err"></p>
@@ -127,6 +132,24 @@ function rowsCand(list){
   return h+'</tbody></table>';
 }
 
+function rowsAll(list){
+  if(!list||!list.length) return '<div class="empty">No matches scanned yet — waiting for next cycle.</div>';
+  let h='<table><thead><tr><th>Match</th><th>Kickoff</th><th>Pick</th><th>Model</th><th>Market</th><th>Edge</th><th>Qualifies</th></tr></thead><tbody>';
+  for(const c of list){
+    const edgeCls = c.edge_pp>=10?'pos':(c.edge_pp>=0?'':'neg');
+    const edgeTxt = c.edge_pp!=null?(c.edge_pp>=0?'+':'')+c.edge_pp+'pp':'—';
+    const qual = c.qualifies
+      ? '<span class="tag ok">YES</span>'
+      : '<span class="tag fail">NO</span>';
+    const teamCls = c.qualifies?'gold':'';
+    h+=`<tr><td>${c.match||''}</td><td>${c.kickoff||''}</td>
+      <td class="${teamCls}">${c.team_code||''}</td>
+      <td>${pct(c.model_prob)}</td><td>${pct(c.market_mid)}</td>
+      <td class="${edgeCls}">${edgeTxt}</td><td>${qual}</td></tr>`;
+  }
+  return h+'</tbody></table>';
+}
+
 async function refresh(){
   try{
     const s=await (await fetch('/arena/api/status')).json();
@@ -151,9 +174,11 @@ async function refresh(){
     $('cFilter').textContent=`≥${Math.round((s.conf_min||0)*100)}% · +${Math.round((s.edge_min||0)*100)}pp`;
     // tables
     $('placedWrap').innerHTML=rowsPlaced(s.placed);
-    $('placedCount').textContent=(s.placed?.length||0)+' shown';
+    $('placedCount').textContent=(s.placed?.length||0)+' placed';
     $('candWrap').innerHTML=rowsCand(s.candidates);
     $('candCount').textContent=(s.candidates?.length||0)+' qualifying';
+    $('allWrap').innerHTML=rowsAll(s.all_candidates);
+    $('allCount').textContent=(s.all_candidates?.length||0)+' matches';
     $('err').textContent=s.last_error?('Last error: '+s.last_error):'';
   }catch(e){ $('err').textContent='Status fetch failed: '+e; }
 }
