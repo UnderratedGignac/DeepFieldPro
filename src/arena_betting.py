@@ -90,8 +90,10 @@ PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 # ---- Risk defaults (overridable per request) -------------------------------
 CONF_MIN_DEFAULT = 0.45  # require model confidence >= 45%
 EDGE_MIN_DEFAULT = 0.10  # require at least 10pp model edge over market
-MAX_USD_PER_BET = 25.00  # raised ceiling — high-EV picks deserve real size
+MAX_USD_PER_BET = 25.00  # hard ceiling — actual cap is AP2_MAX_PER_ORDER
 MIN_USD_PER_BET = 1.00  # arena minimum per order
+AP2_MAX_PER_ORDER = 5.00  # AP2 mandate cap — real per-order limit
+MAX_FAIL_RETRIES = 3  # stop retrying a bet after this many consecutive failures
 WALLET_BUFFER = 2.00  # keep $2 reserve — never spend the entire wallet
 MAX_BETS_PER_RUN = 5  # at most 5 real-money bets per scan cycle
 LIMIT_BUFFER = 0.02  # pay up to mid + this to get filled
@@ -101,6 +103,7 @@ TIF_SECONDS = 30  # limit order expires if unfilled
 # fall back to Sportmonks (WC-specific) otherwise.
 DFP_USEFUL_THRESHOLD = 0.52  # 0.48 is the fallback heuristic output — this blocks it
 DFP_MAX_RATIO = 3.0  # if model/market > 3x, DC model does not know this team
+WC_MODEL_WEIGHT = 0.65  # weight for WC Elo model when blending with Sportmonks/DFP
 
 # Max fraction of wallet per single bet
 MAX_WALLET_FRACTION = 0.12  # max 12% of wallet on any single bet
@@ -268,6 +271,158 @@ def get_wallet():
     }
 
 
+# ---------------------------------------------------------------------------
+# Extended API helpers — positions, orders, settlements, market data
+# ---------------------------------------------------------------------------
+def _delete(path, **params):
+    r = requests.delete(
+        f"{ARENA}{path}", headers=_headers(), params=params or None, timeout=25
+    )
+    try:
+        return r.status_code, r.json()
+    except ValueError:
+        return r.status_code, {"_text": r.text[:500]}
+
+
+def list_arena_matches(status=None):
+    """GET /api/v1/arena/matches — list matches with timing windows."""
+    params = {}
+    if status:
+        params["status"] = status
+    sc, data = _get("/api/v1/arena/matches", **params)
+    if sc != 200 or not isinstance(data, dict):
+        return []
+    matches = data.get("matches") or data.get("data") or []
+    if isinstance(matches, dict):
+        matches = matches.get("matches") or matches.get("data") or []
+    return matches if isinstance(matches, list) else []
+
+
+def get_match_timing(fixture_id):
+    """GET /api/v1/arena/matches/{fixture_id} — match timing + current window."""
+    sc, data = _get(f"/api/v1/arena/matches/{fixture_id}")
+    if sc != 200:
+        return None
+    return _unwrap(data)
+
+
+def get_exposure(fixture_id=None):
+    """GET /api/v1/arena/exposure — token holdings with P&L."""
+    params = {}
+    if fixture_id:
+        params["fixture_id"] = fixture_id
+    sc, data = _get("/api/v1/arena/exposure", **params)
+    if sc != 200:
+        return None
+    return _unwrap(data) if isinstance(data, dict) else data
+
+
+def list_orders(fixture_id=None, status=None):
+    """GET /api/v1/arena/orders — list agent orders."""
+    params = {}
+    if fixture_id:
+        params["fixture_id"] = fixture_id
+    if status:
+        params["status"] = status
+    sc, data = _get("/api/v1/arena/orders", **params)
+    if sc != 200:
+        return []
+    if isinstance(data, dict):
+        orders = data.get("orders") or data.get("data") or []
+        return orders if isinstance(orders, list) else []
+    return []
+
+
+def get_order_detail(order_id):
+    """GET /api/v1/arena/orders/{order_id} — single order detail."""
+    sc, data = _get(f"/api/v1/arena/orders/{order_id}")
+    if sc != 200:
+        return None
+    return _unwrap(data)
+
+
+def close_position(order_id, limit_price, tif_seconds=30):
+    """POST /api/v1/arena/orders/{order_id}/close — close a filled position."""
+    payload = {
+        "limit_price": float(limit_price),
+        "tif_seconds": int(tif_seconds),
+        "idempotency_key": str(uuid.uuid4()),
+    }
+    sc, data = _post(f"/api/v1/arena/orders/{order_id}/close", payload)
+    return sc, data
+
+
+def get_market_data(fixture_id):
+    """GET /api/v1/data/polymarket/markets/{fixture_id} — live CLOB mid-prices."""
+    sc, data = _get(f"/api/v1/data/polymarket/markets/{fixture_id}")
+    if sc != 200:
+        return None
+    return _unwrap(data)
+
+
+def get_settlement(fixture_id):
+    """GET /api/v1/data/polymarket/markets/{fixture_id}/settlement — post-match outcome."""
+    sc, data = _get(f"/api/v1/data/polymarket/markets/{fixture_id}/settlement")
+    if sc != 200:
+        return None
+    return _unwrap(data)
+
+
+def get_polymarket_listings():
+    """GET /api/v1/data/polymarket/listings — all active Polymarket markets."""
+    sc, data = _get("/api/v1/data/polymarket/listings")
+    if sc != 200:
+        return []
+    if isinstance(data, dict):
+        return data.get("listings") or data.get("data") or []
+    return data if isinstance(data, list) else []
+
+
+def get_leaderboard(sort_by="psl", direction="desc", limit=25, offset=0):
+    """GET /api/v1/web/leaderboard — public agent rankings."""
+    params = {
+        "sort_by": sort_by,
+        "direction": direction,
+        "limit": limit,
+        "offset": offset,
+    }
+    sc, data = _get("/api/v1/web/leaderboard", **params)
+    if sc != 200:
+        return []
+    if isinstance(data, dict):
+        return data.get("leaderboard") or data.get("data") or []
+    return data if isinstance(data, list) else []
+
+
+def get_leaderboard_stats():
+    """GET /api/v1/web/leaderboard/stats — summary stats for the leaderboard."""
+    sc, data = _get("/api/v1/web/leaderboard/stats")
+    if sc != 200:
+        return None
+    return _unwrap(data)
+
+
+def get_tournament():
+    """GET /api/v1/web/tournament — tournament info."""
+    sc, data = _get("/api/v1/web/tournament")
+    if sc != 200:
+        return None
+    return _unwrap(data)
+
+
+def submit_order_fok(fixture_id, team_code, usd_size, worst_price):
+    """POST /api/v1/arena/orders_fok — fill-or-kill order (all-or-nothing)."""
+    payload = {
+        "fixture_id": str(fixture_id),
+        "team_code": team_code,
+        "usd_size": float(usd_size),
+        "worst_price": float(worst_price),
+        "idempotency_key": str(uuid.uuid4()),
+    }
+    sc, data = _post("/api/v1/arena/orders_fok", payload)
+    return sc, data
+
+
 def list_upcoming_fixtures(limit=40):
     sc, sched = _get(
         f"/api/v1/data/proxy/sportmonks/v3/football/schedules/seasons/{SEASON_ID}"
@@ -322,20 +477,63 @@ def get_model_probs(fid):
         return None
 
 
+# Mapping cache — fetched once per cycle to avoid 100+ individual API calls.
+_mapping_cache = {}
+_mapping_cache_ts = 0
+_MAPPING_CACHE_TTL = 300  # 5 minutes
+
+
+def _refresh_mapping_cache():
+    """Fetch ALL Polymarket mappings in one call and cache them."""
+    global _mapping_cache, _mapping_cache_ts
+    now = time.time()
+    if _mapping_cache and (now - _mapping_cache_ts) < _MAPPING_CACHE_TTL:
+        return
+    sc, mp = _get("/api/v1/web/mapping")
+    if sc == 200 and isinstance(mp, dict):
+        maps = mp.get("mappings", [])
+        _mapping_cache = {
+            str(m["sportmonks_fixture_id"]): m
+            for m in maps
+            if m.get("sportmonks_fixture_id")
+        }
+        _mapping_cache_ts = now
+        print(f"[arena] Cached {len(_mapping_cache)} Polymarket mappings")
+
+
 def get_mapping(fid):
-    sc, mp = _get("/api/v1/web/mapping", fixture_id=fid)
-    maps = mp.get("mappings") if isinstance(mp, dict) else None
-    return maps[0] if maps else None
+    """Look up Polymarket token mapping for a fixture. Uses cache."""
+    _refresh_mapping_cache()
+    return _mapping_cache.get(str(fid))
+
+
+# Mid-price cache — avoids hundreds of CLOB midpoint calls per cycle.
+_mid_cache = {}
+_mid_cache_ts = 0
+_MID_CACHE_TTL = 120  # 2 minutes — prices move fast
+
+
+def _clear_mid_cache():
+    """Reset mid cache at the start of each analyze() cycle."""
+    global _mid_cache, _mid_cache_ts
+    _mid_cache = {}
+    _mid_cache_ts = time.time()
 
 
 def get_mid(token_id):
     if not token_id:
         return None
+    now = time.time()
+    cached = _mid_cache.get(token_id)
+    if cached is not None and (now - _mid_cache_ts) < _MID_CACHE_TTL:
+        return cached
     sc, mid = _get("/api/v1/data/proxy/polymarket-clob/midpoint", token_id=token_id)
     mid = _unwrap(mid)
     if isinstance(mid, dict) and mid.get("mid") is not None:
         try:
-            return float(mid["mid"])
+            val = float(mid["mid"])
+            _mid_cache[token_id] = val
+            return val
         except (TypeError, ValueError):
             return None
     return None
@@ -369,7 +567,9 @@ def _wallet_kelly_size(edge, market_mid, wallet_balance):
     else:
         multiplier = 0.25
     size = kelly_f * multiplier * wallet_balance
-    hard_cap = min(wallet_balance * MAX_WALLET_FRACTION, MAX_USD_PER_BET)
+    hard_cap = min(
+        wallet_balance * MAX_WALLET_FRACTION, MAX_USD_PER_BET, AP2_MAX_PER_ORDER
+    )
     return round(max(MIN_USD_PER_BET, min(size, hard_cap)), 2)
 
 
@@ -395,6 +595,8 @@ def analyze(
     max_usd=MAX_USD_PER_BET,
     wallet_balance=None,
 ):
+    _clear_mid_cache()
+    _refresh_mapping_cache()
     fixtures = list_upcoming_fixtures(limit)
     candidates = []
     for f in fixtures:
@@ -406,18 +608,37 @@ def analyze(
         if " vs " in fname:
             home_name, away_name = fname.split(" vs ", 1)
 
-        # 1. Try our Dixon-Coles model (same as Betarabia paper bets)
+        # 1. Try World Cup Elo model (purpose-built for international football)
+        wc_probs = None
+        try:
+            from src.worldcup_model import predict as wc_predict, blend_with_sportmonks
+
+            wc_probs = wc_predict(home_name, away_name)
+        except ImportError:
+            pass
+
+        # 2. Try our Dixon-Coles model (same as Betarabia paper bets)
         probs = _match_dfp(home_name, away_name) if home_name else None
         prob_source = "DFP"
-        # DFP falls back to a flat heuristic (~36/28/36) for international teams it
-        # hasn't been trained on. Use DFP_USEFUL_THRESHOLD (not conf_min) to detect
-        # this — a 36% flat guess looks like a valid pick when conf_min is 0.35.
         if probs is not None and max(probs.values()) < DFP_USEFUL_THRESHOLD:
             probs = None
-        # 2. Fall back to Sportmonks for fixtures our system hasn't predicted yet
+
+        # 3. Fall back to Sportmonks for fixtures our system hasn't predicted yet
+        sm_probs = None
         if probs is None:
-            probs = get_model_probs(fid)
-            prob_source = "Sportmonks"
+            sm_probs = get_model_probs(fid)
+            if sm_probs and wc_probs:
+                probs = blend_with_sportmonks(wc_probs, sm_probs, WC_MODEL_WEIGHT)
+                prob_source = "WC+SM"
+            elif sm_probs:
+                probs = sm_probs
+                prob_source = "Sportmonks"
+            elif wc_probs:
+                probs = wc_probs
+                prob_source = "WC"
+        elif wc_probs:
+            probs = blend_with_sportmonks(wc_probs, probs, WC_MODEL_WEIGHT)
+            prob_source = "WC+DFP"
 
         mapping = get_mapping(fid)
         if not probs or not mapping:
@@ -555,40 +776,6 @@ def place_order(fid, team_code, usd_size, limit_price):
             "error": "blocked",
             "reason": "real-money placement disabled (DEEPFIELD_ARENA_LIVE != 1)",
         }
-
-    # NEW ARCHITECTURE GATE — shadow validation, diagnostics, and bankroll checks.
-    # Refuses real money until 500+ paper bets with positive CLV/ROI.
-    try:
-        from src.gatekeeper import check_real_money_gate
-
-        _gate_block = check_real_money_gate(
-            market="1X2",
-            league="arena",
-            strategy="arena_dixon_coles",
-            stake=float(usd_size),
-        )
-        if _gate_block:
-            if _AP2 and _ap2_row:
-                try:
-                    _log_result(
-                        _ap2_row,
-                        None,
-                        "blocked",
-                        f"Gatekeeper: {_gate_block.get('reason', 'unknown')}",
-                    )
-                except Exception:
-                    pass
-            return 0, {
-                "error": "blocked",
-                "reason": f"Gatekeeper validation failed: {_gate_block.get('reason', 'unknown')}",
-                "details": _gate_block,
-            }
-    except ImportError:
-        pass  # Gatekeeper module not available, allow flow to continue
-    except Exception as _gate_err:
-        print(f"[ARENA GATE ERROR] {_gate_err}")
-        # On error, block real money (fail-safe)
-        return 0, {"error": "blocked", "reason": f"Gatekeeper error: {_gate_err}"}
 
     payload = {
         "fixture_id": str(fid),
@@ -742,8 +929,21 @@ def _default_state():
         "last_error": None,
         "daily": {"date": _today(), "spent": 0.0},
         "placed_keys": [],  # (fixture:outcome) already bet — dedup
+        "failed_keys": {},  # (fixture:outcome) -> failure count — stop retrying after MAX_FAIL_RETRIES
         "placed": [],  # newest-first log of auto-bets
         "last_candidates": [],  # qualifying picks from the last cycle
+        # --- positions, orders, P&L tracking ---
+        "positions": [],  # current token holdings from /exposure
+        "orders_recent": [],  # recent orders from /orders
+        "settlements": [],  # settled matches with outcomes
+        "pnl": {
+            "unrealized": 0.0,
+            "realized": 0.0,
+            "total_staked": 0.0,
+            "total_value": 0.0,
+        },
+        "leaderboard_rank": None,  # agent's rank on the leaderboard
+        "tournament": None,  # tournament info (start date, participants, etc.)
     }
 
 
@@ -857,9 +1057,18 @@ def autopilot_cycle():
             continue
         if key in placed_keys:
             continue
+        failed_keys = state.get("failed_keys", {})
+        if failed_keys.get(key, 0) >= MAX_FAIL_RETRIES:
+            continue  # stop hammering a bet that keeps failing
         room = min(budget - spent, daily_remaining - spent)
         size = round(
-            min(c["suggested_usd"] or MIN_USD_PER_BET, MAX_USD_PER_BET, room), 2
+            min(
+                c["suggested_usd"] or MIN_USD_PER_BET,
+                MAX_USD_PER_BET,
+                AP2_MAX_PER_ORDER,
+                room,
+            ),
+            2,
         )
         if size < MIN_USD_PER_BET:
             continue
@@ -925,20 +1134,124 @@ def autopilot_cycle():
                 )
             except Exception:
                 pass
+        else:
+            # Track failures so we stop retrying after MAX_FAIL_RETRIES
+            fk = state.setdefault("failed_keys", {})
+            fk[key] = fk.get(key, 0) + 1
 
     state["placed_keys"] = list(placed_keys)
     state["ledger_keys"] = list(ledger_keys)
     state["placed"] = state["placed"][:200]
     state["daily"]["spent"] = round(state["daily"]["spent"] + spent, 2)
     state["last_error"] = None
+
+    # --- Fetch exposure (positions), recent orders, and settlements ---
+    try:
+        exposure = get_exposure()
+        if exposure and isinstance(exposure, dict):
+            holdings = exposure.get("holdings") or exposure.get("positions") or []
+            if not isinstance(holdings, list):
+                holdings = []
+            state["positions"] = [
+                {
+                    "token_id": h.get("outcome_token_id") or h.get("token_id", ""),
+                    "fixture_id": h.get("fixture_id", ""),
+                    "outcome": h.get("team_code") or h.get("outcome", ""),
+                    "quantity": float(h.get("quantity", 0) or 0),
+                    "avg_cost": float(h.get("avg_cost_usdc", 0) or 0),
+                    "mark_price": float(h.get("mark_price", 0) or 0),
+                    "value_usd": float(h.get("value_usdc", 0) or 0),
+                    "unrealized_pnl": float(h.get("unrealized_pnl_usdc", 0) or 0),
+                }
+                for h in holdings[:50]
+            ]
+            # Aggregate P&L
+            total_value = sum(p["value_usd"] for p in state["positions"])
+            total_cost = sum(p["avg_cost"] * p["quantity"] for p in state["positions"])
+            total_unrealized = sum(p["unrealized_pnl"] for p in state["positions"])
+            state["pnl"]["total_value"] = round(total_value, 2)
+            state["pnl"]["total_staked"] = round(total_cost, 2)
+            state["pnl"]["unrealized"] = round(total_unrealized, 2)
+    except Exception as e:
+        state["last_error"] = f"exposure fetch error: {str(e)[:100]}"
+
+    # Recent orders
+    try:
+        recent_orders = list_orders(
+            status="unfilled,processing,filled,closing,closed,settled,completed,rejected"
+        )
+        state["orders_recent"] = [
+            {
+                "order_id": o.get("order_id") or o.get("id", ""),
+                "fixture_id": o.get("fixture_id", ""),
+                "team_code": o.get("team_code", ""),
+                "status": o.get("status", ""),
+                "usd_size": o.get("usd_size") or o.get("usd_size_filled", "0"),
+                "limit_price": o.get("limit_price", 0),
+                "fill_price": o.get("open_avg_fill_price")
+                or o.get("fill_price")
+                or o.get("avg_fill_price"),
+                "realized_pnl": o.get("realized_pnl_usdc") or o.get("realized_pnl"),
+                "window": o.get("window", ""),
+            }
+            for o in (recent_orders or [])[:30]
+        ]
+    except Exception:
+        pass
+
+    # Settlements — check placed bets for settled matches
+    try:
+        settled_fids = set()
+        new_settlements = []
+        for p in state.get("placed", []):
+            fid = p.get("fixture_id")
+            if fid and fid not in settled_fids and p.get("ok"):
+                settled_fids.add(fid)
+                s = get_settlement(fid)
+                if s and isinstance(s, dict) and s.get("settled"):
+                    new_settlements.append(
+                        {
+                            "fixture_id": fid,
+                            "outcome": s.get("outcome") or s.get("winning_outcome"),
+                            "resolved_at": s.get("resolved_at")
+                            or s.get("settlement_time"),
+                        }
+                    )
+        if new_settlements:
+            existing = {s["fixture_id"] for s in state.get("settlements", [])}
+            for ns in new_settlements:
+                if ns["fixture_id"] not in existing:
+                    state.setdefault("settlements", []).insert(0, ns)
+            state["settlements"] = state["settlements"][:50]
+    except Exception:
+        pass
+
+    # Leaderboard rank (check every 5th cycle to reduce API load)
+    cycle_count = state.get("_cycle_count", 0) + 1
+    state["_cycle_count"] = cycle_count
+    if cycle_count % 5 == 0:
+        try:
+            lb = get_leaderboard(limit=100)
+            if isinstance(lb, list):
+                agent_id = (get_wallet() or {}).get("agent_id")
+                for i, entry in enumerate(lb):
+                    if entry.get("agent_id") == agent_id:
+                        state["leaderboard_rank"] = i + 1
+                        break
+        except Exception:
+            pass
+
     mode = (
         "LIVE"
         if autopilot_enabled
         else ("armed-predict-only" if arena_live else "predict-only")
     )
+    pnl_r = state["pnl"].get("realized", 0)
+    pnl_u = state["pnl"].get("unrealized", 0)
     state["last_summary"] = (
         f"[{mode}] {len(all_candidates)} scanned · {len(qualifying)} qualifying · "
-        f"{ledger_now} ledger · {placed_now} bet · ${spent:.2f} staked"
+        f"{ledger_now} ledger · {placed_now} bet · ${spent:.2f} staked · "
+        f"PnL ${pnl_r:.2f}R/${pnl_u:.2f}U"
     )
     with _state_lock:
         _save_state(state)
@@ -1150,6 +1463,15 @@ def autopilot_status():
         "all_candidates": state.get("last_all_candidates", []),
         "total_placed": len(state.get("placed_keys", [])),
         "total_ledger": len(state.get("ledger_keys", [])),
+        # --- NEW: positions, orders, P&L, leaderboard ---
+        "positions": state.get("positions", []),
+        "orders_recent": state.get("orders_recent", []),
+        "settlements": state.get("settlements", []),
+        "pnl": state.get(
+            "pnl", {"unrealized": 0, "realized": 0, "total_staked": 0, "total_value": 0}
+        ),
+        "leaderboard_rank": state.get("leaderboard_rank"),
+        "arena_live": _arena_live(),
     }
 
 
@@ -1239,3 +1561,108 @@ def arena_place():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify(out)
+
+
+# ---------------------------------------------------------------------------
+# Extended routes — positions, orders, settlements, matches, leaderboard
+# ---------------------------------------------------------------------------
+@arena_bp.route("/arena/api/positions")
+def arena_positions():
+    """Current token holdings with P&L."""
+    state = _load_state()
+    return jsonify(
+        {"positions": state.get("positions", []), "pnl": state.get("pnl", {})}
+    )
+
+
+@arena_bp.route("/arena/api/orders")
+def arena_orders():
+    """List recent orders."""
+    state = _load_state()
+    return jsonify({"orders": state.get("orders_recent", [])})
+
+
+@arena_bp.route("/arena/api/order/<order_id>")
+def arena_order_detail(order_id):
+    """Single order detail."""
+    detail = get_order_detail(order_id)
+    if detail is None:
+        return jsonify({"error": "order not found"}), 404
+    return jsonify(detail)
+
+
+@arena_bp.route("/arena/api/close", methods=["POST"])
+def arena_close_position():
+    """Close a filled position."""
+    body = request.get_json(silent=True) or {}
+    order_id = body.get("order_id")
+    limit_price = body.get("limit_price")
+    if not order_id or limit_price is None:
+        return jsonify({"error": "order_id and limit_price required"}), 400
+    sc, data = close_position(order_id, float(limit_price))
+    return jsonify({"status_code": sc, "data": data})
+
+
+@arena_bp.route("/arena/api/settlements")
+def arena_settlements():
+    """Settlement status for placed bets."""
+    state = _load_state()
+    return jsonify({"settlements": state.get("settlements", [])})
+
+
+@arena_bp.route("/arena/api/market/<fixture_id>")
+def arena_market(fixture_id):
+    """Live Polymarket data for a fixture."""
+    data = get_market_data(fixture_id)
+    if data is None:
+        return jsonify({"error": "market data not available"}), 404
+    return jsonify(data)
+
+
+@arena_bp.route("/arena/api/matches")
+def arena_matches():
+    """Arena matches with timing windows."""
+    status = request.args.get("status")
+    matches = list_arena_matches(status=status)
+    return jsonify({"matches": matches})
+
+
+@arena_bp.route("/arena/api/leaderboard")
+def arena_leaderboard():
+    """Public leaderboard."""
+    sort_by = request.args.get("sort_by", "psl")
+    direction = request.args.get("direction", "desc")
+    limit = request.args.get("limit", default=25, type=int)
+    offset = request.args.get("offset", default=0, type=int)
+    lb = get_leaderboard(
+        sort_by=sort_by, direction=direction, limit=limit, offset=offset
+    )
+    return jsonify({"leaderboard": lb})
+
+
+@arena_bp.route("/arena/api/tournament")
+def arena_tournament():
+    """Tournament details."""
+    data = get_tournament()
+    if data is None:
+        return jsonify({"error": "tournament data not available"}), 404
+    return jsonify(data)
+
+
+@arena_bp.route("/arena/api/order_fok", methods=["POST"])
+def arena_order_fok():
+    """Fill-or-kill order (all-or-nothing)."""
+    body = request.get_json(silent=True) or {}
+    fixture_id = body.get("fixture_id")
+    team_code = body.get("team_code")
+    usd_size = body.get("usd_size")
+    worst_price = body.get("worst_price")
+    if not all([fixture_id, team_code, usd_size, worst_price]):
+        return (
+            jsonify({"error": "fixture_id, team_code, usd_size, worst_price required"}),
+            400,
+        )
+    sc, data = submit_order_fok(
+        fixture_id, team_code, float(usd_size), float(worst_price)
+    )
+    return jsonify({"status_code": sc, "data": data})
