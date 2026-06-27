@@ -904,6 +904,15 @@ def _today():
     return time.strftime("%Y-%m-%d", time.gmtime())
 
 
+def _default_settings():
+    return {
+        "conf_min": CONF_MIN_DEFAULT,  # min AI probability to qualify (0–1)
+        "edge_min": EDGE_MIN_DEFAULT,  # min model-vs-market edge to qualify (0–1)
+        "max_per_bet": 25.0,  # max USD per order (user-adjustable, no $5 cap)
+        "max_bets_per_run": MAX_BETS_PER_RUN,  # orders placed per scan cycle
+    }
+
+
 def _default_state():
     return {
         # Starts PAUSED for the real-money safety gate; one "Resume" click on the
@@ -918,6 +927,7 @@ def _default_state():
         "failed_keys": {},  # (fixture:outcome) -> failure count — stop retrying after MAX_FAIL_RETRIES
         "placed": [],  # newest-first log of auto-bets
         "last_candidates": [],  # qualifying picks from the last cycle
+        "settings": _default_settings(),  # live-editable thresholds
         # --- positions, orders, P&L tracking ---
         "positions": [],  # current token holdings from /exposure
         "orders_recent": [],  # recent orders from /orders
@@ -992,7 +1002,19 @@ def autopilot_cycle():
     ledger_keys = set(state.get("ledger_keys", []))
     now_ts = time.time()
 
-    all_candidates = analyze(AUTO_SCAN_LIMIT, wallet_balance=wallet_balance or None)
+    # Read live settings (user-adjustable from the UI)
+    cfg = {**_default_settings(), **state.get("settings", {})}
+    _conf_min = cfg["conf_min"]
+    _edge_min = cfg["edge_min"]
+    _max_per_bet = cfg["max_per_bet"]
+    _max_bets = cfg["max_bets_per_run"]
+
+    all_candidates = analyze(
+        AUTO_SCAN_LIMIT,
+        conf_min=_conf_min,
+        edge_min=_edge_min,
+        wallet_balance=wallet_balance or None,
+    )
     qualifying = [c for c in all_candidates if c["qualifies"]]
     state["last_candidates"] = qualifying[:50]
     # All scanned matches with edge info (for the "all matches" edge table in the UI)
@@ -1046,7 +1068,7 @@ def autopilot_cycle():
         # Real-money orders only when live gate is armed.
         if not autopilot_enabled:
             continue
-        if placed_now >= MAX_BETS_PER_RUN:
+        if placed_now >= _max_bets:
             continue
         if key in placed_keys:
             continue
@@ -1058,7 +1080,7 @@ def autopilot_cycle():
             min(
                 c["suggested_usd"] or MIN_USD_PER_BET,
                 MAX_USD_PER_BET,
-                AP2_MAX_PER_ORDER,
+                _max_per_bet,
                 room,
             ),
             2,
@@ -1439,6 +1461,7 @@ def start_autopilot():
 
 def autopilot_status():
     state = _load_state()
+    cfg = {**_default_settings(), **state.get("settings", {})}
     return {
         "enabled": state.get("enabled", False),
         "last_scan_ts": state.get("last_scan_ts"),
@@ -1448,10 +1471,11 @@ def autopilot_status():
         "last_error": state.get("last_error"),
         "daily": state.get("daily"),
         "daily_cap": DAILY_SPEND_CAP,
-        "conf_min": CONF_MIN_DEFAULT,
-        "edge_min": EDGE_MIN_DEFAULT,
-        "max_usd": MAX_USD_PER_BET,
-        "max_bets_per_run": MAX_BETS_PER_RUN,
+        "conf_min": cfg["conf_min"],
+        "edge_min": cfg["edge_min"],
+        "max_usd": cfg["max_per_bet"],
+        "max_bets_per_run": cfg["max_bets_per_run"],
+        "settings": cfg,
         "wallet": get_wallet(),
         "placed": [p for p in state.get("placed", []) if p.get("ok")],
         "candidates": state.get("last_candidates", []),
@@ -1511,6 +1535,30 @@ def arena_toggle():
         s["enabled"] = bool(body.get("enabled", not s.get("enabled", False)))
         _save_state(s)
     return jsonify({"enabled": s["enabled"]})
+
+
+@arena_bp.route("/arena/api/settings", methods=["GET", "POST"])
+def arena_settings_api():
+    """GET: return current live settings. POST: update one or more settings."""
+    if request.method == "GET":
+        state = _load_state()
+        return jsonify({**_default_settings(), **state.get("settings", {})})
+    body = request.get_json(silent=True) or {}
+    with _state_lock:
+        s = _load_state()
+        cfg = s.setdefault("settings", _default_settings())
+        if "conf_min" in body:
+            cfg["conf_min"] = round(max(0.0, min(0.99, float(body["conf_min"]))), 3)
+        if "edge_min" in body:
+            cfg["edge_min"] = round(max(0.0, min(0.60, float(body["edge_min"]))), 3)
+        if "max_per_bet" in body:
+            cfg["max_per_bet"] = round(
+                max(1.0, min(100.0, float(body["max_per_bet"]))), 2
+            )
+        if "max_bets_per_run" in body:
+            cfg["max_bets_per_run"] = max(1, min(20, int(body["max_bets_per_run"])))
+        _save_state(s)
+    return jsonify(cfg)
 
 
 @arena_bp.route("/arena/api/analyze")
