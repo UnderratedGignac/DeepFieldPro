@@ -643,24 +643,10 @@ def analyze(
         mapping = get_mapping(fid)
         if not probs or not mapping:
             continue
-        # Extract team codes from the event ticker (format: fifwc-{home}-{away}-YYYY-MM-DD)
-        # The orders API expects ticker codes (e.g. "RSA"), not ISO short codes (e.g. "ZAF")
-        ticker = (
-            mapping.get("polymarket_event_ticker")
-            or mapping.get("polymarket_event_slug")
-            or ""
-        )
-        ticker_parts = ticker.split("-")
-        home_code = (
-            ticker_parts[1].upper()
-            if len(ticker_parts) > 2
-            else mapping.get("home_short_code", "HOME")
-        )
-        away_code = (
-            ticker_parts[2].upper()
-            if len(ticker_parts) > 3
-            else mapping.get("away_short_code", "AWAY")
-        )
+        # Use the short codes from the mapping — Stair AI orders use these (e.g. CRO, RSA),
+        # NOT the FIFA ticker segments (e.g. HRV, ZAF) which differ for several nations.
+        home_code = mapping.get("home_short_code") or "HOME"
+        away_code = mapping.get("away_short_code") or "AWAY"
         codes = {
             "home": home_code,
             "draw": "draw",
