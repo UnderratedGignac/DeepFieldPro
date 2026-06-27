@@ -641,6 +641,8 @@ def run_autoplace(
             limit, conf_min, edge_min, per_bet_cap, wallet_balance=wallet_balance
         )
         if c["qualifies"]
+        # Draws have no Polymarket YES token — posting team_code="draw" returns 402
+        and (c.get("team_code") or "").lower() not in ("draw", "x", "tie")
     ]
     results = []
     spent = 0.0
@@ -823,6 +825,9 @@ def autopilot_cycle():
 
     # Real-money orders only for qualifying picks when live gate is armed.
     for c in qualifying:
+        # Draws have no Polymarket YES token — posting team_code="draw" returns 402
+        if (c.get("team_code") or "").lower() in ("draw", "x", "tie"):
+            continue
         key = _pick_key(c)
         ko = c.get("kickoff_ts")
         if ko and ko <= now_ts:
