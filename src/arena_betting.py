@@ -938,6 +938,10 @@ def _load_state():
         with open(STATE_FILE, encoding="utf-8") as f:
             base = _default_state()
             base.update(json.load(f))
+            # Always start each server session with a clean failure slate so stale
+            # errors from previous runs (gatekeeper blocks, wrong team codes, etc.)
+            # never permanently block a legitimate pick.
+            base["failed_keys"] = {}
             return base
     except (OSError, ValueError):
         return _default_state()
@@ -972,6 +976,9 @@ def autopilot_cycle():
 
     if state["daily"].get("date") != _today():
         state["daily"] = {"date": _today(), "spent": 0.0}
+        state["failed_keys"] = (
+            {}
+        )  # new day → fresh start, don't carry yesterday's failures
 
     wallet = get_wallet()
     wallet_balance = wallet["available_balance_usdc"] if wallet else 0.0
@@ -1121,9 +1128,11 @@ def autopilot_cycle():
             except Exception:
                 pass
         else:
-            # Track failures so we stop retrying after MAX_FAIL_RETRIES
-            fk = state.setdefault("failed_keys", {})
-            fk[key] = fk.get(key, 0) + 1
+            # Only count real API failures (4xx/5xx) — status=0 means we blocked
+            # the order internally (old gatekeeper, AP2, etc.) and should retry.
+            if o_sc > 0:
+                fk = state.setdefault("failed_keys", {})
+                fk[key] = fk.get(key, 0) + 1
 
     state["placed_keys"] = list(placed_keys)
     state["ledger_keys"] = list(ledger_keys)
