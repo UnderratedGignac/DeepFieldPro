@@ -9,6 +9,13 @@ import time
 # Ensure src is in path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Load .env into os.environ so DEEPFIELD_ARENA_LIVE, DEEPFIELD_PORT, etc. are available
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"), override=False)
+except ImportError:
+    pass  # dotenv not installed; rely on shell env vars
+
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
@@ -1708,6 +1715,39 @@ def get_comparison(fixture_id):
     return jsonify({"prediction": prediction, "actuals": actuals})
 
 
+@app.route("/api/lineups")
+def get_lineups():
+    """Return tonight's lineup data enriched with FIFA ratings."""
+    try:
+        from lineup_service import get_tonight_lineups, refresh_lineups
+        from fifa_ratings import get_db_stats
+
+        if request.args.get("refresh") == "true":
+            refresh_lineups()
+
+        matches = get_tonight_lineups()
+        confirmed = sum(1 for m in matches if m.get("lineup_status") == "confirmed")
+        partial = sum(1 for m in matches if m.get("lineup_status") == "partial")
+
+        try:
+            fifa_db = get_db_stats()
+        except Exception:
+            fifa_db = {"total_players": 0, "with_ratings": 0}
+
+        return jsonify(
+            {
+                "matches": matches,
+                "total": len(matches),
+                "confirmed": confirmed,
+                "partial": partial,
+                "unavailable": len(matches) - confirmed - partial,
+                "fifa_db": fifa_db,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e), "matches": []}), 500
+
+
 def init_databases():
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     try:
@@ -1802,17 +1842,18 @@ if __name__ == "__main__":
 
     if os.getenv("DEEPFIELD_DISABLE_DAEMON") != "1":
         start_background_prediction_worker()
-        # Start the autonomous Stair AI arena betting loop (real money, WC-only, pre-kickoff).
-        try:
-            from arena_betting import start_autopilot
-
-            start_autopilot()
-        except Exception as _ap_err:
-            print(f"[!] Arena autopilot not started: {_ap_err}")
     else:
         print(
             "[*] Background prediction worker thread is DISABLED (running in multi-process mode)."
         )
+    # Start the autonomous Stair AI arena betting loop (real money, WC-only, pre-kickoff).
+    # Always starts regardless of daemon setting.
+    try:
+        from arena_betting import start_autopilot
+
+        start_autopilot()
+    except Exception as _ap_err:
+        print(f"[!] Arena autopilot not started: {_ap_err}")
     _port = int(os.getenv("DEEPFIELD_PORT", "5050"))
     print(f"[*] Starting DeepFieldPro Live UI on http://127.0.0.1:{_port}")
     # threaded=True is REQUIRED: the prediction daemon runs in a background thread in
