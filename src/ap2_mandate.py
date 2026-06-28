@@ -18,12 +18,12 @@ _SETTINGS_PATH = Path(__file__).parent.parent / "data" / "settings.json"
 
 @dataclass
 class SpendingMandate:
-    max_per_order: float = 5.0  # max USD per single order
-    daily_cap: float = 25.0  # max USD placed per calendar day (UTC)
-    wallet_buffer: float = 20.0  # minimum USDC to keep in wallet after order
-    conf_min: float = 0.50  # minimum model confidence (0..1)
+    max_per_order: float = 25.0  # max USD per single order (matches arena MAX_USD_PER_BET)
+    daily_cap: float = 100.0  # max USD placed per calendar day (UTC)
+    wallet_buffer: float = 5.0  # minimum USDC to keep in wallet after order
+    conf_min: float = 0.35  # minimum model confidence — matches CONF_MIN_DEFAULT
     edge_min: float = 0.02  # minimum edge over Polymarket mid (0..1)
-    max_bets_per_run: int = 3  # max bets per autopilot cycle
+    max_bets_per_run: int = 5  # max bets per autopilot cycle
 
     # ------------------------------------------------------------------
     def check(
@@ -105,8 +105,10 @@ class SpendingMandate:
             except (TypeError, ValueError):
                 return default
 
+        # "arena_max_per_order" takes precedence; "max_per_bet" (arena UI slider key) is the alias
+        _max_per_order = _f("arena_max_per_order", None) or _f("max_per_bet", cls.max_per_order)
         return cls(
-            max_per_order=_f("arena_max_per_order", cls.max_per_order),
+            max_per_order=_max_per_order,
             daily_cap=_f("arena_daily_cap", cls.daily_cap),
             wallet_buffer=_f("arena_wallet_buffer", cls.wallet_buffer),
             conf_min=_f("conf_min", cls.conf_min),

@@ -88,11 +88,11 @@ SEASON_ID = 26618  # World Cup 2026 (Sportmonks)
 PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 
 # ---- Risk defaults (overridable per request) -------------------------------
-CONF_MIN_DEFAULT = 0.45  # require model confidence >= 45%
-EDGE_MIN_DEFAULT = 0.10  # require at least 10pp model edge over market
-MAX_USD_PER_BET = 25.00  # hard ceiling — actual cap is AP2_MAX_PER_ORDER
+CONF_MIN_DEFAULT = 0.35  # require model confidence >= 35%
+EDGE_MIN_DEFAULT = 0.05  # require at least 5pp model edge over market
+MAX_USD_PER_BET = 25.00  # hard ceiling per order
 MIN_USD_PER_BET = 1.00  # arena minimum per order
-AP2_MAX_PER_ORDER = 5.00  # AP2 mandate cap — real per-order limit
+AP2_MAX_PER_ORDER = 25.00  # AP2 mandate cap — matches MAX_USD_PER_BET
 MAX_FAIL_RETRIES = 3  # stop retrying a bet after this many consecutive failures
 WALLET_BUFFER = 2.00  # keep $2 reserve — never spend the entire wallet
 MAX_BETS_PER_RUN = 5  # at most 5 real-money bets per scan cycle
@@ -101,7 +101,7 @@ TIF_SECONDS = 30  # limit order expires if unfilled
 
 # DFP flat-heuristic filter: only use our own model when it gives a clear winner;
 # fall back to Sportmonks (WC-specific) otherwise.
-DFP_USEFUL_THRESHOLD = 0.52  # 0.48 is the fallback heuristic output — this blocks it
+DFP_USEFUL_THRESHOLD = 0.35  # reject only truly flat/uninformative DC outputs
 DFP_MAX_RATIO = 3.0  # if model/market > 3x, DC model does not know this team
 WC_MODEL_WEIGHT = 0.65  # weight for WC Elo model when blending with Sportmonks/DFP
 
@@ -345,7 +345,7 @@ def close_position(order_id, limit_price, tif_seconds=30):
     """POST /api/v1/arena/orders/{order_id}/close — close a filled position."""
     payload = {
         "limit_price": float(limit_price),
-        "tif_seconds": int(tif_seconds),
+        "time_in_force_seconds": int(tif_seconds),
         "idempotency_key": str(uuid.uuid4()),
     }
     sc, data = _post(f"/api/v1/arena/orders/{order_id}/close", payload)
@@ -539,7 +539,7 @@ def get_mid(token_id):
     return None
 
 
-def _wallet_kelly_size(edge, market_mid, wallet_balance):
+def _wallet_kelly_size(edge, market_mid, wallet_balance, max_usd=None):
     """
     Tiered Kelly stake — bigger size on bigger edges.
 
@@ -552,7 +552,7 @@ def _wallet_kelly_size(edge, market_mid, wallet_balance):
     Good   | >=  5pp  | 0.50  (half-Kelly)
     Marginal| <  5pp  | 0.25  (quarter-Kelly)
 
-    Hard caps: MAX_WALLET_FRACTION of wallet and MAX_USD_PER_BET.
+    Hard caps: MAX_WALLET_FRACTION of wallet and max_usd (defaults to MAX_USD_PER_BET).
     """
     if market_mid >= 1.0 or market_mid <= 0 or wallet_balance <= 0:
         return MIN_USD_PER_BET
@@ -567,9 +567,8 @@ def _wallet_kelly_size(edge, market_mid, wallet_balance):
     else:
         multiplier = 0.25
     size = kelly_f * multiplier * wallet_balance
-    hard_cap = min(
-        wallet_balance * MAX_WALLET_FRACTION, MAX_USD_PER_BET, AP2_MAX_PER_ORDER
-    )
+    bet_cap = max_usd if max_usd is not None else MAX_USD_PER_BET
+    hard_cap = min(wallet_balance * MAX_WALLET_FRACTION, bet_cap)
     return round(max(MIN_USD_PER_BET, min(size, hard_cap)), 2)
 
 
@@ -643,6 +642,14 @@ def analyze(
         mapping = get_mapping(fid)
         if not probs or not mapping:
             continue
+        # Extract Arena fixture code (e.g. "WC2026-GS-M1") — what orders/ledger require.
+        # The mapping bridges Sportmonks numeric IDs to Arena-side identifiers.
+        arena_fid = (
+            mapping.get("fixture_id")
+            or mapping.get("arena_fixture_id")
+            or mapping.get("arena_id")
+            or str(fid)  # fallback: Sportmonks numeric ID (API may also accept this)
+        )
         # Use the short codes from the mapping — Stair AI orders use these (e.g. CRO, RSA),
         # NOT the FIFA ticker segments (e.g. HRV, ZAF) which differ for several nations.
         home_code = mapping.get("home_short_code") or "HOME"
@@ -667,7 +674,7 @@ def analyze(
 
             if qualifies:
                 if wallet_balance is not None:
-                    suggested = _wallet_kelly_size(edge, mid, wallet_balance)
+                    suggested = _wallet_kelly_size(edge, mid, wallet_balance, max_usd=max_usd)
                 else:
                     suggested = _size_for_edge(edge, max_usd)
             else:
@@ -675,7 +682,8 @@ def analyze(
 
             candidates.append(
                 {
-                    "fixture_id": str(fid),
+                    "fixture_id": arena_fid,           # Arena code for orders/ledger
+                    "sportmonks_fixture_id": str(fid), # kept for internal reference
                     "match": fname,
                     "kickoff": f.get("starting_at"),
                     "kickoff_ts": f.get("starting_at_timestamp"),

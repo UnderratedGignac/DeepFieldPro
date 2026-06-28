@@ -172,16 +172,16 @@
 
       <div class="setting-row">
         <label><i class="fa-solid fa-brain"></i> Min AI Confidence</label>
-        <div class="setting-val" id="sConfVal">45%</div>
-        <input type="range" id="sConf" min="0" max="90" step="1" value="45"
+        <div class="setting-val" id="sConfVal">35%</div>
+        <input type="range" id="sConf" min="0" max="90" step="1" value="35"
                oninput="$('sConfVal').textContent=this.value+'%'">
         <div class="setting-hint">AI must give at least this win probability to place a bet.</div>
       </div>
 
       <div class="setting-row">
         <label><i class="fa-solid fa-chart-line"></i> Min Edge Over Market</label>
-        <div class="setting-val" id="sEdgeVal">10 pp</div>
-        <input type="range" id="sEdge" min="0" max="40" step="1" value="10"
+        <div class="setting-val" id="sEdgeVal">5 pp</div>
+        <input type="range" id="sEdge" min="0" max="40" step="1" value="5"
                oninput="$('sEdgeVal').textContent=this.value+' pp'">
         <div class="setting-hint">AI probability must exceed market price by at least this many percentage points.</div>
       </div>
@@ -432,19 +432,21 @@ function rowsCand(list){
   let h=`<table><thead><tr>
     <th>Match</th><th>Kickoff (UTC)</th><th>Team to Bet On</th>
     <th>AI Win Prob</th><th>Market Price</th><th>Edge vs Market</th>
-    <th>Planned Stake</th><th>Potential Payout</th>
+    <th>Planned Stake</th><th>Potential Payout</th><th>Model</th>
   </tr></thead><tbody>`;
   for(const c of list){
     const p=payout(c.suggested_usd, c.market_mid);
+    const edgeCls=c.edge_pp>=10?'pos':''; // highlight strong edges
     h+=`<tr>
       <td><b>${esc(c.match||'')}</b></td>
       <td style="color:var(--muted)">${esc(c.kickoff||'')}</td>
       <td class="gold"><b>${esc(c.team_code)}</b></td>
       <td>${pct(c.model_prob)}</td>
       <td style="color:var(--muted)">${pct(c.market_mid)}</td>
-      <td class="pos"><b>+${c.edge_pp}pp</b></td>
+      <td class="${edgeCls||'pos'}"><b>+${c.edge_pp}pp</b></td>
       <td>${c.suggested_usd?money(c.suggested_usd):'—'}</td>
       <td class="payout">${p.payout!=null?'~'+money(p.payout):'—'}</td>
+      <td>${sourceTag(c.prob_source)}</td>
     </tr>`;
   }
   return h+'</tbody></table>';
@@ -557,8 +559,8 @@ async function refresh(){
 let _settingsDirty=false;
 function syncSliders(cfg){
   $('sMax').value  = cfg.max_per_bet  ?? 25;  $('sMaxVal').textContent ='$'+Number(cfg.max_per_bet||25).toFixed(2);
-  $('sConf').value = Math.round((cfg.conf_min||0.45)*100); $('sConfVal').textContent=Math.round((cfg.conf_min||0.45)*100)+'%';
-  $('sEdge').value = Math.round((cfg.edge_min||0.10)*100); $('sEdgeVal').textContent=Math.round((cfg.edge_min||0.10)*100)+' pp';
+  $('sConf').value = Math.round((cfg.conf_min||0.35)*100); $('sConfVal').textContent=Math.round((cfg.conf_min||0.35)*100)+'%';
+  $('sEdge').value = Math.round((cfg.edge_min||0.05)*100); $('sEdgeVal').textContent=Math.round((cfg.edge_min||0.05)*100)+' pp';
   $('sBets').value = cfg.max_bets_per_run ?? 5; $('sBetsVal').textContent=cfg.max_bets_per_run??5;
 }
 ['sMax','sConf','sEdge','sBets'].forEach(id=>$(id).addEventListener('mousedown',()=>_settingsDirty=true));
