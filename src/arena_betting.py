@@ -415,7 +415,7 @@ def submit_order_fok(fixture_id, team_code, usd_size, worst_price):
     payload = {
         "fixture_id": str(fixture_id),
         "team_code": team_code,
-        "usd_size": float(usd_size),
+        "usd_size": f"{float(usd_size):.2f}",
         "worst_price": float(worst_price),
         "idempotency_key": str(uuid.uuid4()),
     }
