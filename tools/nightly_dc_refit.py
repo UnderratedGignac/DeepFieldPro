@@ -41,8 +41,10 @@ def parse_date(s):
 
 def main():
     cutoff = datetime.date.today() - datetime.timedelta(days=WINDOW_DAYS)
-    print(f"Nightly Dixon-Coles refit -- using matches from {cutoff} onwards "
-          f"(last {WINDOW_DAYS} days)")
+    print(
+        f"Nightly Dixon-Coles refit -- using matches from {cutoff} onwards "
+        f"(last {WINDOW_DAYS} days)"
+    )
     print()
 
     # -- Load and filter matches ----------------------------------------------
@@ -69,14 +71,16 @@ def main():
         if d < cutoff:
             skipped_old += 1
             continue
-        filtered.append({
-            "home":    r["home"],
-            "away":    r["away"],
-            "hg":      r["home_goals"],
-            "ag":      r["away_goals"],
-            "ordinal": d.toordinal(),
-            "league":  r["league"],
-        })
+        filtered.append(
+            {
+                "home": r["home"],
+                "away": r["away"],
+                "hg": r["home_goals"],
+                "ag": r["away_goals"],
+                "ordinal": d.toordinal(),
+                "league": r["league"],
+            }
+        )
 
     print(f"  Matches in window        : {len(filtered)}")
     if skipped_parse:
@@ -84,8 +88,10 @@ def main():
     print()
 
     if not filtered:
-        print("[ERROR] No matches fall within the rolling window. "
-              "Check history.db date format or run ingest first.")
+        print(
+            "[ERROR] No matches fall within the rolling window. "
+            "Check history.db date format or run ingest first."
+        )
         sys.exit(1)
 
     # -- Group by league and fit ----------------------------------------------
@@ -106,14 +112,18 @@ def main():
         rank = sorted(teams.items(), key=lambda kv: -kv[1]["att"])
         top = ", ".join(t for t, _ in rank[:3])
         bot = ", ".join(t for t, _ in rank[-3:])
-        print(f"  {lg}: {params['n_teams']} teams, {params['n_matches']} matches | "
-              f"home_adv={params['home_adv']:.3f} rho={params['rho']:+.3f}")
+        print(
+            f"  {lg}: {params['n_teams']} teams, {params['n_matches']} matches | "
+            f"home_adv={params['home_adv']:.3f} rho={params['rho']:+.3f}"
+        )
         print(f"       strongest: {top}  |  weakest: {bot}")
 
     print()
     if not leagues:
-        print("[ERROR] No leagues produced a valid model. "
-              "The rolling window may be too short for any league.")
+        print(
+            "[ERROR] No leagues produced a valid model. "
+            "The rolling window may be too short for any league."
+        )
         sys.exit(1)
 
     # -- Atomic write ---------------------------------------------------------
@@ -129,8 +139,7 @@ def main():
 
     # Write to a temp file in the same directory so os.replace is on the same
     # filesystem (required for atomicity on Windows NTFS).
-    fd, tmp_path = tempfile.mkstemp(dir=model_dir, suffix=".tmp",
-                                    prefix="dixon_coles_")
+    fd, tmp_path = tempfile.mkstemp(dir=model_dir, suffix=".tmp", prefix="dixon_coles_")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=1)

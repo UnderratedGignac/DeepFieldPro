@@ -16,6 +16,7 @@ Closing line proxy (best available):
 Run:
     .venv\Scripts\python.exe tools\clv_tracker.py
 """
+
 import os
 import sys
 import sqlite3
@@ -39,22 +40,28 @@ def _closing_price(fixture_id, market, selection) -> float | None:
         cur = conn.cursor()
 
         # Try Pinnacle snapshots first
-        cur.execute("""
+        cur.execute(
+            """
             SELECT odds FROM sharp_history
             WHERE fixture_id=? AND market=? AND selection=?
             ORDER BY ts DESC LIMIT 1
-        """, (fid, market, selection))
+        """,
+            (fid, market, selection),
+        )
         row = cur.fetchone()
         if row:
             conn.close()
             return float(row[0])
 
         # Fallback: last Betarabia snapshot before kickoff
-        cur.execute("""
+        cur.execute(
+            """
             SELECT odds FROM odds_history
             WHERE fixture_id=? AND market=? AND selection=?
             ORDER BY timestamp DESC LIMIT 1
-        """, (fid, market, selection))
+        """,
+            (fid, market, selection),
+        )
         row = cur.fetchone()
         conn.close()
         return float(row[0]) if row else None
@@ -73,13 +80,15 @@ def run():
     cur = conn.cursor()
 
     try:
-        cur.execute("""
+        cur.execute(
+            """
             SELECT id, match, market, selection, odds, stake, result,
                    bet_source, fixture_id, created_at
             FROM bets
             WHERE result IN ('WON', 'LOST', 'VOID', 'PUSH')
             ORDER BY created_at DESC
-        """)
+        """
+        )
     except Exception as e:
         print(f"Error reading bets: {e}")
         conn.close()
@@ -92,16 +101,22 @@ def run():
         print("No settled bets yet.")
         return
 
-    stats = defaultdict(lambda: {
-        "bets": 0, "roi_num": 0.0, "roi_den": 0.0,
-        "clv_sum": 0.0, "clv_n": 0, "beat_close": 0,
-    })
+    stats = defaultdict(
+        lambda: {
+            "bets": 0,
+            "roi_num": 0.0,
+            "roi_den": 0.0,
+            "clv_sum": 0.0,
+            "clv_n": 0,
+            "beat_close": 0,
+        }
+    )
     all_rows = []
 
     for r in rows:
         source = r["bet_source"] or "AI"
-        entry  = float(r["odds"] or 0)
-        stake  = float(r["stake"] or 1)
+        entry = float(r["odds"] or 0)
+        stake = float(r["stake"] or 1)
         result = r["result"]
 
         if result == "WON":
@@ -125,18 +140,20 @@ def run():
             if clv > 0:
                 s["beat_close"] += 1
 
-        all_rows.append({
-            "match": r["match"] or "",
-            "market": r["market"] or "",
-            "sel": r["selection"] or "",
-            "entry": entry,
-            "closing": closing,
-            "clv": clv,
-            "result": result,
-            "pnl": pnl,
-            "source": source,
-            "date": (r["created_at"] or "")[:10],
-        })
+        all_rows.append(
+            {
+                "match": r["match"] or "",
+                "market": r["market"] or "",
+                "sel": r["selection"] or "",
+                "entry": entry,
+                "closing": closing,
+                "clv": clv,
+                "result": result,
+                "pnl": pnl,
+                "source": source,
+                "date": (r["created_at"] or "")[:10],
+            }
+        )
 
     # ── Summary table ────────────────────────────────────────────────────────
     print()
@@ -146,29 +163,48 @@ def run():
     print(f"  {'Source':<10} {'Bets':>5}  {'Avg CLV':>8}  {'Beat%':>7}  {'ROI':>8}")
     print("  " + "-" * 50)
 
-    overall = {"bets": 0, "roi_num": 0.0, "roi_den": 0.0,
-               "clv_sum": 0.0, "clv_n": 0, "beat_close": 0}
+    overall = {
+        "bets": 0,
+        "roi_num": 0.0,
+        "roi_den": 0.0,
+        "clv_sum": 0.0,
+        "clv_n": 0,
+        "beat_close": 0,
+    }
 
-    for src, s in sorted(stats.items(),
-                          key=lambda x: -(x[1]["clv_sum"] / max(x[1]["clv_n"], 1))):
-        avg_clv  = (s["clv_sum"] / s["clv_n"] * 100) if s["clv_n"] else None
+    for src, s in sorted(
+        stats.items(), key=lambda x: -(x[1]["clv_sum"] / max(x[1]["clv_n"], 1))
+    ):
+        avg_clv = (s["clv_sum"] / s["clv_n"] * 100) if s["clv_n"] else None
         beat_pct = (s["beat_close"] / s["clv_n"] * 100) if s["clv_n"] else None
-        roi_pct  = (s["roi_num"] / s["roi_den"] * 100) if s["roi_den"] else 0.0
-        clv_s    = f"{avg_clv:+.1f}%" if avg_clv is not None else "    N/A"
-        beat_s   = f"{beat_pct:.0f}%" if beat_pct is not None else "  N/A"
+        roi_pct = (s["roi_num"] / s["roi_den"] * 100) if s["roi_den"] else 0.0
+        clv_s = f"{avg_clv:+.1f}%" if avg_clv is not None else "    N/A"
+        beat_s = f"{beat_pct:.0f}%" if beat_pct is not None else "  N/A"
         print(f"  {src:<10} {s['bets']:>5}  {clv_s:>8}  {beat_s:>7}  {roi_pct:>+7.1f}%")
 
         for k in ("bets", "roi_num", "roi_den", "clv_sum", "clv_n", "beat_close"):
             overall[k] += s[k]
 
     if len(stats) > 1:
-        avg_clv  = (overall["clv_sum"] / overall["clv_n"] * 100) if overall["clv_n"] else None
-        beat_pct = (overall["beat_close"] / overall["clv_n"] * 100) if overall["clv_n"] else None
-        roi_pct  = (overall["roi_num"] / overall["roi_den"] * 100) if overall["roi_den"] else 0.0
-        clv_s    = f"{avg_clv:+.1f}%" if avg_clv is not None else "    N/A"
-        beat_s   = f"{beat_pct:.0f}%" if beat_pct is not None else "  N/A"
+        avg_clv = (
+            (overall["clv_sum"] / overall["clv_n"] * 100) if overall["clv_n"] else None
+        )
+        beat_pct = (
+            (overall["beat_close"] / overall["clv_n"] * 100)
+            if overall["clv_n"]
+            else None
+        )
+        roi_pct = (
+            (overall["roi_num"] / overall["roi_den"] * 100)
+            if overall["roi_den"]
+            else 0.0
+        )
+        clv_s = f"{avg_clv:+.1f}%" if avg_clv is not None else "    N/A"
+        beat_s = f"{beat_pct:.0f}%" if beat_pct is not None else "  N/A"
         print("  " + "-" * 50)
-        print(f"  {'ALL':<10} {overall['bets']:>5}  {clv_s:>8}  {beat_s:>7}  {roi_pct:>+7.1f}%")
+        print(
+            f"  {'ALL':<10} {overall['bets']:>5}  {clv_s:>8}  {beat_s:>7}  {roi_pct:>+7.1f}%"
+        )
 
     print("=" * 70)
 
@@ -186,15 +222,19 @@ def run():
     clv_rows = [b for b in all_rows if b["clv"] is not None]
     if clv_rows:
         print()
-        print(f"  {'Date':<11} {'Match':<33} {'Mkt':<7} {'Entry':>6} {'Close':>6} {'CLV':>7} {'Res':<5}")
+        print(
+            f"  {'Date':<11} {'Match':<33} {'Mkt':<7} {'Entry':>6} {'Close':>6} {'CLV':>7} {'Res':<5}"
+        )
         print("  " + "-" * 78)
         for b in clv_rows[:25]:
-            entry_s  = f"{b['entry']:.2f}"
-            close_s  = f"{b['closing']:.2f}" if b["closing"] else "  N/A"
-            clv_s    = f"{b['clv']*100:+.1f}%"
-            flag     = " ✓" if b["clv"] > 0 else ""
-            print(f"  {b['date']:<11} {b['match'][:33]:<33} {b['market'][:6]:<7} "
-                  f"{entry_s:>6} {close_s:>6} {clv_s:>7} {b['result']:<5}{flag}")
+            entry_s = f"{b['entry']:.2f}"
+            close_s = f"{b['closing']:.2f}" if b["closing"] else "  N/A"
+            clv_s = f"{b['clv']*100:+.1f}%"
+            flag = " ✓" if b["clv"] > 0 else ""
+            print(
+                f"  {b['date']:<11} {b['match'][:33]:<33} {b['market'][:6]:<7} "
+                f"{entry_s:>6} {close_s:>6} {clv_s:>7} {b['result']:<5}{flag}"
+            )
     else:
         print()
         print("  No CLV data yet — needs Pinnacle/odds_history closing snapshots.")

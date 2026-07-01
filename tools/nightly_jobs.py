@@ -14,6 +14,7 @@ Jobs (in order):
 
 Output: logs/nightly_jobs.log  (appended each run)
 """
+
 import os
 import sys
 import json
@@ -21,14 +22,14 @@ import sqlite3
 import datetime
 import subprocess
 
-ROOT    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA    = os.path.join(ROOT, "data")
-LOGS    = os.path.join(ROOT, "logs")
-PYTHON  = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA = os.path.join(ROOT, "data")
+LOGS = os.path.join(ROOT, "logs")
+PYTHON = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
 
 os.makedirs(LOGS, exist_ok=True)
 
-LOG_FILE   = os.path.join(LOGS, "nightly_jobs.log")
+LOG_FILE = os.path.join(LOGS, "nightly_jobs.log")
 CACHE_FILE = os.path.join(DATA, "nightly_cache.json")
 
 
@@ -74,7 +75,8 @@ def job_signal_discovery():
     _log("=== JOB 1: Signal Discovery ===")
     rc, out = _run_script(
         os.path.join(ROOT, "tools", "signal_discovery.py"),
-        "--min-bets", "20",
+        "--min-bets",
+        "20",
         log_file=os.path.join(LOGS, "nightly_signal_discovery.txt"),
     )
     sig_path = os.path.join(DATA, "signal_discovery_results.json")
@@ -82,10 +84,15 @@ def job_signal_discovery():
         try:
             disc = json.load(open(sig_path))
             sigs = disc.get("signals", {})
-            top = sorted(sigs.items(), key=lambda x: x[1].get("avg_clv") or -999, reverse=True)
-            _log(f"  Signals ranked: {len(sigs)}.  Top: " + ", ".join(
-                f"{k} CLV={v.get('avg_clv', 0):.1f}%" for k, v in top[:3]
-            ) if top else "  No signals.")
+            top = sorted(
+                sigs.items(), key=lambda x: x[1].get("avg_clv") or -999, reverse=True
+            )
+            _log(
+                f"  Signals ranked: {len(sigs)}.  Top: "
+                + ", ".join(f"{k} CLV={v.get('avg_clv', 0):.1f}%" for k, v in top[:3])
+                if top
+                else "  No signals."
+            )
         except Exception as e:
             _log(f"  Could not parse results: {e}")
     else:
@@ -99,7 +106,9 @@ def job_steam_monitor():
         os.path.join(ROOT, "tools", "steam_monitor.py"),
         log_file=os.path.join(LOGS, "nightly_steam.txt"),
     )
-    _log(f"  STEAM monitor {'OK' if rc == 0 else 'FAILED'}. Report at logs/nightly_steam.txt")
+    _log(
+        f"  STEAM monitor {'OK' if rc == 0 else 'FAILED'}. Report at logs/nightly_steam.txt"
+    )
     return rc == 0
 
 
@@ -107,7 +116,8 @@ def job_signal_validate():
     _log("=== JOB 4: Walk-Forward Signal Validation ===")
     rc, _ = _run_script(
         os.path.join(ROOT, "tools", "signal_validate.py"),
-        "--min-bets", "10",
+        "--min-bets",
+        "10",
         log_file=os.path.join(LOGS, "nightly_signal_validate.txt"),
     )
     val_path = os.path.join(DATA, "signal_validation_results.json")
@@ -115,10 +125,15 @@ def job_signal_validate():
         try:
             val = json.load(open(val_path))
             sigs = val.get("signals", {})
-            top = sorted(sigs.items(), key=lambda x: x[1].get("avg_clv") or -999, reverse=True)
-            _log(f"  Validation signals: {len(sigs)}.  Top: " + ", ".join(
-                f"{k} CLV={v.get('avg_clv', 0):.1f}%" for k, v in top[:3]
-            ) if top else "  No signals.")
+            top = sorted(
+                sigs.items(), key=lambda x: x[1].get("avg_clv") or -999, reverse=True
+            )
+            _log(
+                f"  Validation signals: {len(sigs)}.  Top: "
+                + ", ".join(f"{k} CLV={v.get('avg_clv', 0):.1f}%" for k, v in top[:3])
+                if top
+                else "  No signals."
+            )
         except Exception as e:
             _log(f"  Could not parse validation results: {e}")
     else:
@@ -145,14 +160,14 @@ def job_clv_summary():
         con.close()
 
         n = len(rows)
-        clv_vals  = [r[0] * 100 for r in rows if r[0] is not None]
-        pnl       = sum(r[2] or 0 for r in rows)
-        staked    = sum(r[3] or 0 for r in rows)
-        wins      = sum(1 for r in rows if r[1] in ("W", "WIN"))
-        avg_clv   = round(sum(clv_vals) / len(clv_vals), 2) if clv_vals else None
-        roi       = round(pnl / staked * 100, 1) if staked else 0
-        last_50   = rows[-50:]
-        lc        = [r[0] * 100 for r in last_50 if r[0] is not None]
+        clv_vals = [r[0] * 100 for r in rows if r[0] is not None]
+        pnl = sum(r[2] or 0 for r in rows)
+        staked = sum(r[3] or 0 for r in rows)
+        wins = sum(1 for r in rows if r[1] in ("W", "WIN"))
+        avg_clv = round(sum(clv_vals) / len(clv_vals), 2) if clv_vals else None
+        roi = round(pnl / staked * 100, 1) if staked else 0
+        last_50 = rows[-50:]
+        lc = [r[0] * 100 for r in last_50 if r[0] is not None]
         last_50_clv = round(sum(lc) / len(lc), 2) if lc else None
 
         # Auto-promotion status
@@ -163,22 +178,32 @@ def job_clv_summary():
             for sig, r in disc.get("signals", {}).items():
                 sn, sc = r.get("n", 0), r.get("avg_clv")
                 if sn >= 100 and sc is not None:
-                    signals_status[sig] = "PROMOTE" if sc >= 3.0 else ("DISABLE" if sc < 0.0 else "WATCH")
+                    signals_status[sig] = (
+                        "PROMOTE" if sc >= 3.0 else ("DISABLE" if sc < 0.0 else "WATCH")
+                    )
                 else:
                     signals_status[sig] = "WATCH"
 
         cache = {
             "generated_at": datetime.datetime.now().isoformat(),
             "steam": {
-                "n": n, "wins": wins,
+                "n": n,
+                "wins": wins,
                 "hit_rate": round(wins / n * 100, 1) if n else 0,
-                "roi": roi, "pnl": round(pnl, 2), "staked": round(staked, 2),
-                "avg_clv": avg_clv, "clv_n": len(clv_vals),
+                "roi": roi,
+                "pnl": round(pnl, 2),
+                "staked": round(staked, 2),
+                "avg_clv": avg_clv,
+                "clv_n": len(clv_vals),
                 "last_50_clv": last_50_clv,
                 "decay_status": (
-                    "DECAYING" if (avg_clv and last_50_clv and last_50_clv < avg_clv - 3)
-                    else "IMPROVING" if (avg_clv and last_50_clv and last_50_clv > avg_clv + 2)
-                    else "STABLE"
+                    "DECAYING"
+                    if (avg_clv and last_50_clv and last_50_clv < avg_clv - 3)
+                    else (
+                        "IMPROVING"
+                        if (avg_clv and last_50_clv and last_50_clv > avg_clv + 2)
+                        else "STABLE"
+                    )
                 ),
             },
             "signals_status": signals_status,
@@ -191,9 +216,12 @@ def job_clv_summary():
         sig_path2 = os.path.join(DATA, "signal_discovery_results.json")
         if os.path.exists(sig_path2):
             try:
-                ph_db = os.path.join(DATA, "deepfield_browser_data", "completed_fixtures.db")
+                ph_db = os.path.join(
+                    DATA, "deepfield_browser_data", "completed_fixtures.db"
+                )
                 ph_con = sqlite3.connect(ph_db)
-                ph_con.execute("""CREATE TABLE IF NOT EXISTS performance_history (
+                ph_con.execute(
+                    """CREATE TABLE IF NOT EXISTS performance_history (
                     id           INTEGER PRIMARY KEY AUTOINCREMENT,
                     date         TEXT,
                     signal_name  TEXT,
@@ -202,13 +230,18 @@ def job_clv_summary():
                     roi          REAL,
                     status       TEXT,
                     UNIQUE(date, signal_name)
-                )""")
+                )"""
+                )
                 disc2 = json.load(open(sig_path2))
                 today_str = datetime.date.today().isoformat()
                 for sig2, r2 in disc2.get("signals", {}).items():
                     sn2, sc2 = r2.get("n", 0), r2.get("avg_clv")
                     if sn2 >= 100 and sc2 is not None:
-                        st2 = "PROMOTE" if sc2 >= 3.0 else ("DISABLE" if sc2 < 0.0 else "WATCH")
+                        st2 = (
+                            "PROMOTE"
+                            if sc2 >= 3.0
+                            else ("DISABLE" if sc2 < 0.0 else "WATCH")
+                        )
                     else:
                         st2 = "WATCH"
                     ph_con.execute(
@@ -218,7 +251,9 @@ def job_clv_summary():
                     )
                 ph_con.commit()
                 ph_con.close()
-                _log(f"  Performance history snapshot written ({len(disc2.get('signals', {}))} signals).")
+                _log(
+                    f"  Performance history snapshot written ({len(disc2.get('signals', {}))} signals)."
+                )
             except Exception as ph_e:
                 _log(f"  [warn] performance_history write failed: {ph_e}")
 
@@ -230,21 +265,30 @@ def job_clv_summary():
 
 def _compute_lifecycle_stage(sig, disc_r, val_r, rolling_clv_7d):
     """Compute current lifecycle stage for a signal from available evidence."""
-    from_reg  = disc_r.get("registry_enabled", True)
-    promoted  = disc_r.get("registry_promoted", False)
-    n         = disc_r.get("n", 0)
-    clv       = disc_r.get("avg_clv")
-    val_n     = (val_r or {}).get("n", 0)
-    val_clv   = (val_r or {}).get("avg_clv")
+    from_reg = disc_r.get("registry_enabled", True)
+    promoted = disc_r.get("registry_promoted", False)
+    n = disc_r.get("n", 0)
+    clv = disc_r.get("avg_clv")
+    val_n = (val_r or {}).get("n", 0)
+    val_clv = (val_r or {}).get("avg_clv")
     val_ci_lo = (val_r or {}).get("ci_lower")
 
     if not from_reg:
         return "DISABLED"
     if promoted:
-        if rolling_clv_7d is not None and clv is not None and rolling_clv_7d < clv - 3.0:
+        if (
+            rolling_clv_7d is not None
+            and clv is not None
+            and rolling_clv_7d < clv - 3.0
+        ):
             return "DECAYING"
         return "ACTIVE"
-    if val_n >= 20 and val_clv is not None and val_clv >= 2.0 and (val_ci_lo is None or val_ci_lo >= 0):
+    if (
+        val_n >= 20
+        and val_clv is not None
+        and val_clv >= 2.0
+        and (val_ci_lo is None or val_ci_lo >= 0)
+    ):
         return "VALIDATED"
     if n >= 10:
         return "INCUBATING"
@@ -257,10 +301,11 @@ def job_write_lifecycle(disc_results, val_results):
     """Write signal_lifecycle transitions: insert a row when a signal's stage changes."""
     _log("=== POST-RUN: Signal Lifecycle ===")
     SIGNALS_DB = os.path.join(DATA, "deepfield_browser_data", "completed_fixtures.db")
-    BET_DB     = os.path.join(DATA, "bet_log.db")
+    BET_DB = os.path.join(DATA, "bet_log.db")
     try:
         con = sqlite3.connect(SIGNALS_DB)
-        con.execute("""CREATE TABLE IF NOT EXISTS signal_lifecycle (
+        con.execute(
+            """CREATE TABLE IF NOT EXISTS signal_lifecycle (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             signal_name TEXT,
             stage       TEXT,
@@ -268,12 +313,18 @@ def job_write_lifecycle(disc_results, val_results):
             n           INTEGER,
             avg_clv     REAL,
             metadata    TEXT
-        )""")
+        )"""
+        )
         # Load registry flags
         reg = {}
         try:
-            for row in con.execute("SELECT signal_name, enabled, promoted FROM signal_registry"):
-                reg[row[0]] = {"registry_enabled": bool(row[1]), "registry_promoted": bool(row[2])}
+            for row in con.execute(
+                "SELECT signal_name, enabled, promoted FROM signal_registry"
+            ):
+                reg[row[0]] = {
+                    "registry_enabled": bool(row[1]),
+                    "registry_promoted": bool(row[2]),
+                }
         except Exception:
             pass
         # Load rolling 7d CLV from bet_log
@@ -286,7 +337,7 @@ def job_write_lifecycle(disc_results, val_results):
                    WHERE bet_source='STEAM' AND result IN ('W','L','WIN','LOSS')
                      AND placed_at >= ? AND clv IS NOT NULL
                    GROUP BY signal_name""",
-                (cutoff,)
+                (cutoff,),
             ):
                 rolling_7d[row[0]] = round(row[1] * 100, 2) if row[1] else None
             bcon.close()
@@ -297,20 +348,22 @@ def job_write_lifecycle(disc_results, val_results):
         transitions = []
         for sig in all_sigs:
             disc_r = {**(disc_results.get(sig) or {}), **(reg.get(sig) or {})}
-            val_r  = val_results.get(sig)
-            stage  = _compute_lifecycle_stage(sig, disc_r, val_r, rolling_7d.get(sig))
-            n      = disc_r.get("n", 0)
-            clv    = disc_r.get("avg_clv")
+            val_r = val_results.get(sig)
+            stage = _compute_lifecycle_stage(sig, disc_r, val_r, rolling_7d.get(sig))
+            n = disc_r.get("n", 0)
+            clv = disc_r.get("avg_clv")
             # Check last recorded stage to detect transitions
             last = con.execute(
                 "SELECT stage FROM signal_lifecycle WHERE signal_name=? ORDER BY id DESC LIMIT 1",
-                (sig,)
+                (sig,),
             ).fetchone()
             if last is None or last[0] != stage:
-                meta = json.dumps({"n": n, "clv": clv, "val_clv": (val_r or {}).get("avg_clv")})
+                meta = json.dumps(
+                    {"n": n, "clv": clv, "val_clv": (val_r or {}).get("avg_clv")}
+                )
                 con.execute(
                     "INSERT INTO signal_lifecycle (signal_name, stage, n, avg_clv, metadata) VALUES (?,?,?,?,?)",
-                    (sig, stage, n, clv, meta)
+                    (sig, stage, n, clv, meta),
                 )
                 transitions.append(f"{sig}: {(last[0] if last else '?')} → {stage}")
         con.commit()
@@ -325,12 +378,14 @@ def job_write_lifecycle(disc_results, val_results):
         return False
 
 
-def job_write_audit_trail(job_results, disc_results, val_results, health_score, avg_clv):
+def job_write_audit_trail(
+    job_results, disc_results, val_results, health_score, avg_clv
+):
     """Write a versioned audit record for today's nightly run to research_runs table."""
     _log("=== POST-RUN: Research Audit Trail ===")
     SIGNALS_DB = os.path.join(DATA, "deepfield_browser_data", "completed_fixtures.db")
-    BET_DB     = os.path.join(DATA, "bet_log.db")
-    today_str  = datetime.date.today().isoformat()
+    BET_DB = os.path.join(DATA, "bet_log.db")
+    today_str = datetime.date.today().isoformat()
     try:
         bets_analyzed = 0
         try:
@@ -343,13 +398,20 @@ def job_write_audit_trail(job_results, disc_results, val_results, health_score, 
         except Exception:
             pass
 
-        promoted = [s for s, r in disc_results.items()
-                    if (r.get("n", 0) >= 100 and (r.get("avg_clv") or 0) >= 3.0)]
-        disabled = [s for s, r in disc_results.items()
-                    if (r.get("n", 0) >= 100 and (r.get("avg_clv") or 0) < 0.0)]
+        promoted = [
+            s
+            for s, r in disc_results.items()
+            if (r.get("n", 0) >= 100 and (r.get("avg_clv") or 0) >= 3.0)
+        ]
+        disabled = [
+            s
+            for s, r in disc_results.items()
+            if (r.get("n", 0) >= 100 and (r.get("avg_clv") or 0) < 0.0)
+        ]
 
         con = sqlite3.connect(SIGNALS_DB)
-        con.execute("""CREATE TABLE IF NOT EXISTS research_runs (
+        con.execute(
+            """CREATE TABLE IF NOT EXISTS research_runs (
             id                 INTEGER PRIMARY KEY AUTOINCREMENT,
             run_id             TEXT UNIQUE,
             run_at             DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -360,21 +422,30 @@ def job_write_audit_trail(job_results, disc_results, val_results, health_score, 
             health_score       INTEGER,
             avg_clv            REAL,
             jobs_ok            TEXT
-        )""")
+        )"""
+        )
         con.execute(
             """INSERT OR REPLACE INTO research_runs
                (run_id, signals_evaluated, bets_analyzed, promoted, disabled,
                 health_score, avg_clv, jobs_ok)
                VALUES (?,?,?,?,?,?,?,?)""",
-            (today_str, len(disc_results), bets_analyzed,
-             json.dumps(promoted), json.dumps(disabled),
-             health_score, round(avg_clv, 2) if avg_clv is not None else None,
-             json.dumps({k: bool(v) for k, v in job_results.items()}))
+            (
+                today_str,
+                len(disc_results),
+                bets_analyzed,
+                json.dumps(promoted),
+                json.dumps(disabled),
+                health_score,
+                round(avg_clv, 2) if avg_clv is not None else None,
+                json.dumps({k: bool(v) for k, v in job_results.items()}),
+            ),
         )
         con.commit()
         con.close()
-        _log(f"  Audit record written: run_id={today_str}, bets={bets_analyzed}, "
-             f"promoted={promoted}, disabled={disabled}, health={health_score}")
+        _log(
+            f"  Audit record written: run_id={today_str}, bets={bets_analyzed}, "
+            f"promoted={promoted}, disabled={disabled}, health={health_score}"
+        )
         return True
     except Exception as e:
         _log(f"  [ERROR] audit trail: {e}")
@@ -388,13 +459,21 @@ def job_write_snapshot(disc_results, val_results, health_score, avg_clv):
     os.makedirs(snap_dir, exist_ok=True)
     today_str = datetime.date.today().isoformat()
     try:
-        SIGNALS_DB = os.path.join(DATA, "deepfield_browser_data", "completed_fixtures.db")
+        SIGNALS_DB = os.path.join(
+            DATA, "deepfield_browser_data", "completed_fixtures.db"
+        )
         # Signal registry
         reg = {}
         try:
             con = sqlite3.connect(SIGNALS_DB)
-            for row in con.execute("SELECT signal_name, enabled, promoted, updated_at FROM signal_registry"):
-                reg[row[0]] = {"enabled": bool(row[1]), "promoted": bool(row[2]), "updated_at": row[3]}
+            for row in con.execute(
+                "SELECT signal_name, enabled, promoted, updated_at FROM signal_registry"
+            ):
+                reg[row[0]] = {
+                    "enabled": bool(row[1]),
+                    "promoted": bool(row[2]),
+                    "updated_at": row[3],
+                }
             con.close()
         except Exception:
             pass
@@ -416,8 +495,11 @@ def job_write_snapshot(disc_results, val_results, health_score, avg_clv):
             ).fetchone()
             con.close()
             if row:
-                active_exp = {"id": row[0], "hypothesis": row[1],
-                              "config": json.loads(row[2] or "{}")}
+                active_exp = {
+                    "id": row[0],
+                    "hypothesis": row[1],
+                    "config": json.loads(row[2] or "{}"),
+                }
         except Exception:
             pass
 
@@ -434,7 +516,9 @@ def job_write_snapshot(disc_results, val_results, health_score, avg_clv):
         out_path = os.path.join(snap_dir, f"{today_str}.json")
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(snapshot, f, indent=2)
-        _log(f"  Snapshot written to {out_path} (includes settings.json + experiment ref)")
+        _log(
+            f"  Snapshot written to {out_path} (includes settings.json + experiment ref)"
+        )
         return True
     except Exception as e:
         _log(f"  [ERROR] snapshot: {e}")
@@ -448,7 +532,9 @@ def job_write_report(disc_results, val_results, health_score, avg_clv, cache):
     os.makedirs(reports_dir, exist_ok=True)
     today_str = datetime.date.today().isoformat()
     try:
-        SIGNALS_DB = os.path.join(DATA, "deepfield_browser_data", "completed_fixtures.db")
+        SIGNALS_DB = os.path.join(
+            DATA, "deepfield_browser_data", "completed_fixtures.db"
+        )
         # Load lifecycle
         lifecycle = {}
         try:
@@ -480,8 +566,10 @@ def job_write_report(disc_results, val_results, health_score, avg_clv, cache):
         decay_status = steam.get("decay_status", "UNKNOWN")
         n_total = steam.get("n", 0)
         # STEAM_FWD validation
-        steam_fwd_val = val_results.get("STEAM_FWD") or disc_results.get("STEAM_FWD") or {}
-        val_n  = steam_fwd_val.get("n", 0)
+        steam_fwd_val = (
+            val_results.get("STEAM_FWD") or disc_results.get("STEAM_FWD") or {}
+        )
+        val_n = steam_fwd_val.get("n", 0)
         val_clv = steam_fwd_val.get("avg_clv")
         val_ci_lo = steam_fwd_val.get("ci_lower")
         val_ci_hi = steam_fwd_val.get("ci_upper")
@@ -506,16 +594,42 @@ def job_write_report(disc_results, val_results, health_score, avg_clv, cache):
             f"|--------|-------|---|-----|--------|",
         ]
         all_sigs = set(lifecycle) | set(disc_results)
-        stage_order = ["ACTIVE","VALIDATED","PROMOTED","INCUBATING","DISCOVERED","DECAYING","DISABLED","UNKNOWN"]
-        sorted_sigs = sorted(all_sigs, key=lambda s: stage_order.index(lifecycle.get(s, {}).get("stage", "UNKNOWN")) if lifecycle.get(s, {}).get("stage","UNKNOWN") in stage_order else 99)
+        stage_order = [
+            "ACTIVE",
+            "VALIDATED",
+            "PROMOTED",
+            "INCUBATING",
+            "DISCOVERED",
+            "DECAYING",
+            "DISABLED",
+            "UNKNOWN",
+        ]
+        sorted_sigs = sorted(
+            all_sigs,
+            key=lambda s: (
+                stage_order.index(lifecycle.get(s, {}).get("stage", "UNKNOWN"))
+                if lifecycle.get(s, {}).get("stage", "UNKNOWN") in stage_order
+                else 99
+            ),
+        )
         for sig in sorted_sigs:
             lc = lifecycle.get(sig, {})
             dr = disc_results.get(sig, {})
             stage = lc.get("stage", "?")
-            n     = lc.get("n") or dr.get("n", 0)
-            clv   = lc.get("avg_clv") if lc.get("avg_clv") is not None else dr.get("avg_clv")
-            clv_str = f"+{clv:.1f}%" if clv and clv >= 0 else f"{clv:.1f}%" if clv else "—"
-            status = "✅" if clv and clv >= 3 else "⚠️" if clv and clv >= 0 else "❌" if clv else "—"
+            n = lc.get("n") or dr.get("n", 0)
+            clv = (
+                lc.get("avg_clv")
+                if lc.get("avg_clv") is not None
+                else dr.get("avg_clv")
+            )
+            clv_str = (
+                f"+{clv:.1f}%" if clv and clv >= 0 else f"{clv:.1f}%" if clv else "—"
+            )
+            status = (
+                "✅"
+                if clv and clv >= 3
+                else "⚠️" if clv and clv >= 0 else "❌" if clv else "—"
+            )
             lines.append(f"| {sig} | {stage} | {n} | {clv_str} | {status} |")
 
         lines += [
@@ -544,15 +658,30 @@ def job_write_report(disc_results, val_results, health_score, avg_clv, cache):
         # Alerts
         lines += ["## Alerts", ""]
         if val_n < 100:
-            lines.append(f"- 🎯 Need **{100 - val_n} more** walk-forward samples to reach statistical significance.")
+            lines.append(
+                f"- 🎯 Need **{100 - val_n} more** walk-forward samples to reach statistical significance."
+            )
         if decay_status == "DECAYING":
-            lines.append("- ⚠️  **Regime alert**: Last 50 CLV trailing lifetime CLV by >3pp — possible decay.")
-        if val_n >= 100 and val_clv and val_clv > 0 and (val_ci_lo is None or val_ci_lo >= 0):
-            lines.append("- ✅ **MILESTONE REACHED**: STEAM_FWD has 100+ validated samples with positive CLV and CI above zero.")
+            lines.append(
+                "- ⚠️  **Regime alert**: Last 50 CLV trailing lifetime CLV by >3pp — possible decay."
+            )
+        if (
+            val_n >= 100
+            and val_clv
+            and val_clv > 0
+            and (val_ci_lo is None or val_ci_lo >= 0)
+        ):
+            lines.append(
+                "- ✅ **MILESTONE REACHED**: STEAM_FWD has 100+ validated samples with positive CLV and CI above zero."
+            )
         if not any(l.startswith("- ") for l in lines[-5:]):
             lines.append("- ✅ No alerts.")
 
-        lines += ["", "---", f"*Generated by DeepFieldPro nightly_jobs.py on {today_str}*"]
+        lines += [
+            "",
+            "---",
+            f"*Generated by DeepFieldPro nightly_jobs.py on {today_str}*",
+        ]
 
         report_path = os.path.join(reports_dir, f"{today_str}.md")
         with open(report_path, "w", encoding="utf-8") as f:
@@ -573,9 +702,9 @@ if __name__ == "__main__":
 
     results = {
         "signal_discovery": job_signal_discovery(),
-        "steam_monitor":    job_steam_monitor(),
-        "clv_summary":      job_clv_summary(),
-        "signal_validate":  job_signal_validate(),
+        "steam_monitor": job_steam_monitor(),
+        "clv_summary": job_clv_summary(),
+        "signal_validate": job_signal_validate(),
     }
 
     # ── Post-run: load outputs for audit/lifecycle/snapshot
@@ -597,7 +726,9 @@ if __name__ == "__main__":
         _cache = json.load(open(cache_path)) if os.path.exists(cache_path) else {}
     except Exception:
         _cache = {}
-    _health = _cache.get("steam", {}).get("decay_status") and 50 or 0  # rough placeholder
+    _health = (
+        _cache.get("steam", {}).get("decay_status") and 50 or 0
+    )  # rough placeholder
     _avg_clv = _cache.get("steam", {}).get("avg_clv")
 
     # ── Compute health score: n/300*30 + clv/10*25 (mirrors dashboard logic)
@@ -606,9 +737,11 @@ if __name__ == "__main__":
     _health = round(_health)
 
     results["signal_lifecycle"] = job_write_lifecycle(_disc, _val)
-    results["audit_trail"]      = job_write_audit_trail(results, _disc, _val, _health, _avg_clv)
-    results["snapshot"]         = job_write_snapshot(_disc, _val, _health, _avg_clv)
-    results["report"]           = job_write_report(_disc, _val, _health, _avg_clv, _cache)
+    results["audit_trail"] = job_write_audit_trail(
+        results, _disc, _val, _health, _avg_clv
+    )
+    results["snapshot"] = job_write_snapshot(_disc, _val, _health, _avg_clv)
+    results["report"] = job_write_report(_disc, _val, _health, _avg_clv, _cache)
 
     _log("=" * 60)
     passed = sum(1 for v in results.values() if v)

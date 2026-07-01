@@ -19,6 +19,7 @@ Usage:
 Always prints what it WILL do and asks nothing destructive without a match; pass --yes to
 skip the confirmation prompt.
 """
+
 import os
 import sys
 import sqlite3
@@ -62,8 +63,10 @@ def _find_open_bets(conn, home, away, bet_filter=None):
     hits = []
     for bid, match_id, market, side, odds, stake in rows:
         if bet_filter:
-            if bet_filter.lower() not in (bid or "").lower() and \
-               bet_filter.lower() not in (match_id or "").lower():
+            if (
+                bet_filter.lower() not in (bid or "").lower()
+                and bet_filter.lower() not in (match_id or "").lower()
+            ):
                 continue
         parts = (match_id or "").split(" vs ")
         if len(parts) != 2:
@@ -72,7 +75,9 @@ def _find_open_bets(conn, home, away, bet_filter=None):
         sh = get_match_score(bh, home)
         sa = get_match_score(ba, away)
         if sh >= 0.5 and sa >= 0.5:
-            hits.append((bid, match_id, market, side, odds, stake, round(min(sh, sa), 2)))
+            hits.append(
+                (bid, match_id, market, side, odds, stake, round(min(sh, sa), 2))
+            )
     return hits
 
 
@@ -82,7 +87,7 @@ def settle(home, away, hs, as_, bet_filter=None, assume_yes=False):
     hits = _find_open_bets(conn, home, away, bet_filter)
     if not hits:
         print("  No OPEN bet matches those teams. Nothing to settle.")
-        print("  (Tip: pass --bet \"<team substring>\" or check the names.)")
+        print('  (Tip: pass --bet "<team substring>" or check the names.)')
         conn.close()
         return
     print(f"  Matched {len(hits)} OPEN bet(s):")
@@ -95,8 +100,10 @@ def settle(home, away, hs, as_, bet_filter=None, assume_yes=False):
         pnl = round(stake * (odds - 1) if won else -stake, 2)
         payout = round(stake * odds if won else 0.0, 2)
         graded.append((bid, market, side, won, pnl, payout))
-        print(f"   - {match_id} | {market} {side} @ {odds}  ->  "
-              f"{'WIN' if won else 'LOSS'} (PnL {pnl:+.2f}) [match {conf}]")
+        print(
+            f"   - {match_id} | {market} {side} @ {odds}  ->  "
+            f"{'WIN' if won else 'LOSS'} (PnL {pnl:+.2f}) [match {conf}]"
+        )
     if not graded:
         conn.close()
         return
@@ -107,6 +114,7 @@ def settle(home, away, hs, as_, bet_filter=None, assume_yes=False):
             conn.close()
             return
     from src.bankroll_tracker import register_settlement
+
     for bid, market, side, won, pnl, payout in graded:
         conn.execute(
             "UPDATE bet_log SET result=?, pnl=?, closing_odds=COALESCE(closing_odds, entry_odds) "
@@ -142,17 +150,26 @@ def main():
         bet_filter = args[args.index("--bet") + 1]
 
     from src.sofascore_scraper import scrape_match
+
     print(f"Scraping {url} ...")
     r = scrape_match(url)
     if not r:
         print("  Could not read the match from Sofascore (page blocked or changed).")
-        print("  Fall back to: --manual \"Home vs Away\" <hs> <as>")
+        print('  Fall back to: --manual "Home vs Away" <hs> <as>')
         return
     if not r["finished"] or r["home_score"] is None:
-        print(f"  Match not finished yet ({r['home']} vs {r['away']}). Try again later.")
+        print(
+            f"  Match not finished yet ({r['home']} vs {r['away']}). Try again later."
+        )
         return
-    settle(r["home"], r["away"], int(r["home_score"]), int(r["away_score"]),
-           bet_filter=bet_filter, assume_yes=assume_yes)
+    settle(
+        r["home"],
+        r["away"],
+        int(r["home_score"]),
+        int(r["away_score"]),
+        bet_filter=bet_filter,
+        assume_yes=assume_yes,
+    )
 
 
 if __name__ == "__main__":

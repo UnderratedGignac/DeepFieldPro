@@ -149,7 +149,9 @@ async def _fetch_date_async(date_str: str) -> dict:
         await browser.close()
 
     results = _parse_events(all_events)
-    print(f"[SOFASCORE] {date_str}: {len(results)} finished from {len(all_events)} total events")
+    print(
+        f"[SOFASCORE] {date_str}: {len(results)} finished from {len(all_events)} total events"
+    )
     return results
 
 
@@ -161,6 +163,7 @@ def _fetch_date_sync(date_str: str) -> dict:
         except RuntimeError:
             # Already inside a running loop (e.g. called from daemon thread)
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
                 future = ex.submit(asyncio.run, _fetch_date_async(date_str))
                 return future.result(timeout=90)
@@ -193,8 +196,7 @@ def get_finished_results(dates=None) -> dict:
     if dates is None:
         now = datetime.datetime.now(datetime.timezone.utc)
         dates = [
-            (now - datetime.timedelta(days=d)).strftime("%Y-%m-%d")
-            for d in range(2)
+            (now - datetime.timedelta(days=d)).strftime("%Y-%m-%d") for d in range(2)
         ]
     out: dict = {}
     for d in dates:
@@ -205,7 +207,10 @@ def get_finished_results(dates=None) -> dict:
 if __name__ == "__main__":
     import sys
     import io as _io
-    sys.stdout = _io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
+    sys.stdout = _io.TextIOWrapper(
+        sys.stdout.buffer, encoding="utf-8", errors="replace"
+    )
 
     now = datetime.datetime.now(datetime.timezone.utc)
     dates = [(now - datetime.timedelta(days=d)).strftime("%Y-%m-%d") for d in range(3)]

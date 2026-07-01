@@ -20,6 +20,14 @@ try:
 except Exception as _arena_err:  # never let the arena page break the main dashboard
     print(f"[!] Arena betting page not loaded: {_arena_err}")
 
+# WC 2026 Winner Predictor (read-only model, no betting).
+try:
+    from src.wc_blueprint import wc_bp
+
+    app.register_blueprint(wc_bp)
+except Exception as _wc_err:
+    print(f"[!] WC predictor page not loaded: {_wc_err}")
+
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 
@@ -90,32 +98,70 @@ def get_state():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    # Fetch open bets + bankroll status to enrich the state response for the UI
+    _open_bets = []
+    _bankroll_status = {}
+    _bk = 0.0
+    try:
+        import sqlite3 as _sq2
+
+        _betdb = os.path.join(DATA_DIR, "bet_log.db")
+        _bkdb = os.path.join(DATA_DIR, "bankroll.db")
+
+        _bc = _sq2.connect(_betdb)
+        _bc.row_factory = _sq2.Row
+        _open_rows = _bc.execute(
+            "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
+            "FROM bet_log WHERE result='OPEN' ORDER BY placed_at DESC"
+        ).fetchall()
+        _open_bets = [dict(r) for r in _open_rows]
+        _bc.close()
+
+        _bkc = _sq2.connect(_bkdb)
+        _bkrow = _bkc.execute(
+            "SELECT current_balance, daily_exposure, daily_pnl, starting_balance, system_status "
+            "FROM bankroll ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        _bkc.close()
+        if _bkrow:
+            _bal, _exp, _dpnl, _start, _stat = _bkrow
+            _bk = float(_bal)
+            _cap_pct = (_exp / _start * 100.0) if _start else 0.0
+            _bankroll_status = {
+                "current_balance": round(float(_bal), 2),
+                "daily_exposure": round(float(_exp), 2),
+                "daily_pnl": round(float(_dpnl), 2),
+                "starting_balance": round(float(_start), 2),
+                "system_status": _stat,
+                "is_halted": _stat == "HALT",
+                "daily_cap_pct": round(_cap_pct, 1),
+                "open_bet_count": len(_open_bets),
+            }
+    except Exception:
+        pass
+
     try:
         from src.a2ui_builder import build_dashboard_ui
 
-        _bk = 0.0
-        try:
-            import sqlite3 as _sq2
-
-            _bkdb = os.path.join(DATA_DIR, "bankroll.db")
-            _bkc = _sq2.connect(_bkdb)
-            _bkr = _bkc.execute(
-                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1"
-            ).fetchone()
-            _bkc.close()
-            if _bkr:
-                _bk = float(_bkr[0])
-        except Exception:
-            pass
         return jsonify(
             {
                 "data": state,
                 "ui": build_dashboard_ui(state or [], {}, _bk),
                 "ui_available": True,
+                "open_bets": _open_bets,
+                "bankroll_status": _bankroll_status,
             }
         )
     except Exception as _ui_err:
-        return jsonify({"data": state, "ui": None, "ui_available": False})
+        return jsonify(
+            {
+                "data": state,
+                "ui": None,
+                "ui_available": False,
+                "open_bets": _open_bets,
+                "bankroll_status": _bankroll_status,
+            }
+        )
 
 
 @app.route("/api/stream")
@@ -125,24 +171,86 @@ def stream_state():
             os.path.dirname(__file__), "..", "data", "todays_dashboard_state.json"
         )
         last_mtime = 0
+        last_heartbeat = 0
         while True:
             try:
+                # Keep-alive heartbeat every 30s so proxies/firewalls don't kill the connection
+                now = time.time()
+                if now - last_heartbeat >= 30:
+                    yield ": heartbeat\n\n"
+                    last_heartbeat = now
                 if os.path.exists(state_path):
                     mtime = os.path.getmtime(state_path)
                     if mtime > last_mtime:
                         last_mtime = mtime
-                        with open(state_path, "r", encoding="utf-8") as f:
-                            state = json.load(f)
+                        try:
+                            with open(state_path, "r", encoding="utf-8") as f:
+                                state = json.load(f)
+                        except (json.JSONDecodeError, OSError) as _e:
+                            print(f"[SSE] state file error: {_e}")
+                            time.sleep(2)
+                            continue
+                        # Enrich stream with open bets + bankroll status
+                        _s_open = []
+                        _s_bk = {}
+                        _s_bal = 0.0
+                        try:
+                            import sqlite3 as _ssq
+
+                            _sbc = _ssq.connect(os.path.join(DATA_DIR, "bet_log.db"))
+                            _sbc.row_factory = _ssq.Row
+                            _s_open = [
+                                dict(r)
+                                for r in _sbc.execute(
+                                    "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
+                                    "FROM bet_log WHERE result='OPEN' ORDER BY placed_at DESC"
+                                ).fetchall()
+                            ]
+                            _sbc.close()
+                            _sbkc = _ssq.connect(os.path.join(DATA_DIR, "bankroll.db"))
+                            _sbkr = _sbkc.execute(
+                                "SELECT current_balance, daily_exposure, daily_pnl, starting_balance, system_status "
+                                "FROM bankroll ORDER BY id DESC LIMIT 1"
+                            ).fetchone()
+                            _sbkc.close()
+                            if _sbkr:
+                                _s_bal = float(_sbkr[0])
+                                _s_bk = {
+                                    "current_balance": round(float(_sbkr[0]), 2),
+                                    "daily_exposure": round(float(_sbkr[1]), 2),
+                                    "daily_pnl": round(float(_sbkr[2]), 2),
+                                    "starting_balance": round(float(_sbkr[3]), 2),
+                                    "system_status": _sbkr[4],
+                                    "is_halted": _sbkr[4] == "HALT",
+                                    "daily_cap_pct": (
+                                        round(
+                                            float(_sbkr[1]) / float(_sbkr[3]) * 100, 1
+                                        )
+                                        if _sbkr[3]
+                                        else 0.0
+                                    ),
+                                    "open_bet_count": len(_s_open),
+                                }
+                        except Exception:
+                            pass
                         try:
                             from src.a2ui_builder import build_dashboard_ui as _bdu
 
                             _pl = {
                                 "data": state,
-                                "ui": _bdu(state or [], {}, 0.0),
+                                "ui": _bdu(state or [], {}, _s_bal),
                                 "ui_available": True,
+                                "open_bets": _s_open,
+                                "bankroll_status": _s_bk,
                             }
                         except Exception:
-                            _pl = {"data": state, "ui": None, "ui_available": False}
+                            _pl = {
+                                "data": state,
+                                "ui": None,
+                                "ui_available": False,
+                                "open_bets": _s_open,
+                                "bankroll_status": _s_bk,
+                            }
                         yield f"data: {json.dumps(_pl)}\n\n"
             except Exception:
                 pass
@@ -151,7 +259,7 @@ def stream_state():
     return Response(event_stream(), mimetype="text/event-stream")
 
 
-INITIAL_CAPITAL = 300.0  # paper bankroll seed
+INITIAL_CAPITAL = 1000.0  # paper bankroll seed (reset 2026-06-22)
 
 
 @app.route("/api/bankroll")
@@ -349,17 +457,29 @@ def get_tracker():
 @app.route("/api/place_bet", methods=["POST"])
 def place_bet():
     try:
-        data = request.json
+        data = request.get_json(silent=True) or {}
         bet_id = "UI_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        match = data.get("match", "Unknown")
-        market = data.get("market", "1X2")
-        selection = data.get("selection", "Home")
-        stake = float(data.get("stake", 10.0))
-        prob = float(data.get("prob", 50.0))
-        entry_odds = float(
-            data.get("odds", round(100.0 / prob, 2) if prob > 0 else 1.0)
-        )
-        is_recommended = int(data.get("recommended", 0))
+        match = str(data.get("match", "Unknown"))[:200]
+        market = str(data.get("market", "1X2"))[:50]
+        selection = str(data.get("selection", "Home"))[:100]
+        try:
+            stake = float(data.get("stake", 10.0))
+            prob = float(data.get("prob", 50.0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "stake and prob must be numbers"}), 400
+        if not (0.01 <= stake <= 500):
+            return jsonify({"error": "stake must be between 0.01 and 500"}), 400
+        if not (0.1 <= prob <= 99.9):
+            return jsonify({"error": "prob must be between 0.1 and 99.9"}), 400
+        try:
+            entry_odds = float(
+                data.get("odds", round(100.0 / prob, 2) if prob > 0 else 1.0)
+            )
+        except (TypeError, ValueError):
+            return jsonify({"error": "odds must be a number"}), 400
+        if not (1.01 <= entry_odds <= 1000):
+            return jsonify({"error": "odds must be between 1.01 and 1000"}), 400
+        is_recommended = int(bool(data.get("recommended", 0)))
 
         closing_odds = round(entry_odds - 0.05, 2)
         edge = round((prob / 100.0) * entry_odds - 1.0, 3) * 100
@@ -396,7 +516,7 @@ def place_bet():
         conn.close()
 
         # Deduct stake from bankroll via tracker
-        from bankroll_tracker import register_bet
+        from src.bankroll_tracker import register_bet
 
         register_bet(stake)
 
@@ -412,7 +532,10 @@ def get_clv():
     league, week, and move-size bucket. Returns only bets that have a closing_odds
     recorded so the numbers are grounded in real prices."""
     import os as _os
-    SIGNALS_DB = _os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    SIGNALS_DB = _os.path.join(
+        DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+    )
 
     rows = query_db(
         "bet_log.db",
@@ -427,6 +550,7 @@ def get_clv():
     move_map = {}
     try:
         import sqlite3 as _sql
+
         con2 = _sql.connect(SIGNALS_DB)
         sigs = con2.execute(
             "SELECT fixture_id, steam_move FROM steam_signals"
@@ -437,9 +561,11 @@ def get_clv():
         pass
 
     bets = []
-    for r in (rows or []):
+    for r in rows or []:
         d = dict(r)
-        d["steam_move_pct"] = round(move_map.get(str(d.get("fixture_id", "")), 0) * 100, 1)
+        d["steam_move_pct"] = round(
+            move_map.get(str(d.get("fixture_id", "")), 0) * 100, 1
+        )
         bets.append(d)
 
     settled_clv = [b for b in bets if b.get("clv") is not None]
@@ -460,9 +586,14 @@ def get_clv():
         nc = len(clv_vals)
         if nc >= 2 and avg_clv is not None:
             import math
+
             variance = sum((v - avg_clv) ** 2 for v in clv_vals) / (nc - 1)
             se = math.sqrt(variance / nc)
-            z = 1.96 if nc >= 30 else (2.045 if nc >= 25 else (2.131 if nc >= 20 else 2.571))
+            z = (
+                1.96
+                if nc >= 30
+                else (2.045 if nc >= 25 else (2.131 if nc >= 20 else 2.571))
+            )
             ci_lower = round(avg_clv - z * se, 1)
             ci_upper = round(avg_clv + z * se, 1)
         return {
@@ -480,16 +611,20 @@ def get_clv():
 
     # By league
     from collections import defaultdict
+
     by_league = defaultdict(list)
     for b in bets:
         by_league[b.get("league") or "Unknown"].append(b)
-    leagues_out = {lg: _summary(v) for lg, v in sorted(by_league.items(), key=lambda x: -len(x[1]))}
+    leagues_out = {
+        lg: _summary(v) for lg, v in sorted(by_league.items(), key=lambda x: -len(x[1]))
+    }
 
     # By week
     by_week = defaultdict(list)
     for b in bets:
         try:
             import datetime
+
             d = datetime.date.fromisoformat((b.get("placed_at") or "")[:10])
             week = f"{d.isocalendar()[0]}-W{d.isocalendar()[1]:02d}"
         except Exception:
@@ -498,25 +633,37 @@ def get_clv():
     weeks_out = {w: _summary(v) for w, v in sorted(by_week.items())}
 
     # By move bucket
-    move_buckets = [("5-8%", 5, 8), ("8-12%", 8, 12), ("12-20%", 12, 20), ("20%+", 20, 999)]
+    move_buckets = [
+        ("5-8%", 5, 8),
+        ("8-12%", 8, 12),
+        ("12-20%", 12, 20),
+        ("20%+", 20, 999),
+    ]
     moves_out = {}
     for label, lo, hi in move_buckets:
         bucket = [b for b in bets if lo <= b["steam_move_pct"] < hi]
         moves_out[label] = _summary(bucket)
 
     # By monotonicity bucket (requires bet_log.monotonicity column from CLV attribution)
-    mono_buckets = [("0.0-0.25", 0.0, 0.25), ("0.25-0.5", 0.25, 0.5),
-                    ("0.5-0.75", 0.5, 0.75), ("0.75-1.0", 0.75, 1.01)]
+    mono_buckets = [
+        ("0.0-0.25", 0.0, 0.25),
+        ("0.25-0.5", 0.25, 0.5),
+        ("0.5-0.75", 0.5, 0.75),
+        ("0.75-1.0", 0.75, 1.01),
+    ]
     mono_out = {}
-    mono_rows = query_db(
-        "bet_log.db",
-        """SELECT b.match_id, b.league, b.entry_odds, b.closing_odds, b.clv,
+    mono_rows = (
+        query_db(
+            "bet_log.db",
+            """SELECT b.match_id, b.league, b.entry_odds, b.closing_odds, b.clv,
                   b.result, b.pnl, b.stake, b.placed_at, b.fixture_id, b.monotonicity
            FROM bet_log b
            WHERE b.bet_source = 'STEAM' AND b.result IN ('W','L','WIN','LOSS')
              AND b.monotonicity IS NOT NULL
            ORDER BY b.placed_at ASC""",
-    ) or []
+        )
+        or []
+    )
     for label, lo, hi in mono_buckets:
         bucket = [dict(r) for r in mono_rows if lo <= (r[10] or 0) < hi]
         mono_out[label] = _summary(bucket)
@@ -524,7 +671,11 @@ def get_clv():
     # Signal decay: rolling windows (last 50, last 100, lifetime) for STEAM
     decay_out = {}
     sorted_bets = sorted(bets, key=lambda b: b.get("placed_at") or "")
-    for window_label, window_n in [("last_50", 50), ("last_100", 100), ("lifetime", None)]:
+    for window_label, window_n in [
+        ("last_50", 50),
+        ("last_100", 100),
+        ("lifetime", None),
+    ]:
         subset = sorted_bets[-window_n:] if window_n else sorted_bets
         decay_out[window_label] = _summary(subset)
 
@@ -532,13 +683,24 @@ def get_clv():
     signals_out = {}
     try:
         import json as _json, sqlite3 as _sql
+
         sig_path = _os.path.join(DATA_DIR, "signal_discovery_results.json")
         # Load registry state
         reg = {}
         try:
-            _rcon = _sql.connect(_os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"))
-            for row in _rcon.execute("SELECT signal_name, enabled, promoted, updated_at FROM signal_registry"):
-                reg[row[0]] = {"registry_enabled": bool(row[1]), "registry_promoted": bool(row[2]), "registry_updated": row[3]}
+            _rcon = _sql.connect(
+                _os.path.join(
+                    DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+                )
+            )
+            for row in _rcon.execute(
+                "SELECT signal_name, enabled, promoted, updated_at FROM signal_registry"
+            ):
+                reg[row[0]] = {
+                    "registry_enabled": bool(row[1]),
+                    "registry_promoted": bool(row[2]),
+                    "registry_updated": row[3],
+                }
             _rcon.close()
         except Exception:
             pass
@@ -549,33 +711,49 @@ def get_clv():
                 n = r.get("n", 0)
                 clv = r.get("avg_clv")
                 if n >= 100 and clv is not None:
-                    auto_status = "PROMOTE" if clv >= 3.0 else ("DISABLE" if clv < 0.0 else "WATCH")
+                    auto_status = (
+                        "PROMOTE"
+                        if clv >= 3.0
+                        else ("DISABLE" if clv < 0.0 else "WATCH")
+                    )
                 else:
                     auto_status = "WATCH"
-                signals_out[sig_name] = {**r, "auto_status": auto_status, **reg.get(sig_name, {})}
+                signals_out[sig_name] = {
+                    **r,
+                    "auto_status": auto_status,
+                    **reg.get(sig_name, {}),
+                }
     except Exception:
         pass
 
     # Scatter data for CLV attribution plot (move_size x CLV, bubble = monotonicity)
-    scatter_rows = query_db(
-        "bet_log.db",
-        """SELECT match_id, entry_odds, clv, move_size, monotonicity, league, placed_at, bet_id
+    scatter_rows = (
+        query_db(
+            "bet_log.db",
+            """SELECT match_id, entry_odds, clv, move_size, monotonicity, league, placed_at, bet_id
            FROM bet_log
            WHERE bet_source='STEAM' AND result IN ('W','L','WIN','LOSS')
              AND clv IS NOT NULL AND move_size IS NOT NULL
            ORDER BY placed_at ASC""",
-    ) or []
+        )
+        or []
+    )
     scatter_out = [
         {
-            "match": r[0], "entry_odds": r[1],
-            "clv": round(r[2] * 100, 2), "move_size": r[3],
-            "monotonicity": r[4], "league": r[5], "bet_id": r[7],
+            "match": r[0],
+            "entry_odds": r[1],
+            "clv": round(r[2] * 100, 2),
+            "move_size": r[3],
+            "monotonicity": r[4],
+            "league": r[5],
+            "bet_id": r[7],
         }
         for r in scatter_rows
     ]
 
     # Rolling windows (7d / 30d / 90d) for regime / decay detection
     import datetime as _dt
+
     _now = _dt.datetime.now()
     rolling_out = {}
     for label, days in [("7d", 7), ("30d", 30), ("90d", 90)]:
@@ -587,15 +765,20 @@ def get_clv():
     validation_out = {}
     try:
         import sqlite3 as _sql2
-        _vcon = _sql2.connect(_os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"))
+
+        _vcon = _sql2.connect(
+            _os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+        )
         _vrows = _vcon.execute(
             "SELECT signal_name, discovery_date, validation_bets, validation_clv, status FROM signal_validation"
         ).fetchall()
         _vcon.close()
         for row in _vrows:
             validation_out[row[0]] = {
-                "discovery_date": row[1], "validation_bets": row[2],
-                "validation_clv": row[3], "status": row[4],
+                "discovery_date": row[1],
+                "validation_bets": row[2],
+                "validation_clv": row[3],
+                "status": row[4],
             }
         # Merge into signals_out
         for sig, vdata in validation_out.items():
@@ -619,41 +802,49 @@ def get_clv():
         if ci_lo is not None and ci_hi is not None:
             score += 20.0 if ci_lo > 0 else (0.0 if (ci_hi or 0) < 0 else 10.0)
         # 7d vs 30d trend (max 15 pts)
-        clv_7d  = (roll.get("7d")  or {}).get("avg_clv")
+        clv_7d = (roll.get("7d") or {}).get("avg_clv")
         clv_30d = (roll.get("30d") or {}).get("avg_clv")
         if clv_7d is not None and clv_30d is not None:
-            score += 15.0 if clv_7d >= clv_30d else (7.5 if clv_7d >= clv_30d - 3 else 0.0)
+            score += (
+                15.0 if clv_7d >= clv_30d else (7.5 if clv_7d >= clv_30d - 3 else 0.0)
+            )
         elif clv > 0:
             score += 7.5
         # Signal diversity bonus (max 10 pts)
-        n_promoted = sum(1 for s in signals_out.values()
-                         if s.get("registry_promoted") or s.get("auto_status") == "PROMOTE")
+        n_promoted = sum(
+            1
+            for s in signals_out.values()
+            if s.get("registry_promoted") or s.get("auto_status") == "PROMOTE"
+        )
         score += min(10.0, n_promoted * 3.3)
         return round(score)
 
     ov_summary = _summary(bets)
     health = _health_score(ov_summary, rolling_out)
 
-    return jsonify({
-        "overall": ov_summary,
-        "by_league": leagues_out,
-        "by_week": weeks_out,
-        "by_move_bucket": moves_out,
-        "by_monotonicity": mono_out,
-        "decay": decay_out,
-        "rolling": rolling_out,
-        "health_score": health,
-        "signals": signals_out,
-        "validation": validation_out,
-        "scatter": scatter_out,
-        "bets": bets,
-    })
+    return jsonify(
+        {
+            "overall": ov_summary,
+            "by_league": leagues_out,
+            "by_week": weeks_out,
+            "by_move_bucket": moves_out,
+            "by_monotonicity": mono_out,
+            "decay": decay_out,
+            "rolling": rolling_out,
+            "health_score": health,
+            "signals": signals_out,
+            "validation": validation_out,
+            "scatter": scatter_out,
+            "bets": bets,
+        }
+    )
 
 
 @app.route("/api/signal_registry", methods=["GET"])
 def get_signal_registry():
     """Return all signal_registry rows for the dashboard control panel."""
     import sqlite3 as _sql
+
     reg_db = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
     try:
         con = _sql.connect(reg_db)
@@ -661,11 +852,19 @@ def get_signal_registry():
             "SELECT signal_name, enabled, promoted, min_samples, owner, updated_at FROM signal_registry ORDER BY signal_name"
         ).fetchall()
         con.close()
-        return jsonify([
-            {"signal_name": r[0], "enabled": bool(r[1]), "promoted": bool(r[2]),
-             "min_samples": r[3], "owner": r[4], "updated_at": r[5]}
-            for r in rows
-        ])
+        return jsonify(
+            [
+                {
+                    "signal_name": r[0],
+                    "enabled": bool(r[1]),
+                    "promoted": bool(r[2]),
+                    "min_samples": r[3],
+                    "owner": r[4],
+                    "updated_at": r[5],
+                }
+                for r in rows
+            ]
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -674,6 +873,7 @@ def get_signal_registry():
 def update_signal_registry(signal_name):
     """Toggle enabled/promoted for a signal. Body: {enabled?: bool, promoted?: bool}"""
     import sqlite3 as _sql
+
     reg_db = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
     data = request.get_json() or {}
     try:
@@ -699,7 +899,10 @@ def update_signal_registry(signal_name):
 def get_bet_replay(bet_id):
     """Return bet details + full odds timeline for the Replay Explorer."""
     import sqlite3 as _sql
-    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    SIGNALS_DB = os.path.join(
+        DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+    )
 
     # Fetch bet metadata
     bet_rows = query_db(
@@ -730,23 +933,32 @@ def get_bet_replay(bet_id):
             con.close()
             # Group by timestamp → {ts: {sel: odds}}
             from collections import defaultdict
+
             by_ts: dict = defaultdict(dict)
             for sel, odds, ts in oh_rows:
                 if odds and odds > 0:
                     by_ts[ts][sel] = odds
+
             # De-vig each snapshot
             def _dv(snap):
-                inv = {s: 1/o for s, o in snap.items() if o and o > 0}
+                inv = {s: 1 / o for s, o in snap.items() if o and o > 0}
                 tot = sum(inv.values())
-                return {s: round(v/tot*100, 1) for s, v in inv.items()} if tot > 0 else {}
+                return (
+                    {s: round(v / tot * 100, 1) for s, v in inv.items()}
+                    if tot > 0
+                    else {}
+                )
+
             for ts in sorted(by_ts):
                 snap = by_ts[ts]
                 probs = _dv(snap)
-                timeline.append({
-                    "ts": ts,
-                    "odds": {s: round(o, 3) for s, o in snap.items()},
-                    "prob": probs,
-                })
+                timeline.append(
+                    {
+                        "ts": ts,
+                        "odds": {s: round(o, 3) for s, o in snap.items()},
+                        "prob": probs,
+                    }
+                )
         except Exception as e:
             timeline = [{"error": str(e)}]
 
@@ -757,7 +969,10 @@ def get_bet_replay(bet_id):
 def get_research_runs():
     """Return last N nightly audit records from research_runs table."""
     import sqlite3 as _sql
-    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    SIGNALS_DB = os.path.join(
+        DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+    )
     limit = int(request.args.get("limit", 30))
     try:
         con = _sql.connect(SIGNALS_DB)
@@ -765,20 +980,26 @@ def get_research_runs():
             """SELECT run_id, run_at, signals_evaluated, bets_analyzed,
                       promoted, disabled, health_score, avg_clv, jobs_ok
                FROM research_runs ORDER BY run_id DESC LIMIT ?""",
-            (limit,)
+            (limit,),
         ).fetchall()
         con.close()
         runs = []
         for r in rows:
             import json as _j
-            runs.append({
-                "run_id": r[0], "run_at": r[1],
-                "signals_evaluated": r[2], "bets_analyzed": r[3],
-                "promoted": _j.loads(r[4] or "[]"),
-                "disabled": _j.loads(r[5] or "[]"),
-                "health_score": r[6], "avg_clv": r[7],
-                "jobs_ok": _j.loads(r[8] or "{}"),
-            })
+
+            runs.append(
+                {
+                    "run_id": r[0],
+                    "run_at": r[1],
+                    "signals_evaluated": r[2],
+                    "bets_analyzed": r[3],
+                    "promoted": _j.loads(r[4] or "[]"),
+                    "disabled": _j.loads(r[5] or "[]"),
+                    "health_score": r[6],
+                    "avg_clv": r[7],
+                    "jobs_ok": _j.loads(r[8] or "{}"),
+                }
+            )
         return jsonify(runs)
     except Exception as e:
         return jsonify([])
@@ -788,7 +1009,10 @@ def get_research_runs():
 def get_signal_lifecycle():
     """Return current lifecycle stage for every signal plus full transition history."""
     import sqlite3 as _sql
-    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    SIGNALS_DB = os.path.join(
+        DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+    )
     try:
         con = _sql.connect(SIGNALS_DB)
         # Current stage = most recent row per signal
@@ -807,6 +1031,7 @@ def get_signal_lifecycle():
         ).fetchall()
         con.close()
         import json as _j
+
         current = {}
         for r in cur_rows:
             meta = {}
@@ -816,14 +1041,21 @@ def get_signal_lifecycle():
                 pass
             # Days in current stage
             import datetime as _dt
+
             try:
-                entered = _dt.datetime.fromisoformat(r[2]) if r[2] else _dt.datetime.now()
+                entered = (
+                    _dt.datetime.fromisoformat(r[2]) if r[2] else _dt.datetime.now()
+                )
                 days_in_stage = (_dt.datetime.now() - entered).days
             except Exception:
                 days_in_stage = 0
             current[r[0]] = {
-                "signal_name": r[0], "stage": r[1], "entered_at": r[2],
-                "n": r[3], "avg_clv": r[4], "days_in_stage": days_in_stage,
+                "signal_name": r[0],
+                "stage": r[1],
+                "entered_at": r[2],
+                "n": r[3],
+                "avg_clv": r[4],
+                "days_in_stage": days_in_stage,
                 **meta,
             }
         history = {}
@@ -849,9 +1081,9 @@ def get_edge_attribution():
         return jsonify({"error": "no_data"})
 
     bets = [dict(r) for r in rows]
-    n_total  = len(bets)
+    n_total = len(bets)
     clv_vals = [b["clv"] * 100 for b in bets]
-    overall  = sum(clv_vals) / len(clv_vals) if clv_vals else 0
+    overall = sum(clv_vals) / len(clv_vals) if clv_vals else 0
 
     def _bucket_contrib(key_fn, label_fn, bets):
         buckets: dict = {}
@@ -863,15 +1095,17 @@ def get_edge_attribution():
         result = []
         for k in sorted(buckets):
             vals = buckets[k]
-            avg  = sum(vals) / len(vals)
+            avg = sum(vals) / len(vals)
             frac = len(vals) / n_total
-            result.append({
-                "label": label_fn(k),
-                "n": len(vals),
-                "avg_clv": round(avg, 2),
-                "contribution": round((avg - overall) * frac, 2),
-                "weight_pct": round(frac * 100, 1),
-            })
+            result.append(
+                {
+                    "label": label_fn(k),
+                    "n": len(vals),
+                    "avg_clv": round(avg, 2),
+                    "contribution": round((avg - overall) * frac, 2),
+                    "weight_pct": round(frac * 100, 1),
+                }
+            )
         return result
 
     # Move size buckets
@@ -879,10 +1113,14 @@ def get_edge_attribution():
         m = b.get("move_size")
         if m is None:
             return None
-        if m < 8: return 0
-        if m < 12: return 1
-        if m < 18: return 2
+        if m < 8:
+            return 0
+        if m < 12:
+            return 1
+        if m < 18:
+            return 2
         return 3
+
     move_labels = {0: "5-8%", 1: "8-12%", 2: "12-18%", 3: "18%+"}
     move_out = _bucket_contrib(_move_key, lambda k: move_labels.get(k, str(k)), bets)
 
@@ -891,20 +1129,27 @@ def get_edge_attribution():
         m = b.get("monotonicity")
         if m is None:
             return None
-        if m < 0.25: return 0
-        if m < 0.50: return 1
-        if m < 0.75: return 2
+        if m < 0.25:
+            return 0
+        if m < 0.50:
+            return 1
+        if m < 0.75:
+            return 2
         return 3
+
     mono_labels = {0: "0.00-0.25", 1: "0.25-0.50", 2: "0.50-0.75", 3: "0.75-1.00"}
     mono_out = _bucket_contrib(_mono_key, lambda k: mono_labels.get(k, str(k)), bets)
 
     # League (top 6 by count, rest = Other)
     from collections import Counter
+
     league_counts = Counter(b.get("league") or "Unknown" for b in bets)
-    top_leagues   = {lg for lg, _ in league_counts.most_common(6)}
+    top_leagues = {lg for lg, _ in league_counts.most_common(6)}
+
     def _lg_key(b):
         lg = b.get("league") or "Unknown"
         return lg if lg in top_leagues else "Other"
+
     league_out = _bucket_contrib(_lg_key, lambda k: k, bets)
     league_out.sort(key=lambda r: r["n"], reverse=True)
 
@@ -913,24 +1158,31 @@ def get_edge_attribution():
         pa = b.get("placed_at") or ""
         try:
             import datetime as _dt
+
             h = _dt.datetime.fromisoformat(pa).hour
-            if h < 6: return 0
-            if h < 12: return 1
-            if h < 18: return 2
+            if h < 6:
+                return 0
+            if h < 12:
+                return 1
+            if h < 18:
+                return 2
             return 3
         except Exception:
             return None
+
     time_labels = {0: "00-06h", 1: "06-12h", 2: "12-18h", 3: "18-24h"}
     timing_out = _bucket_contrib(_hour_key, lambda k: time_labels.get(k, str(k)), bets)
 
-    return jsonify({
-        "overall_clv": round(overall, 2),
-        "n_total": n_total,
-        "by_move_size": move_out,
-        "by_monotonicity": mono_out,
-        "by_league": league_out,
-        "by_timing": timing_out,
-    })
+    return jsonify(
+        {
+            "overall_clv": round(overall, 2),
+            "n_total": n_total,
+            "by_move_size": move_out,
+            "by_monotonicity": mono_out,
+            "by_league": league_out,
+            "by_timing": timing_out,
+        }
+    )
 
 
 @app.route("/api/experiments", methods=["GET", "POST"])
@@ -938,10 +1190,14 @@ def manage_experiments():
     """GET: list all experiments. POST: create a new one."""
     import sqlite3 as _sql
     import hashlib as _hl
-    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    SIGNALS_DB = os.path.join(
+        DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+    )
 
     def _ensure_table(con):
-        con.execute("""CREATE TABLE IF NOT EXISTS experiments (
+        con.execute(
+            """CREATE TABLE IF NOT EXISTS experiments (
             id              TEXT PRIMARY KEY,
             start_date      TEXT,
             end_date        TEXT,
@@ -951,7 +1207,8 @@ def manage_experiments():
             status          TEXT DEFAULT 'ACTIVE',
             result          TEXT,
             created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
-        )""")
+        )"""
+        )
 
     if request.method == "GET":
         try:
@@ -964,11 +1221,18 @@ def manage_experiments():
             con.close()
             exps = []
             for r in rows:
-                exps.append({
-                    "id": r[0], "start_date": r[1], "end_date": r[2],
-                    "config_hash": r[3], "hypothesis": r[4],
-                    "status": r[5], "result": r[6], "created_at": r[7],
-                })
+                exps.append(
+                    {
+                        "id": r[0],
+                        "start_date": r[1],
+                        "end_date": r[2],
+                        "config_hash": r[3],
+                        "hypothesis": r[4],
+                        "status": r[5],
+                        "result": r[6],
+                        "created_at": r[7],
+                    }
+                )
             return jsonify(exps)
         except Exception as e:
             return jsonify([])
@@ -989,7 +1253,9 @@ def manage_experiments():
         reg_snap = {}
         try:
             con2 = _sql.connect(SIGNALS_DB)
-            for row in con2.execute("SELECT signal_name, enabled, promoted FROM signal_registry"):
+            for row in con2.execute(
+                "SELECT signal_name, enabled, promoted FROM signal_registry"
+            ):
                 reg_snap[row[0]] = {"enabled": bool(row[1]), "promoted": bool(row[2])}
             con2.close()
         except Exception:
@@ -1003,20 +1269,20 @@ def manage_experiments():
         _ensure_table(con)
         count = con.execute("SELECT COUNT(*) FROM experiments").fetchone()[0]
         exp_id = f"EXP{(count + 1):03d}"
-        today  = __import__("datetime").date.today().isoformat()
+        today = __import__("datetime").date.today().isoformat()
 
         # Mark any currently ACTIVE experiment as COMPLETED before creating new one
         if body.get("supersede", False):
             con.execute(
                 "UPDATE experiments SET status='COMPLETED', end_date=? WHERE status='ACTIVE'",
-                (today,)
+                (today,),
             )
 
         con.execute(
             "INSERT OR IGNORE INTO experiments "
             "(id, start_date, config_hash, hypothesis, config_snapshot, status) "
             "VALUES (?,?,?,?,?,?)",
-            (exp_id, today, config_hash, hypothesis, config_json, "ACTIVE")
+            (exp_id, today, config_hash, hypothesis, config_json, "ACTIVE"),
         )
         con.commit()
         con.close()
@@ -1029,7 +1295,10 @@ def manage_experiments():
 def update_experiment(exp_id):
     """Update experiment status or result."""
     import sqlite3 as _sql
-    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    SIGNALS_DB = os.path.join(
+        DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+    )
     body = request.json or {}
     try:
         con = _sql.connect(SIGNALS_DB)
@@ -1038,12 +1307,19 @@ def update_experiment(exp_id):
             end_date = today if body["status"] in ("COMPLETED", "CANCELLED") else None
             con.execute(
                 "UPDATE experiments SET status=?, end_date=? WHERE id=?",
-                (body["status"], end_date, exp_id)
+                (body["status"], end_date, exp_id),
             )
         if "result" in body:
             con.execute(
                 "UPDATE experiments SET result=? WHERE id=?",
-                (json.dumps(body["result"]) if isinstance(body["result"], dict) else body["result"], exp_id)
+                (
+                    (
+                        json.dumps(body["result"])
+                        if isinstance(body["result"], dict)
+                        else body["result"]
+                    ),
+                    exp_id,
+                ),
             )
         con.commit()
         con.close()
@@ -1058,15 +1334,18 @@ def get_counterfactual():
     import sqlite3 as _sql
     from collections import defaultdict
     import re as _re
-    SIGNALS_DB = os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db")
+
+    SIGNALS_DB = os.path.join(
+        DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+    )
 
     thresholds_raw = request.args.get("thresholds", "3,5,7,10,15")
-    signal_type    = request.args.get("signal", "STEAM_FWD")
-    thresholds     = [float(t) / 100.0 for t in thresholds_raw.split(",") if t.strip()]
+    signal_type = request.args.get("signal", "STEAM_FWD")
+    thresholds = [float(t) / 100.0 for t in thresholds_raw.split(",") if t.strip()]
 
     # Load odds history
     try:
-        con     = _sql.connect(SIGNALS_DB)
+        con = _sql.connect(SIGNALS_DB)
         oh_rows = con.execute(
             "SELECT fixture_id, selection, odds, timestamp FROM odds_history "
             "WHERE market='1X2' ORDER BY fixture_id, timestamp ASC"
@@ -1081,8 +1360,8 @@ def get_counterfactual():
 
     # Load settled bets
     try:
-        bcon      = _sql.connect(os.path.join(DATA_DIR, "bet_log.db"))
-        bet_rows  = bcon.execute(
+        bcon = _sql.connect(os.path.join(DATA_DIR, "bet_log.db"))
+        bet_rows = bcon.execute(
             "SELECT fixture_id, player_id, result, entry_odds, closing_odds "
             "FROM bet_log WHERE bet_source='STEAM' AND result IN ('W','L','WIN','LOSS')"
         ).fetchall()
@@ -1094,17 +1373,20 @@ def get_counterfactual():
     for fid, pid, result, eo, co in bet_rows:
         if not fid:
             continue
-        m   = _re.search(r"\((Home \(1\)|Away \(2\)|Draw)\)$", pid or "")
+        m = _re.search(r"\((Home \(1\)|Away \(2\)|Draw)\)$", pid or "")
         sel = m.group(1) if m else pid
         clv = (eo / co - 1) if co and co > 0 else None
         settled.setdefault(str(fid), {})[sel] = {
-            "won": result in ("W", "WIN"), "clv": clv,
+            "won": result in ("W", "WIN"),
+            "clv": clv,
         }
 
     def _devig(odds_dict):
-        inv = {s: 1/o for s, o in odds_dict.items() if o and o > 0}
+        inv = {s: 1 / o for s, o in odds_dict.items() if o and o > 0}
         tot = sum(inv.values())
-        return {s: v/tot for s, v in inv.items()} if tot > 0 and len(inv) >= 2 else None
+        return (
+            {s: v / tot for s, v in inv.items()} if tot > 0 and len(inv) >= 2 else None
+        )
 
     def _steam_fire(snaps, threshold):
         by_ts: dict = defaultdict(dict)
@@ -1116,8 +1398,11 @@ def get_counterfactual():
         if len(ts_list) < 2:
             return None
         first, last = series[ts_list[0]], series[ts_list[-1]]
-        best = max(((s, last[s] - first[s]) for s in set(first) & set(last)),
-                   key=lambda x: x[1], default=None)
+        best = max(
+            ((s, last[s] - first[s]) for s in set(first) & set(last)),
+            key=lambda x: x[1],
+            default=None,
+        )
         return best if (best and best[1] >= threshold) else None
 
     results = []
@@ -1130,7 +1415,10 @@ def get_counterfactual():
             if not hit:
                 continue
             sel_key = hit[0]
-            info = next((v for k, v in settled[fid].items() if sel_key == k or sel_key in k), None)
+            info = next(
+                (v for k, v in settled[fid].items() if sel_key == k or sel_key in k),
+                None,
+            )
             if not info:
                 continue
             n += 1
@@ -1138,32 +1426,104 @@ def get_counterfactual():
                 wins += 1
             if info["clv"] is not None:
                 clv_sum += info["clv"]
-                clv_n   += 1
+                clv_n += 1
         avg_clv = round(clv_sum / clv_n * 100, 2) if clv_n > 0 else None
-        results.append({
-            "threshold_pct": round(thr * 100, 1),
-            "n": n, "wins": wins,
-            "hit": round(wins / n * 100, 1) if n else 0,
-            "avg_clv": avg_clv, "clv_n": clv_n,
-        })
+        results.append(
+            {
+                "threshold_pct": round(thr * 100, 1),
+                "n": n,
+                "wins": wins,
+                "hit": round(wins / n * 100, 1) if n else 0,
+                "avg_clv": avg_clv,
+                "clv_n": clv_n,
+            }
+        )
 
     # Find optimal
     scored = [(r, r["avg_clv"] or -999) for r in results if r["n"] >= 5]
     optimal = max(scored, key=lambda x: x[1])[0] if scored else None
 
-    return jsonify({
-        "signal_type": signal_type,
-        "thresholds_pct": thresholds_raw,
-        "results": results,
-        "optimal": optimal,
-    })
+    return jsonify(
+        {
+            "signal_type": signal_type,
+            "thresholds_pct": thresholds_raw,
+            "results": results,
+            "optimal": optimal,
+        }
+    )
+
+
+_SETTINGS_SCHEMA = {
+    # key: (type, min, max)  — only whitelisted keys accepted
+    "allowed_markets": list,
+    "exclude_draws": bool,
+    "league_blocklist": list,
+    "steam_betting_enabled": bool,
+    "steam_flat_stake": (float, 0, 500),
+    "steam_min_move_pct": (float, 0, 50),
+    "steam_kelly_frac": (float, 0, 1),
+    "ai_real_staking_enabled": bool,
+    "kelly_multiplier": (float, 0.01, 1.0),
+    "min_ev_threshold": (float, 0, 1),
+    "max_exposure_pct": (float, 0, 0.25),
+    "min_confidence_pct": (float, 0, 100),
+    "require_steam_confirm": bool,
+    "edge_cap_pct": (float, 0, 50),
+    "market_blend_weight": (float, 0, 1),
+    "refresh_interval_sec": (float, 5, 300),
+    "show_live_matches": bool,
+    "max_odds_staleness_min": (float, 1, 1440),
+    "arena_max_per_order": (float, 0.5, 25),
+    "arena_daily_cap": (float, 0, 100),
+    "arena_wallet_buffer": (float, 0.5, 50),
+    "conf_min": (float, 0.3, 0.99),
+    "edge_min": (float, 0, 0.5),
+    "ah_betting_enabled": bool,
+    "daily_stop_loss_pct": (float, 0.01, 1.0),
+    "max_drawdown_pct": (float, 0.01, 1.0),
+    "max_daily_exposure_pct": (float, 0.01, 1.0),
+}
 
 
 @app.route("/api/settings", methods=["GET", "POST"])
 def manage_settings():
     if request.method == "POST":
+        incoming = request.get_json(silent=True) or {}
+        # Load current settings to merge into (unknown keys preserved, not overwritten)
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                current = json.load(f)
+        except (OSError, ValueError):
+            current = {}
+        errors = []
+        for key, val in incoming.items():
+            spec = _SETTINGS_SCHEMA.get(key)
+            if spec is None:
+                errors.append(f"Unknown setting: {key}")
+                continue
+            if isinstance(spec, tuple):
+                typ, lo, hi = spec
+                try:
+                    val = typ(val)
+                except (TypeError, ValueError):
+                    errors.append(f"{key} must be {typ.__name__}")
+                    continue
+                if not (lo <= val <= hi):
+                    errors.append(f"{key}={val} out of range [{lo}, {hi}]")
+                    continue
+            elif spec is bool:
+                if not isinstance(val, bool):
+                    errors.append(f"{key} must be boolean")
+                    continue
+            elif spec is list:
+                if not isinstance(val, list):
+                    errors.append(f"{key} must be a list")
+                    continue
+            current[key] = val
+        if errors:
+            return jsonify({"error": "Validation failed", "details": errors}), 400
         with open(SETTINGS_FILE, "w") as f:
-            json.dump(request.json, f, indent=4)
+            json.dump(current, f, indent=2)
         return jsonify({"status": "success"})
 
     with open(SETTINGS_FILE, "r") as f:
@@ -1419,6 +1779,27 @@ def start_background_prediction_worker():
 
 if __name__ == "__main__":
     init_databases()
+
+    # Warn loudly if the arena autopilot is already armed from a previous session
+    try:
+        import json as _j
+
+        _ap_state_path = os.path.join(DATA_DIR, "arena_autopilot.json")
+        if os.path.exists(_ap_state_path):
+            _ap_state = _j.loads(open(_ap_state_path).read())
+            if _ap_state.get("enabled") and os.getenv("DEEPFIELD_ARENA_LIVE") == "1":
+                print(
+                    "[!] WARNING: arena_autopilot.json::enabled=True AND DEEPFIELD_ARENA_LIVE=1"
+                )
+                print("[!] Arena autopilot will resume LIVE betting immediately.")
+                print("[!] Visit /arena and click Pause to halt before it fires.")
+            elif _ap_state.get("enabled"):
+                print(
+                    "[*] Arena autopilot enabled (predict-only; DEEPFIELD_ARENA_LIVE not set)."
+                )
+    except Exception:
+        pass
+
     if os.getenv("DEEPFIELD_DISABLE_DAEMON") != "1":
         start_background_prediction_worker()
         # Start the autonomous Stair AI arena betting loop (real money, WC-only, pre-kickoff).

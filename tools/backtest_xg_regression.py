@@ -13,6 +13,7 @@ prior matches only), bucket by that 'luck', and measure the team's NEXT-match ou
 teams next match, the signal is dead -> discard #7 before building the odds backtest.
 A real signal is MONOTONE across luck buckets.
 """
+
 import os
 import sqlite3
 from collections import defaultdict
@@ -26,7 +27,8 @@ def main():
     con = sqlite3.connect(DB)
     rows = con.execute(
         "SELECT date, home_team, away_team, home_goals, away_goals, home_xg, away_xg "
-        "FROM xg_match WHERE home_xg IS NOT NULL ORDER BY date").fetchall()
+        "FROM xg_match WHERE home_xg IS NOT NULL ORDER BY date"
+    ).fetchall()
     con.close()
     if len(rows) < 100:
         print(f"Only {len(rows)} matches — ingest more (tools/ingest_xg_understat.py).")
@@ -47,8 +49,8 @@ def main():
     for team, games in team_games.items():
         games.sort(key=lambda g: g[0])
         for i in range(K, len(games)):
-            prior = games[i - K:i]
-            luck = sum(g[1] - g[3] for g in prior) / K   # avg (goals_for - xg_for)
+            prior = games[i - K : i]
+            luck = sum(g[1] - g[3] for g in prior) / K  # avg (goals_for - xg_for)
             nxt = games[i]
             next_points = nxt[5]
             next_luck = nxt[1] - nxt[3]
@@ -60,9 +62,11 @@ def main():
 
     samples.sort(key=lambda s: s[0])
     n = len(samples)
-    terciles = [("UNLUCKY (low goals-xG)", samples[:n // 3]),
-                ("NEUTRAL", samples[n // 3:2 * n // 3]),
-                ("LUCKY (high goals-xG)", samples[2 * n // 3:])]
+    terciles = [
+        ("UNLUCKY (low goals-xG)", samples[: n // 3]),
+        ("NEUTRAL", samples[n // 3 : 2 * n // 3]),
+        ("LUCKY (high goals-xG)", samples[2 * n // 3 :]),
+    ]
 
     print("=" * 70)
     print(f" xG-REGRESSION SIGNAL VALIDITY  (n={n} team-matches, K={K} trailing)")
@@ -82,15 +86,25 @@ def main():
     print(f" UNLUCKY next-PPG minus LUCKY next-PPG = {diff:+.3f}")
     if diff > 0.10:
         print(" -> SIGNAL PRESENT: unlucky teams out-point lucky teams next match.")
-        print("    Justifies the odds-join backtest (settle at soft-early & close; need a")
+        print(
+            "    Justifies the odds-join backtest (settle at soft-early & close; need a"
+        )
         print("    monotone-positive selectivity sweep before betting).")
     elif diff > 0.0:
         print(" -> WEAK/INCONCLUSIVE: small positive; more data + odds test needed.")
     else:
-        print(" -> NO SIGNAL: unlucky teams do NOT out-point lucky teams. Likely a dead")
-        print("    end for betting — the market already prices xG. Lean toward discarding #7.")
-    print("\n NOTE: predictive validity is necessary but NOT sufficient for +EV — the market")
-    print(" may already price it. Only the odds-join selectivity sweep proves a betting edge.")
+        print(
+            " -> NO SIGNAL: unlucky teams do NOT out-point lucky teams. Likely a dead"
+        )
+        print(
+            "    end for betting — the market already prices xG. Lean toward discarding #7."
+        )
+    print(
+        "\n NOTE: predictive validity is necessary but NOT sufficient for +EV — the market"
+    )
+    print(
+        " may already price it. Only the odds-join selectivity sweep proves a betting edge."
+    )
 
 
 if __name__ == "__main__":

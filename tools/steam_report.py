@@ -11,14 +11,20 @@ This is a SHADOW research ledger — separate from the model bet path; it stakes
 
 Run:  .venv\\Scripts\\python.exe tools\\steam_report.py
 """
+
 import os
 import sqlite3
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-DB = os.path.join(os.path.dirname(__file__), "..", "data",
-                  "deepfield_browser_data", "completed_fixtures.db")
+DB = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "data",
+    "deepfield_browser_data",
+    "completed_fixtures.db",
+)
 BETLOG = os.path.join(os.path.dirname(__file__), "..", "data", "bet_log.db")
 
 
@@ -29,8 +35,12 @@ def report_staked_steam():
     con = sqlite3.connect(BETLOG)
     con.row_factory = sqlite3.Row
     try:
-        rows = [dict(r) for r in con.execute(
-            "SELECT result, stake, pnl, edge_pct FROM bet_log WHERE bet_source='STEAM'")]
+        rows = [
+            dict(r)
+            for r in con.execute(
+                "SELECT result, stake, pnl, edge_pct FROM bet_log WHERE bet_source='STEAM'"
+            )
+        ]
     except sqlite3.OperationalError:
         con.close()
         return
@@ -44,9 +54,13 @@ def report_staked_steam():
     if settled:
         staked = sum(r["stake"] or 0 for r in settled)
         pnl = sum(r["pnl"] or 0 for r in settled)
-        wins = sum(1 for r in settled if str(r["result"]).upper() in ("W", "WIN", "WON"))
+        wins = sum(
+            1 for r in settled if str(r["result"]).upper() in ("W", "WIN", "WON")
+        )
         roi = pnl / staked if staked else 0
-        print(f"  hit: {wins/len(settled):.1%}  | staked: {staked:.2f}  | pnl: {pnl:+.2f}  | ROI: {roi:+.1%}")
+        print(
+            f"  hit: {wins/len(settled):.1%}  | staked: {staked:.2f}  | pnl: {pnl:+.2f}  | ROI: {roi:+.1%}"
+        )
 
 
 def _outcome_of(selection, hs, as_):
@@ -68,18 +82,24 @@ def main():
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
     try:
-        sigs = [dict(r) for r in con.execute(
-            "SELECT * FROM steam_signals ORDER BY detected_at")]
+        sigs = [
+            dict(r)
+            for r in con.execute("SELECT * FROM steam_signals ORDER BY detected_at")
+        ]
     except sqlite3.OperationalError:
-        print("No steam_signals table yet — the daemon hasn't captured any steam picks.")
+        print(
+            "No steam_signals table yet — the daemon hasn't captured any steam picks."
+        )
         con.close()
         report_staked_steam()
         return
     con.close()
 
     if not sigs:
-        print("steam_signals is empty. Run the daemon so it can capture line moves "
-              "(needs >=2 odds snapshots per fixture before a move is visible).")
+        print(
+            "steam_signals is empty. Run the daemon so it can capture line moves "
+            "(needs >=2 odds snapshots per fixture before a move is visible)."
+        )
         report_staked_steam()
         return
 
@@ -90,8 +110,12 @@ def main():
     by_lg = {}
     for s in sigs:
         by_lg[s["league"]] = by_lg.get(s["league"], 0) + 1
-    print("  by league: " + ", ".join(f"{k}:{v}" for k, v in sorted(by_lg.items(),
-                                                                     key=lambda x: -x[1])[:8]))
+    print(
+        "  by league: "
+        + ", ".join(
+            f"{k}:{v}" for k, v in sorted(by_lg.items(), key=lambda x: -x[1])[:8]
+        )
+    )
 
     # Settle against finished scores.
     try:
@@ -123,13 +147,19 @@ def main():
 
     print(f"\n=== SETTLED (flat 1u, entry price) ===")
     if n:
-        print(f"  settled: {n}  | hit: {w/n:.1%}  | pnl: {pnl:+.2f}u  | ROI: {pnl/n:+.1%}")
+        print(
+            f"  settled: {n}  | hit: {w/n:.1%}  | pnl: {pnl:+.2f}u  | ROI: {pnl/n:+.1%}"
+        )
     else:
         print("  none settled yet.")
     print(f"  pending (no result yet): {pending}")
     report_staked_steam()
-    print("\nThis is the live confirmation of the backtested steam edge. Accumulate a few")
-    print("hundred settled signals before trusting the ROI; the backtest said +8.8% @ >=3%.")
+    print(
+        "\nThis is the live confirmation of the backtested steam edge. Accumulate a few"
+    )
+    print(
+        "hundred settled signals before trusting the ROI; the backtest said +8.8% @ >=3%."
+    )
 
 
 if __name__ == "__main__":

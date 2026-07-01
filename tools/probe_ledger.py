@@ -1,4 +1,5 @@
 """Probe the arena ledger DB and bet_log to understand what bets exist."""
+
 import sqlite3, os, sys
 
 BASE = os.path.join(os.path.dirname(__file__), "..")

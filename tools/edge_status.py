@@ -16,6 +16,7 @@ gate: keep Betarabia in shadow/paper until a strategy prints GO here.
 
 Run:  .venv\\Scripts\\python.exe tools\\edge_status.py
 """
+
 import os
 import math
 import sqlite3
@@ -23,8 +24,8 @@ import sqlite3
 DB = os.path.join(os.path.dirname(__file__), "..", "data", "bet_log.db")
 
 # --- Readiness thresholds (deliberately conservative) ----------------------
-MIN_SETTLED_WITH_CLV = 100   # CLV stabilizes around here; fewer = still noise
-Z = 1.96                     # 95% confidence
+MIN_SETTLED_WITH_CLV = 100  # CLV stabilizes around here; fewer = still noise
+Z = 1.96  # 95% confidence
 # Bets before this date were placed against STALE Betarabia odds (the scraper
 # destroy-before-rebuild bug, fixed 2026-06-15) and/or hash-settled props, so their
 # results are noise. The gate judges only the clean era. Bump this if a later data
@@ -42,8 +43,11 @@ CANDIDATES = [
 
 
 def _settled(rows):
-    return [r for r in rows if str(r.get("result", "")).upper() in
-            ("W", "L", "WIN", "LOSS", "WON", "LOST")]
+    return [
+        r
+        for r in rows
+        if str(r.get("result", "")).upper() in ("W", "L", "WIN", "LOSS", "WON", "LOST")
+    ]
 
 
 def _mean_ci(values):
@@ -67,20 +71,28 @@ def _roi(group):
 
 def _verdict(n_clv, clv_mean, clv_lo):
     if n_clv < MIN_SETTLED_WITH_CLV:
-        return ("WAIT",
-                f"only {n_clv}/{MIN_SETTLED_WITH_CLV} settled bets have CLV - "
-                f"too few to judge. Keep accumulating shadow data.")
+        return (
+            "WAIT",
+            f"only {n_clv}/{MIN_SETTLED_WITH_CLV} settled bets have CLV - "
+            f"too few to judge. Keep accumulating shadow data.",
+        )
     if clv_lo > 0:
-        return ("GO",
-                "CLV is positive even at the 95% lower bound - a genuine, "
-                "statistically-supported edge. Real money is justified.")
+        return (
+            "GO",
+            "CLV is positive even at the 95% lower bound - a genuine, "
+            "statistically-supported edge. Real money is justified.",
+        )
     if clv_mean > 0:
-        return ("LEAN",
-                "average CLV is positive but not yet significant. Promising - "
-                "keep accumulating; do NOT arm real money yet.")
-    return ("NO-GO",
-            "CLV is <= 0 - you are not beating the close. This strategy is "
-            "-EV; do NOT put real money on it regardless of recent P&L.")
+        return (
+            "LEAN",
+            "average CLV is positive but not yet significant. Promising - "
+            "keep accumulating; do NOT arm real money yet.",
+        )
+    return (
+        "NO-GO",
+        "CLV is <= 0 - you are not beating the close. This strategy is "
+        "-EV; do NOT put real money on it regardless of recent P&L.",
+    )
 
 
 def main():
@@ -98,14 +110,21 @@ def main():
 
     print("=" * 70)
     print(" EDGE-READINESS GATE  -  may we bet real money on Betarabia yet?")
-    print(f" Rule: need >= {MIN_SETTLED_WITH_CLV} settled bets w/ CLV, and CLV > 0 at 95% CI.")
-    print(f" Clean era >= {CLEAN_ERA_START}  ({excluded} pre-fix bets excluded as noise).")
+    print(
+        f" Rule: need >= {MIN_SETTLED_WITH_CLV} settled bets w/ CLV, and CLV > 0 at 95% CI."
+    )
+    print(
+        f" Clean era >= {CLEAN_ERA_START}  ({excluded} pre-fix bets excluded as noise)."
+    )
     print("=" * 70)
 
     any_go = False
     for src, mkt, label in CANDIDATES:
-        grp = [r for r in rows if (r.get("bet_source") == src
-                                   and r.get("market_type") == mkt)]
+        grp = [
+            r
+            for r in rows
+            if (r.get("bet_source") == src and r.get("market_type") == mkt)
+        ]
         settled = _settled(grp)
         # PRIMARY scoreboard = CLV vs the SHARP (Pinnacle) close (clv_sharp). The Betarabia
         # self-CLV (clv) is self-referential and shown only as a secondary diagnostic. The
@@ -118,24 +137,39 @@ def main():
         self_clvs = [float(r["clv"]) for r in settled if r.get("clv") is not None]
         self_mean = (sum(self_clvs) / len(self_clvs)) if self_clvs else None
         roi, staked, pnl = _roi(settled)
-        wr = (sum(1 for r in settled if str(r["result"]).upper().startswith("W"))
-              / len(settled)) if settled else 0.0
+        wr = (
+            (
+                sum(1 for r in settled if str(r["result"]).upper().startswith("W"))
+                / len(settled)
+            )
+            if settled
+            else 0.0
+        )
 
         tag, why = _verdict(len(with_clv), clv_mean, clv_lo)
         any_go = any_go or tag == "GO"
 
         print(f"\n[{tag}]  {label}   (source={src})")
         print(f"   settled bets ........ {len(settled)}   (open excluded)")
-        print(f"   with SHARP CLV ...... {len(with_clv)}   (vs Pinnacle close - the real test)")
+        print(
+            f"   with SHARP CLV ...... {len(with_clv)}   (vs Pinnacle close - the real test)"
+        )
         if clvs:
-            ci = (f"(95% CI {clv_lo:+.2%} .. {clv_mean + clv_half:+.2%})"
-                  if math.isfinite(clv_half) else "(CI n/a - need >=2 bets)")
+            ci = (
+                f"(95% CI {clv_lo:+.2%} .. {clv_mean + clv_half:+.2%})"
+                if math.isfinite(clv_half)
+                else "(CI n/a - need >=2 bets)"
+            )
             print(f"   avg SHARP CLV ....... {clv_mean:+.2%}   {ci}")
             print(f"   beat-close rate ..... {beat:.1%}")
         if self_mean is not None:
-            print(f"   (self-CLV vs Betarabia: {self_mean:+.2%}  [diagnostic only, {len(self_clvs)} bets])")
-        print(f"   realized ROI ........ {roi:+.1%}   "
-              f"(staked ${staked:,.0f}, pnl ${pnl:+,.0f})")
+            print(
+                f"   (self-CLV vs Betarabia: {self_mean:+.2%}  [diagnostic only, {len(self_clvs)} bets])"
+            )
+        print(
+            f"   realized ROI ........ {roi:+.1%}   "
+            f"(staked ${staked:,.0f}, pnl ${pnl:+,.0f})"
+        )
         print(f"   win rate ............ {wr:.1%}")
         print(f"   -> {why}")
 

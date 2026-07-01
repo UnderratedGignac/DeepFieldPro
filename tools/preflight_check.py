@@ -1,7 +1,10 @@
 """Quick pre-flight check run by START_ALL.bat."""
+
 import os, sys
+
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except Exception:
     pass
@@ -13,14 +16,22 @@ else:
     print("  [warn] STAIR_AI_API_KEY missing in .env")
     ok = False
 
-if all(os.getenv(k) for k in ["BETFAIR_USERNAME", "BETFAIR_PASSWORD", "BETFAIR_APP_KEY"]):
+if all(
+    os.getenv(k) for k in ["BETFAIR_USERNAME", "BETFAIR_PASSWORD", "BETFAIR_APP_KEY"]
+):
     print("  [ok] Betfair credentials present (activate at betfair.com)")
 else:
     print("  [info] Betfair not configured -- line-shopping limited to Pinnacle only")
 
 if os.path.exists("data/history.db"):
     import sqlite3
-    cols = [r[1] for r in sqlite3.connect("data/history.db").execute("PRAGMA table_info(matches)")]
+
+    cols = [
+        r[1]
+        for r in sqlite3.connect("data/history.db").execute(
+            "PRAGMA table_info(matches)"
+        )
+    ]
     if "referee" in cols:
         print("  [ok] history.db has referee data")
     else:

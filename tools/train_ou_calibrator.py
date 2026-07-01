@@ -11,6 +11,7 @@ The daemon's O/U path applies it the same way _calibrate_1x2 does for 1X2.
 
 Run:  .venv\\Scripts\\python.exe tools\\train_ou_calibrator.py
 """
+
 import datetime
 import json
 import math
@@ -47,7 +48,7 @@ def _parse_ord(s):
 
 
 def _pois(k, lam):
-    return math.exp(-lam) * lam ** k / math.factorial(k)
+    return math.exp(-lam) * lam**k / math.factorial(k)
 
 
 def p_over25(lam, mu):
@@ -65,6 +66,7 @@ def p_over25(lam, mu):
 def collect_from_history():
     """Walk-forward DC O/U predictions -> (model P(over), over) pairs."""
     from src.models.dixon_coles import fit_league
+
     con = sqlite3.connect(HIST)
     con.row_factory = sqlite3.Row
     rows = [dict(r) for r in con.execute("SELECT * FROM matches")]
@@ -82,8 +84,14 @@ def collect_from_history():
                 o = _parse_ord(r["date"])
                 if o:
                     by_lg.setdefault(r["league"], []).append(
-                        {"home": r["home"], "away": r["away"],
-                         "hg": r["home_goals"], "ag": r["away_goals"], "ordinal": o})
+                        {
+                            "home": r["home"],
+                            "away": r["away"],
+                            "hg": r["home_goals"],
+                            "ag": r["away_goals"],
+                            "ordinal": o,
+                        }
+                    )
         models = {lg: fit_league(ms) for lg, ms in by_lg.items()}
         for r in rows:
             if r["season"] != test_s:
@@ -91,7 +99,11 @@ def collect_from_history():
             m = models.get(r["league"])
             if not m or r["home"] not in m["teams"] or r["away"] not in m["teams"]:
                 continue
-            lam = math.exp(m["teams"][r["home"]]["att"] + m["teams"][r["away"]]["def"] + m["home_adv"])
+            lam = math.exp(
+                m["teams"][r["home"]]["att"]
+                + m["teams"][r["away"]]["def"]
+                + m["home_adv"]
+            )
             mu = math.exp(m["teams"][r["away"]]["att"] + m["teams"][r["home"]]["def"])
             po = p_over25(lam, mu)
             X.append(po)
@@ -101,12 +113,14 @@ def collect_from_history():
 
 def reliability(X, Y, fn, label):
     print(f"  {label}")
-    for lo, hi in [(0, .35), (.35, .45), (.45, .55), (.55, .65), (.65, 1.01)]:
+    for lo, hi in [(0, 0.35), (0.35, 0.45), (0.45, 0.55), (0.55, 0.65), (0.65, 1.01)]:
         idx = [i for i in range(len(X)) if lo <= X[i] < hi]
         if idx:
             pred = sum(fn(X[i]) for i in idx) / len(idx)
             act = sum(Y[i] for i in idx) / len(idx)
-            print(f"    {lo:4.0%}-{hi:4.0%} n={len(idx):5d} pred={pred:5.1%} actual={act:5.1%}")
+            print(
+                f"    {lo:4.0%}-{hi:4.0%} n={len(idx):5d} pred={pred:5.1%} actual={act:5.1%}"
+            )
 
 
 def main():
@@ -115,8 +129,10 @@ def main():
     if n < 200:
         print("Too few samples (need history.db + dixon_coles.json); aborting.")
         return
-    print(f"Calibration source: history (Dixon-Coles, walk-forward) | samples: {n} | "
-          f"base over-rate: {np.mean(Y):.1%} | mean raw P(over): {np.mean(X):.1%}\n")
+    print(
+        f"Calibration source: history (Dixon-Coles, walk-forward) | samples: {n} | "
+        f"base over-rate: {np.mean(Y):.1%} | mean raw P(over): {np.mean(X):.1%}\n"
+    )
 
     Z = np.array([[logit(p)] for p in X])
     clf = LogisticRegression(C=1.0)
@@ -124,13 +140,28 @@ def main():
     a, b = float(clf.intercept_[0]), float(clf.coef_[0][0])
     cal = lambda p: sigmoid(a + b * logit(p))
 
-    print("BEFORE (raw):"); reliability(X, Y, lambda p: p, "identity")
-    print("AFTER  (calibrated):"); reliability(X, Y, cal, "platt")
-    print("\n  mapping: " + " ".join(f"{p:.0%}->{cal(p):.0%}" for p in (.3, .4, .5, .6, .7)))
+    print("BEFORE (raw):")
+    reliability(X, Y, lambda p: p, "identity")
+    print("AFTER  (calibrated):")
+    reliability(X, Y, cal, "platt")
+    print(
+        "\n  mapping: "
+        + " ".join(f"{p:.0%}->{cal(p):.0%}" for p in (0.3, 0.4, 0.5, 0.6, 0.7))
+    )
 
     with open(OUT, "w", encoding="utf-8") as f:
-        json.dump({"type": "platt", "market": "OU25", "a": a, "b": b,
-                   "n_train": n, "source": "history (Dixon-Coles, walk-forward)"}, f, indent=2)
+        json.dump(
+            {
+                "type": "platt",
+                "market": "OU25",
+                "a": a,
+                "b": b,
+                "n_train": n,
+                "source": "history (Dixon-Coles, walk-forward)",
+            },
+            f,
+            indent=2,
+        )
     print(f"\nSaved -> {os.path.relpath(OUT)}")
 
 

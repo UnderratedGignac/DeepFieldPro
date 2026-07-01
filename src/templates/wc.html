@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WC 2026 Winner Predictor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+  :root {
+    --bg: #0f1216;
+    --surface: #1a1f2e;
+    --surface2: #222839;
+    --border: #2a3044;
+    --primary: #00d4ff;
+    --gold: #ffd700;
+    --silver: #c0c0c0;
+    --bronze: #cd7f32;
+    --green: #00e676;
+    --red: #ff5252;
+    --yellow: #ffeb3b;
+    --text: #e0e6f0;
+    --muted: #7a8099;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header h1 .flag-spin { font-size: 1.8rem; animation: spin 8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .meta-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .pill.live { border-color: var(--green); color: var(--green); }
+  .pill.sims { border-color: var(--primary); color: var(--primary); }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    color: var(--text);
+    font-size: 0.85rem;
+    outline: none;
+  }
+  .search-box:focus { border-color: var(--primary); }
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .filter-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(0,212,255,.08); }
+  .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .refresh-btn {
+    background: rgba(0,212,255,.12);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    color: var(--primary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .refresh-btn:hover { background: rgba(0,212,255,.22); }
+  .refresh-btn.spinning i { animation: spin .8s linear infinite; }
+
+  /* ── Layout ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 20px;
+  }
+  @media (max-width: 1100px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Team List ── */
+  .team-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .team-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all .18s;
+    position: relative;
+    overflow: hidden;
+  }
+  .team-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--bar-color, var(--primary));
+    border-radius: 3px 0 0 3px;
+  }
+  .team-card:hover, .team-card.selected {
+    border-color: var(--primary);
+    background: var(--surface2);
+  }
+  .team-card.rank-1::before  { background: var(--gold); }
+  .team-card.rank-2::before  { background: var(--silver); }
+  .team-card.rank-3::before  { background: var(--bronze); }
+
+  .team-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .rank-badge {
+    min-width: 28px;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .rank-badge.r1 { color: var(--gold); font-size: 1rem; }
+  .rank-badge.r2 { color: var(--silver); }
+  .rank-badge.r3 { color: var(--bronze); }
+
+  .team-flag { font-size: 1.5rem; line-height: 1; }
+  .team-name { font-weight: 600; font-size: 0.95rem; flex: 1; }
+  .confederation-tag {
+    font-size: 0.68rem;
+    color: var(--muted);
+    background: var(--surface2);
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+  .win-pct {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary);
+    min-width: 56px;
+    text-align: right;
+  }
+  .win-pct.top3 { color: var(--gold); }
+  .win-pct.top8 { color: var(--green); }
+
+  .bar-wrap {
+    margin-top: 8px;
+    margin-left: 40px;
+    background: var(--bg);
+    height: 5px;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--primary);
+    transition: width .6s ease;
+  }
+  .rank-1 .bar-fill { background: var(--gold); }
+  .rank-2 .bar-fill { background: var(--silver); }
+  .rank-3 .bar-fill { background: var(--bronze); }
+
+  /* ── Right panel: Team Detail ── */
+  .detail-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+  .detail-panel::-webkit-scrollbar { width: 6px; }
+  .detail-panel::-webkit-scrollbar-track { background: var(--bg); }
+  .detail-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-flag { font-size: 3rem; }
+  .detail-team-name { font-size: 1.3rem; font-weight: 700; }
+  .detail-win-pct { font-size: 2.2rem; font-weight: 800; color: var(--primary); }
+  .detail-win-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-box {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+  .stat-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+  .stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+
+  .reasoning-box {
+    background: rgba(0,212,255,.05);
+    border: 1px solid rgba(0,212,255,.2);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  /* ── Player Cards ── */
+  .players-section h4 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .player-list { display: flex; flex-direction: column; gap: 5px; }
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 7px 10px;
+    border: 1px solid transparent;
+    transition: border-color .15s;
+  }
+  .player-row:hover { border-color: var(--border); }
+  .player-rank { font-size: 0.7rem; color: var(--muted); min-width: 16px; text-align: right; }
+  .player-name { font-size: 0.82rem; font-weight: 600; flex: 1; }
+  .player-pos {
+    font-size: 0.65rem;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .pos-gk { background: rgba(255,235,59,.15); color: #ffeb3b; }
+  .pos-def { background: rgba(0,230,118,.12); color: #00e676; }
+  .pos-mid { background: rgba(0,212,255,.12); color: #00d4ff; }
+  .pos-att { background: rgba(255,82,82,.15); color: #ff5252; }
+  .player-rating { font-size: 0.82rem; font-weight: 700; min-width: 24px; text-align: right; }
+  .player-tier {
+    font-size: 0.65rem;
+    color: var(--muted);
+    min-width: 82px;
+    text-align: right;
+  }
+  .player-tier.elite { color: var(--gold); }
+  .player-tier.world-class { color: var(--primary); }
+
+  .bar-contrib {
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(0,212,255,.25);
+    margin-top: 3px;
+    overflow: hidden;
+  }
+  .bar-contrib-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 2px;
+  }
+
+  /* ── Data sources ── */
+  .sources-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .sources-section h5 {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .source-tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin: 2px 3px 2px 0;
+    color: var(--muted);
+  }
+
+  /* ── Loading / Error states ── */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .loading .spinner { font-size: 2.5rem; animation: spin .8s linear infinite; margin-bottom: 12px; }
+  .error-box {
+    background: rgba(255,82,82,.08);
+    border: 1px solid rgba(255,82,82,.3);
+    border-radius: var(--radius);
+    padding: 16px;
+    color: #ff5252;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+
+  /* ── Updated timestamp ── */
+  .updated-ts {
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-top: 12px;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>
+    <span class="flag-spin">🌍</span>
+    WC 2026 — Who's Gonna Win?
+    <span style="font-size:.75rem;color:var(--muted);font-weight:400;">Monte Carlo Prediction Engine</span>
+  </h1>
+  <div class="meta-pills" id="meta-pills">
+    <span class="pill">Loading…</span>
+  </div>
+</div>
+
+<div class="controls">
+  <input class="search-box" id="search" placeholder="🔍  Search team…" oninput="filterTeams()" />
+  <button class="filter-btn active" onclick="setFilter('all', this)">All Teams</button>
+  <button class="filter-btn" onclick="setFilter('UEFA', this)">UEFA</button>
+  <button class="filter-btn" onclick="setFilter('CONMEBOL', this)">CONMEBOL</button>
+  <button class="filter-btn" onclick="setFilter('CONCACAF', this)">CONCACAF</button>
+  <button class="filter-btn" onclick="setFilter('CAF', this)">CAF</button>
+  <button class="filter-btn" onclick="setFilter('AFC', this)">AFC</button>
+  <button class="refresh-btn" id="refresh-btn" onclick="refreshPredictions()">
+    <i class="fa-solid fa-rotate"></i> Refresh
+  </button>
+</div>
+
+<div id="main-grid" class="grid" style="display:none;">
+  <div>
+    <div id="team-list" class="team-list"></div>
+    <div class="updated-ts" id="updated-ts"></div>
+  </div>
+  <div class="detail-panel" id="detail-panel">
+    <div style="text-align:center;padding:40px 0;color:var(--muted);">
+      <i class="fa-solid fa-hand-pointer" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+      Click a team to see player-by-player analysis
+    </div>
+  </div>
+</div>
+
+<div id="loading-state" class="loading">
+  <div class="spinner"><i class="fa-solid fa-circle-notch"></i></div>
+  <div>Running 100,000-simulation Monte Carlo bracket…</div>
+</div>
+
+<div id="error-state" class="error-box" style="display:none;"></div>
+
+<script>
+let _data = null;
+let _selectedTeam = null;
+let _currentFilter = 'all';
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => { loadPredictions(); });
+
+function loadPredictions() {
+  document.getElementById('loading-state').style.display = '';
+  document.getElementById('main-grid').style.display = 'none';
+  document.getElementById('error-state').style.display = 'none';
+
+  fetch('/wc/api/predictions')
+    .then(r => r.json())
+    .then(json => {
+      if (!json.ok) throw new Error(json.error || 'Server error');
+      _data = json.data;
+      renderAll();
+    })
+    .catch(err => {
+      document.getElementById('loading-state').style.display = 'none';
+      const errEl = document.getElementById('error-state');
+      errEl.style.display = '';
+      errEl.textContent = '⚠ Could not load predictions: ' + err.message;
+    });
+}
+
+function refreshPredictions() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+
+  fetch('/wc/api/refresh', { method: 'POST' })
+    .then(r => r.json())
+    .then(json => {
+      if (!json.ok) throw new Error(json.error || 'Server error');
+      _data = json.data;
+      renderAll();
+    })
+    .catch(err => alert('Refresh failed: ' + err.message))
+    .finally(() => { btn.classList.remove('spinning'); btn.disabled = false; });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderAll() {
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('main-grid').style.display = '';
+
+  // Meta pills
+  const livePin = _data.live_pinnacle;
+  const pills = [
+    `<span class="pill sims"><i class="fa-solid fa-dice"></i> ${(_data.n_simulations||100000).toLocaleString()} sims</span>`,
+    `<span class="pill ${livePin?'live':''}"><i class="fa-solid fa-satellite-dish"></i> ${livePin?'Live Pinnacle odds':'Prior Pinnacle odds'}</span>`,
+    `<span class="pill"><i class="fa-solid fa-users"></i> ${_data.total_teams} teams</span>`,
+  ].join('');
+  document.getElementById('meta-pills').innerHTML = pills;
+
+  // Timestamp
+  if (_data.generated_at) {
+    const d = new Date(_data.generated_at * 1000);
+    document.getElementById('updated-ts').textContent = 'Updated: ' + d.toLocaleTimeString();
+  }
+
+  renderTeamList();
+
+  // Auto-select #1 team
+  if (!_selectedTeam && _data.teams.length > 0) {
+    selectTeam(_data.teams[0].name);
+  } else if (_selectedTeam) {
+    selectTeam(_selectedTeam);
+  }
+}
+
+function getVisibleTeams() {
+  if (!_data || !_data.teams) return [];
+  const search = (document.getElementById('search').value || '').toLowerCase();
+  return _data.teams.filter(t => {
+    const matchSearch = !search || t.name.toLowerCase().includes(search);
+    const matchFilter = _currentFilter === 'all' || t.confederation === _currentFilter;
+    return matchSearch && matchFilter;
+  });
+}
+
+function filterTeams() { renderTeamList(); }
+function setFilter(f, el) {
+  _currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderTeamList();
+}
+
+function renderTeamList() {
+  const teams = getVisibleTeams();
+  const maxPct = _data.teams[0]?.win_pct || 1;
+  const el = document.getElementById('team-list');
+
+  el.innerHTML = teams.map(t => {
+    const rankClass = t.rank === 1 ? 'rank-1' : t.rank === 2 ? 'rank-2' : t.rank === 3 ? 'rank-3' : '';
+    const rankLabel = t.rank === 1 ? '<span class="rank-badge r1">🥇</span>' :
+                      t.rank === 2 ? '<span class="rank-badge r2">🥈</span>' :
+                      t.rank === 3 ? '<span class="rank-badge r3">🥉</span>' :
+                      `<span class="rank-badge">${t.rank}</span>`;
+    const pctClass = t.rank <= 3 ? 'top3' : t.rank <= 8 ? 'top8' : '';
+    const barPct = Math.round(t.win_pct / maxPct * 100);
+    const isSelected = _selectedTeam === t.name ? 'selected' : '';
+
+    return `<div class="team-card ${rankClass} ${isSelected}" onclick="selectTeam('${esc(t.name)}')">
+      <div class="team-row">
+        ${rankLabel}
+        <span class="team-flag">${t.flag}</span>
+        <span class="team-name">${esc(t.name)}</span>
+        <span class="confederation-tag">${esc(t.confederation)}</span>
+        <span class="win-pct ${pctClass}">${t.win_pct.toFixed(2)}%</span>
+      </div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${barPct}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+function selectTeam(name) {
+  _selectedTeam = name;
+  // Highlight selection
+  document.querySelectorAll('.team-card').forEach(el => {
+    el.classList.toggle('selected', el.querySelector('.team-name')?.textContent === name);
+  });
+
+  const t = _data.teams.find(x => x.name === name);
+  if (!t) return;
+
+  const panel = document.getElementById('detail-panel');
+
+  const rankColor = t.rank === 1 ? 'var(--gold)' : t.rank <= 3 ? 'var(--silver)' : t.rank <= 8 ? 'var(--green)' : 'var(--primary)';
+
+  // Player rows
+  let playersHtml = '';
+  if (t.players && t.players.length > 0) {
+    playersHtml = `<div class="players-section">
+      <h4><i class="fa-solid fa-user-group"></i> Squad Breakdown (${t.players.length} players)</h4>
+      <div class="player-list">
+        ${t.players.map(p => {
+          const posClass = p.pos === 'GK' ? 'pos-gk' :
+                           ['CB','RB','LB','WB','FB'].includes(p.pos) ? 'pos-def' :
+                           ['CM','CDM','CAM','AM','DM'].includes(p.pos) ? 'pos-mid' : 'pos-att';
+          const tierClass = p.tier === 'Elite' ? 'elite' : p.tier === 'World Class' ? 'world-class' : '';
+          const barW = Math.min(100, Math.round(p.contribution_pct * 1.5));
+          return `<div class="player-row">
+            <span class="player-rank">${p.rank}</span>
+            <span class="player-name">${esc(p.name)}</span>
+            <span class="player-pos ${posClass}">${esc(p.pos)}</span>
+            <span class="player-rating" style="color:${p.rating>=89?'var(--gold)':p.rating>=86?'var(--primary)':'var(--text)'}">${p.rating}</span>
+            <span class="player-tier ${tierClass}">${esc(p.tier)}</span>
+          </div>
+          <div class="bar-contrib"><div class="bar-contrib-fill" style="width:${barW}%"></div></div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  } else {
+    playersHtml = `<div style="color:var(--muted);font-size:.82rem;padding:12px 0;">
+      Player data for this team will be enriched in future updates.
+    </div>`;
+  }
+
+  // Data sources
+  const sources = (_data.data_sources || []).map(s => `<span class="source-tag">${esc(s)}</span>`).join('');
+
+  panel.innerHTML = `
+    <div class="detail-header">
+      <div class="detail-flag">${t.flag}</div>
+      <div style="flex:1">
+        <div class="detail-team-name">${esc(t.name)}</div>
+        <div style="font-size:.75rem;color:var(--muted);">Rank #${t.rank} · ${esc(t.confederation)}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="detail-win-pct" style="color:${rankColor}">${t.win_pct.toFixed(2)}%</div>
+        <div class="detail-win-label">Tournament win probability</div>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-label"><i class="fa-solid fa-star"></i> Squad Rating</div>
+        <div class="stat-value">${t.squad_rating}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label"><i class="fa-solid fa-euro-sign"></i> Squad Value</div>
+        <div class="stat-value">€${(t.squad_value_m||0).toLocaleString()}M</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label"><i class="fa-solid fa-users"></i> Players on file</div>
+        <div class="stat-value">${t.players ? t.players.length : 0}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label"><i class="fa-solid fa-trophy"></i> Odds to win</div>
+        <div class="stat-value">${t.win_pct > 0 ? (100 / t.win_pct).toFixed(1) + 'x' : '—'}</div>
+      </div>
+    </div>
+
+    <div class="reasoning-box">
+      <i class="fa-solid fa-brain" style="color:var(--primary);margin-right:6px;"></i>
+      ${esc(t.reasoning)}
+    </div>
+
+    ${playersHtml}
+
+    <div class="sources-section">
+      <h5><i class="fa-solid fa-database"></i> Data Sources</h5>
+      ${sources}
+    </div>
+  `;
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

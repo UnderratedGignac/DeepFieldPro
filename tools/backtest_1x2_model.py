@@ -16,6 +16,7 @@ see tools/backtest_1x2_lines.py.
 
 Run:  .venv\\Scripts\\python.exe tools\\backtest_1x2_model.py
 """
+
 import datetime
 import math
 import os
@@ -38,7 +39,7 @@ def parse_ordinal(s):
 
 
 def pois(k, lam):
-    return math.exp(-lam) * lam ** k / math.factorial(k)
+    return math.exp(-lam) * lam**k / math.factorial(k)
 
 
 def poisson_1x2(lam, mu, n=10):
@@ -46,15 +47,22 @@ def poisson_1x2(lam, mu, n=10):
     for i in range(n + 1):
         for j in range(n + 1):
             p = pois(i, lam) * pois(j, mu)
-            if i > j: ph += p
-            elif i == j: pd += p
-            else: pa += p
+            if i > j:
+                ph += p
+            elif i == j:
+                pd += p
+            else:
+                pa += p
     t = ph + pd + pa
     return ph / t, pd / t, pa / t
 
 
 # Old heuristic's three fixed outputs (plain Poisson, no DC correction).
-HEUR = {"H": poisson_1x2(2.1, 0.8), "A": poisson_1x2(0.8, 2.1), "D": poisson_1x2(1.2, 1.2)}
+HEUR = {
+    "H": poisson_1x2(2.1, 0.8),
+    "A": poisson_1x2(0.8, 2.1),
+    "D": poisson_1x2(1.2, 1.2),
+}
 
 
 def devig(oh, od, oa):
@@ -80,8 +88,14 @@ def main():
             o = parse_ordinal(r["date"])
             if o:
                 by_league_train.setdefault(r["league"], []).append(
-                    {"home": r["home"], "away": r["away"],
-                     "hg": r["home_goals"], "ag": r["away_goals"], "ordinal": o})
+                    {
+                        "home": r["home"],
+                        "away": r["away"],
+                        "hg": r["home_goals"],
+                        "ag": r["away_goals"],
+                        "ordinal": o,
+                    }
+                )
     models = {}
     for lg, ms in by_league_train.items():
         p = fit_league(ms)
@@ -89,9 +103,15 @@ def main():
             models[lg] = p
 
     # evaluate on test season
-    agg = {k: {"ll": 0.0, "brier": 0.0, "n": 0} for k in ("dixon-coles", "heuristic", "market")}
-    bets = {k: {"staked": 0.0, "pnl": 0.0, "n": 0, "w": 0} for k in ("dixon-coles", "heuristic")}
-    THRESH = 0.03   # require 3% model edge over the market price to bet
+    agg = {
+        k: {"ll": 0.0, "brier": 0.0, "n": 0}
+        for k in ("dixon-coles", "heuristic", "market")
+    }
+    bets = {
+        k: {"staked": 0.0, "pnl": 0.0, "n": 0, "w": 0}
+        for k in ("dixon-coles", "heuristic")
+    }
+    THRESH = 0.03  # require 3% model edge over the market price to bet
 
     for r in rows:
         if r["season"] != test_season:
@@ -110,18 +130,27 @@ def main():
             continue
         oi = {"H": 0, "D": 1, "A": 2}[outcome]
 
-        dc = predict_1x2_from_params(lg["teams"][h]["att"], lg["teams"][h]["def"],
-                                     lg["teams"][a]["att"], lg["teams"][a]["def"],
-                                     lg["home_adv"], lg["rho"])
+        dc = predict_1x2_from_params(
+            lg["teams"][h]["att"],
+            lg["teams"][h]["def"],
+            lg["teams"][a]["att"],
+            lg["teams"][a]["def"],
+            lg["home_adv"],
+            lg["rho"],
+        )
         mkt = devig(oh, od, oa)
-        fav = "H" if mkt[0] >= max(mkt[1], mkt[2]) else ("A" if mkt[2] >= mkt[1] else "D")
+        fav = (
+            "H" if mkt[0] >= max(mkt[1], mkt[2]) else ("A" if mkt[2] >= mkt[1] else "D")
+        )
         heur = HEUR[fav]
 
         preds = {"dixon-coles": dc, "heuristic": heur, "market": mkt}
         for name, p in preds.items():
             p = [max(1e-9, min(1 - 1e-9, x)) for x in p]
             agg[name]["ll"] += -math.log(p[oi])
-            agg[name]["brier"] += sum((p[k] - (1 if k == oi else 0)) ** 2 for k in range(3))
+            agg[name]["brier"] += sum(
+                (p[k] - (1 if k == oi else 0)) ** 2 for k in range(3)
+            )
             agg[name]["n"] += 1
 
         # betting at the EARLY Pinnacle line (PSH/PSD/PSA = early, not closing)
@@ -143,18 +172,30 @@ def main():
     for name in ("market", "dixon-coles", "heuristic"):
         s = agg[name]
         if s["n"]:
-            print(f"{name:14s} {s['n']:5d} {s['ll']/s['n']:9.4f} {s['brier']/s['n']:7.4f}")
+            print(
+                f"{name:14s} {s['n']:5d} {s['ll']/s['n']:9.4f} {s['brier']/s['n']:7.4f}"
+            )
     print("(market is the benchmark; DC should beat heuristic and approach market)")
 
-    print("\n=== BETTING AT THE EARLY PINNACLE LINE (see backtest_1x2_lines.py for close+CLV) ===")
-    print(f"{'model':14s} {'bets':>5s} {'hit':>6s} {'staked':>8s} {'pnl':>8s} {'roi':>8s}")
+    print(
+        "\n=== BETTING AT THE EARLY PINNACLE LINE (see backtest_1x2_lines.py for close+CLV) ==="
+    )
+    print(
+        f"{'model':14s} {'bets':>5s} {'hit':>6s} {'staked':>8s} {'pnl':>8s} {'roi':>8s}"
+    )
     for name in ("dixon-coles", "heuristic"):
         b = bets[name]
         roi = b["pnl"] / b["staked"] if b["staked"] else 0
         hit = b["w"] / b["n"] if b["n"] else 0
-        print(f"{name:14s} {b['n']:5d} {hit:6.1%} {b['staked']:8.0f} {b['pnl']:+8.1f} {roi:+8.1%}")
-    print("\nNote: this is the EARLY Pinnacle line (the price you can actually take). The")
-    print("closing-line benchmark and CLV — the real edge test — are in backtest_1x2_lines.py.")
+        print(
+            f"{name:14s} {b['n']:5d} {hit:6.1%} {b['staked']:8.0f} {b['pnl']:+8.1f} {roi:+8.1%}"
+        )
+    print(
+        "\nNote: this is the EARLY Pinnacle line (the price you can actually take). The"
+    )
+    print(
+        "closing-line benchmark and CLV — the real edge test — are in backtest_1x2_lines.py."
+    )
 
 
 if __name__ == "__main__":

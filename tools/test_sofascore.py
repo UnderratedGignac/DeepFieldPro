@@ -1,5 +1,7 @@
 """Test Sofascore API with different approaches."""
+
 import sys, io, datetime
+
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 date = "2026-06-17"
@@ -24,12 +26,15 @@ HEADERS = {
 print("=== Test 0: curl_cffi (Chrome TLS impersonation) ===")
 try:
     from curl_cffi import requests as curl_requests
+
     r = curl_requests.get(url, headers=HEADERS, impersonate="chrome120", timeout=20)
     print(f"Status: {r.status_code}")
     if r.status_code == 200:
         data = r.json()
         events = data.get("events", [])
-        finished = [e for e in events if (e.get("status") or {}).get("type") == "finished"]
+        finished = [
+            e for e in events if (e.get("status") or {}).get("type") == "finished"
+        ]
         print(f"Total events: {len(events)}, finished: {len(finished)}")
         for e in finished[:5]:
             h = (e.get("homeTeam") or {}).get("name", "?")
@@ -46,13 +51,16 @@ print()
 print("=== Test 1: httpx with HTTP/2 ===")
 try:
     import httpx
+
     with httpx.Client(http2=True, timeout=20, follow_redirects=True) as client:
         r = client.get(url, headers=HEADERS)
         print(f"Status: {r.status_code}")
         if r.status_code == 200:
             data = r.json()
             events = data.get("events", [])
-            finished = [e for e in events if (e.get("status") or {}).get("type") == "finished"]
+            finished = [
+                e for e in events if (e.get("status") or {}).get("type") == "finished"
+            ]
             print(f"Total events: {len(events)}, finished: {len(finished)}")
             for e in finished[:3]:
                 h = (e.get("homeTeam") or {}).get("name", "?")
@@ -69,15 +77,22 @@ print()
 print("=== Test 2: requests with session ===")
 try:
     import requests
+
     s = requests.Session()
     # First visit the main page to get cookies
-    s.get("https://www.sofascore.com/", headers={"User-Agent": HEADERS["User-Agent"]}, timeout=10)
+    s.get(
+        "https://www.sofascore.com/",
+        headers={"User-Agent": HEADERS["User-Agent"]},
+        timeout=10,
+    )
     r = s.get(url, headers=HEADERS, timeout=15)
     print(f"Status: {r.status_code}")
     if r.status_code == 200:
         data = r.json()
         events = data.get("events", [])
-        finished = [e for e in events if (e.get("status") or {}).get("type") == "finished"]
+        finished = [
+            e for e in events if (e.get("status") or {}).get("type") == "finished"
+        ]
         print(f"Total events: {len(events)}, finished: {len(finished)}")
     else:
         print(f"Body: {r.text[:200]}")
@@ -88,13 +103,16 @@ print()
 print("=== Test 3: sofascore.app mobile API ===")
 try:
     import requests
+
     app_url = f"https://api.sofascore.app/api/v1/sport/football/scheduled-events/{date}"
     r = requests.get(app_url, headers=HEADERS, timeout=15)
     print(f"Status: {r.status_code}")
     if r.status_code == 200:
         data = r.json()
         events = data.get("events", [])
-        finished = [e for e in events if (e.get("status") or {}).get("type") == "finished"]
+        finished = [
+            e for e in events if (e.get("status") or {}).get("type") == "finished"
+        ]
         print(f"Total: {len(events)} events, {len(finished)} finished")
         for e in finished[:3]:
             h = (e.get("homeTeam") or {}).get("name", "?")

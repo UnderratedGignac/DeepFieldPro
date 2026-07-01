@@ -11,6 +11,7 @@ PAPER ONLY — does not touch the real-money Arena wallet. Safe to run.
 
 Run:  .venv\\Scripts\\python.exe tools\\reset_paper_bankroll.py [--balance 1000]
 """
+
 import argparse
 import os
 import sqlite3
@@ -21,8 +22,12 @@ DB = os.path.join(os.path.dirname(__file__), "..", "data", "bankroll.db")
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--balance", type=float, default=None,
-                    help="liquid balance to restore (default: current starting_balance)")
+    ap.add_argument(
+        "--balance",
+        type=float,
+        default=None,
+        help="liquid balance to restore (default: current starting_balance)",
+    )
     args = ap.parse_args()
 
     con = sqlite3.connect(DB)
@@ -36,18 +41,24 @@ def main():
     today = datetime.date.today().isoformat()
 
     con.execute(
-        "UPDATE bankroll SET current_balance = ?, daily_exposure = 0, daily_pnl = 0, "
+        "UPDATE bankroll SET current_balance = ?, starting_balance = ?, daily_exposure = 0, daily_pnl = 0, "
         "peak_balance = MAX(peak_balance, ?), system_status = 'ACTIVE' WHERE id = ?",
-        (target, target, row["id"]),
+        (target, target, target, row["id"]),
     )
     # ensure today's date row reflects the reset (register_bet keys on date)
     con.execute("UPDATE bankroll SET date = ? WHERE id = ?", (today, row["id"]))
     con.commit()
-    after = dict(con.execute("SELECT * FROM bankroll ORDER BY id DESC LIMIT 1").fetchone())
+    after = dict(
+        con.execute("SELECT * FROM bankroll ORDER BY id DESC LIMIT 1").fetchone()
+    )
     con.close()
-    print(f"Paper bankroll reset: liquid balance ${row['current_balance']:.2f} -> "
-          f"${after['current_balance']:.2f} (date {after['date']}, status {after['system_status']})")
-    print("The running daemon will resume placing disciplined (1X2-only) paper bets on its next sweep.")
+    print(
+        f"Paper bankroll reset: liquid balance ${row['current_balance']:.2f} -> "
+        f"${after['current_balance']:.2f} (date {after['date']}, status {after['system_status']})"
+    )
+    print(
+        "The running daemon will resume placing disciplined (1X2-only) paper bets on its next sweep."
+    )
 
 
 if __name__ == "__main__":

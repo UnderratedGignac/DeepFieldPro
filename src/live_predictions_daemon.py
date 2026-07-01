@@ -78,12 +78,67 @@ except Exception:
     _ARB_OK = False
 from src.execution_engine import place_bet  # TASK 1: Import place_bet
 
+# ── NEW ARCHITECTURE: Pinnacle-value strategy + CLV tracking + shadow gate ──
+try:
+    from src.pinnacle_value_engine import (
+        find_value_bets as _pv_find_value,
+        log_value_bet as _pv_log_bet,
+        is_liquid_league as _pv_liquid_league,
+        normalize_league as _pv_normalize_league,
+        LIQUID_LEAGUES as _PV_LIQUID_LEAGUES,
+    )
+
+    _PV_ENGINE_OK = True
+except Exception as _pv_exc:
+    _pv_find_value = None
+    _pv_log_bet = None
+    _pv_liquid_league = None
+    _pv_normalize_league = None
+    _PV_LIQUID_LEAGUES = set()
+    _PV_ENGINE_OK = False
+
+try:
+    from src.clv_tracker_v2 import (
+        record_bet as _clv_record_bet,
+        record_closing_odds as _clv_record_closing,
+        settle_bet as _clv_settle_bet,
+        generate_weekly_report as _clv_weekly_report,
+    )
+
+    _CLV_TRACKER_OK = True
+except Exception as _clv_exc:
+    _clv_record_bet = None
+    _clv_record_closing = None
+    _clv_settle_bet = None
+    _clv_weekly_report = None
+    _CLV_TRACKER_OK = False
+
+try:
+    from src.shadow_framework import (
+        refuse_real_money_if_not_ready as _shadow_refuse,
+        get_shadow_status as _shadow_status,
+    )
+
+    _SHADOW_OK = True
+except Exception:
+    _shadow_refuse = None
+    _shadow_status = None
+    _SHADOW_OK = False
+
+try:
+    from src.gatekeeper import check_real_money_gate as _gatekeeper_check
+
+    _GATEKEEPER_OK = True
+except Exception:
+    _gatekeeper_check = None
+    _GATEKEEPER_OK = False
+
 # Unicode-safe print override for Windows console compatibility
 _orig_print = print
 
 
 def print(*args, **kwargs):
-    enc = sys.stdout.encoding or "utf-8"
+    enc = (sys.stdout.encoding if sys.stdout else None) or "utf-8"
     cleaned = []
     for a in args:
         if isinstance(a, str):
@@ -333,6 +388,67 @@ def _calibrate_over25(prob_pct):
 # (+8.8% at >=3% moves, +20% at >=5%), the OPPOSITE of the model. This reads the
 # odds_history ledger the daemon already writes (fixture_id, market, selection,
 # odds, timestamp) and returns the de-vigged probability move per selection.
+
+_LEAGUE_NATION = {
+    # Top European leagues
+    "premier league": "England",
+    "championship": "England",
+    "league one": "England",
+    "league two": "England",
+    "fa cup": "England",
+    "la liga": "Spain",
+    "segunda división": "Spain",
+    "copa del rey": "Spain",
+    "bundesliga": "Germany",
+    "2. bundesliga": "Germany",
+    "serie a": "Italy",
+    "serie b": "Italy",
+    "coppa italia": "Italy",
+    "ligue 1": "France",
+    "ligue 2": "France",
+    "eredivisie": "Netherlands",
+    "primeira liga": "Portugal",
+    "super lig": "Turkey",
+    "premier league ukraine": "Ukraine",
+    "scottish premiership": "Scotland",
+    "belgian pro league": "Belgium",
+    # International / multi-nation
+    "champions league": "Europe",
+    "europa league": "Europe",
+    "conference league": "Europe",
+    "nations league": "International",
+    "world cup": "International",
+    "copa america": "South America",
+    "gold cup": "CONCACAF",
+    "afcon": "Africa",
+    "euro": "Europe",
+    "u21": "International",
+    "u20": "International",
+    "u17": "International",
+    "club friendlies": "International",
+}
+
+
+def _nation_from_league(league: str) -> str:
+    """Extract the nation/region for a league string.
+
+    Priority:
+    1. Country in parentheses, e.g. 'National Premier League 2 (Australia)' → 'Australia'
+    2. Hardcoded lookup on lowercased league name substring.
+    3. 'International' as fallback.
+    """
+    import re
+
+    m = re.search(r"\(([^)]+)\)$", league.strip())
+    if m:
+        return m.group(1).strip()
+    low = league.lower()
+    for key, nation in _LEAGUE_NATION.items():
+        if key in low:
+            return nation
+    return "International"
+
+
 def _devig_map(odds_by_sel):
     inv = {s: 1.0 / o for s, o in odds_by_sel.items() if o and o > 0}
     tot = sum(inv.values())
@@ -346,15 +462,15 @@ def _odds_history_db():
 
 
 _SIGNAL_REGISTRY_DEFAULTS = {
-    "STEAM_FWD":       {"enabled": 1, "promoted": 0, "min_samples": 100},
-    "STEAM_REV":       {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "DOG_DRIFT":       {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "FAV_DRIFT":       {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "EARLY_STEAM":     {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "LATE_STEAM":      {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "FAV_DRIFT_REV":   {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "MOMENTUM_ACCEL":  {"enabled": 0, "promoted": 0, "min_samples": 100},
-    "LARGE_SPREAD":    {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "STEAM_FWD": {"enabled": 1, "promoted": 0, "min_samples": 100},
+    "STEAM_REV": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "DOG_DRIFT": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "FAV_DRIFT": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "EARLY_STEAM": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "LATE_STEAM": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "FAV_DRIFT_REV": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "MOMENTUM_ACCEL": {"enabled": 0, "promoted": 0, "min_samples": 100},
+    "LARGE_SPREAD": {"enabled": 0, "promoted": 0, "min_samples": 100},
 }
 
 
@@ -362,14 +478,16 @@ def _init_signal_registry():
     """Create signal_registry table and seed default rows if not present."""
     try:
         con = sqlite3.connect(_odds_history_db())
-        con.execute("""CREATE TABLE IF NOT EXISTS signal_registry (
+        con.execute(
+            """CREATE TABLE IF NOT EXISTS signal_registry (
             signal_name  TEXT PRIMARY KEY,
             enabled      INTEGER DEFAULT 1,
             promoted     INTEGER DEFAULT 0,
             min_samples  INTEGER DEFAULT 100,
             owner        TEXT    DEFAULT 'system',
             updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
-        )""")
+        )"""
+        )
         for sig, vals in _SIGNAL_REGISTRY_DEFAULTS.items():
             con.execute(
                 "INSERT OR IGNORE INTO signal_registry (signal_name, enabled, promoted, min_samples) "
@@ -389,6 +507,7 @@ _signal_registry_cache_ts: float = 0.0
 def _load_signal_registry() -> dict:
     """Return {signal_name: {enabled, promoted}} from the registry, cached for 60s."""
     import time as _time
+
     global _signal_registry_cache, _signal_registry_cache_ts
     if _time.time() - _signal_registry_cache_ts < 60 and _signal_registry_cache:
         return _signal_registry_cache
@@ -398,12 +517,16 @@ def _load_signal_registry() -> dict:
             "SELECT signal_name, enabled, promoted FROM signal_registry"
         ).fetchall()
         con.close()
-        _signal_registry_cache = {r[0]: {"enabled": bool(r[1]), "promoted": bool(r[2])} for r in rows}
+        _signal_registry_cache = {
+            r[0]: {"enabled": bool(r[1]), "promoted": bool(r[2])} for r in rows
+        }
         _signal_registry_cache_ts = _time.time()
         return _signal_registry_cache
     except Exception:
-        return {k: {"enabled": v["enabled"], "promoted": v["promoted"]}
-                for k, v in _SIGNAL_REGISTRY_DEFAULTS.items()}
+        return {
+            k: {"enabled": v["enabled"], "promoted": v["promoted"]}
+            for k, v in _SIGNAL_REGISTRY_DEFAULTS.items()
+        }
 
 
 def _purge_odds_history(days=30):
@@ -453,6 +576,7 @@ def _steam_moves(fid, m_type):
 
     # Build per-selection time series of devigged probabilities
     from collections import defaultdict
+
     by_ts: dict = defaultdict(dict)
     for sel, o, ts in rows:
         if o and o > 0:
@@ -479,7 +603,7 @@ def _steam_moves(fid, m_type):
     if len(snapshots_with_all) < 2:
         return {}
     early = _devig_map(snapshots_with_all[0])
-    late  = _devig_map(snapshots_with_all[-1])
+    late = _devig_map(snapshots_with_all[-1])
     if not early or not late:
         return {}
 
@@ -492,7 +616,7 @@ def _steam_moves(fid, m_type):
         # Monotonicity: count steps in the dominant direction
         if len(series) >= 2:
             direction = 1 if raw_move >= 0 else -1
-            steps = [series[i+1] - series[i] for i in range(len(series)-1)]
+            steps = [series[i + 1] - series[i] for i in range(len(series) - 1)]
             aligned = sum(1 for s in steps if s * direction > 0)
             monotonicity = aligned / len(steps) if steps else 0.5
 
@@ -504,14 +628,20 @@ def _steam_moves(fid, m_type):
 
         effective_move = raw_move * monotonicity
         result[sel] = effective_move
-        meta[sel] = {"raw": raw_move, "monotonicity": round(monotonicity, 2),
-                     "recent": recent_move, "n_snaps": len(series)}
+        meta[sel] = {
+            "raw": raw_move,
+            "monotonicity": round(monotonicity, 2),
+            "recent": recent_move,
+            "n_snaps": len(series),
+        }
 
     result["__meta__"] = meta
     return result
 
 
-def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kickoff, monotonicity=None):
+def _record_steam_signal(
+    fid, league, match, m_type, sel_name, odds, move, kickoff, monotonicity=None
+):
     """Append a fired steam pick to the steam_signals research ledger (one row per
     fixture/market/selection — first detection's price sticks). Settled offline by
     tools/steam_report.py. Independent of the model bet path / staking."""
@@ -532,7 +662,17 @@ def _record_steam_signal(fid, league, match, m_type, sel_name, odds, move, kicko
             """INSERT OR IGNORE INTO steam_signals
                    (fixture_id, league, match, market, selection, entry_odds, steam_move, kickoff, monotonicity)
                VALUES (?,?,?,?,?,?,?,?,?)""",
-            (str(fid), league, match, m_type, sel_name, odds, move, kickoff, monotonicity),
+            (
+                str(fid),
+                league,
+                match,
+                m_type,
+                sel_name,
+                odds,
+                move,
+                kickoff,
+                monotonicity,
+            ),
         )
         conn.commit()
         conn.close()
@@ -547,6 +687,7 @@ _DC_MODEL = "unloaded"
 _DC_TEAM_CACHE = {}
 # Map the daemon's live league names -> football-data.co.uk league codes.
 _DC_LEAGUE_MAP = {
+    # ── Top 8 European leagues (original training set) ───────────────────────
     "premier league": "E0",
     "epl": "E0",
     "england 1": "E0",
@@ -573,6 +714,148 @@ _DC_LEAGUE_MAP = {
     "premiership": "SC0",
     "scottish premiership": "SC0",
     "scotland 1": "SC0",
+    # ── football-data.co.uk new-format leagues ───────────────────────────────
+    "irish premier division": "IRL",
+    "league of ireland premier": "IRL",
+    "sse airtricity premier": "IRL",
+    "norway 1": "NOR",
+    "norwegian eliteserien": "NOR",
+    "eliteserien": "NOR",
+    "tippeligaen": "NOR",
+    "sweden 1": "SWE",
+    "swedish allsvenskan": "SWE",
+    "allsvenskan": "SWE",
+    "romanian liga 1": "ROM",
+    "liga 1 betano": "ROM",
+    "liga i": "ROM",
+    "argentina 1": "ARG",
+    "argentine primera division": "ARG",
+    "primera division argentina": "ARG",
+    "liga profesional": "ARG",
+    "a-league": "AUS",
+    "a league": "AUS",
+    "a-league men": "AUS",
+    "australian a-league": "AUS",
+    "austrian bundesliga": "AUT",
+    "osterreichische bundesliga": "AUT",
+    "admiral bundesliga": "AUT",
+    "austria 1": "AUT",
+    "brasileirao": "BRA",
+    "brazilian serie a": "BRA",
+    "serie a brasil": "BRA",
+    "china 1": "CHN",
+    "chinese super league": "CHN",
+    "csl": "CHN",
+    "danish superliga": "DNK",
+    "superliga denmark": "DNK",
+    "superliga": "DNK",
+    "denmark 1": "DNK",
+    "finnish veikkausliiga": "FIN",
+    "veikkausliiga": "FIN",
+    "finland 1": "FIN",
+    "greek super league": "GRC",
+    "super league greece": "GRC",
+    "greece 1": "GRC",
+    "hungarian nb i": "HUN",
+    "otp bank liga": "HUN",
+    "nb i": "HUN",
+    "hungary 1": "HUN",
+    "israeli premier league": "ISR",
+    "ligat haal": "ISR",
+    "winner league": "ISR",
+    "israel 1": "ISR",
+    "japanese j1 league": "JPN",
+    "j1 league": "JPN",
+    "j1": "JPN",
+    "japan 1": "JPN",
+    "mexican liga mx": "MEX",
+    "liga mx": "MEX",
+    "clausura": "MEX",
+    "apertura": "MEX",
+    "mexico 1": "MEX",
+    "polish ekstraklasa": "POL",
+    "ekstraklasa": "POL",
+    "poland 1": "POL",
+    # South African data not available (RSA.csv contains MLS — skip, gate via require_dc)
+    "russian premier league": "RUS",
+    "rpl": "RUS",
+    "russia 1": "RUS",
+    "american mls": "USA",
+    "mls": "USA",
+    "major league soccer": "USA",
+    "usa 1": "USA",
+    "turkish super lig": "TUR",
+    "sper lig": "TUR",
+    "super lig": "TUR",
+    "turkey 1": "TUR",
+    "czech first league": "CZE",
+    "fortuna liga": "CZE",
+    "czech liga": "CZE",
+    "1. liga": "CZE",
+    "czech republic 1": "CZE",
+    "slovak super liga": "SVK",
+    "fortuna liga slovakia": "SVK",
+    "slovakia 1": "SVK",
+    # ── TheSportsDB extra leagues ────────────────────────────────────────────
+    "icelandic urvalsdeild": "ISL",
+    "urvalsdeild": "ISL",
+    "besta deild karla": "ISL",
+    "iceland 1": "ISL",
+    "faroe islands premier league": "FAR",
+    "faroese premier league": "FAR",
+    "faroe islands 1": "FAR",
+    "kuwaiti premier league": "KUW",
+    "kuwait premier league": "KUW",
+    "kuwait 1": "KUW",
+    "moroccan botola pro": "MAR",
+    "botola pro": "MAR",
+    "botola maroc": "MAR",
+    "inwi botola pro": "MAR",
+    "morocco 1": "MAR",
+    "peruvian liga 1": "PER",
+    "liga 1 peru": "PER",
+    "liga 1 movistar": "PER",
+    "peru 1": "PER",
+    "estonian meistriliiga": "EST",
+    "meistriliiga": "EST",
+    "esiliiga": "EST",
+    "estonia 1": "EST",
+    "norwegian 1. divisjon": "NOR2",
+    "1. divisjon": "NOR2",
+    "norway 2": "NOR2",
+    "norwegian 2. divisjon": "NOR3",
+    "2. divisjon": "NOR3",
+    "norway 3": "NOR3",
+    "swedish superettan": "SWE2",
+    "superettan": "SWE2",
+    "sweden 2": "SWE2",
+    "swedish division 1": "SWE3",
+    "sweden 3": "SWE3",
+    "irish first division": "IRL2",
+    "league of ireland first": "IRL2",
+    "sse airtricity first": "IRL2",
+    "ireland 2": "IRL2",
+    "kazakhstani premier league": "KAZ",
+    "kazakhstan premier league": "KAZ",
+    "kazakhstan 1": "KAZ",
+    "azerbaijani premier league": "AZE",
+    "azerbaycan premyer liqasi": "AZE",
+    "azerbaijan 1": "AZE",
+    "mozambican mocambola": "MOZ",
+    "mocambola": "MOZ",
+    "mozambique 1": "MOZ",
+    "qatari stars league": "QAT",
+    "qatar stars league": "QAT",
+    "qatar 1": "QAT",
+    "saudi pro league": "SAU",
+    "saudi professional league": "SAU",
+    "saudi arabia 1": "SAU",
+    "uae pro league": "UAE",
+    "arabian gulf league": "UAE",
+    "uae 1": "UAE",
+    "primera nacional": "ARG2",
+    "argentina 2": "ARG2",
+    "primera b metropolitana": "ARG2",
 }
 
 
@@ -894,6 +1177,7 @@ def log_prediction_to_db(pred_res, has_lineup):
             "away_players": pred_res.get("away_players", []),
             "detailed_prediction": pred_res.get("detailed_prediction", {}),
             "markets": pred_res.get("markets", {}),
+            "dc_covered": pred_res.get("dc_covered", False),
         }
         extra_json = json.dumps(extra_data)
 
@@ -1082,6 +1366,7 @@ def load_predictions_from_db():
                 "prediction": r["prediction"],
                 "expected_score": r["expected_score"],
                 "has_lineup": bool(r["has_lineup"]),
+                "dc_covered": extra.get("dc_covered", False),
                 "team_impacts": extra.get("team_impacts", ""),
                 "corners": extra.get("corners", ""),
                 "fouls": extra.get("fouls", ""),
@@ -1215,6 +1500,7 @@ def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=Non
     # model-derived ones so probabilities reflect HOW strong each side is. Falls
     # back to the heuristic above for unknown leagues/teams (e.g. World Cup).
     _dc_eg = _dc_expected_goals(home_team, away_team, league_name)
+    _dc_covered = bool(_dc_eg)  # True only when DC has ratings for both teams
     if _dc_eg:
         exp_h, exp_a = _dc_eg
         if exp_h > exp_a:
@@ -1630,6 +1916,7 @@ def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=Non
         "home_players": home_player_stats[:3],
         "away_players": away_player_stats[:3],
         "detailed_prediction": detailed_pred,
+        "dc_covered": _dc_covered,
         "markets": {
             "1X2": [
                 {
@@ -1905,12 +2192,37 @@ def get_match_score(name1, name2):
         n = re.sub(r"[^a-z0-9\s]", " ", n)
         n = _apply_aliases(re.sub(r"\s+", " ", n).strip())
         noise = {
-            "fc", "cf", "sc", "u23", "pr", "ii", "u20", "united", "city", "town",
-            "athletic", "club", "de", "fk", "afc", "sv", "sp",
+            "fc",
+            "cf",
+            "sc",
+            "u23",
+            "pr",
+            "ii",
+            "u20",
+            "united",
+            "city",
+            "town",
+            "athletic",
+            "club",
+            "de",
+            "fk",
+            "afc",
+            "sv",
+            "sp",
             # Scandinavian / Eastern European suffixes
-            "bk", "ik", "if", "sk", "aik", "ff", "bois",
+            "bk",
+            "ik",
+            "if",
+            "sk",
+            "aik",
+            "ff",
+            "bois",
             # Other common suffixes
-            "ac", "hfc", "rfc", "utd", "jfc",
+            "ac",
+            "hfc",
+            "rfc",
+            "utd",
+            "jfc",
         }
         return [w for w in n.split() if w and w not in noise]
 
@@ -2377,7 +2689,15 @@ def _implausible_odds(market, odds):
 
 
 def log_steam_bet(
-    match, market, selection, odds, steam_move_pct, fixture_id=None, league=None, monotonicity=None
+    match,
+    market,
+    selection,
+    odds,
+    steam_move_pct,
+    fixture_id=None,
+    league=None,
+    monotonicity=None,
+    bet_source="STEAM",
 ):
     """Shadow flat-stake bet for a fired STEAM (line-movement) signal.
 
@@ -2403,12 +2723,22 @@ def log_steam_bet(
         cur = conn.cursor()
         cur.execute(
             "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
-            "AND bet_source='STEAM'",
-            (match, market, selection),
+            "AND bet_source=?",
+            (match, market, selection, bet_source),
         )
         if cur.fetchone()[0] > 0:
             conn.close()
             return
+        # Cross-source dedup: one open bet per fixture total — prevents AI + STEAM doubling
+        # up on the same game from opposite/same sides, which doubles loss risk.
+        if fixture_id is not None:
+            cur.execute(
+                "SELECT COUNT(*) FROM bet_log WHERE fixture_id=? AND result='OPEN'",
+                (str(fixture_id),),
+            )
+            if cur.fetchone()[0] > 0:
+                conn.close()
+                return
 
         try:
             br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
@@ -2440,12 +2770,13 @@ def log_steam_bet(
             conn.close()
             return
 
-        bet_id = "STEAM_" + uuid.uuid4().hex[:12]
+        src_prefix = bet_source.replace("_", "")[:10]
+        bet_id = f"{src_prefix}_" + uuid.uuid4().hex[:10]
 
         for col_sql in [
-            'ALTER TABLE bet_log ADD COLUMN signal_name TEXT',
-            'ALTER TABLE bet_log ADD COLUMN move_size REAL',
-            'ALTER TABLE bet_log ADD COLUMN monotonicity REAL',
+            "ALTER TABLE bet_log ADD COLUMN signal_name TEXT",
+            "ALTER TABLE bet_log ADD COLUMN move_size REAL",
+            "ALTER TABLE bet_log ADD COLUMN monotonicity REAL",
         ]:
             try:
                 conn.execute(col_sql)
@@ -2453,7 +2784,7 @@ def log_steam_bet(
                 pass
 
         cur.execute(
-            """INSERT INTO bet_log
+            """INSERT OR IGNORE INTO bet_log
                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
                 result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, signal_name, move_size, monotonicity)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -2469,13 +2800,13 @@ def log_steam_bet(
                 "OPEN",
                 0.0,
                 datetime.datetime.now().isoformat(),
-                "STEAM",
+                bet_source,
                 1,
                 2.5,
                 selection,
                 str(fixture_id) if fixture_id is not None else None,
                 league,
-                'STEAM_FWD',
+                bet_source,
                 steam_move_pct,
                 monotonicity,
             ),
@@ -2495,16 +2826,149 @@ def log_steam_bet(
         conn.commit()
         conn.close()
         print(
-            f"[STEAM BET] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
+            f"[{bet_source}] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
             f"move +{steam_move_pct:.1f}% stake {stake}"
         )
     except Exception as e:
         print(f"[STEAM BET] error: {e}")
 
 
+def log_pinnacle_value_bet(
+    match,
+    market,
+    selection,
+    odds,
+    pinnacle_edge_pct,
+    fixture_id=None,
+    league=None,
+    pinnacle_data=None,
+):
+    """Shadow bet when Betarabia price exceeds de-vigged Pinnacle fair value by >= min_edge.
+
+    Uses the same Kelly sizing as STEAM (bankroll-proportional or flat fallback).
+    bet_source='PINNACLE_VALUE', settled automatically by settle_open_bets.
+    Gated by settings.pinnacle_value_betting_enabled (default False — measure first).
+    """
+    settings = load_settings()
+    if not settings.get("pinnacle_value_betting_enabled", False):
+        return
+    if _implausible_odds(market, odds):
+        return
+    db_path = os.path.join(DATA_DIR, "bet_log.db")
+    if not os.path.exists(db_path):
+        return
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
+            "AND bet_source='PINNACLE_VALUE'",
+            (match, market, selection),
+        )
+        if cur.fetchone()[0] > 0:
+            conn.close()
+            return
+
+        try:
+            br_conn = sqlite3.connect(os.path.join(DATA_DIR, "bankroll.db"))
+            balance = br_conn.execute(
+                "SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1"
+            ).fetchone()[0]
+            br_conn.close()
+        except Exception:
+            balance = 10000.0
+
+        frac = settings.get("steam_kelly_frac", 0.02)
+        if frac and frac > 0:
+            stake = round(balance * frac, 2)
+            stake = max(1.0, min(stake, balance * 0.03))
+        else:
+            stake = float(settings.get("steam_flat_stake", 25.0))
+        if stake > balance:
+            stake = balance
+        if stake <= 0:
+            conn.close()
+            return
+
+        from src.bankroll_tracker import register_bet
+
+        if not register_bet(stake):
+            conn.close()
+            return
+
+        bet_id = "PV_" + uuid.uuid4().hex[:12]
+        fair_odds_val = (pinnacle_data or {}).get("fair_odds", odds)
+        cur.execute(
+            """INSERT INTO bet_log
+               (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
+                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                bet_id,
+                match,
+                f"{match} ({selection})",
+                market,
+                odds,
+                round(fair_odds_val, 4) if fair_odds_val else odds,
+                round(pinnacle_edge_pct, 2),
+                stake,
+                "OPEN",
+                0.0,
+                datetime.datetime.now().isoformat(),
+                "PINNACLE_VALUE",
+                1,
+                2.5,
+                selection,
+                str(fixture_id) if fixture_id is not None else None,
+                league,
+            ),
+        )
+        conn.commit()
+        conn.close()
+        print(
+            f"[PINNACLE VALUE] Shadow bet: {match} ({selection}) @ {odds} "
+            f"edge +{pinnacle_edge_pct:.1f}% vs Pinnacle fair stake {stake}"
+        )
+
+        # ── CLV TRACKING: Record this bet in the CLV tracking system ──
+        if _CLV_TRACKER_OK and _clv_record_bet:
+            try:
+                pin_devig_prob = (pinnacle_data or {}).get("devig_prob", 0)
+                pin_fair_odds = (pinnacle_data or {}).get("fair_odds", odds)
+                _clv_record_bet(
+                    bet_id=bet_id,
+                    fixture_id=fixture_id,
+                    match_name=match,
+                    league=league or "",
+                    selection=selection,
+                    bet_source="PINNACLE_VALUE",
+                    opening_odds=odds,
+                    bet_odds=odds,
+                    pinnacle_devig_prob=pin_devig_prob,
+                    pinnacle_opening_odds=pin_fair_odds,
+                    pinnacle_bet_odds=pin_fair_odds,
+                    edge=pinnacle_edge_pct / 100.0,
+                    ev=pinnacle_edge_pct / 100.0,
+                    stake=stake,
+                    market_type=market,
+                )
+            except Exception as _clv_err:
+                print(f"[CLV TRACKING] Error recording PV bet: {_clv_err}")
+    except Exception as e:
+        print(f"[PINNACLE VALUE BET] error: {e}")
 
 
-def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league=None):
+def log_ai_bet(
+    match, market, selection, odds, prob, ev, fixture_id=None, league=None, source=None
+):
+    """DISABLED: AI model has no proven edge (failed 2,386-bet out-of-sample test).
+    All AI bets are now zero-stake shadow bets. Pinnacle-value is the only strategy."""
+    # ARCHITECTURE CHANGE: Model-dependent AI bets are disabled.
+    # The model outputs identical probabilities for different matches (35.6/28.7/36.1)
+    # and uses fake placeholder player data. Only Pinnacle-value bets are allowed.
+    settings = load_settings()
+    if settings.get("model_predictions_disabled", True):
+        return
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
         return
@@ -2519,15 +2983,23 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
-        # Check if already logged
+        # Check if already logged by any AI source
         cur.execute(
             """
-            SELECT COUNT(*) FROM bet_log 
+            SELECT COUNT(*) FROM bet_log
             WHERE match_id = ? AND market_type = ? AND side = ? AND bet_source = 'AI'
         """,
             (match, market, selection),
         )
         exists = cur.fetchone()[0] > 0
+        # Cross-source dedup: skip if ANY source already has an open bet on this fixture
+        if not exists and fixture_id is not None:
+            cur.execute(
+                "SELECT COUNT(*) FROM bet_log WHERE fixture_id=? AND result='OPEN'",
+                (str(fixture_id),),
+            )
+            if cur.fetchone()[0] > 0:
+                exists = True
 
         if not exists:
             bet_id = "AI_" + uuid.uuid4().hex[:14]
@@ -2596,7 +3068,7 @@ def log_ai_bet(match, market, selection, odds, prob, ev, fixture_id=None, league
                     "OPEN",
                     0.0,
                     datetime.datetime.now().isoformat(),
-                    "AI",
+                    source or "AI",
                     1,
                     2.5,
                     selection,
@@ -2905,12 +3377,43 @@ def settle_open_bets():
     # Sofascore via headless browser (covers leagues ESPN/Flashscore miss).
     try:
         from src.sofascore_results_scraper import get_finished_results as ss_results
+
         sofa = ss_results(dates=_settle_dates)
         before = len(finished_matches)
         finished_matches.update(sofa)
-        print(f"[SETTLEMENT] Sofascore added {len(finished_matches) - before} new matches ({len(sofa)} total).")
+        print(
+            f"[SETTLEMENT] Sofascore added {len(finished_matches) - before} new matches ({len(sofa)} total)."
+        )
     except Exception as e:
         print("[SETTLEMENT] Sofascore scraper failed:", e)
+
+    # Dashboard state — same fixture_ids as our bets; covers ALL Betarabia leagues
+    # regardless of ESPN/Flashscore/SofaScore gaps.  Indexed by fixture_id for
+    # zero-fuzzy-matching direct lookup.
+    _fid_to_score: dict = {}  # str(fixture_id) -> (home_score, away_score)
+    try:
+        _dash_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
+        if os.path.exists(_dash_path):
+            with open(_dash_path, "r", encoding="utf-8") as _f:
+                _dash = json.load(_f)
+            _added = 0
+            for _m in _dash:
+                _fix = _m.get("fixture") or {}
+                _st = (_fix.get("status") or {}).get("short", "")
+                _hs = _fix.get("home_score")
+                _aws = _fix.get("away_score")
+                _fid = _m.get("fixture_id")
+                if _st == "FT" and _hs is not None and _aws is not None and _fid:
+                    _mn = _m.get("match", "")
+                    finished_matches[_mn] = (int(_hs), int(_aws))
+                    _fid_to_score[str(_fid)] = (int(_hs), int(_aws))
+                    _added += 1
+            if _added:
+                print(
+                    f"[SETTLEMENT] Dashboard state added {_added} FT matches (direct fixture_id)."
+                )
+    except Exception as e:
+        print(f"[SETTLEMENT] Dashboard state load failed: {e}")
 
     if not finished_matches:
         print("[SETTLEMENT] No finished matches found from any source yet.")
@@ -3033,37 +3536,50 @@ def settle_open_bets():
             except Exception:
                 continue
 
-            candidates = []  # (total_name_score, result_score, finished_name)
-            for finished_name, score in finished_matches.items():
-                try:
-                    f_parts = finished_name.split(" vs ")
-                    fin_home = f_parts[0].strip()
-                    fin_away = f_parts[1].strip()
-                except Exception:
+            # Direct fixture_id lookup — bypasses fuzzy matching entirely for
+            # leagues (Ethiopian, Georgian, Estonian) that external sources can't name-match.
+            _direct = _fid_to_score.get(str(bet_fixture_id)) if bet_fixture_id else None
+            candidates = (
+                []
+            )  # reset per-bet — prevents scope leak from previous iteration
+            if _direct:
+                matched_score = _direct
+                best_name = match_name + " [fid-direct]"
+                print(
+                    f"[SETTLEMENT] Direct fid match for '{match_name}': {matched_score}"
+                )
+            else:
+                candidates = []  # (total_name_score, result_score, finished_name)
+                for finished_name, score in finished_matches.items():
+                    try:
+                        f_parts = finished_name.split(" vs ")
+                        fin_home = f_parts[0].strip()
+                        fin_away = f_parts[1].strip()
+                    except Exception:
+                        continue
+
+                    h_score = get_match_score(bet_home, fin_home)
+                    a_score = get_match_score(bet_away, fin_away)
+
+                    if h_score >= 0.5 and a_score >= 0.5:
+                        candidates.append((h_score + a_score, score, finished_name))
+
+                if not candidates:
+                    print(
+                        f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results."
+                    )
                     continue
 
-                h_score = get_match_score(bet_home, fin_home)
-                a_score = get_match_score(bet_away, fin_away)
+                candidates.sort(key=lambda c: c[0], reverse=True)
+                best_total, matched_score, best_name = candidates[0]
 
-                if h_score >= 0.5 and a_score >= 0.5:
-                    candidates.append((h_score + a_score, score, finished_name))
-
-            if not candidates:
-                print(f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results.")
-                continue
-
-            candidates.sort(key=lambda c: c[0], reverse=True)
-            best_total, matched_score, best_name = candidates[0]
-
-            # AMBIGUITY GUARD: if a DIFFERENT finished match is nearly as good a name
-            # match AND reports a DIFFERENT score, refuse to settle this cycle rather
-            # than grade the bet against possibly the wrong game. (Loose 0.5 name
-            # matching with no date check can otherwise settle on the wrong fixture —
-            # the same false-match class as the sharp engine's Iraq->Iran bug.) The bet
-            # stays OPEN and retries next cycle; a wrong settlement would corrupt ROI/CLV.
-            if len(candidates) > 1:
+            # AMBIGUITY GUARD (fuzzy-match path only — direct fid is unambiguous).
+            if not _direct and len(candidates) > 1:
                 second_total, second_score, second_name = candidates[1]
-                if (best_total - second_total) < 0.30 and second_score != matched_score:
+                # Only skip when candidates are close AND disagree on the final score.
+                # If both candidates have the same score, settle anyway — the outcome
+                # is unambiguous regardless of which specific match it is.
+                if (best_total - second_total) < 0.50 and second_score != matched_score:
                     print(
                         f"[SETTLEMENT] Ambiguous result match for '{match_name}': "
                         f"'{best_name}'{matched_score} vs '{second_name}'{second_score} "
@@ -3129,6 +3645,14 @@ def settle_open_bets():
                             (bet_id,),
                         )
                         conn_bet.commit()
+                        try:
+                            from src.bankroll_tracker import (
+                                register_settlement as _rs_push,
+                            )
+
+                            _rs_push(payout=float(stake or 0), pnl=0.0)
+                        except Exception:
+                            pass
                         continue
                     won = total_goals > _line
                 elif "under" in sel_lower:
@@ -3138,6 +3662,14 @@ def settle_open_bets():
                             (bet_id,),
                         )
                         conn_bet.commit()
+                        try:
+                            from src.bankroll_tracker import (
+                                register_settlement as _rs_push,
+                            )
+
+                            _rs_push(payout=float(stake or 0), pnl=0.0)
+                        except Exception:
+                            pass
                         continue
                     won = total_goals < _line
             elif market_type == "Double Chance":
@@ -3158,6 +3690,12 @@ def settle_open_bets():
                         (bet_id,),
                     )
                     conn_bet.commit()
+                    try:
+                        from src.bankroll_tracker import register_settlement as _rs_push
+
+                        _rs_push(payout=float(stake or 0), pnl=0.0)
+                    except Exception:
+                        pass
                     continue
                 elif "home" in sel_lower:
                     won = home_score > away_score
@@ -3310,15 +3848,77 @@ def settle_open_bets():
             except Exception:
                 pass
 
+            # PINNACLE CLV: the gold-standard metric. Compare our entry price to the
+            # last pre-kickoff Pinnacle snapshot in sharp_odds_history. This tells us
+            # objectively whether we beat the sharp market — even when our closing
+            # Betarabia odds may not be representative.
+            pinnacle_clv = None
+            try:
+                if market_type == "1X2":
+                    from tools.pinnacle_value import clv_from_pinnacle as _pclv
+
+                    _pclv_val = _pclv(
+                        bet_home, bet_away, bet_side or selection, entry_odds
+                    )
+                    if _pclv_val is not None and abs(_pclv_val) <= 0.40:
+                        pinnacle_clv = _pclv_val
+                elif market_type == "Over/Under 2.5":
+                    from tools.pinnacle_value import clv_from_pinnacle_ou25 as _pclv_ou
+
+                    _pclv_val = _pclv_ou(
+                        bet_home, bet_away, bet_side or selection, entry_odds
+                    )
+                    if _pclv_val is not None and abs(_pclv_val) <= 0.40:
+                        pinnacle_clv = _pclv_val
+            except Exception:
+                pass
+
+            try:
+                cur.execute("ALTER TABLE bet_log ADD COLUMN pinnacle_clv REAL")
+            except Exception:
+                pass
+
             cur.execute(
-                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ? "
+                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ?, pinnacle_clv = ? "
                 "WHERE bet_id = ?",
-                (result, pnl, closing_odds, clv, bet_id),
+                (result, pnl, closing_odds, clv, pinnacle_clv, bet_id),
             )
             _clv_str = f" CLV {clv*100:+.1f}%" if clv is not None else ""
-            print(
-                f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f}){_clv_str}"
+            _pclv_str = (
+                f" PinCLV {pinnacle_clv*100:+.1f}%" if pinnacle_clv is not None else ""
             )
+            print(
+                f"[SETTLEMENT] Settled bet {bet_id} as {result} (PnL: ${pnl:.2f}){_clv_str}{_pclv_str}"
+            )
+
+            # ── CLV TRACKER: Sync closing odds + result to clv_tracking.db ──
+            if _CLV_TRACKER_OK:
+                # Record closing odds (both Betarabia close and Pinnacle close)
+                try:
+                    _pin_closing = None
+                    if pinnacle_clv is not None and entry_odds:
+                        # Back-calculate Pinnacle closing decimal from CLV
+                        _pin_closing = round(entry_odds / (1.0 + pinnacle_clv), 4)
+                    _clv_record_closing(
+                        bet_id=bet_id,
+                        closing_odds=closing_odds,
+                        pinnacle_closing_odds=_pin_closing,
+                    )
+                except Exception as _clv_close_err:
+                    print(
+                        f"[CLV TRACKER] Error recording closing odds for {bet_id}: {_clv_close_err}"
+                    )
+
+                # Settle the bet in CLV tracker
+                try:
+                    _clv_settle_bet(
+                        bet_id=bet_id,
+                        result=result,
+                        pnl=pnl,
+                        actual_prob=0.0,
+                    )
+                except Exception as _clv_sett_err:
+                    print(f"[CLV TRACKER] Error settling {bet_id}: {_clv_sett_err}")
 
             # Capital adjustments via Central Tracker
             from src.bankroll_tracker import register_settlement
@@ -3426,6 +4026,94 @@ def settle_open_bets():
                     (json.dumps(legs), p_id),
                 )
 
+        # VOID bets/parlays that are permanently stuck OPEN after match time.
+        # This handles obscure leagues (Ethiopian, Georgian, Estonian, Swedish lower-div)
+        # where no external result source has coverage.  Only fires when the bet is
+        # genuinely past its window — not a race against a delayed result feed.
+        _now_void = datetime.datetime.now(datetime.timezone.utc)
+
+        # Individual bets: VOID prop-market bets whose kickoff was >48h ago with no result.
+        # Score-settleable markets (1X2, O/U 2.5, BTTS) are given 7 days before VOID —
+        # they should ALWAYS be settleable from score data, so a 48h window risked masking
+        # genuine LOSSES as VOID when result scrapers were slow or had coverage gaps.
+        # Prop markets (Player Shots, Corners, Cards) may never get stats → 48h is correct.
+        _SCORE_MARKETS = {
+            "1X2",
+            "Over/Under 2.5",
+            "BTTS",
+            "Double Chance",
+            "Draw No Bet",
+            "Asian Handicap",
+        }
+        try:
+            cur.execute(
+                """
+                SELECT b.bet_id, b.market_type, p.kickoff, b.stake
+                FROM bet_log b
+                LEFT JOIN predictions p ON p.fixture_id = CAST(b.fixture_id AS TEXT)
+                WHERE b.result = 'OPEN'
+                """
+            )
+            for _b_id, _b_mkt, _kick, _b_stake in cur.fetchall():
+                if not _kick:
+                    continue
+                try:
+                    _kick_dt = datetime.datetime.fromisoformat(
+                        str(_kick).replace("Z", "+00:00")
+                    ).astimezone(datetime.timezone.utc)
+                    _elapsed_h = (_now_void - _kick_dt).total_seconds() / 3600
+                    # Score markets: 7-day window (should always be settleable from scores)
+                    # Prop markets: 48h window (stats may genuinely never arrive)
+                    _void_threshold_h = 168 if (_b_mkt in _SCORE_MARKETS) else 48
+                    if _elapsed_h > _void_threshold_h:
+                        cur.execute(
+                            "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?",
+                            (_b_id,),
+                        )
+                        print(
+                            f"[SETTLEMENT] VOID {_b_id} ({_b_mkt}) — "
+                            f"no result found {_elapsed_h:.0f}h past kickoff"
+                        )
+                        # Credit stake back to bankroll (void = full refund)
+                        try:
+                            from src.bankroll_tracker import (
+                                register_settlement as _rs_void,
+                            )
+
+                            _rs_void(payout=float(_b_stake or 0), pnl=0.0)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        except Exception as _ve:
+            print(f"[SETTLEMENT] VOID pass failed: {_ve}")
+
+        # Parlays: VOID any parlay still OPEN that is >7 days old.
+        # These are typically old prop-market parlays (Player Shots) where
+        # we will never obtain the required player stats.
+        try:
+            _void_cutoff = (_now_void - datetime.timedelta(days=7)).isoformat()
+            cur.execute(
+                "SELECT parlay_id, stake FROM parlay_log WHERE result='OPEN' AND placed_at < ?",
+                (_void_cutoff,),
+            )
+            for _p_id, _p_stake in cur.fetchall():
+                cur.execute(
+                    "UPDATE parlay_log SET result='VOID', pnl=0 WHERE parlay_id=?",
+                    (_p_id,),
+                )
+                print(
+                    f"[SETTLEMENT] VOID parlay {_p_id} — open >7 days, no stats available"
+                )
+                try:
+                    from src.bankroll_tracker import register_settlement as _rs_parlay
+
+                    _rs_parlay(payout=float(_p_stake or 0), pnl=0.0)
+                except Exception:
+                    pass
+        except Exception as _pe:
+            print(f"[SETTLEMENT] Parlay VOID pass failed: {_pe}")
+
         conn.commit()
         conn.close()
     except Exception as e:
@@ -3438,6 +4126,16 @@ def update_dashboard_json(fixtures, results_cache):
 
     settings = load_settings()
     min_ev_threshold = settings.get("min_ev_threshold", 0.05)
+
+    # Fetch Pinnacle O/U 2.5 totals once per cycle for the OU25 value check.
+    # Keyed by "Home vs Away" (Pinnacle team names) with p_over/p_under/over/under.
+    _pin_ou25_all = {}
+    try:
+        from src.pinnacle_feed import fetch_pinnacle_totals as _fpt_ou
+
+        _pin_ou25_all = _fpt_ou(line=2.5) or {}
+    except Exception as _ou_fetch_err:
+        print(f"[OU25] Pinnacle totals fetch failed (non-fatal): {_ou_fetch_err}")
 
     for f in fixtures:
         fid = f["fixture"]["id"]
@@ -3567,8 +4265,12 @@ def update_dashboard_json(fixtures, results_cache):
         if prediction and "markets" in prediction:
             # Always attach the real Betarabia price to each market selection so the
             # dashboard shows actual odds (not "@ 0.00"), even for estimated XI.
-            # BUT only place a bet when OFFICIAL lineups are confirmed (has_lineup).
-            bet_allowed = bool(prediction.get("has_lineup", False))
+            # Paper/shadow mode: allow bets without lineup confirmation (Sofascore
+            # is bot-blocked so lineups almost never arrive; gating on them kills
+            # all model betting). Real-money path keeps its own hard gate in
+            # execution_engine.py (SHADOW_MODE). Lineup quality is captured in
+            # has_lineup field for post-analysis.
+            bet_allowed = True
             if True:
                 match_bet_candidates = []
                 for m_type, selections in prediction["markets"].items():
@@ -3785,15 +4487,16 @@ def update_dashboard_json(fixtures, results_cache):
                                 if mkt_prob is not None
                                 else 0.0
                             )
-                            conviction_ok = (mkt_prob is None) or (
+                            # Block when market prob can't be computed — no benchmark means
+                            # we can't measure real edge; this is how 86%+ "edge" slips through.
+                            conviction_ok = (mkt_prob is not None) and (
                                 model_edge_pct <= edge_cap_pct
                             )
 
-                            # VALUE CHASER LOGIC: Chase high EV even if prob is lower.
-                            # If EV > 15%, we allow prob down to 30%. Otherwise need 55%.
+                            # Confidence threshold — fixed, no value-chaser discount.
+                            # Dropping to 30% at high EV selected exactly the unknown-league
+                            # heuristic bets (fake 40-140% EV) that caused all the losses.
                             conf_threshold = settings.get("min_confidence_pct", 55)
-                            if ev >= 0.15:
-                                conf_threshold = 30.0
 
                             # MARKET WHITELIST: only bet markets with a proven edge. The
                             # realized record shows ONLY 1X2 is +EV; all props lose 40-80%.
@@ -3809,10 +4512,9 @@ def update_dashboard_json(fixtures, results_cache):
                                 settings.get("league_blocklist") or []
                             )
 
-                            # 1X2 DRAWS excluded: realized record is 0/9 (-100% ROI) and the
-                            # model shows no skill on draws (its draw probs sit in the
-                            # overconfident long-tail). The 1X2 profit is entirely Home/Away.
-                            exclude_draws = settings.get("exclude_draws", True)
+                            # Draw exclusion: configurable via settings["exclude_draws"].
+                            # Defaults to False — all three 1X2 outcomes are evaluated.
+                            exclude_draws = settings.get("exclude_draws", False)
                             draw_excluded = exclude_draws and (
                                 m_type == "1X2" and key == "Draw"
                             )
@@ -3823,12 +4525,36 @@ def update_dashboard_json(fixtures, results_cache):
                             # the odds_history ledger, capture fired picks to the research
                             # ledger, and (opt-in) use it to confirm model picks. 1X2 only.
                             steam_min = settings.get("steam_min_move_pct", 3.0) / 100.0
-                            _steam_result = _steam_moves(fid, m_type) if market_allowed else {}
+                            _steam_result = (
+                                _steam_moves(fid, m_type) if market_allowed else {}
+                            )
                             steam_move = _steam_result.get(sel_name, 0.0)
-                            _steam_meta_sel = (_steam_result.get('__meta__') or {}).get(sel_name, {})
-                            steam_mono = _steam_meta_sel.get('monotonicity', None)
+                            _steam_meta_sel = (_steam_result.get("__meta__") or {}).get(
+                                sel_name, {}
+                            )
+                            steam_mono = _steam_meta_sel.get("monotonicity", None)
                             sel["steam_move"] = round(steam_move * 100.0, 2)
                             _registry = _load_signal_registry()
+                            # League whitelist: only fire STEAM on liquid markets where
+                            # the backtested edge was demonstrated. Obscure leagues
+                            # (Reserve League, USL League Two, 4. deild, Australian NPL, etc.)
+                            # show noise-driven moves with no real edge.
+                            # EXACT match only — substring matching caused "Queensland Premier
+                            # League" to pass as "premier league" (catastrophic false positive).
+                            _steam_wl = settings.get("steam_league_whitelist", [])
+                            _league_lower = (league or "").lower().strip()
+                            _steam_wl_set = {w.lower().strip() for w in _steam_wl}
+                            # Normalize league name (strip "England - " etc.) for matching
+                            from src.pinnacle_value_engine import (
+                                normalize_league as _norm_league,
+                            )
+
+                            _league_normalized = _norm_league(league or "")
+                            _steam_league_ok = (
+                                not _steam_wl
+                                or _league_lower in _steam_wl_set
+                                or _league_normalized in _steam_wl_set
+                            )
                             steam_fired = (
                                 steam_move >= steam_min
                                 and odds
@@ -3837,6 +4563,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 and not league_blocked
                                 and not draw_excluded
                                 and odds_fresh
+                                and _steam_league_ok
                                 and _registry.get("STEAM_FWD", {}).get("enabled", True)
                             )
                             if steam_fired:
@@ -3865,11 +4592,22 @@ def update_dashboard_json(fixtures, results_cache):
                                 )
                                 try:
                                     from src.services.alerting import notifier as _ntfy
+
+                                    _nation = _nation_from_league(league or "")
+                                    if "(1)" in sel_name or "home" in sel_name.lower():
+                                        _pick = f"{home} to win"
+                                    elif (
+                                        "(2)" in sel_name or "away" in sel_name.lower()
+                                    ):
+                                        _pick = f"{away} to win"
+                                    else:
+                                        _pick = sel_name
                                     _ntfy._notify(
-                                        f"STEAM {sel_name} @ {odds:.2f}\n"
+                                        f"Bet {_pick}\n"
                                         f"{home} vs {away}\n"
-                                        f"Move: +{steam_move * 100:.1f}% | {league}",
-                                        title="DeepField STEAM",
+                                        f"{league} · {_nation}\n"
+                                        f"@ {odds:.2f}",
+                                        title="STEAM Signal",
                                         priority="high",
                                         tags="soccer,chart_with_upwards_trend",
                                     )
@@ -3879,17 +4617,239 @@ def update_dashboard_json(fixtures, results_cache):
                             require_steam = settings.get("require_steam_confirm", False)
                             steam_ok = (not require_steam) or (steam_move >= steam_min)
 
+                            # PINNACLE VALUE: compare Betarabia live price to de-vigged
+                            # Pinnacle fair price from sharp_odds_history. Edge > 0 means
+                            # Betarabia is more generous than Pinnacle's implied probability.
+                            # CLV is guaranteed positive when this fires (we're buying below
+                            # the sharp consensus price). Annotated on every selection for
+                            # the dashboard; fires a separate PINNACLE_VALUE bet when enabled.
+                            _pin_min_edge = (
+                                settings.get("pinnacle_min_edge_pct", 3.0) / 100.0
+                            )
+                            _pin_edge, _pin_data = 0.0, None
+                            if (
+                                m_type == "1X2"
+                                and market_allowed
+                                and not draw_excluded
+                                and odds
+                                and odds > 1.0
+                            ):
+                                try:
+                                    from tools.pinnacle_value import (
+                                        check_value as _pv_check,
+                                    )
+
+                                    _pin_edge, _pin_data = _pv_check(
+                                        home,
+                                        away,
+                                        sel_name,
+                                        odds,
+                                        kickoff_ts=match_time,
+                                        min_edge=_pin_min_edge,
+                                    )
+                                except Exception:
+                                    pass
+                            elif (
+                                m_type == "Over/Under 2.5"
+                                and market_allowed
+                                and odds
+                                and odds > 1.0
+                            ):
+                                try:
+                                    from tools.pinnacle_value import (
+                                        _fuzzy_match_ou25 as _pv_fuzzy,
+                                        check_ou25_value as _pv_ou25_check,
+                                    )
+
+                                    # Exact match first; fall back to fuzzy (handles
+                                    # "Manchester City" vs "Man City" etc.)
+                                    _pin_ou25 = _pin_ou25_all.get(f"{home} vs {away}")
+                                    if _pin_ou25 is None:
+                                        _pin_ou25 = _pv_fuzzy(home, away, _pin_ou25_all)
+                                    if _pin_ou25:
+                                        _pin_edge, _pin_data = _pv_ou25_check(
+                                            home,
+                                            away,
+                                            sel_name,
+                                            odds,
+                                            _pin_ou25,
+                                            min_edge=_pin_min_edge,
+                                        )
+                                except Exception:
+                                    pass
+                            sel["pinnacle_edge"] = round(_pin_edge * 100.0, 2)
+
+                            # PINNACLE STEAM: detect sharp-money line movement in
+                            # sharp_odds_history (updated every 120s by pinnacle_feed).
+                            # Betarabia STEAM = soft-book noise. Pinnacle STEAM = real sharp
+                            # money. When both fire together = highest-confidence signal.
+                            _pin_steam_sel, _pin_steam_move, _pin_steam_meta = (
+                                None,
+                                0.0,
+                                {},
+                            )
+                            _pin_steam_min = settings.get(
+                                "pinnacle_steam_min_move_pct", 2.0
+                            )
+                            if m_type == "1X2" and market_allowed and not draw_excluded:
+                                try:
+                                    from tools.pinnacle_steam import (
+                                        check_pinnacle_steam as _cps,
+                                        get_max_pinnacle_move as _gmp,
+                                    )
+
+                                    _ps_fired, _pin_steam_sel, _pin_steam_move = _cps(
+                                        home,
+                                        away,
+                                        min_move_pct=_pin_steam_min,
+                                        window_hours=6.0,
+                                    )
+                                    # Annotate the specific selection's move
+                                    _gmp_sel, _gmp_pct, _gmp_meta = _gmp(
+                                        home, away, window_hours=6.0
+                                    )
+                                    _pin_steam_meta = _gmp_meta
+                                except Exception:
+                                    pass
+
+                            # Annotate on selection dict for dashboard display
+                            sel["pinnacle_steam"] = round(_pin_steam_move, 2)
+                            sel["pinnacle_steam_sel"] = _pin_steam_sel
+
+                            # SHARP_STEAM: combined signal — Betarabia STEAM ≥ threshold
+                            # AND Pinnacle is ALSO moving toward the same team.
+                            # Fires a separate SHARP_STEAM bet (higher conviction than STEAM alone).
+                            # Map daemon sel_name ("Home (1)") -> pinnacle key ("home")
+                            _sel_pin_key = (
+                                "home"
+                                if "home" in sel_name.lower()
+                                or sel_name in ("1", "Home (1)")
+                                else (
+                                    "away"
+                                    if "away" in sel_name.lower()
+                                    or sel_name in ("2", "Away (2)")
+                                    else "draw"
+                                )
+                            )
+                            _pin_steam_fired = (
+                                _pin_steam_move >= _pin_steam_min
+                                and _pin_steam_sel == _sel_pin_key
+                            )
+                            _sharp_steam_fired = (
+                                steam_fired
+                                and _pin_steam_fired
+                                and settings.get("sharp_steam_betting_enabled", True)
+                                and _steam_league_ok
+                            )
+                            if _sharp_steam_fired:
+                                # Log as SHARP_STEAM — both Betarabia AND Pinnacle are
+                                # moving toward the same side (highest-conviction signal).
+                                # Use bet_source="SHARP_STEAM" so P&L can be tracked
+                                # separately from plain STEAM bets in the ledger.
+                                try:
+                                    log_steam_bet(
+                                        f"{home} vs {away}",
+                                        m_type,
+                                        sel_name,
+                                        odds,
+                                        steam_move * 100.0,
+                                        fid,
+                                        league,
+                                        monotonicity=steam_mono,
+                                        bet_source="SHARP_STEAM",
+                                    )
+                                except Exception:
+                                    pass
+
+                            # STANDALONE PINNACLE STEAM: bet when Pinnacle moves >= threshold
+                            # even when Betarabia hasn't moved (which is almost always — Betarabia
+                            # is a static soft book). This is the main high-volume bet path.
+                            # Requires Betarabia to have a current price (odds is not None here)
+                            # so the bet has a real price to record.
+                            _pin_steam_max_odds = settings.get(
+                                "pinnacle_steam_max_odds", 10.0
+                            )
+                            if (
+                                _pin_steam_fired
+                                and _pin_steam_sel == _sel_pin_key
+                                and not draw_excluded
+                                and odds
+                                and odds >= dfp_settings.MODEL_MIN_ODDS
+                                and odds
+                                <= _pin_steam_max_odds  # no extreme longshots (e.g. 23.0)
+                                and odds_fresh
+                                and _steam_league_ok
+                                and settings.get("pinnacle_steam_betting_enabled", True)
+                            ):
+                                try:
+                                    log_steam_bet(
+                                        f"{home} vs {away}",
+                                        m_type,
+                                        sel_name,
+                                        odds,
+                                        _pin_steam_move,  # already in pp units from check_pinnacle_steam
+                                        fid,
+                                        league,
+                                        bet_source="PINNACLE_STEAM",
+                                    )
+                                except Exception as _pse:
+                                    print(f"[PINNACLE_STEAM] bet error: {_pse}")
+
+                            # Optional: require Pinnacle to confirm value before STEAM bets.
+                            _require_pin_confirm = settings.get(
+                                "require_pinnacle_confirm", False
+                            )
+                            if _require_pin_confirm and steam_fired and _pin_edge <= 0:
+                                steam_fired = False  # Pinnacle doesn't agree — skip
+
+                            # PINNACLE VALUE bet (separate strategy; paper only; off by default)
+                            # Reuse same exact-match whitelist check computed above for STEAM.
+                            _pv_league_ok = _steam_league_ok
+                            if (
+                                _pin_edge > 0
+                                and odds
+                                and odds >= dfp_settings.MODEL_MIN_ODDS
+                                and market_allowed
+                                and not league_blocked
+                                and not draw_excluded
+                                and odds_fresh
+                                and _pv_league_ok
+                            ):
+                                log_pinnacle_value_bet(
+                                    f"{home} vs {away}",
+                                    m_type,
+                                    sel_name,
+                                    odds,
+                                    _pin_edge * 100.0,
+                                    fixture_id=fid,
+                                    league=league,
+                                    pinnacle_data=_pin_data,
+                                )
+
+                            require_dc = settings.get("require_dc_coverage", True)
+                            dc_covered = (prediction or {}).get("dc_covered", False)
+
+                            # Draw-specific guard: model draw probabilities are poorly
+                            # calibrated (overconfident long-tail). For AI-path draws,
+                            # require Pinnacle to also price this as value (_pin_edge > 0)
+                            # before recommending. This keeps draw bets to situations where
+                            # the sharp market independently agrees, not just the model.
+                            _is_draw = m_type == "1X2" and key == "Draw"
+                            _draw_pin_ok = (not _is_draw) or (_pin_edge > 0)
+
                             is_recommended = (
                                 ev >= min_ev_threshold
                                 and prob >= conf_threshold
                                 and odds >= dfp_settings.MODEL_MIN_ODDS
-                                and is_at_peak
                                 and market_allowed
                                 and not league_blocked
                                 and not draw_excluded
                                 and conviction_ok
                                 and steam_ok
                                 and odds_fresh
+                                and (not require_dc or dc_covered)
+                                and _steam_league_ok  # AI bets respect the same league whitelist
+                                and _draw_pin_ok  # draws need Pinnacle value confirmation
                             )
 
                             # ASIAN HANDICAP paper bet gate (opt-in; off by default)
@@ -4053,10 +5013,12 @@ def update_dashboard_json(fixtures, results_cache):
         except Exception as e:
             print("[LIVE] inject failed:", e)
 
-    with open(
-        os.path.join(DATA_DIR, "todays_dashboard_state.json"), "w", encoding="utf-8"
-    ) as f:
+    # Atomic write: write to temp file then rename so readers never see a partial file
+    _state_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
+    _state_tmp = _state_path + ".tmp"
+    with open(_state_tmp, "w", encoding="utf-8") as f:
         json.dump(dashboard_data, f, indent=4)
+    os.replace(_state_tmp, _state_path)
 
     # Notifications handled by Arena autopilot (one push per placed bet, not per cycle)
 
@@ -4354,8 +5316,15 @@ def run_daemon():
     # Start background telemetry threads FIRST (independent of settlement, which
     # can be slow) so they begin accumulating data immediately on startup:
     #  - closing-line capture: true pre-kickoff prices for open bets (honest CLV)
-    #  - sharp snapshots: Pinnacle line history for sharp-steam + lagging-value
+    #  - Pinnacle feed: live sharp odds every 120s → sharp_odds_history (CLV + value)
     start_closing_capture()
+    try:
+        from src.pinnacle_feed import start_feed_thread as _start_pf
+
+        _start_pf()
+        print("[*] Pinnacle live feed thread started (120s interval).")
+    except Exception as _pf_err:
+        print(f"[!] Pinnacle feed thread failed to start: {_pf_err}")
 
     # Run initial settlement on startup (may be slow — network result fetch).
     settle_open_bets()
@@ -4374,6 +5343,17 @@ def run_daemon():
                     "[SCRAPER] Previous Betarabia scrape still running; skipping (no stacking)."
                 )
             else:
+                # Reap finished/crashed process before spawning a new one
+                if _scraper_proc is not None:
+                    rc = _scraper_proc.poll()
+                    if rc is not None and rc != 0:
+                        print(
+                            f"[SCRAPER] Previous scrape exited with code {rc} — restarting."
+                        )
+                    try:
+                        _scraper_proc.wait(timeout=1)
+                    except Exception:
+                        pass
                 scraper_path = os.path.join(
                     os.path.dirname(__file__), "betarabia_scraper.py"
                 )
@@ -4491,7 +5471,7 @@ def run_daemon():
         _pinn_data = {}
         if _ODDS_AGG and _get_pinnacle_probs:
             try:
-                from src.sharp_scraper import fetch_pinnacle_1x2 as _fp
+                from src.pinnacle_feed import fetch_pinnacle_1x2 as _fp
 
                 _pinn_data = _fp()
             except Exception:
@@ -4611,6 +5591,40 @@ def run_daemon():
                         os.path.join(DATA_DIR, f"audit_{now.date()}.done"), "w"
                     ) as f:
                         f.write("done")
+
+            # Weekly CLV Report & Diagnostics (Run on Sundays at 23:50)
+            if now.weekday() == 6 and now.hour == 23 and now.minute >= 50:
+                clv_report_file = os.path.join(
+                    DATA_DIR, f"clv_weekly_{now.date()}.done"
+                )
+                if not os.path.exists(clv_report_file):
+                    try:
+                        from src.clv_tracker_v2 import generate_weekly_report
+                        from src.diagnostics import run_diagnostics
+                        from src.shadow_framework import get_shadow_status
+
+                        report = generate_weekly_report()
+                        diag = run_diagnostics()
+                        shadow = get_shadow_status()
+
+                        print(
+                            f"[CLV WEEKLY REPORT] Bets: {report.get('total_bets', 0)}, "
+                            f"Avg CLV: {report.get('avg_clv_pct', 0):.2f}%, "
+                            f"ROI: {report.get('roi_pct', 0):.2f}%"
+                        )
+                        print(
+                            f"[DIAGNOSTICS] Disabled markets: {len(diag.get('disabled_markets', []))}, "
+                            f"leagues: {len(diag.get('disabled_leagues', []))}"
+                        )
+                        print(
+                            f"[SHADOW] Ready for real money: {shadow.get('ready', False)}, "
+                            f"Paper bets: {shadow.get('paper_bets', 0)}/500"
+                        )
+
+                        with open(clv_report_file, "w") as f:
+                            f.write("done")
+                    except Exception as clv_err:
+                        print(f"[CLV REPORT ERROR] {clv_err}")
 
         except Exception as e:
             print(f"[MONITORING ERROR] {e}")

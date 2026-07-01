@@ -96,7 +96,7 @@ def _fetch_pinnacle() -> dict:
     if cached and now - cached[0] < _TTL:
         return cached[1]
     try:
-        from src.sharp_scraper import fetch_pinnacle_1x2
+        from src.pinnacle_feed import fetch_pinnacle_1x2
 
         data = fetch_pinnacle_1x2()
         _CACHE["pinnacle"] = (now, data)

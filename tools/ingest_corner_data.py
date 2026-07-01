@@ -8,6 +8,7 @@ corner rate model keyed by team and league.
 Run: .venv\\Scripts\\python.exe tools\\ingest_corner_data.py
      .venv\\Scripts\\python.exe tools\\ingest_corner_data.py --leagues E0 SP1 --seasons 2324 2425
 """
+
 import argparse
 import csv
 import io
@@ -21,7 +22,20 @@ DB = os.path.join(os.path.dirname(__file__), "..", "data", "corner_history.db")
 BASE = "https://www.football-data.co.uk/mmz4281"
 HDRS = {"User-Agent": "Mozilla/5.0"}
 
-DEFAULT_LEAGUES = ["E0", "E1", "SP1", "I1", "D1", "F1", "N1", "P1", "B1", "SC0", "T1", "G1"]
+DEFAULT_LEAGUES = [
+    "E0",
+    "E1",
+    "SP1",
+    "I1",
+    "D1",
+    "F1",
+    "N1",
+    "P1",
+    "B1",
+    "SC0",
+    "T1",
+    "G1",
+]
 DEFAULT_SEASONS = ["2122", "2223", "2324", "2425"]
 
 
@@ -38,7 +52,8 @@ def _fi(row, *keys):
 
 def init_db():
     con = sqlite3.connect(DB)
-    con.execute("""
+    con.execute(
+        """
         CREATE TABLE IF NOT EXISTS corners (
             date TEXT, league TEXT, season TEXT,
             home TEXT, away TEXT,
@@ -46,7 +61,8 @@ def init_db():
             home_corners INTEGER, away_corners INTEGER,
             total_corners INTEGER,
             UNIQUE(date, league, home, away)
-        )""")
+        )"""
+    )
     con.commit()
     return con
 
@@ -103,7 +119,9 @@ def ingest(leagues, seasons):
     avg_h = cur.execute("SELECT AVG(home_corners) FROM corners").fetchone()[0]
     avg_t = cur.execute("SELECT AVG(total_corners) FROM corners").fetchone()[0]
     con.close()
-    print(f"\nDB: {cnt} matches with corner data | avg home corners {avg_h:.2f} | avg total {avg_t:.2f}")
+    print(
+        f"\nDB: {cnt} matches with corner data | avg home corners {avg_h:.2f} | avg total {avg_t:.2f}"
+    )
     print(f"Skipped {skipped} rows (no corner data in CSV)")
     print(f"-> {os.path.relpath(DB)}")
 
@@ -113,7 +131,9 @@ def main():
     ap.add_argument("--leagues", nargs="*", default=DEFAULT_LEAGUES)
     ap.add_argument("--seasons", nargs="*", default=DEFAULT_SEASONS)
     args = ap.parse_args()
-    print(f"Ingesting corners: {len(args.leagues)} leagues x {len(args.seasons)} seasons...")
+    print(
+        f"Ingesting corners: {len(args.leagues)} leagues x {len(args.seasons)} seasons..."
+    )
     ingest(args.leagues, args.seasons)
 
 

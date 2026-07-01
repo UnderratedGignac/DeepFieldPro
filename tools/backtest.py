@@ -16,6 +16,7 @@ Usage:
     .venv\\Scripts\\python.exe tools\\backtest.py
     .venv\\Scripts\\python.exe tools\\backtest.py --markets 1X2 --no-draws --start-bankroll 53
 """
+
 import argparse
 import os
 import sqlite3
@@ -26,7 +27,9 @@ DB = os.path.join(os.path.dirname(__file__), "..", "data", "bet_log.db")
 def load_settled():
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
-    rows = [dict(r) for r in con.execute("SELECT * FROM bet_log ORDER BY placed_at ASC")]
+    rows = [
+        dict(r) for r in con.execute("SELECT * FROM bet_log ORDER BY placed_at ASC")
+    ]
     con.close()
     out = []
     for r in rows:
@@ -34,19 +37,22 @@ def load_settled():
         if res not in ("W", "L", "WIN", "LOSS", "WON", "LOST"):
             continue
         try:
-            fo = float(r["fair_odds"]); eo = float(r["entry_odds"])
+            fo = float(r["fair_odds"])
+            eo = float(r["entry_odds"])
         except (TypeError, ValueError):
             continue
         if fo <= 0 or eo <= 1:
             continue
-        out.append({
-            "ts": r.get("placed_at"),
-            "market": r.get("market_type"),
-            "side": r.get("side") or "",
-            "odds": eo,
-            "model_prob": 1.0 / fo,           # recovered model probability
-            "won": res.startswith("W"),
-        })
+        out.append(
+            {
+                "ts": r.get("placed_at"),
+                "market": r.get("market_type"),
+                "side": r.get("side") or "",
+                "odds": eo,
+                "model_prob": 1.0 / fo,  # recovered model probability
+                "won": res.startswith("W"),
+            }
+        )
     return out
 
 
@@ -58,10 +64,21 @@ def kelly_fraction(p, odds, mult, cap):
     return max(0.0, min(cap, f * mult))
 
 
-def simulate(bets, *, markets=None, exclude_draws=False, sides=None,
-             min_ev=None, min_odds=None, max_odds=None, calibrate=None,
-             start_bankroll=1000.0, kelly_mult=0.20, kelly_cap=0.05,
-             flat_stake=None):
+def simulate(
+    bets,
+    *,
+    markets=None,
+    exclude_draws=False,
+    sides=None,
+    min_ev=None,
+    min_odds=None,
+    max_odds=None,
+    calibrate=None,
+    start_bankroll=1000.0,
+    kelly_mult=0.20,
+    kelly_cap=0.05,
+    flat_stake=None,
+):
     """Return summary dict. calibrate: optional fn(model_prob)->cal_prob."""
     bankroll = start_bankroll
     peak = start_bankroll
@@ -107,19 +124,27 @@ def simulate(bets, *, markets=None, exclude_draws=False, sides=None,
         if bankroll <= 0:
             break
     return {
-        "n": n, "wins": wins, "hit": (wins / n if n else 0.0),
-        "staked": staked, "pnl": pnl, "roi": (pnl / staked if staked else 0.0),
-        "start": start_bankroll, "final": bankroll,
+        "n": n,
+        "wins": wins,
+        "hit": (wins / n if n else 0.0),
+        "staked": staked,
+        "pnl": pnl,
+        "roi": (pnl / staked if staked else 0.0),
+        "start": start_bankroll,
+        "final": bankroll,
         "growth": (bankroll / start_bankroll - 1.0) if start_bankroll else 0.0,
-        "max_dd": max_dd, "busted": bankroll <= 0,
+        "max_dd": max_dd,
+        "busted": bankroll <= 0,
     }
 
 
 def fmt(name, s):
     bust = "  *** BUSTED ***" if s["busted"] else ""
-    return (f"{name:34s} n={s['n']:4d} hit={s['hit']:5.1%} "
-            f"ROI={s['roi']:+7.1%} | ${s['start']:.0f}->${s['final']:8.2f} "
-            f"({s['growth']:+.0%}) maxDD={s['max_dd']:4.0%}{bust}")
+    return (
+        f"{name:34s} n={s['n']:4d} hit={s['hit']:5.1%} "
+        f"ROI={s['roi']:+7.1%} | ${s['start']:.0f}->${s['final']:8.2f} "
+        f"({s['growth']:+.0%}) maxDD={s['max_dd']:4.0%}{bust}"
+    )
 
 
 def main():
@@ -138,23 +163,63 @@ def main():
 
     print("=== HEAD-TO-HEAD: each rule applied on top of the previous ===")
     # 0. Baseline: everything, flat $ proportional to recorded behaviour (Kelly on all markets)
-    print(fmt("0 baseline (all markets, Kelly)",
-              simulate(bets, start_bankroll=sb, kelly_mult=args.kelly_mult)))
+    print(
+        fmt(
+            "0 baseline (all markets, Kelly)",
+            simulate(bets, start_bankroll=sb, kelly_mult=args.kelly_mult),
+        )
+    )
     # 1. 1X2 only
-    print(fmt("1 +1X2 only",
-              simulate(bets, markets={"1X2"}, start_bankroll=sb, kelly_mult=args.kelly_mult)))
+    print(
+        fmt(
+            "1 +1X2 only",
+            simulate(
+                bets, markets={"1X2"}, start_bankroll=sb, kelly_mult=args.kelly_mult
+            ),
+        )
+    )
     # 2. 1X2, no draws
-    print(fmt("2 +no draws",
-              simulate(bets, markets={"1X2"}, exclude_draws=True,
-                       start_bankroll=sb, kelly_mult=args.kelly_mult)))
+    print(
+        fmt(
+            "2 +no draws",
+            simulate(
+                bets,
+                markets={"1X2"},
+                exclude_draws=True,
+                start_bankroll=sb,
+                kelly_mult=args.kelly_mult,
+            ),
+        )
+    )
     # 3. 1X2, no draws, require +EV
-    print(fmt("3 +require EV>0",
-              simulate(bets, markets={"1X2"}, exclude_draws=True, min_ev=0.0,
-                       start_bankroll=sb, kelly_mult=args.kelly_mult)))
+    print(
+        fmt(
+            "3 +require EV>0",
+            simulate(
+                bets,
+                markets={"1X2"},
+                exclude_draws=True,
+                min_ev=0.0,
+                start_bankroll=sb,
+                kelly_mult=args.kelly_mult,
+            ),
+        )
+    )
     # 4. + Home/Away only
-    print(fmt("4 +home/away only",
-              simulate(bets, markets={"1X2"}, exclude_draws=True, min_ev=0.0,
-                       sides=["Home", "Away"], start_bankroll=sb, kelly_mult=args.kelly_mult)))
+    print(
+        fmt(
+            "4 +home/away only",
+            simulate(
+                bets,
+                markets={"1X2"},
+                exclude_draws=True,
+                min_ev=0.0,
+                sides=["Home", "Away"],
+                start_bankroll=sb,
+                kelly_mult=args.kelly_mult,
+            ),
+        )
+    )
 
     print("\n=== STAKING comparison on the disciplined slice (1X2, no draws, EV>0) ===")
     common = dict(markets={"1X2"}, exclude_draws=True, min_ev=0.0, start_bankroll=sb)

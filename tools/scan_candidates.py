@@ -1,5 +1,7 @@
 """Show all Arena candidates (qualifying + non-qualifying) to verify ledger count."""
+
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from src.arena_betting import analyze, get_wallet
 

@@ -35,7 +35,14 @@ def init_bet_log_db():
         role_shift_flag INTEGER,
         bet_source TEXT DEFAULT 'AI',
         is_recommended INTEGER DEFAULT 0,
-        model_version TEXT
+        model_version TEXT,
+        fixture_id TEXT,
+        league TEXT,
+        best_odds REAL,
+        best_book TEXT,
+        signal_name TEXT,
+        move_size REAL,
+        monotonicity REAL
     )
     """
     )

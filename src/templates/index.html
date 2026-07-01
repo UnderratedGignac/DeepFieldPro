@@ -725,6 +725,138 @@
         .flash-up { animation: flashGreen 1.5s ease-out; }
         .flash-down { animation: flashRed 1.5s ease-out; }
 
+        /* BANKROLL STATUS BAR */
+        #bankroll-status-bar {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 18px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+        .bsb-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+        }
+        .bsb-chip .val { color: var(--text-main); font-weight: 700; }
+        .bsb-chip .val.pos { color: #00ff88; }
+        .bsb-chip .val.neg { color: #ff4d4d; }
+        .bsb-chip .val.gold { color: var(--primary); }
+        .bsb-divider { width: 1px; height: 20px; background: var(--border-color); }
+        #bsb-halt-badge {
+            background: rgba(255,50,50,0.15);
+            color: #ff4d4d;
+            border: 1px solid rgba(255,50,50,0.4);
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            display: none;
+        }
+
+        /* OPEN POSITIONS PANEL */
+        #open-positions-panel {
+            background: var(--surface-color);
+            border: 1px solid rgba(229,193,88,0.25);
+            border-radius: var(--card-radius);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        #open-positions-panel .ops-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .ops-bet-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8rem;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .ops-bet-row:last-child { border-bottom: none; }
+        .ops-match { color: var(--text-main); font-weight: 600; flex: 1; min-width: 120px; }
+        .ops-sel { color: var(--secondary); }
+        .ops-odds { color: var(--primary); font-weight: 700; font-family: 'Outfit', sans-serif; }
+        .ops-stake { color: var(--text-main); font-weight: 600; }
+        .ops-source-ai { background: rgba(229,193,88,0.12); color: var(--primary); padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+        .ops-source-steam { background: rgba(0,200,255,0.12); color: #40d0ff; padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+
+        /* RECOMMENDED CARD GLOW */
+        .match-card.has-recommendation {
+            border-color: rgba(229,193,88,0.55);
+            box-shadow: 0 4px 24px rgba(229,193,88,0.18), 0 0 0 1px rgba(229,193,88,0.2);
+        }
+        .match-card.has-recommendation::before {
+            background: linear-gradient(90deg, #00e07a, var(--primary));
+            opacity: 1;
+        }
+        /* DC Model coverage badge */
+        .dc-badge-ok {
+            background: rgba(0,255,136,0.1); color: #00dd77;
+            font-size: 0.6rem; font-weight: 800; padding: 2px 7px;
+            border-radius: 10px; border: 1px solid rgba(0,255,136,0.25);
+            display: inline-flex; align-items: center; gap: 3px; letter-spacing: 0.3px;
+        }
+        .dc-badge-no {
+            background: rgba(255,170,0,0.1); color: #ffaa33;
+            font-size: 0.6rem; font-weight: 700; padding: 2px 7px;
+            border-radius: 10px; border: 1px solid rgba(255,170,0,0.2);
+            display: inline-flex; align-items: center; gap: 3px; letter-spacing: 0.3px;
+        }
+        /* Sidebar live balance strip */
+        .sidebar-balance-strip {
+            margin: 12px 0 0;
+            padding: 10px 14px;
+            background: rgba(229,193,88,0.06);
+            border: 1px solid rgba(229,193,88,0.15);
+            border-radius: 8px;
+            font-size: 0.78rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .sbs-row { display:flex; justify-content:space-between; color:var(--text-muted); }
+        .sbs-val { font-weight:700; font-family:'Outfit',sans-serif; color:var(--primary); }
+        .sbs-val.pos { color:#00ff88; }
+        .sbs-val.neg { color:#ff4d4d; }
+
+        /* BET PLACED RIBBON */
+        .bet-placed-ribbon {
+            position: absolute;
+            top: 8px;
+            right: -1px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--bg-color);
+            font-size: 0.6rem;
+            font-weight: 800;
+            padding: 3px 10px 3px 8px;
+            border-radius: 4px 0 0 4px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: -2px 2px 8px rgba(0,0,0,0.3);
+            z-index: 5;
+        }
+
     </style>
 </head>
 <body>
@@ -782,14 +914,22 @@
             <a class="nav-item" onclick="switchView('arena-view', this)">
                 <i class="fa-solid fa-futbol"></i> World Cup Arena
             </a>
+            <a class="nav-item" onclick="switchView('wc-predictor-view', this)">
+                <i class="fa-solid fa-trophy"></i> WC 2026 Winner
+            </a>
             <a class="nav-item" onclick="switchView('settings-view', this)">
                 <i class="fa-solid fa-microchip"></i> Engine Settings
             </a>
         </nav>
-        <div class="user-profile">
+        <div class="sidebar-balance-strip" id="sidebar-balance-strip">
+            <div class="sbs-row"><span>Balance</span><span class="sbs-val" id="sbs-balance">—</span></div>
+            <div class="sbs-row"><span>Today P&L</span><span class="sbs-val" id="sbs-pnl">—</span></div>
+            <div class="sbs-row"><span>Open Bets</span><span class="sbs-val" id="sbs-open">—</span></div>
+        </div>
+        <div class="user-profile" style="margin-top:12px;">
             <div class="avatar"><i class="fa-solid fa-user-tie"></i></div>
             <div class="user-info">
-                <span class="name">Administrator</span>
+                <span class="name">Elie</span>
                 <span class="role">Capital Engine</span>
             </div>
         </div>
@@ -801,14 +941,39 @@
             <h2 class="page-title" id="page-title">Live Match Radar</h2>
             <div class="system-status">
                 <div class="status-dot"></div>
-                Engine Online - Next Sync: <span id="countdown">30</span>s
+                <span id="status-label">Engine Online</span> &mdash; <span id="match-count-label">—</span> matches &mdash; Next Sync: <span id="countdown">30</span>s
             </div>
+        </div>
+
+        <!-- BANKROLL STATUS BAR -->
+        <div id="bankroll-status-bar">
+            <div class="bsb-chip"><i class="fa-solid fa-vault"></i> Balance: <span class="val gold" id="bsb-balance">—</span></div>
+            <div class="bsb-divider"></div>
+            <div class="bsb-chip"><i class="fa-solid fa-chart-line"></i> Today P&L: <span class="val" id="bsb-pnl">—</span></div>
+            <div class="bsb-divider"></div>
+            <div class="bsb-chip"><i class="fa-solid fa-layer-group"></i> Open Bets: <span class="val gold" id="bsb-open">—</span></div>
+            <div class="bsb-divider"></div>
+            <div class="bsb-chip"><i class="fa-solid fa-gauge-high"></i> Daily Cap Used: <span class="val" id="bsb-cap">—</span></div>
+            <div class="bsb-divider"></div>
+            <div class="bsb-chip"><i class="fa-solid fa-arrow-trend-down"></i> At Risk: <span class="val" id="bsb-exposure">—</span></div>
+            <span id="bsb-halt-badge"><i class="fa-solid fa-hand"></i> HALTED</span>
         </div>
 
         <!-- LIVE PREDICTIONS VIEW -->
         <div id="live-view" class="view-section active">
             <div id="sync-progress-container">
                 <div id="sync-progress-bar"></div>
+            </div>
+
+            <!-- OPEN POSITIONS PANEL -->
+            <div id="open-positions-panel">
+                <div class="ops-header">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Open Positions
+                    <span id="ops-count" style="background:var(--primary); color:var(--bg-color); font-size:0.7rem; padding:2px 8px; border-radius:12px; font-weight:800;">0</span>
+                    <span style="color:var(--text-muted); font-size:0.75rem; font-weight:400; margin-left:4px;">Pending settlement</span>
+                </div>
+                <div id="ops-list"></div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px; gap: 15px; flex-wrap: wrap;">
                 <div class="filter-bar" style="margin-bottom:0;">
@@ -823,6 +988,7 @@
                         <input type="text" id="search-input" placeholder="Search team or league..." style="width:100%; padding:10px 10px 10px 35px; border-radius:20px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); outline:none;" onkeyup="renderDashboard(cachedMatches)">
                     </div>
                     <select id="sort-select" style="padding:10px 15px; border-radius:20px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); outline:none;" onchange="renderDashboard(cachedMatches)">
+                        <option value="recommended">⚡ Recommended First</option>
                         <option value="time">Sort by Time</option>
                         <option value="confidence">Sort by AI Confidence</option>
                         <option value="league">Sort by League</option>
@@ -930,6 +1096,12 @@
         <!-- WORLD CUP ARENA VIEW (Stair AI real-money value betting) -->
         <div id="arena-view" class="view-section">
             <iframe src="/arena" title="World Cup Arena Betting"
+                style="width:100%; height:calc(100vh - 130px); min-height:600px; border:0; border-radius:10px; background:#0f1216;"></iframe>
+        </div>
+
+        <!-- WC 2026 WINNER PREDICTOR -->
+        <div id="wc-predictor-view" class="view-section">
+            <iframe src="/wc/" title="WC 2026 Winner Predictor"
                 style="width:100%; height:calc(100vh - 130px); min-height:600px; border:0; border-radius:10px; background:#0f1216;"></iframe>
         </div>
 
@@ -1979,12 +2151,98 @@
             showToast("Dashboard synchronized.", "success");
         }
 
+        function updateBankrollStatusBar(bs, openBets) {
+            if (!bs) return;
+            const pnl = bs.daily_pnl || 0;
+            const bal = bs.current_balance || 0;
+            const openCount = bs.open_bet_count || 0;
+
+            // Top status bar
+            document.getElementById('bsb-balance').textContent = '$' + bal.toFixed(2);
+            const pnlEl = document.getElementById('bsb-pnl');
+            pnlEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+            pnlEl.className = 'val ' + (pnl > 0 ? 'pos' : pnl < 0 ? 'neg' : '');
+            document.getElementById('bsb-open').textContent = openCount;
+            document.getElementById('bsb-cap').textContent = (bs.daily_cap_pct || 0).toFixed(1) + '%';
+            const totalAtRisk = (openBets || []).reduce((s, b) => s + (b.stake || 0), 0);
+            document.getElementById('bsb-exposure').textContent = '$' + totalAtRisk.toFixed(2);
+            const haltBadge = document.getElementById('bsb-halt-badge');
+            if (haltBadge) haltBadge.style.display = bs.is_halted ? 'flex' : 'none';
+
+            // Sidebar live strip
+            const sbsBal = document.getElementById('sbs-balance');
+            const sbsPnl = document.getElementById('sbs-pnl');
+            const sbsOpen = document.getElementById('sbs-open');
+            if (sbsBal) sbsBal.textContent = '$' + bal.toFixed(2);
+            if (sbsPnl) {
+                sbsPnl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+                sbsPnl.className = 'sbs-val ' + (pnl > 0 ? 'pos' : pnl < 0 ? 'neg' : '');
+            }
+            if (sbsOpen) sbsOpen.textContent = openCount;
+        }
+
+        function renderOpenPositions(bets) {
+            const panel = document.getElementById('open-positions-panel');
+            const list = document.getElementById('ops-list');
+            const countEl = document.getElementById('ops-count');
+            if (!panel || !list) return;
+            if (!bets || bets.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+            panel.style.display = 'block';
+            countEl.textContent = bets.length;
+            list.innerHTML = bets.map(b => {
+                const srcClass = b.bet_source === 'STEAM' ? 'ops-source-steam' : 'ops-source-ai';
+                const srcLabel = b.bet_source || 'AI';
+                const time = b.placed_at ? new Date(b.placed_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+                return `<div class="ops-bet-row">
+                    <span class="ops-match">${b.match_id || '—'}</span>
+                    <span class="ops-sel">${b.market_type || ''} · ${b.side || ''}</span>
+                    <span class="ops-odds">@ ${(b.entry_odds || 0).toFixed(2)}</span>
+                    <span class="ops-stake">$${(b.stake || 0).toFixed(2)}</span>
+                    <span class="${srcClass}">${srcLabel}</span>
+                    <span style="color:var(--text-muted); font-size:0.75rem;">${time}</span>
+                </div>`;
+            }).join('');
+        }
+
+        // Applies a "BET PLACED" ribbon to match cards that have an open bet
+        let _cachedOpenBets = [];
+        function applyBetBadges(bets) {
+            _cachedOpenBets = bets || [];
+            const betMatchSet = new Set(_cachedOpenBets.map(b => (b.match_id || '').toLowerCase()));
+            document.querySelectorAll('.match-card').forEach(card => {
+                const title = card.querySelector('.match-title');
+                const matchName = title ? title.textContent.toLowerCase() : '';
+                const hasBet = [...betMatchSet].some(id => matchName.includes(id) || id.includes(matchName.split(' vs ')[0]?.split(' ')[0]?.toLowerCase() || '__'));
+                if (hasBet && !card.querySelector('.bet-placed-ribbon')) {
+                    const ribbon = document.createElement('div');
+                    ribbon.className = 'bet-placed-ribbon';
+                    ribbon.innerHTML = '<i class="fa-solid fa-circle-check"></i> BET PLACED';
+                    card.appendChild(ribbon);
+                } else if (!hasBet) {
+                    const existing = card.querySelector('.bet-placed-ribbon');
+                    if (existing) existing.remove();
+                }
+            });
+        }
+
         function processNewData(data) {
             // Handle hybrid {data, ui, ui_available} response from A2UI layer
             const matches = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
             if (data && data.ui_available && data.ui) {
                 renderA2UISummary(data.ui);
             }
+            if (data && data.bankroll_status) updateBankrollStatusBar(data.bankroll_status, data.open_bets || []);
+            if (data && data.open_bets) renderOpenPositions(data.open_bets);
+
+            // Update match count in status bar
+            const mcLabel = document.getElementById('match-count-label');
+            if (mcLabel) mcLabel.textContent = matches.length;
+            // Color status dot red if no matches loaded
+            const dot = document.querySelector('.status-dot');
+            if (dot) dot.style.background = matches.length > 0 ? 'var(--primary)' : '#ff4d4d';
             let needsRender = false;
 
             matches.forEach(m => {
@@ -2030,6 +2288,7 @@
             
             cachedMatches = matches;
             renderDashboard(cachedMatches);
+            applyBetBadges(_cachedOpenBets);
         }
 
         function renderA2UISummary(ui) {
@@ -2080,8 +2339,15 @@
         }
 
         function formatTime(isoStr) {
+            if (!isoStr) return '—';
             const date = new Date(isoStr);
-            return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const now = new Date();
+            const todayStr = now.toDateString();
+            const tomorrowStr = new Date(now.getTime() + 86400000).toDateString();
+            const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            if (date.toDateString() === todayStr) return `Today ${timeStr}`;
+            if (date.toDateString() === tomorrowStr) return `Tomorrow ${timeStr}`;
+            return date.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'}) + ' ' + timeStr;
         }
 
         function renderDashboard(matches) {
@@ -2115,13 +2381,24 @@
             }
 
             if (filteredMatches.length === 0) {
-                if (isInitialLoad) return; // Don't show "No Matches" placeholder during initial data fetch
+                if (isInitialLoad) return;
 
+                const totalMatches = (matches || []).length;
+                let emptyReason = '';
+                if (totalMatches === 0) {
+                    emptyReason = `<p style="color:var(--text-muted); font-size:0.88rem; margin-top:6px;">The daemon hasn't loaded any fixtures yet.<br>Check that the daemon is running and <code style="color:var(--secondary);">data/odds_stream.db</code> has today's matches.</p>`;
+                } else if (currentMatchFilter !== 'all') {
+                    emptyReason = `<p style="color:var(--text-muted); font-size:0.88rem; margin-top:6px;">${totalMatches} match${totalMatches!==1?'es':''} loaded — none match the <strong style="color:var(--primary);">${currentMatchFilter}</strong> filter.<br>Try switching to <strong>All Games</strong>.</p>`;
+                } else if (document.getElementById('search-input')?.value) {
+                    emptyReason = `<p style="color:var(--text-muted); font-size:0.88rem; margin-top:6px;">No matches for "<strong style="color:var(--primary);">${document.getElementById('search-input').value}</strong>". Clear the search to see all ${totalMatches} games.</p>`;
+                } else {
+                    emptyReason = `<p style="color:var(--text-muted); font-size:0.88rem; margin-top:6px;">No games available right now.</p>`;
+                }
                 dashboard.innerHTML = `
-                    <div class="placeholder-box" style="grid-column: 1 / -1; width: 100%; box-sizing: border-box; animation: fadeIn 0.4s ease-out;">
-                        <i class="fa-solid fa-gamepad" style="font-size: 3rem; color: var(--border-color); margin-bottom: 20px;"></i>
-                        <h3 style="color: var(--text-main); font-size: 1.5rem; margin-bottom: 10px;">No Matches Found</h3>
-                        <p style="color: var(--text-muted); font-size: 0.9rem;">There are no games matching the "${currentMatchFilter}" filter at the moment.</p>
+                    <div class="placeholder-box" style="grid-column:1/-1; width:100%; box-sizing:border-box; animation:fadeIn 0.4s ease-out;">
+                        <i class="fa-solid fa-satellite-dish" style="font-size:2.8rem; color:var(--border-color); margin-bottom:16px;"></i>
+                        <h3 style="color:var(--text-main); font-size:1.4rem; margin-bottom:4px;">No Matches Found</h3>
+                        ${emptyReason}
                     </div>
                 `;
                 return;
@@ -2129,12 +2406,25 @@
 
             dashboard.innerHTML = '';
 
-            if (sortSelect === 'confidence') {
+            // Helper: does a match have any recommended selection?
+            const hasRec = m => Object.values(m.prediction?.markets || {}).some(sels => sels.some(s => s.recommended));
+
+            if (sortSelect === 'recommended') {
+                filteredMatches.sort((a, b) => {
+                    const recA = hasRec(a) ? 1 : 0;
+                    const recB = hasRec(b) ? 1 : 0;
+                    if (recA !== recB) return recB - recA;
+                    // DC-covered first within recommended
+                    const dcA = a.prediction?.dc_covered ? 1 : 0;
+                    const dcB = b.prediction?.dc_covered ? 1 : 0;
+                    if (dcA !== dcB) return dcB - dcA;
+                    return new Date(a.kickoff) - new Date(b.kickoff);
+                });
+            } else if (sortSelect === 'confidence') {
                 filteredMatches.sort((a, b) => {
                     const confA = a.prediction?.detailed_prediction?.confidence || 0;
                     const confB = b.prediction?.detailed_prediction?.confidence || 0;
                     if (confA !== confB) return confB - confA;
-                    
                     const evA = a.prediction?.markets?.['Match Result']?.[0]?.prob || 0;
                     const evB = b.prediction?.markets?.['Match Result']?.[0]?.prob || 0;
                     return evB - evA;
@@ -2147,11 +2437,9 @@
                     const aHasLineup = a.has_lineup ? 1 : 0;
                     const bHasLineup = b.has_lineup ? 1 : 0;
                     if (aHasLineup !== bHasLineup) return bHasLineup - aHasLineup;
-                    
                     const aHasPred = a.prediction ? 1 : 0;
                     const bHasPred = b.prediction ? 1 : 0;
                     if (aHasPred !== bHasPred) return bHasPred - aHasPred;
-                    
                     return new Date(a.kickoff) - new Date(b.kickoff);
                 });
             }
@@ -2160,6 +2448,20 @@
                 const card = document.createElement('div');
                 card.className = 'match-card';
                 card.style.animationDelay = `${index * 0.03}s`;
+
+                // DC model coverage badge
+                let dcBadge = '';
+                if (match.prediction) {
+                    if (match.prediction.dc_covered) {
+                        dcBadge = `<span class="dc-badge-ok"><i class="fa-solid fa-circle-check"></i> DC MODEL</span>`;
+                    } else {
+                        dcBadge = `<span class="dc-badge-no"><i class="fa-solid fa-triangle-exclamation"></i> UNRATED</span>`;
+                    }
+                }
+
+                // Does this match have a recommended bet? → card glow
+                const matchHasRec = hasRec(match);
+                if (matchHasRec) card.classList.add('has-recommendation');
 
                 let lineupBadge = '';
                 if (match.prediction) {
@@ -2211,9 +2513,13 @@
                 const signalStrip = signalChips ? `<div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;">${signalChips}</div>` : '';
 
                 let contentHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <div class="league-badge" style="margin:0;">${match.league}</div>
-                        <div style="display:flex; gap:8px; align-items:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:8px;">
+                        <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
+                            <div class="league-badge" style="margin:0; align-self:flex-start;">${match.league}</div>
+                            ${dcBadge ? `<div>${dcBadge}</div>` : ''}
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:flex-end;">
+                            ${matchHasRec ? `<span style="background:linear-gradient(135deg,rgba(0,224,120,0.18),rgba(229,193,88,0.12)); color:#00e077; font-size:0.6rem; font-weight:800; padding:3px 9px; border-radius:10px; border:1px solid rgba(0,224,120,0.3); letter-spacing:0.5px; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-bolt"></i> BET LIVE</span>` : ''}
                             ${statusBadge}
                             ${lineupBadge}
                         </div>
@@ -2221,7 +2527,7 @@
                     ${signalStrip}
                     <h2 class="match-title">${match.match}</h2>
                     ${scoreHTML}
-                    <div class="kickoff"><i class="fa-solid fa-clock"></i> Kickoff: ${formatTime(match.kickoff)}</div>
+                    <div class="kickoff"><i class="fa-solid fa-clock"></i> ${formatTime(match.kickoff)}</div>
                 `;
 
                 if (match.prediction) {
@@ -3438,29 +3744,41 @@
         }
 
         async function saveSettings() {
+            const btn = document.querySelector('#settings-view .btn-primary');
+            const origHTML = btn ? btn.innerHTML : '';
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Saving…'; btn.disabled = true; }
+
+            const gv = (id, fallback) => { const el = document.getElementById(id); return el ? el.value : fallback; };
             const payload = {
-                kelly_multiplier: parseFloat(document.getElementById('set-kelly').value),
-                min_ev_threshold: parseFloat(document.getElementById('set-ev').value),
-                max_exposure_pct: parseFloat(document.getElementById('set-exposure').value),
-                min_confidence_pct: parseInt(document.getElementById('set-confidence').value),
-                data_source: document.getElementById('set-datasource').value,
-                target_leagues: document.getElementById('set-leagues').value,
-                refresh_interval_sec: parseInt(document.getElementById('set-refresh').value),
-                auto_place_bets: document.getElementById('set-auto-bet').checked,
-                home_adv_weight: parseFloat(document.getElementById('set-home-adv').value),
-                fatigue_penalty: parseFloat(document.getElementById('set-fatigue').value),
-                max_daily_loss_pct: parseFloat(document.getElementById('set-loss').value),
-                stop_win_pct: parseFloat(document.getElementById('set-win').value),
-                preferred_bookie: document.getElementById('set-bookie').value,
+                kelly_multiplier: parseFloat(gv('set-kelly', 0.2)),
+                min_ev_threshold: parseFloat(gv('set-ev', 0.08)),
+                max_exposure_pct: parseFloat(gv('set-exposure', 0.05)),
+                min_confidence_pct: parseInt(gv('set-confidence', 60)),
+                data_source: gv('set-datasource', 'betarabia'),
+                target_leagues: gv('set-leagues', ''),
+                refresh_interval_sec: parseInt(gv('set-refresh', 30)),
+                auto_place_bets: document.getElementById('set-auto-bet')?.checked || false,
+                home_adv_weight: parseFloat(gv('set-home-adv', 0.5)),
+                fatigue_penalty: parseFloat(gv('set-fatigue', 0.1)),
+                max_daily_loss_pct: parseFloat(gv('set-loss', 0.05)),
+                stop_win_pct: parseFloat(gv('set-win', 0.2)),
+                preferred_bookie: gv('set-bookie', 'betarabia'),
                 platt_scaling: true
             };
-            await fetch('/api/settings', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            showToast('Settings Saved Successfully!', 'success');
-            refreshTimer = payload.refresh_interval_sec;
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('Server error ' + res.status);
+                showToast('Settings saved.', 'success');
+                refreshTimer = payload.refresh_interval_sec;
+            } catch(e) {
+                showToast('Failed to save settings: ' + e.message, 'error');
+            } finally {
+                if (btn) { btn.innerHTML = origHTML; btn.disabled = false; }
+            }
         }
 
         // Initialize and Route

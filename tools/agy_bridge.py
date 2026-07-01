@@ -160,7 +160,9 @@ def run_task(
             cwd=cwd or os.getcwd(),
         )
     except FileNotFoundError:
-        return AgyResult(text="", ok=False, conversation_id="", error="agy.exe not found")
+        return AgyResult(
+            text="", ok=False, conversation_id="", error="agy.exe not found"
+        )
 
     # Poll for any DB whose max_step_idx has grown AND contains a new
     # completed response step (type=15, status=3) after the snapshot idx.
@@ -255,7 +257,12 @@ def run_build_task(task: str, timeout: int = 180) -> AgyResult:
         f"Complete the following task autonomously, edit files as needed, and report a brief summary of changes made:\n\n"
         f"{task}"
     )
-    return run_task(full_prompt, timeout=timeout, skip_permissions=True, cwd="C:/Users/Elie/DeepFieldPro")
+    return run_task(
+        full_prompt,
+        timeout=timeout,
+        skip_permissions=True,
+        cwd="C:/Users/Elie/DeepFieldPro",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +271,11 @@ def run_build_task(task: str, timeout: int = 180) -> AgyResult:
 if __name__ == "__main__":
     import sys
 
-    prompt = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "Say ONLINE in exactly one word."
+    prompt = (
+        " ".join(sys.argv[1:])
+        if len(sys.argv) > 1
+        else "Say ONLINE in exactly one word."
+    )
     print(f"[master] dispatching to AGY slave: {prompt!r}")
     result = run_task(prompt, timeout=60)
     print(f"[slave]  ok={result.ok}  conv={result.conversation_id}")

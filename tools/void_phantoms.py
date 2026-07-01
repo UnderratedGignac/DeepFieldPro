@@ -22,6 +22,7 @@ Usage:
     python tools/void_phantoms.py --no-verify      # use only the implausible-odds signal
                                                    #   (fast; skips Playwright/Flashscore)
 """
+
 import os
 import sys
 import sqlite3
@@ -55,8 +56,10 @@ def main():
         "SELECT bet_id, match_id, market_type, side, entry_odds, stake, placed_at, fixture_id "
         "FROM bet_log WHERE result='OPEN' ORDER BY placed_at"
     ).fetchall()
-    print(f"Scanning {len(rows)} OPEN bets (min age {min_age:.0f}h, "
-          f"verify={'on' if do_verify else 'off'})...\n")
+    print(
+        f"Scanning {len(rows)} OPEN bets (min age {min_age:.0f}h, "
+        f"verify={'on' if do_verify else 'off'})...\n"
+    )
 
     phantoms = []
     for bid, match_id, market, side, odds, stake, placed_at, fid in rows:
@@ -71,6 +74,7 @@ def main():
             if len(parts) == 2:
                 try:
                     from src.fixture_verifier import verify
+
                     v = verify(parts[0].strip(), parts[1].strip())
                     if v["verdict"] == "PHANTOM":
                         reason = v["detail"]
@@ -90,16 +94,22 @@ def main():
         print(f"      -> {reason}")
 
     if not apply:
-        print("\n(dry run) Re-run with --apply to void these (refunds paper stake). "
-              "Add --yes to skip prompts.")
+        print(
+            "\n(dry run) Re-run with --apply to void these (refunds paper stake). "
+            "Add --yes to skip prompts."
+        )
         conn.close()
         return
 
     from src.bankroll_tracker import register_settlement
+
     voided = 0
     for bid, match_id, market, side, odds, stake, age, reason in phantoms:
         if not assume_yes:
-            if input(f"\nVoid {match_id} ({market} {side})? [y/N] ").strip().lower() != "y":
+            if (
+                input(f"\nVoid {match_id} ({market} {side})? [y/N] ").strip().lower()
+                != "y"
+            ):
                 continue
         conn.execute("UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?", (bid,))
         conn.commit()

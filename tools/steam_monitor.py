@@ -8,14 +8,23 @@ Usage:
     python tools/steam_monitor.py
     python tools/steam_monitor.py --min-bets 2   # hide buckets with < N bets
 """
+
 import sqlite3, os, sys, math
 
 DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 BET_DB = os.path.join(DATA, "bet_log.db")
 SIGNALS_DB = os.path.join(DATA, "deepfield_browser_data", "completed_fixtures.db")
 
-MIN_BETS = int(next((sys.argv[sys.argv.index("--min-bets") + 1]
-                     for i, a in enumerate(sys.argv) if a == "--min-bets"), 1))
+MIN_BETS = int(
+    next(
+        (
+            sys.argv[sys.argv.index("--min-bets") + 1]
+            for i, a in enumerate(sys.argv)
+            if a == "--min-bets"
+        ),
+        1,
+    )
+)
 
 
 def roi(pnl, staked):
@@ -46,7 +55,8 @@ con.execute(f"ATTACH DATABASE '{SIGNALS_DB}' AS sig")
 
 # Join bet_log STEAM bets with steam_signals on fixture_id.
 # steam_move comes from steam_signals (fraction ? multiply ?100 for %).
-rows = con.execute("""
+rows = con.execute(
+    """
     SELECT
         b.bet_id,
         b.match_id,
@@ -65,28 +75,38 @@ rows = con.execute("""
         AND b.market_type = s.market
     WHERE b.bet_source = 'STEAM'
     ORDER BY b.placed_at ASC
-""").fetchall()
+"""
+).fetchall()
 con.close()
 
 settled = [r for r in rows if r[5] in ("W", "L", "WIN", "LOSS")]
-has_clv  = [r for r in settled if r[7] is not None]
+has_clv = [r for r in settled if r[7] is not None]
 
 
 # ?? Helper: bucket stats ??????????????????????????????????????????????????????
+
 
 def bucket_stats(bets):
     n = len(bets)
     if n == 0:
         return None
-    wins   = sum(1 for b in bets if b[5] in ("W", "WIN"))
+    wins = sum(1 for b in bets if b[5] in ("W", "WIN"))
     staked = sum(b[4] or 0 for b in bets)
-    pnl    = sum(b[6] or 0 for b in bets)
+    pnl = sum(b[6] or 0 for b in bets)
     clv_vals = [b[7] for b in bets if b[7] is not None]
-    avg_clv  = sum(clv_vals) / len(clv_vals) * 100 if clv_vals else None
+    avg_clv = sum(clv_vals) / len(clv_vals) * 100 if clv_vals else None
     avg_odds = sum(b[3] for b in bets if b[3]) / n
-    return dict(n=n, wins=wins, hit=wins/n*100, staked=staked,
-                pnl=pnl, roi=roi(pnl, staked), avg_clv=avg_clv,
-                avg_odds=avg_odds, clv_n=len(clv_vals))
+    return dict(
+        n=n,
+        wins=wins,
+        hit=wins / n * 100,
+        staked=staked,
+        pnl=pnl,
+        roi=roi(pnl, staked),
+        avg_clv=avg_clv,
+        avg_odds=avg_odds,
+        clv_n=len(clv_vals),
+    )
 
 
 def print_table(header, rows_data, col_widths):
@@ -109,7 +129,7 @@ print()
 
 s = bucket_stats(settled)
 total_bets = len(rows)
-open_bets  = sum(1 for r in rows if r[5] == "OPEN")
+open_bets = sum(1 for r in rows if r[5] == "OPEN")
 
 print(f"  Total STEAM bets logged : {total_bets}")
 print(f"  Settled                 : {s['n']} (W={s['wins']} / L={s['n']-s['wins']})")
@@ -118,17 +138,17 @@ print(f"  Hit rate                : {s['hit']:.1f}%")
 print(f"  Total staked (paper $)  : ${s['staked']:.2f}")
 print(f"  Net P&L                 : ${s['pnl']:+.2f}")
 print(f"  ROI                     : {s['roi']:+.1f}%")
-if s['avg_clv'] is not None:
+if s["avg_clv"] is not None:
     print(f"  Avg CLV ({s['clv_n']} bets)      : {s['avg_clv']:+.2f}%  <-- key metric")
 print(f"  Avg entry odds          : {s['avg_odds']:.2f}")
 print()
 
 # CLV interpretation
-if s['avg_clv'] is not None:
-    if s['avg_clv'] >= 5:
+if s["avg_clv"] is not None:
+    if s["avg_clv"] >= 5:
         verdict = "POSITIVE EDGE SIGNAL ? CLV suggests genuine line-shopping advantage"
         color = "[OK]"
-    elif s['avg_clv'] >= 0:
+    elif s["avg_clv"] >= 0:
         verdict = "MARGINAL ? accumulate more bets before drawing conclusions"
         color = "[~]"
     else:
@@ -138,8 +158,8 @@ if s['avg_clv'] is not None:
     print()
 
 target = 300
-remaining = max(0, target - s['n'])
-bar_fill = min(40, int(s['n'] / target * 40))
+remaining = max(0, target - s["n"])
+bar_fill = min(40, int(s["n"] / target * 40))
 bar = "#" * bar_fill + "." * (40 - bar_fill)
 print(f"  Sample progress to 300-bet confidence threshold:")
 print(f"  [{bar}] {s['n']}/300  ({remaining} more bets needed)")
@@ -153,10 +173,10 @@ print()
 section("ROI & CLV BY MOVE SIZE BUCKET")
 
 move_buckets = [
-    ("5 ? 8%",   0.05, 0.08),
-    ("8 ? 12%",  0.08, 0.12),
+    ("5 ? 8%", 0.05, 0.08),
+    ("8 ? 12%", 0.08, 0.12),
     ("12 ? 20%", 0.12, 0.20),
-    ("20%+",     0.20, 9.99),
+    ("20%+", 0.20, 9.99),
     ("(unknown)", None, None),
 ]
 
@@ -172,13 +192,21 @@ for label, lo, hi in move_buckets:
     if len(bucket) < MIN_BETS:
         continue
     st = bucket_stats(bucket)
-    print("  " + "  ".join([
-        f"{label:<12}", f"{st['n']:<5}",
-        f"{st['hit']:>5.1f}%", f"${st['staked']:>7.2f}",
-        f"${st['pnl']:>+7.2f}", f"{st['roi']:>+6.1f}%",
-        fmt(st['avg_clv'], '%', plus=True).rjust(8),
-        f"{st['avg_odds']:>7.2f}",
-    ]))
+    print(
+        "  "
+        + "  ".join(
+            [
+                f"{label:<12}",
+                f"{st['n']:<5}",
+                f"{st['hit']:>5.1f}%",
+                f"${st['staked']:>7.2f}",
+                f"${st['pnl']:>+7.2f}",
+                f"{st['roi']:>+6.1f}%",
+                fmt(st["avg_clv"], "%", plus=True).rjust(8),
+                f"{st['avg_odds']:>7.2f}",
+            ]
+        )
+    )
 
 print()
 print("  Note: backtested edge at ?5% move was +20.9% ROI (2,386-bet held-out season).")
@@ -200,18 +228,26 @@ for r in settled:
 league_rows = []
 for lg, bets in sorted(leagues.items(), key=lambda x: -len(x[1])):
     st = bucket_stats(bets)
-    league_rows.append((
-        lg[:32], f"{st['n']}", f"{st['hit']:.0f}%",
-        f"${st['staked']:.0f}", f"${st['pnl']:+.2f}",
-        f"{st['roi']:+.1f}%",
-        fmt(st['avg_clv'], '%', plus=True),
-    ))
+    league_rows.append(
+        (
+            lg[:32],
+            f"{st['n']}",
+            f"{st['hit']:.0f}%",
+            f"${st['staked']:.0f}",
+            f"${st['pnl']:+.2f}",
+            f"{st['roi']:+.1f}%",
+            fmt(st["avg_clv"], "%", plus=True),
+        )
+    )
 
-print_table(["League", "N", "Hit%", "Staked", "P&L", "ROI%", "CLV%"],
-            league_rows, [32, 4, 5, 7, 9, 8, 8])
+print_table(
+    ["League", "N", "Hit%", "Staked", "P&L", "ROI%", "CLV%"],
+    league_rows,
+    [32, 4, 5, 7, 9, 8, 8],
+)
 print()
 print("  Leagues with negative CLV AND ?3 bets are blacklist candidates.")
-print("  Add them to  data/settings.json ? \"league_blocklist\".")
+print('  Add them to  data/settings.json ? "league_blocklist".')
 print()
 
 
@@ -225,11 +261,11 @@ odds_buckets = [
     ("1.50 ? 2.00", 1.50, 2.00),
     ("2.00 ? 2.50", 2.00, 2.50),
     ("2.50 ? 3.50", 2.50, 3.50),
-    ("3.50+",       3.50, 99.0),
+    ("3.50+", 3.50, 99.0),
 ]
 
 header2 = ["Odds range", "Bets", "Hit%", "Staked", "P&L", "ROI%", "CLV%"]
-widths2  = [14, 5, 7, 9, 9, 8, 8]
+widths2 = [14, 5, 7, 9, 9, 8, 8]
 print_table(header2, [], widths2)
 
 for label, lo, hi in odds_buckets:
@@ -237,12 +273,20 @@ for label, lo, hi in odds_buckets:
     if len(bucket) < MIN_BETS:
         continue
     st = bucket_stats(bucket)
-    print("  " + "  ".join([
-        f"{label:<14}", f"{st['n']:<5}",
-        f"{st['hit']:>5.1f}%", f"${st['staked']:>7.2f}",
-        f"${st['pnl']:>+7.2f}", f"{st['roi']:>+6.1f}%",
-        fmt(st['avg_clv'], '%', plus=True).rjust(8),
-    ]))
+    print(
+        "  "
+        + "  ".join(
+            [
+                f"{label:<14}",
+                f"{st['n']:<5}",
+                f"{st['hit']:>5.1f}%",
+                f"${st['staked']:>7.2f}",
+                f"${st['pnl']:>+7.2f}",
+                f"{st['roi']:>+6.1f}%",
+                fmt(st["avg_clv"], "%", plus=True).rjust(8),
+            ]
+        )
+    )
 print()
 
 
@@ -253,6 +297,7 @@ print()
 section("CLV TREND BY WEEK  (shows whether edge is improving or decaying)")
 
 from collections import defaultdict
+
 weekly: dict = defaultdict(list)
 for r in has_clv:
     placed = r[9]  # placed_at string
@@ -260,6 +305,7 @@ for r in has_clv:
         # ISO week
         try:
             import datetime
+
             d = datetime.date.fromisoformat(placed[:10])
             week = f"{d.isocalendar()[0]}-W{d.isocalendar()[1]:02d}"
         except Exception:
@@ -268,7 +314,7 @@ for r in has_clv:
 
 if weekly:
     header3 = ["Week", "Bets (CLV)", "Avg CLV%", "ROI%"]
-    widths3  = [10, 12, 10, 8]
+    widths3 = [10, 12, 10, 8]
     print_table(header3, [], widths3)
     for week in sorted(weekly):
         bets = weekly[week]
@@ -277,12 +323,17 @@ if weekly:
         pnl_w = sum(b[6] or 0 for b in bets)
         stk_w = sum(b[4] or 0 for b in bets)
         roi_w = roi(pnl_w, stk_w)
-        print("  " + "  ".join([
-            f"{week:<10}",
-            f"{len(bets):<12}",
-            fmt(avg_c, '%', plus=True).rjust(10),
-            f"{roi_w:>+6.1f}%",
-        ]))
+        print(
+            "  "
+            + "  ".join(
+                [
+                    f"{week:<10}",
+                    f"{len(bets):<12}",
+                    fmt(avg_c, "%", plus=True).rjust(10),
+                    f"{roi_w:>+6.1f}%",
+                ]
+            )
+        )
 else:
     print("  No CLV data yet ? settlement needs to populate closing_odds.")
 print()
@@ -294,37 +345,48 @@ print()
 
 section("RECOMMENDATIONS")
 
-if s['avg_clv'] is not None and s['avg_clv'] >= 5:
+if s["avg_clv"] is not None and s["avg_clv"] >= 5:
     print("  [OK]  CLV is positive. The strategy is worth continuing.")
     print(f"      Confidence is LOW at {s['n']} settled bets. Target: 300+.")
     print("      Do NOT raise stakes until sample is ? 200 bets.")
 
 # Negative-CLV leagues to flag
-bad_leagues = [(lg, bucket_stats(bets))
-               for lg, bets in leagues.items()
-               if len(bets) >= 3 and (st := bucket_stats(bets)) and st['avg_clv'] is not None and st['avg_clv'] < 0]
+bad_leagues = [
+    (lg, bucket_stats(bets))
+    for lg, bets in leagues.items()
+    if len(bets) >= 3
+    and (st := bucket_stats(bets))
+    and st["avg_clv"] is not None
+    and st["avg_clv"] < 0
+]
 if bad_leagues:
     print()
     print("  [!]   Leagues with negative CLV and ?3 bets (consider blacklisting):")
     for lg, st in bad_leagues:
-        print(f"        {lg}: CLV={st['avg_clv']:+.1f}%  ROI={st['roi']:+.1f}%  n={st['n']}")
+        print(
+            f"        {lg}: CLV={st['avg_clv']:+.1f}%  ROI={st['roi']:+.1f}%  n={st['n']}"
+        )
 
 # Move threshold suggestion
 hi_move = [r for r in settled if r[10] is not None and r[10] >= 0.10]
-lo_move  = [r for r in settled if r[10] is not None and r[10] < 0.10]
+lo_move = [r for r in settled if r[10] is not None and r[10] < 0.10]
 if hi_move and lo_move:
     hi_st, lo_st = bucket_stats(hi_move), bucket_stats(lo_move)
     print()
-    if hi_st['avg_clv'] and lo_st['avg_clv'] and hi_st['avg_clv'] > lo_st['avg_clv']:
-        print(f"  [^]  Larger moves (?10%) show higher CLV ({hi_st['avg_clv']:+.1f}%) "
-              f"vs smaller moves ({lo_st['avg_clv']:+.1f}%).")
-        print("      Consider raising steam_min_move_pct to 10% once you have ?100 bets.")
+    if hi_st["avg_clv"] and lo_st["avg_clv"] and hi_st["avg_clv"] > lo_st["avg_clv"]:
+        print(
+            f"  [^]  Larger moves (?10%) show higher CLV ({hi_st['avg_clv']:+.1f}%) "
+            f"vs smaller moves ({lo_st['avg_clv']:+.1f}%)."
+        )
+        print(
+            "      Consider raising steam_min_move_pct to 10% once you have ?100 bets."
+        )
 
 print()
 print("  Next milestones:")
 milestones = [50, 100, 200, 300, 500]
 for m in milestones:
-    remaining_m = max(0, m - s['n'])
+    remaining_m = max(0, m - s["n"])
     status = "[OK] DONE" if remaining_m == 0 else f"  {remaining_m} more bets"
     print(f"    {m:>4} bets ? {status}")
 

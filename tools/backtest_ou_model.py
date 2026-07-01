@@ -17,6 +17,7 @@ closing line (positive ROI there = genuinely beating the market — the real edg
 
 Run:  .venv\\Scripts\\python.exe tools\\backtest_ou_model.py
 """
+
 import datetime
 import math
 import os
@@ -28,7 +29,7 @@ from src.models.dixon_coles import fit_league
 
 DB = os.path.join(os.path.dirname(__file__), "..", "data", "history.db")
 MAX_GOALS = 10
-THRESH = 0.03   # require 3% model edge over the market price to bet
+THRESH = 0.03  # require 3% model edge over the market price to bet
 
 
 def parse_ordinal(s):
@@ -41,7 +42,7 @@ def parse_ordinal(s):
 
 
 def pois(k, lam):
-    return math.exp(-lam) * lam ** k / math.factorial(k)
+    return math.exp(-lam) * lam**k / math.factorial(k)
 
 
 def _tau(i, j, lam, mu, rho):
@@ -89,6 +90,7 @@ def fit_platt(X, Y):
     """Platt scaling on (prob, outcome) pairs -> (a, b) for sigmoid(a + b*logit(p))."""
     import numpy as np
     from sklearn.linear_model import LogisticRegression
+
     Z = np.array([[logit(p)] for p in X])
     clf = LogisticRegression(C=1.0).fit(Z, np.array(Y))
     return float(clf.intercept_[0]), float(clf.coef_[0][0])
@@ -110,8 +112,14 @@ def main():
             o = parse_ordinal(r["date"])
             if o:
                 by_league_train.setdefault(r["league"], []).append(
-                    {"home": r["home"], "away": r["away"],
-                     "hg": r["home_goals"], "ag": r["away_goals"], "ordinal": o})
+                    {
+                        "home": r["home"],
+                        "away": r["away"],
+                        "hg": r["home_goals"],
+                        "ag": r["away_goals"],
+                        "ordinal": o,
+                    }
+                )
     models = {}
     for lg, ms in by_league_train.items():
         p = fit_league(ms)
@@ -130,8 +138,14 @@ def main():
                 o = parse_ordinal(r["date"])
                 if o:
                     sub.setdefault(r["league"], []).append(
-                        {"home": r["home"], "away": r["away"],
-                         "hg": r["home_goals"], "ag": r["away_goals"], "ordinal": o})
+                        {
+                            "home": r["home"],
+                            "away": r["away"],
+                            "hg": r["home_goals"],
+                            "ag": r["away_goals"],
+                            "ordinal": o,
+                        }
+                    )
         subm = {lg: fit_league(ms) for lg, ms in sub.items()}
         for r in rows:
             if r["season"] != ts:
@@ -139,7 +153,11 @@ def main():
             m = subm.get(r["league"])
             if not m or r["home"] not in m["teams"] or r["away"] not in m["teams"]:
                 continue
-            lam = math.exp(m["teams"][r["home"]]["att"] + m["teams"][r["away"]]["def"] + m["home_adv"])
+            lam = math.exp(
+                m["teams"][r["home"]]["att"]
+                + m["teams"][r["away"]]["def"]
+                + m["home_adv"]
+            )
             mu = math.exp(m["teams"][r["away"]]["att"] + m["teams"][r["home"]]["def"])
             calX.append(p_over25(lam, mu))
             calY.append(1 if (r["home_goals"] + r["away_goals"]) > 2.5 else 0)
@@ -167,12 +185,16 @@ def main():
 
         lam = math.exp(lg["teams"][h]["att"] + lg["teams"][a]["def"] + lg["home_adv"])
         mu = math.exp(lg["teams"][a]["att"] + lg["teams"][h]["def"])
-        dc = p_over25(lam, mu)                  # production: plain Poisson
-        dc_cal = calibrate(dc)                  # bias-corrected (train-only fit)
-        mo, mu_ = devig(oo, ou)                 # market P(over), P(under)
+        dc = p_over25(lam, mu)  # production: plain Poisson
+        dc_cal = calibrate(dc)  # bias-corrected (train-only fit)
+        mo, mu_ = devig(oo, ou)  # market P(over), P(under)
 
         # (P(over), P(under)) pairs for scoring
-        preds = {"dc": (dc, 1 - dc), "dc-cal": (dc_cal, 1 - dc_cal), "market": (mo, mu_)}
+        preds = {
+            "dc": (dc, 1 - dc),
+            "dc-cal": (dc_cal, 1 - dc_cal),
+            "market": (mo, mu_),
+        }
         for name, (po, pu) in preds.items():
             po = max(1e-9, min(1 - 1e-9, po))
             pu = max(1e-9, min(1 - 1e-9, pu))
@@ -202,18 +224,28 @@ def main():
     for name in ("market", "dc", "dc-cal"):
         s = agg[name]
         if s["n"]:
-            print(f"{name:10s} {s['n']:5d} {s['ll']/s['n']:9.4f} {s['brier']/s['n']:7.4f}")
+            print(
+                f"{name:10s} {s['n']:5d} {s['ll']/s['n']:9.4f} {s['brier']/s['n']:7.4f}"
+            )
     print("(market is the benchmark; the DC O/U should at least approach it)")
 
     print("\n=== BETTING INTO THE CLOSING LINE (positive ROI = beats the market) ===")
-    print(f"{'model':10s} {'bets':>5s} {'hit':>6s} {'staked':>8s} {'pnl':>8s} {'roi':>8s}")
+    print(
+        f"{'model':10s} {'bets':>5s} {'hit':>6s} {'staked':>8s} {'pnl':>8s} {'roi':>8s}"
+    )
     for name in ("dc", "dc-cal"):
         b = bets[name]
         roi = b["pnl"] / b["staked"] if b["staked"] else 0
         hit = b["w"] / b["n"] if b["n"] else 0
-        print(f"{name:10s} {b['n']:5d} {hit:6.1%} {b['staked']:8.0f} {b['pnl']:+8.1f} {roi:+8.1%}")
-    print("\nNote: betting into CLOSING odds is the hardest possible test. The daemon bets")
-    print("earlier/softer lines, which is easier — but a market it can't beat at the close")
+        print(
+            f"{name:10s} {b['n']:5d} {hit:6.1%} {b['staked']:8.0f} {b['pnl']:+8.1f} {roi:+8.1%}"
+        )
+    print(
+        "\nNote: betting into CLOSING odds is the hardest possible test. The daemon bets"
+    )
+    print(
+        "earlier/softer lines, which is easier — but a market it can't beat at the close"
+    )
     print("and can't even match on log-loss should stay OFF the whitelist.")
 
 

@@ -32,10 +32,10 @@ from openai import OpenAI
 load_dotenv()
 
 # Provider config — NVIDIA NIM preferred, OpenRouter as fallback
-_NVIDIA_MODEL    = "qwen/qwen3.5-122b-a10b"
+_NVIDIA_MODEL = "qwen/qwen3.5-122b-a10b"
 _NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
-_OR_MODEL    = "qwen/qwen3-next-80b-a3b-instruct:free"
+_OR_MODEL = "qwen/qwen3-next-80b-a3b-instruct:free"
 _OR_BASE_URL = "https://openrouter.ai/api/v1"
 
 _PROJECT_ROOT = Path(r"C:\Users\Elie\DeepFieldPro")
@@ -54,6 +54,7 @@ class WorkerResult:
 # ---------------------------------------------------------------------------
 # Tool implementations (run locally, results fed back to the model)
 # ---------------------------------------------------------------------------
+
 
 def _read_file(path: str) -> str:
     p = Path(path)
@@ -100,7 +101,9 @@ def _run_python(code: str) -> str:
     try:
         result = subprocess.run(
             [_VENV_PYTHON, "-c", code],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=str(_PROJECT_ROOT),
         )
         out = result.stdout[-4000:] if result.stdout else ""
@@ -122,7 +125,11 @@ def _run_python(code: str) -> str:
 def _run_shell(command: str) -> str:
     try:
         result = subprocess.run(
-            command, shell=True, capture_output=True, text=True, timeout=30,
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=str(_PROJECT_ROOT),
         )
         out = result.stdout[-4000:] if result.stdout else ""
@@ -183,7 +190,10 @@ _TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Directory path (default: project root)"},
+                    "path": {
+                        "type": "string",
+                        "description": "Directory path (default: project root)",
+                    },
                 },
                 "required": [],
             },
@@ -211,7 +221,10 @@ _TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "command": {"type": "string", "description": "Shell command to run"},
+                    "command": {
+                        "type": "string",
+                        "description": "Shell command to run",
+                    },
                 },
                 "required": ["command"],
             },
@@ -240,7 +253,10 @@ _SYSTEM = (
 # Public API
 # ---------------------------------------------------------------------------
 
-def run_task(prompt: str, *, timeout: int = 120, max_tool_rounds: int = 20) -> WorkerResult:
+
+def run_task(
+    prompt: str, *, timeout: int = 120, max_tool_rounds: int = 20
+) -> WorkerResult:
     """
     Send prompt to Qwen3 via OpenRouter with tool-calling loop.
     The model can call read_file/write_file/list_directory/run_python/run_shell
@@ -250,18 +266,22 @@ def run_task(prompt: str, *, timeout: int = 120, max_tool_rounds: int = 20) -> W
 
     # Pick provider: NVIDIA NIM first, OpenRouter fallback
     nvidia_key = os.getenv("NVIDIA_API_KEY", "")
-    or_key     = os.getenv("OPENROUTER_API_KEY", "")
+    or_key = os.getenv("OPENROUTER_API_KEY", "")
 
     if nvidia_key:
-        api_key  = nvidia_key
+        api_key = nvidia_key
         base_url = _NVIDIA_BASE_URL
-        model    = _NVIDIA_MODEL
+        model = _NVIDIA_MODEL
     elif or_key:
-        api_key  = or_key
+        api_key = or_key
         base_url = _OR_BASE_URL
-        model    = _OR_MODEL
+        model = _OR_MODEL
     else:
-        return WorkerResult("", False, "No API key set — add NVIDIA_API_KEY or OPENROUTER_API_KEY to .env")
+        return WorkerResult(
+            "",
+            False,
+            "No API key set — add NVIDIA_API_KEY or OPENROUTER_API_KEY to .env",
+        )
 
     client = OpenAI(api_key=api_key, base_url=base_url)
     messages = [
@@ -274,9 +294,13 @@ def run_task(prompt: str, *, timeout: int = 120, max_tool_rounds: int = 20) -> W
 
     for _round in range(max_tool_rounds):
         if time.time() - t0 > timeout:
-            return WorkerResult("", False, f"Timeout after {timeout}s",
-                                timing_s=round(time.time() - t0, 1),
-                                tool_calls=tool_calls_total)
+            return WorkerResult(
+                "",
+                False,
+                f"Timeout after {timeout}s",
+                timing_s=round(time.time() - t0, 1),
+                tool_calls=tool_calls_total,
+            )
 
         # NVIDIA NIM Qwen3.5 quirks:
         #   - round 0 (no tools called yet): 'auto' returns empty → force 'required'
@@ -296,9 +320,13 @@ def run_task(prompt: str, *, timeout: int = 120, max_tool_rounds: int = 20) -> W
                 timeout=60,
             )
         except Exception as e:
-            return WorkerResult("", False, f"API error: {e}",
-                                timing_s=round(time.time() - t0, 1),
-                                tool_calls=tool_calls_total)
+            return WorkerResult(
+                "",
+                False,
+                f"API error: {e}",
+                timing_s=round(time.time() - t0, 1),
+                tool_calls=tool_calls_total,
+            )
 
         choice = response.choices[0]
         msg = choice.message
@@ -306,21 +334,23 @@ def run_task(prompt: str, *, timeout: int = 120, max_tool_rounds: int = 20) -> W
         # If the model returned tool calls, execute them and loop
         if msg.tool_calls:
             # Serialize assistant message as plain dict (avoids Pydantic object quirks)
-            messages.append({
-                "role": "assistant",
-                "content": msg.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    }
-                    for tc in msg.tool_calls
-                ],
-            })
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": msg.content,
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
+                        }
+                        for tc in msg.tool_calls
+                    ],
+                }
+            )
             for tc in msg.tool_calls:
                 fn_name = tc.function.name
                 try:
@@ -330,11 +360,13 @@ def run_task(prompt: str, *, timeout: int = 120, max_tool_rounds: int = 20) -> W
                 fn = _TOOL_FNS.get(fn_name)
                 result = fn(args) if fn else f"ERROR: unknown tool {fn_name!r}"
                 tool_calls_total += 1
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": str(result),
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": str(result),
+                    }
+                )
             continue  # send tool results back to model
 
         # No tool calls — model gave its final answer
@@ -346,9 +378,13 @@ def run_task(prompt: str, *, timeout: int = 120, max_tool_rounds: int = 20) -> W
             tool_calls=tool_calls_total,
         )
 
-    return WorkerResult("", False, f"Exceeded {max_tool_rounds} tool rounds",
-                        timing_s=round(time.time() - t0, 1),
-                        tool_calls=tool_calls_total)
+    return WorkerResult(
+        "",
+        False,
+        f"Exceeded {max_tool_rounds} tool rounds",
+        timing_s=round(time.time() - t0, 1),
+        tool_calls=tool_calls_total,
+    )
 
 
 def run_build_task(task: str, timeout: int = 300) -> WorkerResult:
@@ -366,8 +402,10 @@ if __name__ == "__main__":
     load_dotenv()
     provider = "NVIDIA NIM" if os.getenv("NVIDIA_API_KEY") else "OpenRouter"
     model_name = _NVIDIA_MODEL if os.getenv("NVIDIA_API_KEY") else _OR_MODEL
-    prompt = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else (
-        "List the files in the tools/ directory of this project."
+    prompt = (
+        " ".join(sys.argv[1:])
+        if len(sys.argv) > 1
+        else ("List the files in the tools/ directory of this project.")
     )
     print(f"[master] provider={provider} model={model_name}")
     print(f"[master] -> {prompt!r}\n")
