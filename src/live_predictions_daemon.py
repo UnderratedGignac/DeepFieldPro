@@ -3159,20 +3159,27 @@ def log_ai_bet(
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
-        # Check if already logged by any AI source
+        # Research-mode dedup: skip ONLY an exact repeat (same source + market + side
+        # on this match) — different strategies/markets may bet the same fixture.
         cur.execute(
             """
             SELECT COUNT(*) FROM bet_log
-            WHERE match_id = ? AND market_type = ? AND side = ? AND bet_source = 'AI'
+            WHERE match_id = ? AND market_type = ? AND side = ? AND bet_source = ?
         """,
-            (match, market, selection),
+            (match, market, selection, source or "AI"),
         )
         exists = cur.fetchone()[0] > 0
-        # Cross-source dedup: skip if ANY source already has an open bet on this fixture
-        if not exists and fixture_id is not None:
+
+        # Contradiction guard: while this source already has an OPEN bet on this
+        # match+market, don't take the OPPOSITE side (odds drift flips the EV-best
+        # pick between sweeps — hedged Over+Under pairs would pollute the ledger).
+        if not exists:
             cur.execute(
-                "SELECT COUNT(*) FROM bet_log WHERE fixture_id=? AND result='OPEN'",
-                (str(fixture_id),),
+                """
+                SELECT COUNT(*) FROM bet_log
+                WHERE match_id = ? AND market_type = ? AND bet_source = ? AND result = 'OPEN'
+            """,
+                (match, market, source or "AI"),
             )
             if cur.fetchone()[0] > 0:
                 exists = True
@@ -3686,8 +3693,9 @@ def settle_open_bets():
             # Fix: detect the outermost wrapping parens using a selection-pattern anchor.
             _sel_re = re.search(
                 r" \((Home(?:\s*\(\d+\))?|Away(?:\s*\(\d+\))?|X|Draw"
-                r"|Over[\s\d.]+|Under[\s\d.]+|[12X])\)$",
+                r"|Over[\s\d.]+|Under[\s\d.]+|BTTS\s*Yes|BTTS\s*No|Yes|No|[12X])\)$",
                 player_id or "",
+                re.IGNORECASE,
             )
             if _sel_re:
                 selection = _sel_re.group(1).strip()
@@ -5344,9 +5352,13 @@ def update_dashboard_json(fixtures, results_cache):
                     # Sort by EV descending to pick the best value first
                     match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
 
-                    # Selection: Only take the SINGLE BEST bet for the entire match.
-                    # This eliminates all contradictory/random-feeling overlapping bets.
-                    match_bet_candidates.sort(key=lambda x: x["ev"], reverse=True)
+                    # Research mode: log the highest-EV candidate WITHIN EACH market type
+                    # (one paper bet per market; log_ai_bet dedups exact repeats). The
+                    # execution engine still fires only on the overall single best.
+                    market_winners = {}
+                    for _cand in match_bet_candidates:  # already EV-sorted desc
+                        market_winners.setdefault(_cand["m_type"], _cand)
+
                     best_bet = match_bet_candidates[0]
 
                     m_type = best_bet["m_type"]
@@ -5387,16 +5399,20 @@ def update_dashboard_json(fixtures, results_cache):
                     except Exception as e:
                         print(f"[ERROR] Failed to place best bet: {e}")
 
-                    log_ai_bet(
-                        f"{home} vs {away}",
-                        m_type,
-                        sel_name,
-                        odds,
-                        prob,
-                        ev,
-                        fid,
-                        league,
-                    )
+                    for _mw in market_winners.values():
+                        log_ai_bet(
+                            f"{home} vs {away}",
+                            _mw["m_type"],
+                            _mw["selection"],
+                            _mw["odds"],
+                            _mw["prob"],
+                            _mw["ev"],
+                            fid,
+                            league,
+                        )
+                        print(
+                            f"[DAEMON] MARKET PICK logged: {_mw['m_type']} | {_mw['selection']} @ {_mw['odds']} (EV: {_mw['ev']*100:.1f}%)"
+                        )
 
                     # Arena autopilot handles real-bet notifications (one push per placed order)
 
@@ -5780,12 +5796,40 @@ def run_daemon():
         # 1. Trigger Betarabia odds scraper in background — but ONLY if the previous
         # scrape has finished. The scrape takes ~3 min; overlapping runs stack
         # Chromium and crash before writing, which is what left odds_stream.db stale.
+        # The daemon is the ONLY spawner (single launch path — never call a watchdog
+        # that spawns its own copy, that double-stacks Chromium). The watchdog module
+        # is used purely as a staleness probe to detect a HUNG scrape.
         try:
             import subprocess
             import sys
 
             global _scraper_proc
-            if _scraper_proc is not None and _scraper_proc.poll() is None:
+            _scrape_running = _scraper_proc is not None and _scraper_proc.poll() is None
+            if _scrape_running:
+                # Hung-scrape guard: if the process has been "running" but the odds DB
+                # is stale past the threshold, the scrape is wedged — kill OUR OWN
+                # handle (safe: we spawned it) and fall through to respawn.
+                _stale = False
+                try:
+                    from src.scraper_watchdog import odds_stale
+                    _stale = odds_stale()
+                except Exception:
+                    pass
+                if _stale:
+                    print(
+                        "[SCRAPER] Scrape process alive but odds DB is stale — killing hung scrape."
+                    )
+                    try:
+                        _scraper_proc.terminate()
+                        _scraper_proc.wait(timeout=10)
+                    except Exception:
+                        try:
+                            _scraper_proc.kill()
+                            _scraper_proc.wait(timeout=5)
+                        except Exception:
+                            pass
+                    _scrape_running = False
+            if _scrape_running:
                 print(
                     "[SCRAPER] Previous Betarabia scrape still running; skipping (no stacking)."
                 )

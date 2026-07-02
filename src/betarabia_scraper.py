@@ -240,12 +240,16 @@ def is_player_prop(MarketName_P: str) -> bool:
 
 
 def parse_player_prop(SelectionName_P: str, MarketName_P: str):
-    Parts_V = SelectionName_P.split(" Over ")
-    if len(Parts_V) == 2:
-        return Parts_V[0].strip(), MarketName_P, float(Parts_V[1].strip())
-    Parts_V = SelectionName_P.split(" Under ")
-    if len(Parts_V) == 2:
-        return Parts_V[0].strip(), MarketName_P, float(Parts_V[1].strip())
+    # Guarded float(): a malformed line ("X Over abc") must not kill the write loop.
+    try:
+        Parts_V = SelectionName_P.split(" Over ")
+        if len(Parts_V) == 2:
+            return Parts_V[0].strip(), MarketName_P, float(Parts_V[1].strip())
+        Parts_V = SelectionName_P.split(" Under ")
+        if len(Parts_V) == 2:
+            return Parts_V[0].strip(), MarketName_P, float(Parts_V[1].strip())
+    except (ValueError, TypeError, AttributeError):
+        pass
     return None, None, None
 
 
@@ -588,6 +592,11 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                         MarketId_V = str(Mkt_V.get("id"))
                         MarketName_V = Mkt_V.get("name", "")
                         for Selection_V in Mkt_V.get("odds", []):
+                            # None/junk value must not abort the whole parse
+                            try:
+                                SelValue_V = float(Selection_V.get("value", 0))
+                            except (TypeError, ValueError):
+                                continue
                             UniqueOddId_V = f"{EventId_V}_{Selection_V.get('id')}"
                             if not any(
                                 m["market_id"] == UniqueOddId_V
@@ -611,7 +620,7 @@ def parse_kickertech_odds(ApiResponses_P: list, EventsById_P: dict) -> dict:
                                         "market_id": UniqueOddId_V,
                                         "market_name": MName_V,
                                         "selection_name": SelectionNorm_V,
-                                        "raw_odds": float(Selection_V.get("value", 0)),
+                                        "raw_odds": SelValue_V,
                                         "odd_code": Selection_V.get("oddCode", ""),
                                     }
                                 )
@@ -1031,7 +1040,11 @@ async def scrape_fixture_list_html(Page_P) -> list:
 async def run_scraper():
     """Main scraper entry point."""
     init_db()
-    purge_old_data()  # drop long-finished fixtures (safe; bounds DB + kills stale dupes)
+    try:
+        purge_old_data()  # drop long-finished fixtures (safe; bounds DB + kills stale dupes)
+    except Exception as PurgeErr_V:
+        # Maintenance only — a locked DB here must not kill the scrape run
+        logger.warning(f"purge_old_data failed (continuing): {PurgeErr_V}")
 
     TodayStr_V = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
     # NOTE: today's data is cleared AFTER a successful scrape (just before the write
@@ -1148,13 +1161,19 @@ async def run_scraper():
                     await asyncio.sleep(3)  # Wait for detailed odds API
                 except Exception as e:
                     logger.warning(f"Failed to fetch event {eid}: {e}")
+                    # Short backoff so one bad page doesn't hammer the site
+                    await asyncio.sleep(2)
 
-            # Save all captured API responses for debugging
-            with open(API_RESPONSES_PATH, "w") as F_V:
-                json.dump(ApiResponses_V, F_V, indent=2)
-            logger.info(
-                f"Saved {len(ApiResponses_V)} API responses → {API_RESPONSES_PATH}"
-            )
+            # Save all captured API responses for debugging (best-effort:
+            # a non-serializable payload must not abort the scrape pre-write)
+            try:
+                with open(API_RESPONSES_PATH, "w") as F_V:
+                    json.dump(ApiResponses_V, F_V, indent=2)
+                logger.info(
+                    f"Saved {len(ApiResponses_V)} API responses → {API_RESPONSES_PATH}"
+                )
+            except Exception as DumpErr_V:
+                logger.warning(f"Could not save API responses debug file: {DumpErr_V}")
 
             # ── Step 3: Parse Kickertech API events + odds ───────────────────
             AllEventsById_V = parse_kickertech_events(ApiResponses_V)
@@ -1277,7 +1296,11 @@ async def run_scraper():
                 )
             logger.error(f"Main scraper error: {MainErr_V}")
         finally:
-            await browser.close()
+            # Guarded: a dead/hung browser must not prevent the DB commit below
+            try:
+                await browser.close()
+            except Exception as CloseErr_V:
+                logger.warning(f"Browser close failed (continuing): {CloseErr_V}")
             Conn_V.commit()
             Conn_V.close()
 

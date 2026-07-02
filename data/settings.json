@@ -1,5 +1,5 @@
 {
-  "allowed_markets": ["1X2", "Over/Under 2.5"],
+  "allowed_markets": ["1X2", "Over/Under 2.5", "BTTS"],
   "crowd_betting_enabled": false,
   "crowd_base_stake": 25.0,
   "exclude_draws": false,
@@ -23,7 +23,7 @@
 
   "ai_real_staking_enabled": true,
   "kelly_multiplier": 0.15,
-  "min_ev_threshold": 0.03,
+  "min_ev_threshold": 0.02,
   "max_exposure_pct": 0.02,
   "min_confidence_pct": 40,
   "require_steam_confirm": false,
@@ -34,6 +34,7 @@
   "refresh_interval_sec": 30,
   "show_live_matches": true,
   "max_odds_staleness_min": 60,
+  "scraper_max_stale_min": 20,
 
   "arena_max_per_order": 5.0,
   "arena_daily_cap": 20.0,

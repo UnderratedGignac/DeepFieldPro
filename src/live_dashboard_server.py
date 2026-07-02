@@ -1072,6 +1072,134 @@ def get_research_runs():
         return jsonify([])
 
 
+@app.route("/research")
+def research_page():
+    """Standalone Research Lab page — strategy comparison for the 500-bet milestone."""
+    try:
+        return render_template("research.html")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/research/summary")
+def get_research_summary():
+    """Per-strategy (bet_source) scoreboard + progress toward 500 settled bets."""
+    try:
+        totals = query_db(
+            "bet_log.db",
+            "SELECT COUNT(*) AS total, "
+            "SUM(CASE WHEN result='OPEN' THEN 1 ELSE 0 END) AS open_cnt, "
+            "SUM(CASE WHEN result IN ('W','L') THEN 1 ELSE 0 END) AS settled "
+            "FROM bet_log",
+            one=True,
+        )
+        total_bets = (totals["total"] or 0) if totals else 0
+        open_bets = (totals["open_cnt"] or 0) if totals else 0
+        settled = (totals["settled"] or 0) if totals else 0
+        target = 500
+
+        rows = (
+            query_db(
+                "bet_log.db",
+                "SELECT COALESCE(bet_source, 'AI') AS source, COUNT(*) AS total, "
+                "SUM(CASE WHEN result='OPEN' THEN 1 ELSE 0 END) AS open_cnt, "
+                "SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) AS wins, "
+                "SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) AS losses, "
+                "SUM(CASE WHEN result IN ('VOID','PUSH') THEN 1 ELSE 0 END) AS voids, "
+                "SUM(CASE WHEN result IN ('W','L') THEN stake ELSE 0 END) AS staked, "
+                "SUM(CASE WHEN result IN ('W','L') THEN pnl ELSE 0 END) AS pnl, "
+                "AVG(clv) AS avg_clv, AVG(entry_odds) AS avg_odds, "
+                "MAX(placed_at) AS last_bet_at "
+                "FROM bet_log GROUP BY COALESCE(bet_source, 'AI')",
+            )
+            or []
+        )
+        strategies = []
+        for r in rows:
+            wins = r["wins"] or 0
+            losses = r["losses"] or 0
+            n_settled = wins + losses
+            staked = r["staked"] or 0.0
+            pnl = r["pnl"] or 0.0
+            strategies.append(
+                {
+                    "source": r["source"],
+                    "total": r["total"] or 0,
+                    "open": r["open_cnt"] or 0,
+                    "wins": wins,
+                    "losses": losses,
+                    "voids": r["voids"] or 0,
+                    # win_rate + roi are fractions (0..1 / signed); UI renders as %
+                    "win_rate": round(wins / n_settled, 4) if n_settled else None,
+                    "staked": round(staked, 2),
+                    "pnl": round(pnl, 2),
+                    "roi": round(pnl / staked, 4) if staked else None,
+                    "avg_clv": round(r["avg_clv"], 4) if r["avg_clv"] is not None else None,
+                    "avg_odds": round(r["avg_odds"], 2) if r["avg_odds"] is not None else None,
+                    "last_bet_at": r["last_bet_at"],
+                }
+            )
+        # ROI desc, nulls last
+        strategies.sort(key=lambda s: (s["roi"] is None, -(s["roi"] or 0.0)))
+        return jsonify(
+            {
+                "total_bets": total_bets,
+                "open_bets": open_bets,
+                "settled_bets": settled,
+                "progress": {
+                    "settled": settled,
+                    "target": target,
+                    "pct": round(min(100.0, 100.0 * settled / target), 1),
+                },
+                "strategies": strategies,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/research/bets")
+def get_research_bets():
+    """Filterable bet list (newest first) for the Research Lab table."""
+    try:
+        clauses, args = [], []
+        for param, col in (
+            ("source", "bet_source"),
+            ("market", "market_type"),
+            ("result", "result"),
+        ):
+            val = (request.args.get(param) or "").strip()
+            if val:
+                clauses.append(f"{col} = ?")
+                args.append(val)
+        try:
+            limit = int(request.args.get("limit", 200))
+        except (TypeError, ValueError):
+            limit = 200
+        limit = max(1, min(limit, 500))
+        try:
+            offset = int(request.args.get("offset", 0))
+        except (TypeError, ValueError):
+            offset = 0
+        offset = max(0, offset)
+
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = (
+            query_db(
+                "bet_log.db",
+                f"SELECT bet_id, match_id, market_type, side, entry_odds, stake, "
+                f"result, pnl, clv, bet_source, signal_name, league, placed_at "
+                # REPLACE normalizes 'T'-vs-space timestamp formats for true newest-first
+                f"FROM bet_log {where} ORDER BY REPLACE(placed_at,'T',' ') DESC LIMIT ? OFFSET ?",
+                (*args, limit, offset),
+            )
+            or []
+        )
+        return jsonify([dict(r) for r in rows])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/signal_lifecycle")
 def get_signal_lifecycle():
     """Return current lifecycle stage for every signal plus full transition history."""

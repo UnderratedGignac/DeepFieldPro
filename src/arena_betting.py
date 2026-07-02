@@ -761,12 +761,13 @@ def _log_steam_paper_bet(fixture_id: str, match_name: str, outcome: str, mid: fl
         if _dupe:
             conn.close()
             return
+        import datetime as _dt
         conn.execute("""
             INSERT INTO bet_log
               (bet_id, match_id, player_id, market_type, line, side,
                entry_odds, fair_odds, edge_pct, stake, book,
                placed_at, result, pnl, regime, bet_source, signal_name, move_size)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,datetime('now'),?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             str(_uuid.uuid4()),
             match_name or fixture_id,  # team names, not a bare fixture id, for the UI
@@ -779,6 +780,7 @@ def _log_steam_paper_bet(fixture_id: str, match_name: str, outcome: str, mid: fl
             round(steam_move, 2),   # edge_pct = steam move size as proxy
             25.0,                    # fixed paper stake
             "POLYMARKET",
+            _dt.datetime.now().isoformat(),  # ISO-T like every other writer (sortable)
             "OPEN",
             0.0,
             "steam_signal",

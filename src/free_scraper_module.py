@@ -139,15 +139,29 @@ def _espn_fixtures_today():
     seen = set()
     fixtures = []
 
+    # Shared retry budget for the whole pass: transient network blips get up to
+    # 2 retries (3s apart), but a hard ESPN outage can't stack retry delays
+    # across ~90 leagues (bounded extra wall-time, then single attempts only).
+    retry_budget = 2
+
     for lg in _ESPN_LEAGUES:
         try:
-            r = requests.get(
-                f"{_ESPN_BASE}/{lg}/scoreboard",
-                headers=_UA,
-                params={"dates": compact},
-                timeout=5,
-            )
-            if r.status_code != 200:
+            r = None
+            while True:
+                try:
+                    r = requests.get(
+                        f"{_ESPN_BASE}/{lg}/scoreboard",
+                        headers=_UA,
+                        params={"dates": compact},
+                        timeout=5,
+                    )
+                    break
+                except requests.RequestException:
+                    if retry_budget <= 0:
+                        break
+                    retry_budget -= 1
+                    time.sleep(3)
+            if r is None or r.status_code != 200:
                 continue
             data = r.json()
             league_name = (data.get("leagues") or [{}])[0].get("name") or lg
@@ -338,49 +352,68 @@ def get_todays_fixtures_free():
 def get_fixture_lineups_free(fixture_id):
     url = f"https://api.sofascore.com/api/v1/event/{fixture_id}/lineups"
 
-    with SB(uc=True, headless=True) as sb:
-        sb.open(url)
-        time.sleep(1)
-        try:
-            content = sb.execute_script("return document.body.innerText;")
-            data = json.loads(content)
+    # Outer guard: SB browser launch/navigation failure must return [], not raise
+    try:
+        with SB(uc=True, headless=True) as sb:
+            sb.open(url)
+            time.sleep(1)
+            try:
+                content = sb.execute_script("return document.body.innerText;")
+                data = json.loads(content)
 
-            if "home" not in data or "away" not in data:
+                if "home" not in data or "away" not in data:
+                    return []
+
+                home_xi = []
+                for p in data["home"].get("players", []):
+                    if not p.get("substitute"):
+                        home_xi.append({"player": {"name": p["player"]["name"]}})
+
+                away_xi = []
+                for p in data["away"].get("players", []):
+                    if not p.get("substitute"):
+                        away_xi.append({"player": {"name": p["player"]["name"]}})
+
+                return [{"startXI": home_xi}, {"startXI": away_xi}]
+            except Exception:
                 return []
-
-            home_xi = []
-            for p in data["home"].get("players", []):
-                if not p.get("substitute"):
-                    home_xi.append({"player": {"name": p["player"]["name"]}})
-
-            away_xi = []
-            for p in data["away"].get("players", []):
-                if not p.get("substitute"):
-                    away_xi.append({"player": {"name": p["player"]["name"]}})
-
-            return [{"startXI": home_xi}, {"startXI": away_xi}]
-        except Exception:
-            return []
+    except Exception as ex:
+        print(f"[!] Lineup fetch failed for {fixture_id}: {ex}")
+        return []
 
 
 def get_fixture_stats_free(fixture_id):
     url = f"https://api.sofascore.com/api/v1/event/{fixture_id}/statistics"
 
-    with SB(uc=True, headless=True) as sb:
-        sb.open(url)
-        time.sleep(1)
-        try:
-            content = sb.execute_script("return document.body.innerText;")
-            data = json.loads(content)
-            return data
-        except Exception:
-            return None
+    # Outer guard: SB browser launch/navigation failure must return None, not raise
+    try:
+        with SB(uc=True, headless=True) as sb:
+            sb.open(url)
+            time.sleep(1)
+            try:
+                content = sb.execute_script("return document.body.innerText;")
+                data = json.loads(content)
+                return data
+            except Exception:
+                return None
+    except Exception as ex:
+        print(f"[!] Stats fetch failed for {fixture_id}: {ex}")
+        return None
 
 
 def get_fixture_lineups_batch(fixture_ids):
     if not fixture_ids:
         return {}
     results = {}
+    try:
+        return _lineups_batch_impl(fixture_ids, results)
+    except Exception as ex:
+        # SB launch failure mid-batch: return whatever was collected, never raise
+        print(f"[!] Lineup batch fetch failed: {ex}")
+        return results
+
+
+def _lineups_batch_impl(fixture_ids, results):
     with SB(uc=True, headless=True) as sb:
         for fid in fixture_ids:
             url = f"https://api.sofascore.com/api/v1/event/{fid}/lineups"
