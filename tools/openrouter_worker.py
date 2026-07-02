@@ -1,12 +1,13 @@
 """
-AI worker — Qwen3.5-122B via NVIDIA NIM (primary) or Qwen3-80B via OpenRouter (fallback).
+AI worker — Qwen3.5 via DashScope (tier 1), NVIDIA NIM (tier 2), or OpenRouter (tier 3).
 
 Both providers use the OpenAI-compatible API with function calling:
   read_file, write_file, list_directory, run_python, run_shell
 
 Provider selection (automatic):
-  1. NVIDIA NIM  — if NVIDIA_API_KEY is set  (qwen/qwen3.5-122b-a10b)
-  2. OpenRouter  — if OPENROUTER_API_KEY is set
+  1. DashScope intl — if DASHSCOPE_API_KEY is set  (qwen3.5-122b-a10b, falls back to qwen3.5-flash)
+  2. NVIDIA NIM     — if NVIDIA_API_KEY is set      (qwen/qwen3.5-122b-a10b)
+  3. OpenRouter     — if OPENROUTER_API_KEY is set
 
 Usage:
     from tools.openrouter_worker import run_task, run_build_task, WorkerResult
@@ -31,12 +32,18 @@ from openai import OpenAI
 
 load_dotenv()
 
-# Provider config — NVIDIA NIM preferred, OpenRouter as fallback
+# Provider config — DashScope tier 1, NVIDIA NIM tier 2, OpenRouter tier 3
+_DS_MODEL = "qwen3.5-122b-a10b"          # large; falls back to qwen3.5-flash on quota
+_DS_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+_DS_FALLBACK_MODEL = "qwen3.5-flash"     # fast model still within free tier
+
 _NVIDIA_MODEL = "qwen/qwen3.5-122b-a10b"
 _NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 _OR_MODEL = "qwen/qwen3-next-80b-a3b-instruct:free"
 _OR_BASE_URL = "https://openrouter.ai/api/v1"
+
+_DS_QUOTA_CODES = ("AllocationQuota.FreeTierOnly", "Arrearage", "QuotaExceeded")
 
 _PROJECT_ROOT = Path(r"C:\Users\Elie\DeepFieldPro")
 _VENV_PYTHON = str(_PROJECT_ROOT / ".venv" / "Scripts" / "python.exe")
@@ -264,11 +271,16 @@ def run_task(
     """
     t0 = time.time()
 
-    # Pick provider: NVIDIA NIM first, OpenRouter fallback
+    # Pick provider: DashScope tier 1, NVIDIA NIM tier 2, OpenRouter tier 3
+    ds_key = os.getenv("DASHSCOPE_API_KEY", "")
     nvidia_key = os.getenv("NVIDIA_API_KEY", "")
     or_key = os.getenv("OPENROUTER_API_KEY", "")
 
-    if nvidia_key:
+    if ds_key:
+        api_key = ds_key
+        base_url = _DS_BASE_URL
+        model = _DS_MODEL
+    elif nvidia_key:
         api_key = nvidia_key
         base_url = _NVIDIA_BASE_URL
         model = _NVIDIA_MODEL
@@ -280,7 +292,7 @@ def run_task(
         return WorkerResult(
             "",
             False,
-            "No API key set — add NVIDIA_API_KEY or OPENROUTER_API_KEY to .env",
+            "No API key set — add DASHSCOPE_API_KEY, NVIDIA_API_KEY, or OPENROUTER_API_KEY to .env",
         )
 
     client = OpenAI(api_key=api_key, base_url=base_url)
@@ -290,7 +302,8 @@ def run_task(
     ]
     tool_calls_total = 0
 
-    is_nvidia = bool(nvidia_key)
+    # NVIDIA NIM Qwen3.5 needs forced tool_choice quirks; DashScope behaves like standard OpenAI
+    is_nvidia = bool(nvidia_key) and not ds_key
 
     for _round in range(max_tool_rounds):
         if time.time() - t0 > timeout:
@@ -320,6 +333,11 @@ def run_task(
                 timeout=60,
             )
         except Exception as e:
+            err_str = str(e)
+            # DashScope: free-tier quota exhausted → retry with flash model
+            if ds_key and any(c in err_str for c in _DS_QUOTA_CODES) and model != _DS_FALLBACK_MODEL:
+                model = _DS_FALLBACK_MODEL
+                continue
             return WorkerResult(
                 "",
                 False,
@@ -400,8 +418,12 @@ if __name__ == "__main__":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     load_dotenv()
-    provider = "NVIDIA NIM" if os.getenv("NVIDIA_API_KEY") else "OpenRouter"
-    model_name = _NVIDIA_MODEL if os.getenv("NVIDIA_API_KEY") else _OR_MODEL
+    if os.getenv("DASHSCOPE_API_KEY"):
+        provider, model_name = "DashScope", _DS_MODEL
+    elif os.getenv("NVIDIA_API_KEY"):
+        provider, model_name = "NVIDIA NIM", _NVIDIA_MODEL
+    else:
+        provider, model_name = "OpenRouter", _OR_MODEL
     prompt = (
         " ".join(sys.argv[1:])
         if len(sys.argv) > 1

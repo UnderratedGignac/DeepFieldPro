@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     # Model Configuration
     MODEL_THRESHOLD_MIN_EDGE: float = 0.05  # Increased from 0.03
-    MODEL_MIN_ODDS: float = 2.00  # Increased from 1.25
+    MODEL_MIN_ODDS: float = 1.30  # Lowered from 2.00 — allow strong favorites (WC mismatches)
     MODEL_KELLY_FRACTION: float = 0.20  # Slightly more conservative sizing
 
     model_config = SettingsConfigDict(

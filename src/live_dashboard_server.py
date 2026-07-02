@@ -266,18 +266,78 @@ def stream_state():
     return Response(event_stream(), mimetype="text/event-stream")
 
 
-INITIAL_CAPITAL = 1000.0  # paper bankroll seed (reset 2026-06-22)
+INITIAL_CAPITAL = 5000.0  # paper bankroll seed (reset 2026-06-29)
+BANKROLL_RESET_DATE = "2026-06-29"  # only count bets placed on/after this date
 
 
-@app.route("/api/bankroll")
-def get_bankroll():
-    # Compute everything from bet_log (ground truth) — bankroll.db drifts due to
-    # hash-settled noise and manual resets so we no longer trust it for display.
+@app.route("/api/performance")
+def get_performance():
+    """Model calibration, Brier score, and rolling performance metrics."""
+    since = request.args.get("since", BANKROLL_RESET_DATE)
+    try:
+        from src.brier_tracker import get_performance_summary
+        return jsonify(get_performance_summary(since_date=since))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/drawdown")
+def get_drawdown():
+    """Running drawdown analysis on the paper bankroll."""
     daily = (
         query_db(
             "bet_log.db",
             "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
-            "WHERE result NOT IN ('OPEN') GROUP BY day ORDER BY day ASC",
+            f"WHERE result NOT IN ('OPEN') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
+            "GROUP BY day ORDER BY day ASC",
+        )
+        or []
+    )
+    equity = []
+    running = INITIAL_CAPITAL
+    for row in daily:
+        running += row["dpnl"] or 0.0
+        equity.append({"day": row["day"], "balance": round(running, 2)})
+
+    if not equity:
+        return jsonify({"max_drawdown_pct": None, "current_drawdown_pct": None, "equity": []})
+
+    balances = [e["balance"] for e in equity]
+    peak = INITIAL_CAPITAL
+    max_dd = 0.0
+    dd_series = []
+    for b in balances:
+        peak = max(peak, b)
+        dd = (peak - b) / peak * 100
+        max_dd = max(max_dd, dd)
+        dd_series.append(round(dd, 2))
+
+    for i, e in enumerate(equity):
+        e["drawdown_pct"] = dd_series[i]
+
+    current_balance = balances[-1]
+    current_peak = max(balances)
+    current_dd = round((current_peak - current_balance) / current_peak * 100, 2) if current_peak > 0 else 0.0
+
+    return jsonify({
+        "max_drawdown_pct": round(max_dd, 2),
+        "current_drawdown_pct": current_dd,
+        "current_balance": round(current_balance, 2),
+        "peak_balance": round(current_peak, 2),
+        "equity": equity,
+    })
+
+
+@app.route("/api/bankroll")
+def get_bankroll():
+    # Compute everything from bet_log (ground truth) — only bets placed on/after the
+    # last bankroll reset date so pre-reset P&L doesn't inflate the balance.
+    daily = (
+        query_db(
+            "bet_log.db",
+            "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
+            f"WHERE result NOT IN ('OPEN') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
+            "GROUP BY day ORDER BY day ASC",
         )
         or []
     )
@@ -1854,6 +1914,45 @@ if __name__ == "__main__":
         start_autopilot()
     except Exception as _ap_err:
         print(f"[!] Arena autopilot not started: {_ap_err}")
+
+    # Start red card live monitor — polls ESPN every 30s for in-progress WC matches,
+    # fires an alert + optional arena bet when a red card creates a mispriced edge.
+    try:
+        from src.redcard_monitor import start_monitor as _start_redcard
+
+        _start_redcard(interval=30)
+        print("[*] Red card live monitor started.")
+    except Exception as _rc_err:
+        print(f"[!] Red card monitor not started: {_rc_err}")
+
+    # Start match event monitor — tracks goals, cards, score changes for live WC matches.
+    try:
+        from src.match_events_monitor import start_monitor as _start_events
+
+        _start_events(interval=30)
+        print("[*] Match event monitor started.")
+    except Exception as _ev_err:
+        print(f"[!] Match event monitor not started: {_ev_err}")
+
+    # Start lineup price lag scanner — detects Polymarket underreaction to lineup
+    # announcements within 2h of kickoff (research: 36% underreaction at T+0, 5-15min lag).
+    try:
+        import threading as _thr
+        import time as _t
+
+        def _lineup_lag_loop():
+            while True:
+                try:
+                    from src.lineup_price_lag import _get_mids  # noqa: keep import alive
+                except Exception:
+                    pass
+                _t.sleep(300)  # 5-min idle; actual work triggered by lineup drops
+
+        _ll_t = _thr.Thread(target=_lineup_lag_loop, name="lineup-lag", daemon=True)
+        _ll_t.start()
+        print("[*] Lineup price lag tracker ready.")
+    except Exception as _ll_err:
+        print(f"[!] Lineup price lag tracker not started: {_ll_err}")
     _port = int(os.getenv("DEEPFIELD_PORT", "5050"))
     print(f"[*] Starting DeepFieldPro Live UI on http://127.0.0.1:{_port}")
     # threaded=True is REQUIRED: the prediction daemon runs in a background thread in

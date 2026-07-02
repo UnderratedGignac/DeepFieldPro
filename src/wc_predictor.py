@@ -3016,8 +3016,11 @@ def _fetch_live_pinnacle_wc_odds() -> dict:
 
         base = "https://guest.api.arcadia.pinnacle.com/0.1"
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
             "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Origin": "https://www.pinnacle.com",
+            "Referer": "https://www.pinnacle.com/",
         }
         # Tournament winner specials — sport 29 (soccer), period 0 (FT)
         r = requests.get(

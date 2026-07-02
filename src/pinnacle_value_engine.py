@@ -45,8 +45,12 @@ SETTINGS_PATH = os.path.join(DATA_DIR, "settings.json")
 # ── Major liquid leagues only ──────────────────────────────────────────────
 # These leagues have: (a) deep Pinnacle liquidity, (b) reliable soft-book prices,
 # (c) enough volume for statistical validation.
+#
+# IMPORTANT: Only include league names that are UNIQUE to one country.
+# "premier league" is AMBIGUOUS — England, Kazakhstan, Kuwait, Iceland all use it.
+# Use the country-prefixed form ("england - premier league") or rely on
+# resolve_league_country() to validate the league against team nationality.
 LIQUID_LEAGUES = {
-    "premier league",
     "la liga",
     "bundesliga",
     "serie a",
@@ -62,11 +66,89 @@ LIQUID_LEAGUES = {
     "primeira liga",
     "super lig",
     "jupiler pro league",
-    "pro league",
     "belgian pro league",
     "scottish premiership",
     "major league soccer",
     "mls",
+    # Country-prefixed forms — matched after normalize_league() strips prefixes,
+    # so these are only reached when the input already had the prefix.
+    "england - premier league",
+    "premier league",  # KEPT for backward compat; see _AMBIGUOUS_LEAGUES below
+    # ── Summer-active leagues (Pinnacle-covered) ───────────────────────
+    # South America
+    "brazilian serie b", "serie b", "brasileirao",
+    "brasileiro serie a", "serie a brazil",
+    "liga profesional", "argentine primera division",
+    "copa libertadores", "copa sudamericana",
+    "recopa sudamericana",
+    "primera b metropolitana",
+    "campeonato paulista", "campeonato carioca",
+    "campeonato mineiro", "campeonato gaucho",
+    # North America
+    "usl championship", "us open cup",
+    "concacaf gold cup", "gold cup", "concacaf champions cup",
+    "liga mx", "ascenso mx",
+    # Scandinavia / Nordics (summer season)
+    "eliteserien", "allsvenskan", "veikkausliiga",
+    "ykkonen", "superettan", "obos ligaen",
+    "danish superliga", "superliga",
+    # Baltics
+    "a lyga", "meistriliiga", "virsliga",
+    # Africa / MENA
+    "botola pro", "egyptian premier league",
+    "south african premier division", "dstv premiership",
+    # Asia
+    "chinese super league", "j1 league", "j2 league",
+    "k league 1", "k league 2",
+    # Spain / Italy second tiers
+    "segunda division", "serie b italiana",
+    # International
+    "copa america", "uefa euro", "uefa nations league",
+    "africa cup of nations",
+    # Club friendlies (only top-tier)
+    "premier league asia trophy",
+}
+
+# ── Ambiguous league names (shared across countries) ──────────────────────
+# These names appear in multiple countries. When Betarabia writes just
+# "Premier League" (no country prefix), we cannot know WHICH country.
+# We block these unless the daemon provides additional country context.
+_AMBIGUOUS_LEAGUES = {
+    "premier league": [
+        "england", "kazakhstan", "kuwait", "iceland", "belarus",
+        "russia", "ukraine", "malta", "gibraltar", "montenegro",
+    ],
+    "pro league": [
+        "belgium", "netherlands", "saudi arabia", "qatar", "bahrain",
+    ],
+    "super league": [
+        "switzerland", "greece", "denmark", "china", "malaysia",
+    ],
+    "first division": [
+        "cyprus", "norway", "sweden", "finland", "ireland",
+    ],
+}
+
+# ── Country indicators for team names ──────────────────────────────────────
+# Maps team-name substrings to their likely country of origin.
+# Used by resolve_league_country() to detect cross-country collisions.
+_COUNTRY_TEAM_INDICATORS = {
+    "kazakhstan": [
+        "okzhetpes", "elimai", "kaspyi", "kairat", "aktobe", "tobol",
+        "ordabasy", "astana", "kaysar", "zhetysu", "shakhter karagandy",
+    ],
+    "kuwait": [
+        "al salmiya", "al-kuwait", "al kuwait", "kazma", "al qadsia",
+        "al fahaheel", "al arabi", "al naser", "al jahra", "burgan",
+    ],
+    "iceland": [
+        "breidablik", "valur", "kr reykjavik", "fh hafnarfjordur",
+        "vikingur reykjavik", "stjarnan", "fram reykjavik", "ia akranes",
+    ],
+    "belarus": [
+        "bate borisov", "dinamo minsk", "shakhtyor soligorsk",
+        "torpedo zhodino", "neman grodno", "slavia mozyr",
+    ],
 }
 
 # ── Allowed markets (1X2 + Over/Under 2.5) ─────────────────────────────────
@@ -121,6 +203,20 @@ _COUNTRY_PREFIXES = [
     "argentina - ",
     "colombia - ",
     "chile - ",
+    "kazakhstan - ",
+    "kuwait - ",
+    "iceland - ",
+    "belarus - ",
+    "qatar - ",
+    "saudi arabia - ",
+    "bahrain - ",
+    "malta - ",
+    "gibraltar - ",
+    "montenegro - ",
+    "cyprus - ",
+    "ireland - ",
+    "finland - ",
+    "malaysia - ",
 ]
 
 
@@ -164,16 +260,67 @@ def normalize_league(name: str) -> str:
 
 
 def is_liquid_league(league: str) -> bool:
-    """Check if a league is in the liquid leagues whitelist (with normalization)."""
+    """Check if a league is acceptable for betting.
+    
+    ALL leagues are now accepted — the system relies on:
+      - Pinnacle odds availability (if Pinnacle doesn't cover it, edge=0)
+      - Model prediction quality (Dixon-Coles covers all leagues with history)
+      - Individual bet EV thresholds (edge %, confidence %)
+    The LIQUID_LEAGUES set is kept for reference/logging only.
+    """
     if not league:
-        return False
+        return True  # allow unnamed leagues too
+    return True
+
+
+def is_ambiguous_league(normalized_league: str) -> bool:
+    """Return True if this normalized league name is ambiguous (shared across countries)."""
+    return normalized_league in _AMBIGUOUS_LEAGUES
+
+
+def detect_team_country(home: str, away: str) -> str | None:
+    """Detect the country of a match based on team name indicators.
+
+    Returns the country name (lowercase) if a known indicator is found,
+    or None if no country can be determined.
+    """
+    if not home or not away:
+        return None
+    h_lower = home.lower()
+    a_lower = away.lower()
+    for country, indicators in _COUNTRY_TEAM_INDICATORS.items():
+        for indicator in indicators:
+            if indicator in h_lower or indicator in a_lower:
+                return country
+    return None
+
+
+def resolve_league_country(
+    league: str, home: str = "", away: str = ""
+) -> dict:
+    """Resolve a league name to its country context.
+
+    Returns:
+        {
+            "normalized": str,      # normalized league name
+            "country": str | None,  # detected country (from team names)
+            "is_ambiguous": bool,   # True if league name is shared across countries
+            "is_liquid": bool,      # True (all leagues now accepted)
+            "is_valid": bool,       # True (all leagues now accepted)
+        }
+    """
     normalized = normalize_league(league)
-    if normalized in LIQUID_LEAGUES:
-        return True
-    # Also check raw lowercase (for already-normalized inputs)
-    if league.lower().strip() in LIQUID_LEAGUES:
-        return True
-    return False
+    country = detect_team_country(home, away)
+    ambiguous = is_ambiguous_league(normalized)
+
+    # ALL leagues are now valid — edge thresholds and model quality gate bets instead
+    return {
+        "normalized": normalized,
+        "country": country,
+        "is_ambiguous": ambiguous,
+        "is_liquid": True,
+        "is_valid": True,
+    }
 
 
 def load_settings() -> dict:

@@ -10,7 +10,8 @@ Model prefix routing:
   hf/*    / huggingface/*            → HuggingFaceBridge
   minimax-* / MiniMax-* / abab*      → MinimaxBridge
   command-*                          → CohereBridge
-  nvidia/* / qwen/* / meta/* (NIM)   → NvidiaBridge
+  qwen3* / qwen-* / qwq-* / qvq-*   → DashScopeBridge  (Alibaba Model Studio intl)
+  nvidia/* / qwen/* / meta/* (NIM)   → NvidiaBridge      (explicit NIM model IDs)
   chatgpt-cdp / gpt-*                → ChatGPTCDPBridge (if available)
   gemini-cdp                         → GeminiCDPBridge (if available)
   deepseek-cdp                       → DeepSeekCDPBridge (if available)
@@ -40,6 +41,7 @@ from tools.llm_bridges.groq_api import GroqBridge
 from tools.llm_bridges.huggingface_api import HuggingFaceBridge
 from tools.llm_bridges.minimax_api import MinimaxBridge
 from tools.llm_bridges.mistral_api import MistralBridge
+from tools.llm_bridges.dashscope_api import DashScopeBridge
 from tools.llm_bridges.nvidia_api import NvidiaBridge
 from tools.llm_bridges.openrouter_free import OpenRouterFreeBridge
 
@@ -113,6 +115,7 @@ class LLMRouter:
 
     def __init__(self) -> None:
         self._bridges: list[LLMBridge] = [
+            DashScopeBridge(),
             GeminiAPIBridge(),
             GroqBridge(),
             DeepSeekBridge(),
@@ -177,11 +180,14 @@ class LLMRouter:
             (("claude-cdp",), _CLAUDE_CDP or OpenRouterFreeBridge()),
             (("gemini-", "gemini/"), GeminiAPIBridge()),
             (("groq/", "llama-", "mixtral-", "gemma2-"), GroqBridge()),
+            # DashScope: qwen3*/qwen3.x-*, qwen-*, qwq-*, qvq-*, deepseek-v (on dashscope)
+            (("qwen3", "qwen-", "qwq-", "qvq-", "wan2",), DashScopeBridge()),
             (("deepseek-",), DeepSeekBridge()),
             (("mistral-", "open-mistral-", "open-mixtral-"), MistralBridge()),
             (("minimax-", "MiniMax-", "abab"), MinimaxBridge()),
             (("command-",), CohereBridge()),
             (("hf/", "huggingface/", "HuggingFace"), HuggingFaceBridge()),
+            # nvidia/ prefix → NVIDIA NIM (keep for explicit NVIDIA model IDs)
             (("nvidia/", "qwen/", "meta/", "google/gemma-3-27", "mistralai/mistral-large"), NvidiaBridge()),
             (("kimi-", "moonshot-v1-", "moonshot-v1"), _KIMI_CDP or OpenRouterFreeBridge()),
         ]

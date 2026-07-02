@@ -119,8 +119,8 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
     """
     Return latest Pinnacle snapshot for a match/selection.
 
-    Returns dict with keys: devig_prob, decimal_odds, fair_odds, ts
-    or None if no match found.
+    Returns dict with keys: devig_prob, decimal_odds, fair_odds, ts, snapshot_count
+    or None if no match found or insufficient snapshots.
     """
     pin_sel = _SEL_MAP.get(selection, selection.lower())
     if not os.path.exists(_COMPLETED_DB):
@@ -132,6 +132,17 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
 
         h_norm = _normalize_team(home)
         a_norm = _normalize_team(away)
+
+        # P4 FIX: Check snapshot count for data freshness.
+        # Stale Pinnacle data on minor leagues produces phantom edges.
+        # Need at least MIN_SNAPSHOTS for a reliable price.
+        count_row = con.execute(
+            "SELECT COUNT(*) as cnt FROM sharp_odds_history "
+            "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
+            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=?",
+            (h_norm, a_norm),
+        ).fetchone()
+        snapshot_count = count_row["cnt"] if count_row else 0
 
         # Try exact match first, then partial
         queries = [
@@ -173,6 +184,7 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
             "decimal_odds": row["decimal_odds"],
             "fair_odds": 1.0 / devig_prob,
             "ts": row["ts"],
+            "snapshot_count": snapshot_count,
         }
     except Exception:
         return None
@@ -185,18 +197,25 @@ def check_value(
     betarabia_odds: float,
     kickoff_ts=None,
     min_edge: float = 0.03,
+    min_snapshots: int = 10,
 ):
     """
     Returns (edge_pct, pinnacle_data) if Betarabia >= Pinnacle fair by min_edge.
-    Returns (0.0, None) if no edge or no Pinnacle data.
+    Returns (0.0, None) if no edge, no Pinnacle data, or insufficient snapshots.
 
     edge_pct > 0 means Betarabia is more generous than Pinnacle fair price.
+    min_snapshots: minimum Pinnacle snapshots required for reliable price (P4 FIX).
     """
     if not betarabia_odds or betarabia_odds <= 1.0:
         return 0.0, None
 
     pin = get_pinnacle_latest(home, away, selection, kickoff_ts)
     if pin is None:
+        return 0.0, None
+
+    # P4 FIX: Reject if Pinnacle data is too stale (few snapshots).
+    snap_count = pin.get("snapshot_count", 0)
+    if snap_count < min_snapshots:
         return 0.0, None
 
     edge = betarabia_odds / pin["fair_odds"] - 1.0

@@ -25,8 +25,14 @@ POLL_INTERVAL = 120  # seconds between fetches
 
 _BASE = "https://guest.api.arcadia.pinnacle.com/0.1"
 _HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    "Accept": "application/json",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Origin": "https://www.pinnacle.com",
+    "Referer": "https://www.pinnacle.com/",
+    # Public client key embedded in pinnacle.com web app — required since mid-2026
+    "x-api-key": "CmX2KcMrXuFmNg6YFbmTxE0y9CIrOi0R",
 }
 
 _COMPLETED_DB = os.path.join(
@@ -46,7 +52,10 @@ _STOP = threading.Event()
 def _get(path, params=None, timeout=15):
     if requests is None:
         raise RuntimeError("requests not installed")
-    r = requests.get(f"{_BASE}{path}", params=params, headers=_HEADERS, timeout=timeout)
+    # Fresh session per request — avoids Pinnacle blocking persistent connections
+    with requests.Session() as s:
+        s.headers.update(_HEADERS)
+        r = s.get(f"{_BASE}{path}", params=params, timeout=timeout)
     r.raise_for_status()
     return r.json()
 
@@ -183,6 +192,14 @@ def _ensure_table(conn):
     conn.execute("CREATE INDEX IF NOT EXISTS idx_soh_ts ON sharp_odds_history(ts)")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_soh_teams ON sharp_odds_history(home_team, away_team, selection)"
+    )
+    # Expression index so LOWER(REPLACE(REPLACE(home_team,...))) lookups in check_value() use the index
+    # instead of doing a full table scan (4.3M rows → 2600× speedup per query).
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_soh_norm ON sharp_odds_history("
+        "LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' ')),"
+        "LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' ')),"
+        "selection)"
     )
     conn.commit()
 

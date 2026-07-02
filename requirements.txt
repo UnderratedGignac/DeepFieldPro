@@ -23,6 +23,7 @@ fastapi
 pydantic
 pydantic-settings
 playwright
+patchright
 rapidfuzz
 statsbombpy
 streamlit
