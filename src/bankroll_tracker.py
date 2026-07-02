@@ -34,9 +34,10 @@ def _load_bankroll_limits():
             float(_s.get("max_daily_exposure_pct", 0.50)),
             float(_s.get("max_drawdown_pct", 0.30)),
             float(_s.get("daily_stop_loss_pct", 0.50)),
+            bool(_s.get("stop_loss_enabled", True)),
         )
     except Exception:
-        return 0.50, 0.30, 0.50
+        return 0.50, 0.30, 0.50, True
 
 
 def init_bankroll_db():
@@ -121,7 +122,7 @@ def register_bet(stake):
     Returns True if the bet can proceed, False if it was blocked.
     """
     # Reload limits from settings.json so changes apply without restart
-    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = (
+    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT, STOP_LOSS_ENABLED = (
         _load_bankroll_limits()
     )
 
@@ -148,34 +149,49 @@ def register_bet(stake):
     current_balance, daily_exposure, system_status, starting_balance, daily_pnl = row
 
     if system_status == "HALT":
-        print("System HALTED. No bet registered.")
-        conn.execute("ROLLBACK")
-        conn.close()
-        return False
+        if STOP_LOSS_ENABLED:
+            print("System HALTED. No bet registered.")
+            conn.execute("ROLLBACK")
+            conn.close()
+            return False
+        else:
+            print("[BANKROLL] System status is HALT but stop_loss_enabled=False — proceeding.")
 
     # Check daily stop-loss at placement time (not just at settlement).
     # Without this, multiple bets can be placed before any settle, bypassing the gate.
     if starting_balance > 0 and daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT):
-        print(
-            f"[BANKROLL] Daily stop-loss hit at placement: P&L={daily_pnl:.2f} on "
-            f"start={starting_balance:.2f} — no new bets today."
-        )
-        conn.execute("ROLLBACK")
-        conn.close()
-        return False
+        if STOP_LOSS_ENABLED:
+            print(
+                f"[BANKROLL] Daily stop-loss hit at placement: P&L={daily_pnl:.2f} on "
+                f"start={starting_balance:.2f} — no new bets today."
+            )
+            conn.execute("ROLLBACK")
+            conn.close()
+            return False
+        else:
+            print(
+                f"[BANKROLL] Daily stop-loss would trigger (P&L={daily_pnl:.2f}, "
+                f"start={starting_balance:.2f}) but stop_loss_enabled=False — proceeding."
+            )
 
     # Check drawdown limit at placement time as well
     effective_balance = current_balance + daily_exposure  # liquid + at-risk
     if starting_balance > 0:
         drawdown_pct = (starting_balance - effective_balance) / starting_balance
         if drawdown_pct >= MAX_DRAWDOWN_PCT:
-            print(
-                f"[BANKROLL] Max drawdown reached at placement: "
-                f"{drawdown_pct*100:.1f}% >= {MAX_DRAWDOWN_PCT*100:.0f}%"
-            )
-            conn.execute("ROLLBACK")
-            conn.close()
-            return False
+            if STOP_LOSS_ENABLED:
+                print(
+                    f"[BANKROLL] Max drawdown reached at placement: "
+                    f"{drawdown_pct*100:.1f}% >= {MAX_DRAWDOWN_PCT*100:.0f}%"
+                )
+                conn.execute("ROLLBACK")
+                conn.close()
+                return False
+            else:
+                print(
+                    f"[BANKROLL] Max drawdown would trigger ({drawdown_pct*100:.1f}% >= "
+                    f"{MAX_DRAWDOWN_PCT*100:.0f}%) but stop_loss_enabled=False — proceeding."
+                )
 
     # Block bets that would drive the liquid balance negative.
     if stake > current_balance:
@@ -220,7 +236,7 @@ def register_settlement(payout, pnl):
     payout: Actual money returned to balance (0 for Loss, stake*odds for Win)
     pnl: Net profit/loss (profit for Win, -stake for Loss)
     """
-    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT = (
+    MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT, STOP_LOSS_ENABLED = (
         _load_bankroll_limits()
     )
 
@@ -258,22 +274,35 @@ def register_settlement(payout, pnl):
         else 0
     )
     if drawdown_pct >= MAX_DRAWDOWN_PCT:
-        print(
-            f"CRITICAL: Drawdown {drawdown_pct*100:.1f}% from today's start "
-            f"(${starting_balance:.2f} -> ${effective_balance:.2f}). System HALTED."
-        )
-        status = "HALT"
+        if STOP_LOSS_ENABLED:
+            print(
+                f"CRITICAL: Drawdown {drawdown_pct*100:.1f}% from today's start "
+                f"(${starting_balance:.2f} -> ${effective_balance:.2f}). System HALTED."
+            )
+            status = "HALT"
+        else:
+            print(
+                f"[BANKROLL] Drawdown {drawdown_pct*100:.1f}% from today's start "
+                f"(${starting_balance:.2f} -> ${effective_balance:.2f}) — "
+                f"would halt but stop_loss_enabled=False, data collection continues."
+            )
 
     # Check daily stop-loss (settled P&L only, not unrealised open bets)
     if (
         new_daily_pnl <= -(starting_balance * DAILY_STOP_LOSS_PCT)
         and starting_balance > 0
     ):
-        print(
-            f"CRITICAL: Daily stop-loss hit (${new_daily_pnl:.2f}). "
-            f"Halting bets for the rest of today."
-        )
-        status = "HALT"
+        if STOP_LOSS_ENABLED:
+            print(
+                f"CRITICAL: Daily stop-loss hit (${new_daily_pnl:.2f}). "
+                f"Halting bets for the rest of today."
+            )
+            status = "HALT"
+        else:
+            print(
+                f"[BANKROLL] Daily stop-loss hit (${new_daily_pnl:.2f}) — "
+                f"would halt but stop_loss_enabled=False, data collection continues."
+            )
 
     # Write back balance, P&L, peak, status AND updated exposure (prevents cap over-counting)
     cursor.execute(
@@ -291,6 +320,55 @@ def register_settlement(payout, pnl):
     print(
         f"Settlement: Payout +${payout:.2f} (Net: ${pnl:+.2f}) | New balance: ${new_balance:.2f}"
     )
+
+
+def reconcile_exposure():
+    """
+    Heal daily_exposure if it drifted out of sync with bet_log (e.g. after a crash
+    where register_settlement was never called).  Recomputes exposure as the sum of
+    stakes for today's OPEN bets in bet_log.  Safe to call at daemon startup.
+    """
+    import os as _os
+
+    BET_LOG_PATH = _os.path.join(_os.path.dirname(__file__), "..", "data", "bet_log.db")
+    if not _os.path.exists(BET_LOG_PATH):
+        return
+
+    today = datetime.now(timezone.utc).date().isoformat()
+
+    try:
+        bl_conn = sqlite3.connect(BET_LOG_PATH)
+        bl_cur = bl_conn.cursor()
+        bl_cur.execute(
+            "SELECT COALESCE(SUM(stake), 0.0) FROM bet_log WHERE result = 'OPEN' AND date(placed_at) = ?",
+            (today,),
+        )
+        true_exposure = bl_cur.fetchone()[0]
+        bl_conn.close()
+    except Exception as _e:
+        print(f"[BANKROLL] reconcile_exposure: bet_log read failed: {_e}")
+        return
+
+    br_conn = sqlite3.connect(DB_PATH)
+    br_cur = br_conn.cursor()
+    br_cur.execute("SELECT daily_exposure FROM bankroll WHERE date = ?", (today,))
+    row = br_cur.fetchone()
+    if not row:
+        br_conn.close()
+        return
+
+    recorded_exposure = row[0] or 0.0
+    if abs(recorded_exposure - true_exposure) > 0.01:
+        print(
+            f"[BANKROLL] Exposure drift detected: recorded=${recorded_exposure:.2f} vs "
+            f"true=${true_exposure:.2f}. Healing to ${true_exposure:.2f}."
+        )
+        br_cur.execute(
+            "UPDATE bankroll SET daily_exposure = ? WHERE date = ?",
+            (true_exposure, today),
+        )
+        br_conn.commit()
+    br_conn.close()
 
 
 if __name__ == "__main__":

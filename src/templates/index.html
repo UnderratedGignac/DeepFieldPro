@@ -857,6 +857,108 @@
             z-index: 5;
         }
 
+        /* LINEUPS PAGE */
+        .lineup-container { display: flex; flex-direction: column; gap: 20px; }
+        .lineup-match-card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--card-radius);
+            padding: 0;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+        .lineup-match-card:hover {
+            border-color: rgba(229,193,88,0.3);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        .lm-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .lm-teams { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .lm-team-name { font-weight: 700; font-size: 1.05rem; }
+        .lm-vs { color: var(--text-muted); font-size: 0.8rem; font-weight: 500; }
+        .lm-meta { text-align: right; font-size: 0.75rem; color: var(--text-muted); }
+        .lm-meta .league-chip {
+            background: rgba(229,193,88,0.1); color: var(--secondary);
+            padding: 3px 10px; border-radius: 20px; font-size: 0.7rem;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+            border: 1px solid rgba(229,193,88,0.2); display: inline-block; margin-bottom: 4px;
+        }
+        .lm-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+        .lm-side { padding: 16px 20px; }
+        .lm-side:first-child { border-right: 1px solid var(--border-color); }
+        .lm-side-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px; padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .lm-formation {
+            font-family: 'Outfit', sans-serif; font-size: 0.9rem;
+            font-weight: 700; color: var(--primary);
+        }
+        .lm-avg-rating {
+            font-size: 0.75rem; color: var(--text-muted);
+            background: rgba(229,193,88,0.08); padding: 3px 8px;
+            border-radius: 6px;
+        }
+        .lm-player {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 8px; border-radius: 6px; margin-bottom: 3px;
+            transition: background 0.2s;
+        }
+        .lm-player:hover { background: rgba(229,193,88,0.05); }
+        .lm-player-info { display: flex; align-items: center; gap: 8px; }
+        .lm-player-num {
+            font-size: 0.7rem; color: var(--text-muted); width: 20px;
+            text-align: center; font-family: 'Outfit', sans-serif;
+        }
+        .lm-player-name { font-size: 0.85rem; font-weight: 500; }
+        .lm-player-pos {
+            font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .lm-rating {
+            font-family: 'Outfit', sans-serif; font-size: 0.8rem;
+            font-weight: 700; padding: 2px 8px; border-radius: 6px;
+            min-width: 32px; text-align: center;
+        }
+        .lm-rating.elite { background: rgba(0,255,136,0.15); color: #00ff88; }
+        .lm-rating.high { background: rgba(229,193,88,0.15); color: var(--primary); }
+        .lm-rating.mid { background: rgba(255,255,255,0.08); color: var(--text-main); }
+        .lm-rating.low { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+        .lm-rating.unknown { background: rgba(255,255,255,0.03); color: var(--text-muted); font-style: italic; }
+        .lm-status-badge {
+            font-size: 0.65rem; font-weight: 800; padding: 3px 10px;
+            border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .lm-status-badge.confirmed { background: rgba(0,255,136,0.15); color: #00ff88; border: 1px solid rgba(0,255,136,0.3); }
+        .lm-status-badge.partial { background: rgba(229,193,88,0.15); color: var(--primary); border: 1px solid rgba(229,193,88,0.3); }
+        .lm-status-badge.unavailable { background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border-color); }
+        .lm-empty {
+            text-align: center; padding: 60px 20px; color: var(--text-muted);
+        }
+        .lm-empty i { font-size: 3rem; color: var(--primary); opacity: 0.3; display: block; margin-bottom: 15px; }
+        .lm-bench-toggle {
+            font-size: 0.75rem; color: var(--secondary); cursor: pointer;
+            padding: 6px 12px; border-radius: 6px; margin-top: 8px;
+            background: rgba(229,193,88,0.05); border: 1px solid rgba(229,193,88,0.15);
+            display: inline-block; transition: 0.2s;
+        }
+        .lm-bench-toggle:hover { background: rgba(229,193,88,0.12); }
+        .lm-bench { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-color); }
+        .lm-bench.open { display: block; }
+        .lineup-kpi-strip {
+            display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .lineup-kpi {
+            background: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 14px 20px; min-width: 140px; flex: 1;
+        }
+        .lineup-kpi .kpi-title { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .lineup-kpi .kpi-value { font-family: 'Outfit', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--primary); }
+
     </style>
 </head>
 <body>
@@ -910,6 +1012,9 @@
             </a>
             <a class="nav-item" onclick="switchView('research-view', this); loadResearch();">
                 <i class="fa-solid fa-flask-vial"></i> Research Ops
+            </a>
+            <a class="nav-item" onclick="switchView('lineups-view', this); loadLineups();">
+                <i class="fa-solid fa-users-line"></i> Lineups
             </a>
             <a class="nav-item" onclick="switchView('arena-view', this)">
                 <i class="fa-solid fa-futbol"></i> World Cup Arena
@@ -1632,6 +1737,52 @@
             </div>
         </div>
 
+        <!-- LINEUPS VIEW -->
+        <div id="lineups-view" class="view-section">
+            <!-- KPI Strip -->
+            <div class="lineup-kpi-strip">
+                <div class="lineup-kpi">
+                    <div class="kpi-title">Matches Today</div>
+                    <div class="kpi-value" id="lu-kpi-total">—</div>
+                </div>
+                <div class="lineup-kpi">
+                    <div class="kpi-title">Confirmed Lineups</div>
+                    <div class="kpi-value" id="lu-kpi-confirmed" style="color:#00ff88;">—</div>
+                </div>
+                <div class="lineup-kpi">
+                    <div class="kpi-title">FIFA DB Players</div>
+                    <div class="kpi-value" id="lu-kpi-db">—</div>
+                </div>
+                <div class="lineup-kpi">
+                    <div class="kpi-title">With Ratings</div>
+                    <div class="kpi-value" id="lu-kpi-rated">—</div>
+                </div>
+            </div>
+
+            <!-- Filter bar -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
+                <div class="filter-bar" style="margin-bottom:0;">
+                    <button class="filter-pill active" onclick="setLineupFilter('all', this)"><i class="fa-solid fa-border-all"></i> All</button>
+                    <button class="filter-pill" onclick="setLineupFilter('confirmed', this)"><i class="fa-solid fa-circle-check"></i> Confirmed</button>
+                    <button class="filter-pill" onclick="setLineupFilter('upcoming', this)"><i class="fa-solid fa-hourglass-half"></i> Upcoming</button>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <input type="text" id="lineup-search" placeholder="Search team or player..." style="padding:10px 15px; border-radius:20px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--text-main); outline:none; max-width:250px; width:100%;" onkeyup="renderLineupCards()">
+                    <button onclick="refreshLineups()" style="padding:10px 15px; border-radius:20px; border:1px solid var(--border-color); background:var(--surface-color); color:var(--primary); cursor:pointer;" title="Refresh lineups">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lineup cards container -->
+            <div id="lineup-container" class="lineup-container">
+                <div class="lm-empty">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                    <div>Loading lineups from ESPN...</div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script>
@@ -1802,7 +1953,8 @@
                 'arena-view': 'World Cup Arena (Stair AI)',
                 'settled-view': 'P&L Ledger',
                 'edge-view': 'Edge Report',
-                'clv-view': 'CLV Intelligence'
+                'clv-view': 'CLV Intelligence',
+                'lineups-view': 'Team Lineups & FIFA Ratings'
             };
             document.getElementById('page-title').innerText = titles[viewId] || 'DeepField';
 
@@ -1813,7 +1965,8 @@
                 'settings-view': '/settings',
                 'comparison-view': '/comparison',
                 'settled-view': '/ledger',
-                'edge-view': '/edge'
+                'edge-view': '/edge',
+                'lineups-view': '/lineups'
             };
             if(paths[viewId] && window.location.pathname !== paths[viewId]) {
                 history.pushState(null, '', paths[viewId]);
@@ -1829,6 +1982,8 @@
                 loadSettledLedger();
             } else if(viewId === 'edge-view') {
                 loadEdgeReport();
+            } else if(viewId === 'lineups-view') {
+                loadLineups();
             }
         }
 
@@ -2193,12 +2348,29 @@
             panel.style.display = 'block';
             countEl.textContent = bets.length;
             list.innerHTML = bets.map(b => {
-                const srcClass = b.bet_source === 'STEAM' ? 'ops-source-steam' : 'ops-source-ai';
+                const srcClass = b.bet_source === 'STEAM' ? 'ops-source-steam' :
+                                 b.bet_source === 'PINNACLE_STEAM' ? 'ops-source-steam' : 'ops-source-ai';
                 const srcLabel = b.bet_source || 'AI';
                 const time = b.placed_at ? new Date(b.placed_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+
+                // Human-readable side label
+                const sideRaw = (b.side || '').toLowerCase().trim();
+                const sideLabel = sideRaw === 'home' || sideRaw === 'home (1)' ? 'Home Win'
+                    : sideRaw === 'draw' ? 'Draw'
+                    : sideRaw === 'away' || sideRaw === 'away (2)' ? 'Away Win'
+                    : sideRaw.startsWith('over') ? 'Over 2.5 Goals'
+                    : sideRaw.startsWith('under') ? 'Under 2.5 Goals'
+                    : sideRaw === 'btts yes' || sideRaw === 'yes' ? 'Both Teams Score'
+                    : sideRaw === 'btts no' || sideRaw === 'no' ? 'No Both Teams Score'
+                    : b.side || '—';
+
+                // Clean match name — strip numeric-only IDs
+                const matchRaw = b.match_id || '';
+                const matchName = /^\d+$/.test(matchRaw) ? '(unknown match)' : matchRaw;
+
                 return `<div class="ops-bet-row">
-                    <span class="ops-match">${b.match_id || '—'}</span>
-                    <span class="ops-sel">${b.market_type || ''} · ${b.side || ''}</span>
+                    <span class="ops-match">${matchName}</span>
+                    <span class="ops-sel">${sideLabel}</span>
                     <span class="ops-odds">@ ${(b.entry_odds || 0).toFixed(2)}</span>
                     <span class="ops-stake">$${(b.stake || 0).toFixed(2)}</span>
                     <span class="${srcClass}">${srcLabel}</span>
@@ -3799,6 +3971,8 @@
                 switchView('settled-view', navItems[4]);
             } else if (path === '/edge') {
                 switchView('edge-view', navItems[5]);
+            } else if (path === '/lineups') {
+                switchView('lineups-view', navItems[7]);
             } else {
                 switchView('live-view', navItems[0]);
                 connectSSE();
@@ -4293,6 +4467,154 @@
             } catch (e) {
                 console.error(e);
                 detailPanel.innerHTML = `<div style="text-align: center; padding: 100px 20px; color:#ff4d4d;"><i class="fa-solid fa-circle-xmark"></i> Failed to load match comparison. ${e.message}</div>`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // LINEUPS PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        let _lineupData = [];
+        let _lineupFilter = 'all';
+
+        async function loadLineups() {
+            const container = document.getElementById('lineup-container');
+            container.innerHTML = '<div class="lm-empty"><i class="fa-solid fa-spinner fa-spin"></i><div>Fetching lineups from ESPN...</div></div>';
+            try {
+                const res = await fetch('/api/lineups');
+                const data = await res.json();
+                _lineupData = data.matches || [];
+
+                // Update KPIs
+                document.getElementById('lu-kpi-total').textContent = data.total || 0;
+                document.getElementById('lu-kpi-confirmed').textContent = data.confirmed || 0;
+                const fifa = data.fifa_db || {};
+                document.getElementById('lu-kpi-db').textContent = fifa.total_players || 0;
+                document.getElementById('lu-kpi-rated').textContent = fifa.with_ratings || 0;
+
+                renderLineupCards();
+            } catch(e) {
+                container.innerHTML = `<div class="lm-empty"><i class="fa-solid fa-circle-xmark"></i><div>Failed to load lineups: ${e.message}</div></div>`;
+            }
+        }
+
+        function setLineupFilter(filter, btn) {
+            _lineupFilter = filter;
+            document.querySelectorAll('#lineups-view .filter-pill').forEach(b => b.classList.toggle('active', b === btn));
+            renderLineupCards();
+        }
+
+        function renderLineupCards() {
+            const container = document.getElementById('lineup-container');
+            const search = (document.getElementById('lineup-search')?.value || '').toLowerCase();
+
+            let filtered = _lineupData;
+            if (_lineupFilter === 'confirmed') {
+                filtered = filtered.filter(m => m.lineup_status === 'confirmed');
+            } else if (_lineupFilter === 'upcoming') {
+                filtered = filtered.filter(m => m.lineup_status !== 'confirmed' && m.status !== 'FT');
+            }
+            if (search) {
+                filtered = filtered.filter(m => {
+                    const text = `${m.home} ${m.away} ${m.league} ${(m.home_xi||[]).map(p=>p.name).join(' ')} ${(m.away_xi||[]).map(p=>p.name).join(' ')}`.toLowerCase();
+                    return text.includes(search);
+                });
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="lm-empty"><i class="fa-solid fa-shirt"></i><div>No lineups found matching your criteria.</div></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(m => renderLineupCard(m)).join('');
+        }
+
+        function renderLineupCard(m) {
+            const statusClass = m.lineup_status || 'unavailable';
+            const statusLabel = statusClass.charAt(0).toUpperCase() + statusClass.slice(1);
+            const kickoff = m.kickoff ? new Date(m.kickoff).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+
+            const homeSide = renderTeamSide(m.home_xi || [], m.home_bench || [], m.home_formation, m.home_rating_avg, m.home, 'home');
+            const awaySide = renderTeamSide(m.away_xi || [], m.away_bench || [], m.away_formation, m.away_rating_avg, m.away, 'away');
+
+            return `
+                <div class="lineup-match-card">
+                    <div class="lm-header">
+                        <div class="lm-teams">
+                            <span class="lm-team-name">${m.home}</span>
+                            <span class="lm-vs">VS</span>
+                            <span class="lm-team-name">${m.away}</span>
+                        </div>
+                        <div class="lm-meta">
+                            <div class="league-chip">${m.league || ''}</div>
+                            <div><i class="fa-regular fa-clock"></i> ${kickoff}</div>
+                            <span class="lm-status-badge ${statusClass}">${statusLabel}</span>
+                        </div>
+                    </div>
+                    <div class="lm-body">
+                        ${homeSide}
+                        ${awaySide}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTeamSide(xi, bench, formation, avgRating, teamName, side) {
+            const fixtureId = side + '_' + teamName.replace(/\s+/g, '_');
+            const players = xi.map((p, i) => renderPlayer(p, i + 1)).join('');
+            const benchPlayers = bench.map((p, i) => renderPlayer(p, i + 12)).join('');
+            const hasBench = bench.length > 0;
+
+            return `
+                <div class="lm-side">
+                    <div class="lm-side-header">
+                        <span class="lm-formation">${formation || '\u2014'}</span>
+                        ${avgRating > 0 ? `<span class="lm-avg-rating">Avg: ${avgRating}</span>` : ''}
+                    </div>
+                    ${players || '<div style="color:var(--text-muted); font-size:0.8rem; padding:20px; text-align:center;">Lineup not available</div>'}
+                    ${hasBench ? `
+                        <div class="lm-bench-toggle" onclick="toggleBench('${fixtureId}')">
+                            <i class="fa-solid fa-chair"></i> Bench (${bench.length})
+                        </div>
+                        <div class="lm-bench" id="bench_${fixtureId}">${benchPlayers}</div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderPlayer(p, num) {
+            const rating = p.rating || 0;
+            let ratingClass = 'unknown';
+            let ratingText = '\u2014';
+            if (rating >= 87) { ratingClass = 'elite'; ratingText = rating; }
+            else if (rating >= 80) { ratingClass = 'high'; ratingText = rating; }
+            else if (rating >= 70) { ratingClass = 'mid'; ratingText = rating; }
+            else if (rating > 0) { ratingClass = 'low'; ratingText = rating; }
+
+            return `
+                <div class="lm-player">
+                    <div class="lm-player-info">
+                        <span class="lm-player-num">${p.jersey || num}</span>
+                        <span class="lm-player-name">${p.name}</span>
+                        <span class="lm-player-pos">${p.position || ''}</span>
+                    </div>
+                    <span class="lm-rating ${ratingClass}">${ratingText}</span>
+                </div>
+            `;
+        }
+
+        function toggleBench(id) {
+            const el = document.getElementById('bench_' + id);
+            if (el) el.classList.toggle('open');
+        }
+
+        async function refreshLineups() {
+            const container = document.getElementById('lineup-container');
+            container.innerHTML = '<div class="lm-empty"><i class="fa-solid fa-spinner fa-spin"></i><div>Refreshing lineups...</div></div>';
+            try {
+                await fetch('/api/lineups?refresh=true');
+                await loadLineups();
+            } catch(e) {
+                container.innerHTML = `<div class="lm-empty"><i class="fa-solid fa-circle-xmark"></i><div>Refresh failed: ${e.message}</div></div>`;
             }
         }
 

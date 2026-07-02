@@ -28,12 +28,15 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _CLIENT = None
+_LOGIN_FAILED = False  # set True after first permanent failure to stop retry spam
 
 
 def _get_client():
-    global _CLIENT
+    global _CLIENT, _LOGIN_FAILED
     if _CLIENT is not None:
         return _CLIENT
+    if _LOGIN_FAILED:
+        return None
     try:
         import betfairlightweight
         from betfairlightweight import APIClient
@@ -45,13 +48,24 @@ def _get_client():
             logger.debug(
                 "[Betfair] Credentials not configured — skipping Exchange odds"
             )
+            _LOGIN_FAILED = True
             return None
-        _CLIENT = APIClient(username, password, app_key=app_key)
+        certs_dir = os.getenv("BETFAIR_CERTS_DIR", "certs")
+        if not os.path.isdir(certs_dir):
+            logger.warning(
+                f"[Betfair] Certs directory not found: '{certs_dir}' — "
+                "create it with your .pem files from developer.betfair.com. "
+                "Betfair odds disabled until then."
+            )
+            _LOGIN_FAILED = True
+            return None
+        _CLIENT = APIClient(username, password, app_key=app_key, certs=certs_dir)
         _CLIENT.login()
         logger.info("[Betfair] Logged in to Exchange API")
         return _CLIENT
     except Exception as e:
         logger.warning(f"[Betfair] Login failed: {e}")
+        _LOGIN_FAILED = True
         return None
 
 
