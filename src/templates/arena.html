@@ -120,9 +120,14 @@
     <div class="sub">every <span id="cInterval">1</span> min</div>
   </div>
   <div class="card">
-    <div class="lbl">Bets Placed (total)</div>
-    <div class="val gold" id="cPlaced">0</div>
-    <div class="sub"><span id="cLedger">0</span> ledger predictions</div>
+    <div class="lbl">Bet Record (W–L)</div>
+    <div class="val gold" id="cRecord">0–0</div>
+    <div class="sub" id="cRecordSub">0 open bets</div>
+  </div>
+  <div class="card">
+    <div class="lbl">Locked in Open Bets</div>
+    <div class="val amber" id="cLocked">$0.00</div>
+    <div class="sub">stake awaiting match results</div>
   </div>
   <div class="card">
     <div class="lbl">Staked Today</div>
@@ -149,6 +154,17 @@
     <div class="val" id="cFilter">—</div>
     <div class="sub">confidence / edge</div>
   </div>
+</div>
+
+<!-- ── AI Bets feed: every filled bet, newest first ────── -->
+<div class="panel" id="betsFeedPanel">
+  <div class="head" onclick="togglePanel('betsFeedPanel')">
+    <i class="fa-solid fa-list-check"></i>
+    <h2>AI Bets — newest first</h2>
+    <span class="count" id="betsFeedCount">0 bets</span>
+    <i class="fa-solid fa-chevron-down caret"></i>
+  </div>
+  <div class="body"><div id="betsFeedWrap"><div class="empty">No filled bets yet — the autopilot's fills will appear here.</div></div></div>
 </div>
 
 <!-- ── Settings Panel ──────────────────────────────────── -->
@@ -337,6 +353,44 @@ function sourceTag(s){
   return map[s]||`<span class="tag info">${esc(s)}</span>`;
 }
 
+function resultTag(r){
+  const map={
+    'WON':  '<span class="tag ok">✓ WON</span>',
+    'LOST': '<span class="tag fail">✗ LOST</span>',
+    'OPEN': '<span class="tag warn">● OPEN</span>',
+  };
+  return map[r]||`<span class="tag">${esc(r||'?')}</span>`;
+}
+
+function rowsBetsFeed(list){
+  if(!list||!list.length) return '<div class="empty">No filled bets yet — the autopilot\'s fills will appear here.</div>';
+  let h=`<table><thead><tr>
+    <th>Placed</th><th>Match</th><th>AI Pick</th>
+    <th>Stake</th><th>Price Paid</th><th>Payout if Win</th><th>Result</th><th>P&L</th>
+  </tr></thead><tbody>`;
+  for(const b of list){
+    const t=b.submitted_at?new Date(Number(b.submitted_at)).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+    let pnlTxt='—', pnlCls='';
+    if(b.result==='WON'){
+      const win=b.realized_pnl!=null?b.realized_pnl:(b.potential_payout!=null?b.potential_payout-b.stake_usd:null);
+      if(win!=null){ pnlTxt='+'+money(win); pnlCls='pos'; }
+    }else if(b.result==='LOST'){
+      pnlTxt='-'+money(b.stake_usd); pnlCls='neg';
+    }
+    h+=`<tr>
+      <td style="color:var(--muted);font-size:.76rem">${esc(t)}</td>
+      <td><b>${esc(b.match||'')}</b></td>
+      <td class="gold"><b>${esc(b.pick||'')}</b></td>
+      <td><b>${money(b.stake_usd)}</b></td>
+      <td style="color:var(--muted)">${b.fill_price!=null?Number(b.fill_price).toFixed(2)+'¢':'—'}</td>
+      <td class="payout">${b.potential_payout!=null?money(b.potential_payout):'—'}</td>
+      <td>${resultTag(b.result)}</td>
+      <td class="${pnlCls}"><b>${pnlTxt}</b></td>
+    </tr>`;
+  }
+  return h+'</tbody></table>';
+}
+
 function rowsPlaced(list){
   if(!list||!list.length) return '<div class="empty">No successful bets placed yet today.</div>';
   let h=`<table><thead><tr>
@@ -497,11 +551,21 @@ async function refresh(){
     $('cEngine').textContent=enabled?'Active':'Paused';
     $('cEngine').className='val '+(enabled?'green':'amber');
     $('cSummary').textContent=s.last_summary||'';
-    $('cPlaced').textContent=s.total_placed??0;
-    $('cLedger').textContent=s.total_ledger??0;
     $('cInterval').textContent=Math.round((s.scan_interval||60)/60);
     $('cDaily').textContent=money(s.daily?.spent||0);
     $('cDailySub').textContent=`cap $${s.daily_cap||999}/day`;
+
+    // Bet record + locked capital + newest-first bet feed
+    const ov=s.bets_overview||{};
+    const rec=ov.record||{won:0,lost:0,open:0};
+    const recEl=$('cRecord');
+    recEl.textContent=`${rec.won}–${rec.lost}`;
+    recEl.className='val '+(rec.won>rec.lost?'green':(rec.lost>rec.won?'red':'gold'));
+    $('cRecordSub').textContent=`${rec.open} open bet${rec.open===1?'':'s'}`;
+    $('cLocked').textContent=money(ov.locked_usd||0);
+    const feed=ov.bets||[];
+    $('betsFeedWrap').innerHTML=rowsBetsFeed(feed);
+    $('betsFeedCount').textContent=feed.length+(feed.length===1?' bet':' bets');
 
     const pnl=s.pnl||{};
     const real=Number(pnl.realized||0), unreal=Number(pnl.unrealized||0);

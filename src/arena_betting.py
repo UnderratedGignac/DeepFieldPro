@@ -1693,6 +1693,7 @@ def autopilot_cycle():
                 or o.get("avg_fill_price"),
                 "realized_pnl": o.get("realized_pnl_usdc") or o.get("realized_pnl"),
                 "window": o.get("window", ""),
+                "submitted_at": o.get("submitted_at") or o.get("created_at"),
             }
             for o in (recent_orders or [])[:30]
         ]
@@ -2008,6 +2009,128 @@ def start_autopilot():
     print("[*] Arena autopilot + ntfy listener started.")
 
 
+def _bets_overview(state):
+    """Join Stair AI orders with match names and settlements into one readable
+    bet feed (newest first) + a W/L record and locked-capital total. This is
+    what the UI needs: 'what did the AI bet, what's locked, what won'."""
+    fid_to_match = {}
+    fid_to_kickoff = {}
+    for src in (
+        state.get("placed", []),
+        state.get("last_candidates", []),
+        state.get("last_all_candidates", []),
+    ):
+        for c in src:
+            fid = str(c.get("fixture_id") or "")
+            if fid and c.get("match") and fid not in fid_to_match:
+                fid_to_match[fid] = c["match"]
+                if c.get("kickoff"):
+                    fid_to_kickoff[fid] = c["kickoff"]
+
+    winners = {}
+    for s in state.get("settlements", []):
+        fid = str(s.get("fixture_id") or "")
+        if fid and s.get("winning_outcome"):
+            winners[fid] = str(s["winning_outcome"]).upper()
+
+    # Stair AI's /orders list carries no timestamps — recover them from our own
+    # placement log (order_id appears in the recorded order_response string).
+    import re as _re
+    import datetime as _dt
+
+    oid_to_ts = {}
+    for p in state.get("placed", []):
+        ts = p.get("ts")
+        resp = str(p.get("order_response") or "")
+        if not ts:
+            continue
+        m = _re.search(r"'order_id': '([0-9a-f\-]+)'", resp)
+        if not m:
+            continue
+        try:
+            epoch_ms = int(
+                _dt.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+                .replace(tzinfo=_dt.timezone.utc)
+                .timestamp()
+                * 1000
+            )
+            oid_to_ts[m.group(1)] = epoch_ms
+        except (ValueError, TypeError):
+            continue
+
+    FILLED = {"completed", "filled", "settled", "closed"}
+    bets = []
+    won = lost = open_n = 0
+    locked = 0.0
+    realized = 0.0
+    for o in state.get("orders_recent", []):
+        status = (o.get("status") or "").lower()
+        if status not in FILLED:
+            continue
+        fid = str(o.get("fixture_id") or "")
+        try:
+            size = float(o.get("usd_size") or 0)
+        except (TypeError, ValueError):
+            size = 0.0
+        if size <= 0:
+            continue
+        try:
+            fill = float(o.get("fill_price") or 0)
+        except (TypeError, ValueError):
+            fill = 0.0
+        team = (o.get("team_code") or "").upper()
+        win_outcome = winners.get(fid)
+        rp = o.get("realized_pnl")
+        if rp is not None:
+            # exchange already settled this order — trust its number
+            rp = float(rp)
+            realized += rp
+            if rp >= 0:
+                result = "WON"
+                won += 1
+            else:
+                result = "LOST"
+                lost += 1
+        elif win_outcome is not None:
+            if team and team in win_outcome:
+                result = "WON"
+                won += 1
+                if fill > 0:
+                    realized += size / fill - size
+            else:
+                result = "LOST"
+                lost += 1
+                realized -= size
+        else:
+            result = "OPEN"
+            open_n += 1
+            locked += size
+        bets.append(
+            {
+                "match": fid_to_match.get(fid, f"fixture {fid}"),
+                "kickoff": fid_to_kickoff.get(fid),
+                "team_code": team,
+                "pick": f"{team} to win" if team else "?",
+                "stake_usd": round(size, 2),
+                "fill_price": fill or None,
+                "potential_payout": round(size / fill, 2) if fill else None,
+                "result": result,
+                "realized_pnl": round(rp, 2) if rp is not None else None,
+                "submitted_at": o.get("submitted_at")
+                or oid_to_ts.get(str(o.get("order_id") or "")),
+                "order_id": o.get("order_id"),
+            }
+        )
+    # newest first — submitted_at is epoch ms from Stair AI; missing sorts last
+    bets.sort(key=lambda b: b.get("submitted_at") or 0, reverse=True)
+    return {
+        "bets": bets,
+        "record": {"won": won, "lost": lost, "open": open_n},
+        "locked_usd": round(locked, 2),
+        "realized_est_usd": round(realized, 2),
+    }
+
+
 def autopilot_status():
     state = _load_state()
     cfg = {**_default_settings(), **state.get("settings", {})}
@@ -2040,6 +2163,7 @@ def autopilot_status():
         ),
         "leaderboard_rank": state.get("leaderboard_rank"),
         "arena_live": _arena_live(),
+        "bets_overview": _bets_overview(state),
     }
 
 
