@@ -90,10 +90,10 @@ PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 # ---- Risk defaults (overridable per request) -------------------------------
 CONF_MIN_DEFAULT = 0.0    # bet on every WC game — no confidence floor
 EDGE_MIN_DEFAULT = -1.0   # bet even negative-edge games; cover all fixtures
-MAX_USD_PER_BET = 5.00    # $5 per bet — spreads $23 across all remaining R32 games
+MAX_USD_PER_BET = 25.00   # TOURNAMENT MODE: allow near-full-wallet bets on top picks
 MIN_USD_PER_BET = 1.00    # arena minimum per order (Stair AI hard floor)
-AP2_MAX_PER_ORDER = 5.00  # matches MAX_USD_PER_BET
-MAX_FAIL_RETRIES = 1
+AP2_MAX_PER_ORDER = 25.00  # matches MAX_USD_PER_BET
+MAX_FAIL_RETRIES = 3  # QF markets link late + transient unfilled orders deserve retries
 WALLET_BUFFER = 0.25      # lowered: keep $0.25 reserve to maximise bet coverage
 MAX_BETS_PER_RUN = 30     # handle all upcoming fixtures in one cycle
 LIMIT_BUFFER = 0.02       # 2¢ above mid to help fill
@@ -105,7 +105,7 @@ DFP_MAX_RATIO = 99.0          # no sanity cap
 WC_MODEL_WEIGHT = 0.65       # weight for WC Elo model when blending with Sportmonks/DFP
 
 # Max fraction of wallet per single bet
-MAX_WALLET_FRACTION = 0.22    # ~$5 of current $23 wallet per bet
+MAX_WALLET_FRACTION = 0.50    # TOURNAMENT MODE: up to half the wallet on one pick
 
 arena_bp = Blueprint("arena", __name__)
 
@@ -713,8 +713,9 @@ def _wallet_kelly_size(edge, market_mid, wallet_balance, max_usd=None):
     if market_mid >= 1.0 or market_mid <= 0 or wallet_balance <= 0:
         return MIN_USD_PER_BET
     kelly_f = max(0.0, edge / (1.0 - market_mid))
-    # ALL-IN MODE: half-Kelly — more aggressive sizing
-    multiplier = 0.50
+    # TOURNAMENT MODE: full Kelly — rank-race payoff rewards variance, ruin is
+    # an acceptable outcome of a virtual-bankroll leaderboard sprint.
+    multiplier = 1.0
     size = kelly_f * multiplier * wallet_balance
     bet_cap = max_usd if max_usd is not None else MAX_USD_PER_BET
     hard_cap = min(wallet_balance * MAX_WALLET_FRACTION, bet_cap)

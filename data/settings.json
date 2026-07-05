@@ -36,11 +36,11 @@
   "max_odds_staleness_min": 60,
   "scraper_max_stale_min": 20,
 
-  "arena_max_per_order": 5.0,
-  "arena_daily_cap": 20.0,
-  "arena_wallet_buffer": 10.0,
-  "conf_min": 0.55,
-  "edge_min": 0.03,
+  "arena_max_per_order": 25.0,
+  "arena_daily_cap": 999.0,
+  "arena_wallet_buffer": 0.0,
+  "conf_min": 0.50,
+  "edge_min": 0.05,
   "ah_betting_enabled": false,
 
   "require_dc_coverage": false,

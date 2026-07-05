@@ -113,7 +113,11 @@ Every action requires:
 
 High-risk actions require explicit review before execution:
 - Production deployments · database schema changes · credential modifications · financial actions
-- **Real-money gate**: `DEEPFIELD_ARENA_LIVE` must remain UNSET. `SHADOW_MODE=True`. Never override.
+- **Arena gate**: `DEEPFIELD_ARENA_LIVE=1` arms Stair AI Arena orders. VERIFIED 2026-07-05:
+  the Arena is a **virtual-bankroll tournament** (AI agents paper-trade Polymarket WC markets
+  for leaderboard rank — user competes with a virtual $100; no real money moves through it).
+  Earlier notes calling this "real USDC" were wrong. `SHADOW_MODE=True` still governs the
+  separate execution_engine path. Gate is ARMED for the WC2026 tournament run.
 
 ## Evaluation Requirements
 
@@ -195,8 +199,11 @@ SHADOW (paper) only — see Safety.**
   `model_prob - mid >= edge`. World-Cup-only (season `26618`) and only BEFORE kickoff (upcoming
   fixtures filter + a placement-time `kickoff_ts > now` re-check).
   Production API base `https://stair-ai.com`, auth header `x-api-key` (`STAIR_AI_API_KEY` in `.env`),
-  season `26618`. **REAL MONEY**: `/arena/api/analyze` is read-only; `/arena/api/place` only acts on a
-  POST with `{"confirm": true}`, capped at $5/order, a wallet buffer, and `MAX_BETS_PER_RUN`. Endpoints:
+  season `26618`. **VIRTUAL TOURNAMENT BANKROLL** (verified 2026-07-05 — paper-trading competition,
+  not real USDC): `/arena/api/analyze` is read-only; `/arena/api/place` only acts on a
+  POST with `{"confirm": true}`, capped per-order via AP2 mandate, and `MAX_BETS_PER_RUN`.
+  TOURNAMENT MODE (2026-07-05): full-Kelly sizing, $25/order cap, half-wallet max per pick,
+  conf_min 0.50 / edge_min 0.05, autopilot ENABLED. Endpoints:
   schedule/fixture proxies, `/api/v1/web/mapping` (→ per-outcome Polymarket YES tokens),
   `/api/v1/data/proxy/polymarket-clob/midpoint`, `/api/v1/arena/orders`, `/api/v1/arena/ledger/records/batch`.
 
