@@ -1364,6 +1364,10 @@ def _default_settings():
         "edge_min": EDGE_MIN_DEFAULT,
         "max_per_bet": MAX_USD_PER_BET,
         "max_bets_per_run": MAX_BETS_PER_RUN,
+        # Capital-velocity rule: only bet games kicking off within this window
+        # so the bankroll recycles match-to-match instead of sitting locked in
+        # fixtures days away (which also have the thinnest order books).
+        "bet_window_hours": 24,
     }
 
 
@@ -1518,6 +1522,7 @@ def autopilot_cycle():
     _edge_min = cfg["edge_min"]
     _max_per_bet = cfg["max_per_bet"]
     _max_bets = cfg["max_bets_per_run"]
+    _window_sec = float(cfg.get("bet_window_hours") or 24) * 3600.0
 
     all_candidates = analyze(
         AUTO_SCAN_LIMIT,
@@ -1603,6 +1608,12 @@ def autopilot_cycle():
         sm_key = f"{c.get('sportmonks_fixture_id', '')}:{c['outcome']}"
         ko = c.get("kickoff_ts")
         if ko and ko <= now_ts:
+            continue
+        # Capital-velocity window: only bet games kicking off within the next
+        # N hours — cash stays free to compound instead of sitting locked in
+        # far-out fixtures with the thinnest books. (Ledger picks above are
+        # exempt: they cost nothing and score on every fixture.)
+        if ko and ko > now_ts + _window_sec:
             continue
 
         # Real-money orders only when live gate is armed.
@@ -2411,6 +2422,10 @@ def arena_settings_api():
             )
         if "max_bets_per_run" in body:
             cfg["max_bets_per_run"] = max(1, min(100, int(body["max_bets_per_run"])))
+        if "bet_window_hours" in body:
+            cfg["bet_window_hours"] = round(
+                max(1.0, min(168.0, float(body["bet_window_hours"]))), 1
+            )
         _save_state(s)
     return jsonify(cfg)
 
