@@ -2039,25 +2039,26 @@ def _ntfy_listener_loop():
                         continue
 
                     text = (msg.get("message") or "").strip()
-                    # Ignore messages we sent ourselves (they have our titles)
-                    own_titles = {
-                        "DeepField Hot Bets",
-                        "DeepField Setup Test",
-                        "DeepField Best Bet",
-                        "DeepField LIVE BET EXECUTED",
-                        "DeepField SHADOW BET",
-                        "DeepField CRITICAL ERROR",
-                    }
-                    if msg.get("title") in own_titles:
+                    # Ignore EVERYTHING we sent ourselves — all our outgoing
+                    # notifications are titled "DeepField...". Matching a fixed
+                    # set of titles caused a feedback loop: the "Bets Triggered"
+                    # confirmation was read back in as a new balance command.
+                    if (msg.get("title") or "").startswith("DeepField"):
                         continue
 
                     print(f"[NTFY] Received from phone: '{text}'")
 
-                    # Parse as a wallet balance (e.g. "5.87" or "$5.87" or "balance 5.87")
+                    # Unlock command requires an explicit keyword + a number
+                    # ("balance 89.38" / "unlock 89"). Bare numbers are NOT
+                    # commands — bet pushes contain odds and were false-firing
+                    # the unlock (wiping dedup keys + daily spend).
                     import re as _re
 
                     numbers = _re.findall(r"\d+(?:\.\d+)?", text)
-                    if numbers:
+                    _is_unlock_cmd = bool(numbers) and any(
+                        w in text.lower() for w in ("balance", "unlock", "wallet")
+                    )
+                    if _is_unlock_cmd:
                         balance = float(numbers[0])
                         print(
                             f"[NTFY] Balance ${balance:.2f} received — unlocking future bets + triggering cycle"
