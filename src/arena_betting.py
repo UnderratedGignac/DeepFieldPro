@@ -90,9 +90,9 @@ PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 # ---- Risk defaults (overridable per request) -------------------------------
 CONF_MIN_DEFAULT = 0.0    # bet on every WC game — no confidence floor
 EDGE_MIN_DEFAULT = -1.0   # bet even negative-edge games; cover all fixtures
-MAX_USD_PER_BET = 25.00   # TOURNAMENT MODE: allow near-full-wallet bets on top picks
+MAX_USD_PER_BET = 100.00  # TOURNAMENT MODE: no practical per-bet cap (wallet-limited)
 MIN_USD_PER_BET = 1.00    # arena minimum per order (Stair AI hard floor)
-AP2_MAX_PER_ORDER = 25.00  # matches MAX_USD_PER_BET
+AP2_MAX_PER_ORDER = 100.00  # matches MAX_USD_PER_BET
 MAX_FAIL_RETRIES = 3  # QF markets link late + transient unfilled orders deserve retries
 WALLET_BUFFER = 0.25      # lowered: keep $0.25 reserve to maximise bet coverage
 MAX_BETS_PER_RUN = 30     # handle all upcoming fixtures in one cycle
@@ -105,7 +105,7 @@ DFP_MAX_RATIO = 99.0          # no sanity cap
 WC_MODEL_WEIGHT = 0.65       # weight for WC Elo model when blending with Sportmonks/DFP
 
 # Max fraction of wallet per single bet
-MAX_WALLET_FRACTION = 0.50    # TOURNAMENT MODE: up to half the wallet on one pick
+MAX_WALLET_FRACTION = 1.0     # TOURNAMENT MODE: a single pick may take the whole wallet
 
 arena_bp = Blueprint("arena", __name__)
 
@@ -1615,21 +1615,25 @@ def autopilot_cycle():
         failed_keys = state.get("failed_keys", {})
         if failed_keys.get(key, 0) >= MAX_FAIL_RETRIES:
             continue  # stop hammering a bet that keeps failing
+        # FOREBET-ONLY MODE (user directive 2026-07-06): the autopilot bets
+        # ONLY picks Forebet agrees with — the sole strategy whose research CI
+        # is entirely above zero. Exception: real arbitrages (guaranteed profit).
+        if not c.get("tipster_confirmed") and not c.get("real_arb"):
+            continue
         room = min(budget - spent, daily_remaining - spent)
+        # Aggressive tournament sizing: never less than 40% of the wallet on a
+        # confirmed pick (Kelly can be timid when the model disagrees with
+        # Forebet), capped by room and the per-bet ceiling.
+        floor_size = (wallet_balance or 0.0) * 0.40
         size = round(
             min(
-                c["suggested_usd"] or MIN_USD_PER_BET,
+                max(c["suggested_usd"] or MIN_USD_PER_BET, floor_size),
                 MAX_USD_PER_BET,
                 _max_per_bet,
                 room,
             ),
             2,
         )
-        # Concentrate capital on the research-validated signal: full size on
-        # Forebet-confirmed picks, half on model-only picks (AI-alone ran
-        # -3.5% ROI since the ledger cleanup; tipster-confirmed +41.7%).
-        if not c.get("tipster_confirmed") and not c.get("real_arb"):
-            size = round(size * 0.5, 2)
         if size < MIN_USD_PER_BET:
             continue
         _ap2_set_ctx(
