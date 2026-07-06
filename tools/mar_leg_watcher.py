@@ -34,6 +34,9 @@ FRA_SIZE = 10.0
 FRA_MAX_PRICE = 0.45  # never pay more than 45c even if model says 73%
 MAR_SIZE = 6.0
 MAR_PRICE_PAD = 0.05  # cap = market mid + 5c
+# 2026-07-06: MAR leg cancelled (user delegated for max EV — paying ~0.55 for
+# a ~15-20% model shot is -EV; the draw @0.25 already covers the upset case).
+SKIP_MAR = True
 
 
 def log(msg):
@@ -123,6 +126,8 @@ def main():
                 # rejected = still no seller; stay quiet and retry next poll
 
             # --- MAR leg: waits for the away token to link ---
+            if SKIP_MAR:
+                mar_filled = True  # treated as done; leg cancelled
             if not mar_filled:
                 token_a = m.get("polymarket_away_token_yes")
                 if token_a:
