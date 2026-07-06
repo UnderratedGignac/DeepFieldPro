@@ -1774,6 +1774,16 @@ def autopilot_cycle():
         recent_orders = list_orders(
             status="unfilled,processing,filled,closing,closed,settled,completed,rejected"
         )
+        # Fills first — retry hunters generate rejected orders every few
+        # minutes, which otherwise push real fills out of the 30-row window
+        # and blank the UI's bet feed / W-L record.
+        recent_orders = sorted(
+            recent_orders or [],
+            key=lambda o: 0
+            if (o.get("status") or "").lower()
+            in ("completed", "filled", "settled", "closed")
+            else 1,
+        )
         state["orders_recent"] = [
             {
                 "order_id": o.get("order_id") or o.get("id", ""),
