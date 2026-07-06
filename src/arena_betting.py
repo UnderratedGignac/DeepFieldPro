@@ -1615,6 +1615,10 @@ def autopilot_cycle():
         failed_keys = state.get("failed_keys", {})
         if failed_keys.get(key, 0) >= MAX_FAIL_RETRIES:
             continue  # stop hammering a bet that keeps failing
+        # Cooldown for market-not-ready picks (thin knockout books / late token
+        # linking): retried every 30 min instead of permanently blocked.
+        if state.get("retry_after", {}).get(key, 0) > now_ts:
+            continue
         # FOREBET-ONLY MODE (user directive 2026-07-06): the autopilot bets
         # ONLY picks Forebet agrees with — the sole strategy whose research CI
         # is entirely above zero. Exception: real arbitrages (guaranteed profit).
@@ -1708,13 +1712,13 @@ def autopilot_cycle():
             if o_sc > 0:
                 err_body = str(o_resp).lower() if o_resp else ""
                 fk = state.setdefault("failed_keys", {})
-                # fixture_not_listed / "No Polymarket market linked" = permanent failure.
-                # This fixture will never have a market — pin immediately to
-                # MAX_FAIL_RETRIES so it is skipped on ALL future cycles without
-                # any further API calls.  Other 4xx/5xx errors get normal increments
-                # (transient auth failures, rate-limits, etc. may self-heal).
+                # "No Polymarket market linked" is NOT permanent in the knockout
+                # rounds — tokens link days late (Argentina, France both did).
+                # Cool the pick down 30 min and retry until kickoff instead of
+                # blacklisting it. Real API errors still increment toward
+                # MAX_FAIL_RETRIES (auth failures, rate limits may self-heal).
                 if "fixture_not_listed" in err_body or "no polymarket market" in err_body:
-                    fk[key] = MAX_FAIL_RETRIES
+                    state.setdefault("retry_after", {})[key] = now_ts + 1800
                 else:
                     fk[key] = fk.get(key, 0) + 1
 
@@ -1776,6 +1780,44 @@ def autopilot_cycle():
             }
             for o in (recent_orders or [])[:30]
         ]
+
+        # Reconcile: an order the exchange ACCEPTED then REJECTED (thin book,
+        # FOK killed) never filled — its key must not sit in placed_keys or the
+        # pick is silently never retried. Free the key with a 30-min cooldown.
+        try:
+            import re as _re2
+
+            rejected_oids = {
+                str(o.get("order_id") or "")
+                for o in state["orders_recent"]
+                if (o.get("status") or "").lower() == "rejected"
+            }
+            if rejected_oids:
+                pk_now = set(state.get("placed_keys", []))
+                freed = 0
+                for p in state.get("placed", []):
+                    m2 = _re2.search(
+                        r"'order_id': '([0-9a-f\-]+)'",
+                        str(p.get("order_response") or ""),
+                    )
+                    if not (m2 and m2.group(1) in rejected_oids):
+                        continue
+                    for k2 in (
+                        p.get("key"),
+                        f"{p.get('fixture_id')}:{p.get('outcome')}",
+                        f"{p.get('polymarket_fid')}:{p.get('outcome')}",
+                    ):
+                        if k2 and k2 in pk_now:
+                            pk_now.discard(k2)
+                            state.setdefault("retry_after", {})[k2] = (
+                                time.time() + 1800
+                            )
+                            freed += 1
+                if freed:
+                    state["placed_keys"] = list(pk_now)
+                    print(f"[arena] freed {freed} rejected-order keys for retry")
+        except Exception:
+            pass
     except Exception:
         pass
 
