@@ -1813,6 +1813,13 @@ def autopilot_cycle():
                     )
                     if not (m2 and m2.group(1) in rejected_oids):
                         continue
+                    # CRITICAL: flip the history entry too — the top-of-cycle
+                    # placed_keys rebuild re-adds every ok:True entry, which
+                    # re-blocked the pick every cycle (the bet never fired).
+                    if p.get("ok"):
+                        p["ok"] = False
+                        p["order_status"] = "rejected_reconciled"
+                        freed += 1
                     for k2 in (
                         p.get("key"),
                         f"{p.get('fixture_id')}:{p.get('outcome')}",
@@ -1823,7 +1830,6 @@ def autopilot_cycle():
                             state.setdefault("retry_after", {})[k2] = (
                                 time.time() + 1800
                             )
-                            freed += 1
                 if freed:
                     state["placed_keys"] = list(pk_now)
                     print(f"[arena] freed {freed} rejected-order keys for retry")
