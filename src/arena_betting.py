@@ -1959,6 +1959,17 @@ def autopilot_cycle():
         f"PnL ${pnl_r:.2f}R/${pnl_u:.2f}U"
     )
     with _state_lock:
+        # The cycle held this state in memory for its whole run; re-read the
+        # LIVE user-editable fields from disk so a mid-cycle settings change
+        # or pause toggle is never clobbered by our stale copy.
+        try:
+            _cur = _load_state()
+            if isinstance(_cur.get("settings"), dict):
+                state["settings"] = _cur["settings"]
+            if "enabled" in _cur:
+                state["enabled"] = _cur["enabled"]
+        except Exception:
+            pass
         _save_state(state)
     return state["last_summary"]
 
