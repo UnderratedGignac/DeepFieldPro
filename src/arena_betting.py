@@ -1424,6 +1424,62 @@ def _pick_key(c):
     return f"{c['fixture_id']}:{c['outcome']}"
 
 
+# ---------------------------------------------------------------------------
+# Tipster confirmation — research-validated best strategy (2026-07-06):
+# TIPSTER_FOREBET is the ONLY paper strategy whose 95% CI is entirely above
+# zero (+41.7% ROI, CI [+14.5%, +68.9%], n=259 since the ledger cleanup).
+# The arena boosts picks Forebet agrees with and halves stakes on the rest.
+# ---------------------------------------------------------------------------
+_tipster_cache = {"ts": 0.0, "picks": []}
+_TIPSTER_TTL = 1800  # 30 min — Forebet updates slowly
+
+_SIDE_TO_OUTCOME = {"Home (1)": "home", "Draw (X)": "draw", "Away (2)": "away"}
+
+
+def _get_tipster_picks():
+    now = time.time()
+    if _tipster_cache["picks"] and now - _tipster_cache["ts"] < _TIPSTER_TTL:
+        return _tipster_cache["picks"]
+    picks = []
+    try:
+        import datetime as _dtm
+
+        from src.tipster_scraper import get_forebet_predictions
+
+        today = _dtm.date.today()
+        picks = list(get_forebet_predictions(today.isoformat()) or [])
+        try:
+            picks += get_forebet_predictions(
+                (today + _dtm.timedelta(days=1)).isoformat()
+            ) or []
+        except Exception:
+            pass  # tomorrow page is best-effort
+    except Exception as e:
+        print(f"[arena] tipster fetch failed (non-fatal): {e}")
+    if picks:
+        _tipster_cache["picks"] = picks
+        _tipster_cache["ts"] = now
+    return picks
+
+
+def _tipster_agrees(picks, match_name, outcome):
+    """True when Forebet's 1X2 pick for this match equals the candidate outcome."""
+    if not picks or not match_name or not outcome:
+        return False
+    try:
+        home, away = [t.strip().lower() for t in match_name.split(" vs ")[:2]]
+    except ValueError:
+        return False
+    for p in picks:
+        ph = (p.get("home_team") or "").strip().lower()
+        pa = (p.get("away_team") or "").strip().lower()
+        if not ph or not pa:
+            continue
+        if (ph in home or home in ph) and (pa in away or away in pa):
+            return _SIDE_TO_OUTCOME.get(p.get("predicted_side") or "") == outcome
+    return False
+
+
 def autopilot_cycle():
     """One autonomous scan + bet pass. Bets only on qualifying, pre-kickoff WC picks.
 
@@ -1470,12 +1526,25 @@ def autopilot_cycle():
         wallet_balance=wallet_balance or None,
     )
     qualifying = [c for c in all_candidates if c["qualifies"]]
-    # Sort order: real arb bets first (guaranteed profit), then steam-confirmed picks,
-    # then by edge descending. This ensures the highest-certainty bets execute first.
+
+    # Tipster confirmation — the research ledger's only CI-above-zero strategy.
+    try:
+        _tips = _get_tipster_picks()
+        for c in all_candidates:
+            c["tipster_confirmed"] = _tipster_agrees(
+                _tips, c.get("match", ""), c.get("outcome", "")
+            )
+    except Exception as _tip_err:
+        print(f"[arena] tipster annotate failed: {_tip_err}")
+
+    # Sort order: real arb first (guaranteed profit), then TIPSTER-confirmed
+    # (research: +41.7% ROI, only CI>0 strategy), then steam-confirmed
+    # (demoted — POLY_STEAM's live record is 0-3), then edge descending.
     def _sort_key(c):
         arb_bonus = 1000 if c.get("real_arb") else 0
-        steam_bonus = 50 if c.get("steam_confirmed") and (c.get("steam_move") or 0) > 0 else 0
-        return arb_bonus + steam_bonus + (c.get("edge", 0) * 10)
+        tip_bonus = 200 if c.get("tipster_confirmed") else 0
+        steam_bonus = 10 if c.get("steam_confirmed") and (c.get("steam_move") or 0) > 0 else 0
+        return arb_bonus + tip_bonus + steam_bonus + (c.get("edge", 0) * 10)
 
     qualifying.sort(key=_sort_key, reverse=True)
     state["last_candidates"] = qualifying[:50]
@@ -1496,6 +1565,7 @@ def autopilot_cycle():
         "market_vig_pp",
         "steam_move",
         "steam_confirmed",
+        "tipster_confirmed",
         "devigged_mid",
         "edge_vs_devigged",
         "grade",
@@ -1555,6 +1625,11 @@ def autopilot_cycle():
             ),
             2,
         )
+        # Concentrate capital on the research-validated signal: full size on
+        # Forebet-confirmed picks, half on model-only picks (AI-alone ran
+        # -3.5% ROI since the ledger cleanup; tipster-confirmed +41.7%).
+        if not c.get("tipster_confirmed") and not c.get("real_arb"):
+            size = round(size * 0.5, 2)
         if size < MIN_USD_PER_BET:
             continue
         _ap2_set_ctx(

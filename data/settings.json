@@ -8,7 +8,7 @@
   "steam_betting_enabled": true,
   "steam_flat_stake": 10.0,
   "steam_kelly_frac": 0.01,
-  "steam_min_move_pct": 1.0,
+  "steam_min_move_pct": 3.0,
   "steam_league_whitelist": [],
 
   "pinnacle_value_betting_enabled": true,

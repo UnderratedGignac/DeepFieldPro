@@ -500,7 +500,7 @@ function rowsCand(list){
       <td class="${edgeCls||'pos'}"><b>+${c.edge_pp}pp</b></td>
       <td>${c.suggested_usd?money(c.suggested_usd):'—'}</td>
       <td class="payout">${p.payout!=null?'~'+money(p.payout):'—'}</td>
-      <td>${sourceTag(c.prob_source)}</td>
+      <td>${sourceTag(c.prob_source)}${c.tipster_confirmed?' <span class="tag ok">FOREBET ✓</span>':''}</td>
     </tr>`;
   }
   return h+'</tbody></table>';
