@@ -80,6 +80,10 @@ def main():
                     return
                 # 'unfilled' acceptances usually flip to rejected; the next
                 # poll's step-1 check catches a genuine late fill.
+                log(
+                    f"attempt ${size} @ cap {WORST_PRICE}: sc={sc} status={status or '?'}"
+                    f" — no sellers at/below cap yet"
+                )
         except Exception as e:
             log(f"poll error (will retry): {e}")
         time.sleep(POLL_SEC)
