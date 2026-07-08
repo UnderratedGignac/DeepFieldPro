@@ -32,13 +32,15 @@ Bet ONLY when ALL of these hold:
    locked days early can't compound). Trading closes AT kickoff
    (`fixture_not_open`) — never plan on in-play bets.
 
-**Exceptions to the Forebet filter:**
-- TRUE ARBITRAGE (sum of all outcome asks < $1.00): bet immediately, max size.
-  The autopilot detects this automatically (real_arb priority 1000).
-- FOREBET DRAW PICKS: the autopilot structurally cannot bet draws (models never
-  rate draws ≥ conf_min), so place them MANUALLY via order_fok when Forebet
-  calls a draw and the price is ≤30¢: $10-15 stake. Went 0-for-2 on July 6 but
-  the prices were right (+EV); keep doing it, keep stakes moderate.
+**USER DIRECTIVE (2026-07-08, supersedes everything): SIGNAL-ONLY.**
+Bet NOTHING that Forebet does not confirm — no model-solo plays, no
+"obviously mispriced" temptations (the France-at-15¢ test was rejected by
+the exchange anyway; its book is untrustworthy). The two allowed forms:
+- Forebet TEAM picks → autopilot handles automatically (in-window, priced).
+- Forebet DRAW picks → place MANUALLY via order_fok when priced ≤30¢,
+  $10-15 stake (the autopilot structurally cannot bet draws).
+Retained exception: TRUE ARBITRAGE (sum of asks < $1.00) — riskless by
+definition, auto-detected (real_arb priority 1000). Everything else: skip.
 
 **Sizing**: autopilot floors confirmed picks at 40% of wallet, full Kelly above
 that, $100/bet cap. Manual bets: match this spirit; on coin-flip-ish confirmed
