@@ -3649,6 +3649,47 @@ def settle_open_bets():
             ko_map = _kickoff_map()
         except Exception:
             ko_map = {}
+        # Extend with odds_stream kickoffs (covers fixtures beyond today's state file).
+        try:
+            _osc = sqlite3.connect(os.path.join(DATA_DIR, "odds_stream.db"))
+            for _fid, _kt in _osc.execute(
+                "SELECT fixture_id, kickoff_time FROM fixture WHERE kickoff_time IS NOT NULL"
+            ):
+                if str(_fid) in ko_map or not _kt:
+                    continue
+                try:
+                    _dt = datetime.datetime.fromisoformat(
+                        str(_kt).replace("Z", "+00:00")
+                    )
+                    if _dt.tzinfo is None:
+                        _dt = _dt.replace(tzinfo=datetime.timezone.utc)
+                    ko_map[str(_fid)] = _dt
+                except Exception:
+                    continue
+            _osc.close()
+        except Exception:
+            pass
+
+        # GUARD: never settle a bet whose fixture hasn't kicked off. Rematch
+        # pairs (teams that met recently) otherwise fuzzy-match the PREVIOUS
+        # meeting's score and "settle" before the new match starts (the
+        # Coritiba-Palmeiras false-WIN bug, 2026-07-08).
+        try:
+            _now_utc = datetime.datetime.now(datetime.timezone.utc)
+
+            def _ko_passed(_f):
+                _ko = ko_map.get(str(_f)) if _f else None
+                return _ko is None or _ko <= _now_utc
+
+            _pre_n = len(open_bets)
+            open_bets = [b for b in open_bets if _ko_passed(b[7])]
+            if len(open_bets) < _pre_n:
+                print(
+                    f"[SETTLEMENT] Skipped {_pre_n - len(open_bets)} bet(s) on "
+                    f"fixtures that have not kicked off yet."
+                )
+        except Exception:
+            pass
 
         # Load existing predictions mapping to lookup detailed stats
         res_map = load_predictions_from_db()
