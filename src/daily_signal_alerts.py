@@ -102,7 +102,7 @@ def maybe_send_morning_prompt():
         return
 
     _ntfy(
-        title="DeepField — Good morning! ⚽",
+        title="DeepField - Good morning!",
         body=(
             "What is your Betarabia balance today?\n"
             "Reply with just the number (e.g. 150)\n"
@@ -195,7 +195,7 @@ def alert_new_picks():
         )
 
         _ntfy(
-            title="DeepField — New Pick ⚽",
+            title="DeepField - New Pick",
             body=msg,
             priority="high",
             tags="soccer,moneybag",
@@ -243,7 +243,7 @@ def maybe_send_daily_summary():
     if not rows:
         # No settled bets today — still send a summary so user knows
         _ntfy(
-            title="DeepField — Daily Summary",
+            title="DeepField - Daily Summary",
             body="No bets settled today.\nAll picks are still open or no matches today.",
             priority="default",
             tags="bar_chart",
@@ -260,13 +260,13 @@ def maybe_send_daily_summary():
     roi = (total_pnl / total_staked * 100) if total_staked else 0
     avg_ret = (sum((r[2] or 0) / r[1] for r in rows if r[1]) / len(rows) * 100) if rows else 0
 
-    won_str = "\n".join(f"  ✅ {r[3]} ({r[4]})" for r in wins) or "  None"
-    lost_str = "\n".join(f"  ❌ {r[3]} ({r[4]})" for r in losses) or "  None"
+    won_str = "\n".join(f"  WIN: {r[3]} ({r[4]})" for r in wins) or "  None"
+    lost_str = "\n".join(f"  LOSS: {r[3]} ({r[4]})" for r in losses) or "  None"
 
     balance_after = f"\nNew balance: ${balance + total_pnl:.2f}" if balance else ""
 
     body = (
-        f"📊 {today} — {len(rows)} settled\n\n"
+        f"{today} - {len(rows)} settled\n\n"
         f"Won: {len(wins)} | Lost: {len(losses)}\n"
         f"Staked: ${total_staked:.2f}\n"
         f"P&L: {'+'if total_pnl>=0 else ''}${total_pnl:.2f}\n"
@@ -278,7 +278,7 @@ def maybe_send_daily_summary():
     )
 
     _ntfy(
-        title=f"DeepField — Daily P&L {'✅' if total_pnl >= 0 else '❌'}",
+        title=f"DeepField - Daily P&L {'WIN' if total_pnl >= 0 else 'LOSS'}",
         body=body,
         priority="high",
         tags="bar_chart",
