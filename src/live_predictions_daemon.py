@@ -6180,6 +6180,19 @@ def run_daemon():
 
         print("[*] Sweep complete. Dashboard state updated. Sleeping for 3 minutes...")
 
+        # ── Daily signal alerts (Betarabia pick notifications) ──────────────
+        try:
+            from src.daily_signal_alerts import (
+                maybe_send_morning_prompt,
+                alert_new_picks,
+                maybe_send_daily_summary,
+            )
+            maybe_send_morning_prompt()   # fires once at 07:30 UTC
+            alert_new_picks()             # fires per new TIPSTER_FOREBET pick
+            maybe_send_daily_summary()    # fires once at 22:30 UTC
+        except Exception as _dsa_err:
+            print(f"[ALERTS] daily_signal_alerts error: {_dsa_err}")
+
         # Wait 3 minutes (180s) before the next sweep
         time.sleep(180)
 

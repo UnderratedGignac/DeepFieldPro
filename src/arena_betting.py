@@ -2102,6 +2102,12 @@ def _ntfy_listener_loop():
                         print(
                             f"[NTFY] Balance ${balance:.2f} received — unlocking future bets + triggering cycle"
                         )
+                        # Store as today's Betarabia balance for pick-alert sizing
+                        try:
+                            from src.daily_signal_alerts import store_betarabia_balance
+                            store_betarabia_balance(balance)
+                        except Exception as _dsa_e:
+                            print(f"[NTFY] daily balance store failed: {_dsa_e}")
                         try:
                             # Unlock placed_keys for future fixtures so we can top up
                             with _state_lock:
