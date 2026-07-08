@@ -742,6 +742,18 @@ _steam_paper_logged: set = set()  # deduplicate steam paper bets per fixture:out
 
 def _log_steam_paper_bet(fixture_id: str, match_name: str, outcome: str, mid: float, steam_move: float):
     """Log a steam-triggered paper bet to bet_log.db. No real money."""
+    # SIGNAL-ONLY (2026-07-08): POLY_STEAM ran 0-for-7 — disabled unless
+    # explicitly re-enabled in settings for a future research run.
+    try:
+        import json as _j
+
+        _sp = os.path.join(os.path.dirname(__file__), "..", "data", "settings.json")
+        if not _j.load(open(_sp, encoding="utf-8")).get(
+            "poly_steam_paper_enabled", False
+        ):
+            return
+    except Exception:
+        return
     key = f"{fixture_id}:{outcome}"
     if key in _steam_paper_logged:
         return

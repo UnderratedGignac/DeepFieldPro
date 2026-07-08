@@ -5,21 +5,21 @@
   "exclude_draws": false,
   "league_blocklist": [],
 
-  "steam_betting_enabled": true,
+  "steam_betting_enabled": false,
   "steam_flat_stake": 10.0,
   "steam_kelly_frac": 0.01,
   "steam_min_move_pct": 3.0,
   "steam_league_whitelist": [],
 
-  "pinnacle_value_betting_enabled": true,
+  "pinnacle_value_betting_enabled": false,
   "pinnacle_min_edge_pct": 0.5,
   "pinnacle_max_edge_pct": 30.0,
   "require_pinnacle_confirm": false,
 
   "pinnacle_steam_min_move_pct": 1.0,
   "pinnacle_steam_max_odds": 15.0,
-  "pinnacle_steam_betting_enabled": true,
-  "sharp_steam_betting_enabled": true,
+  "pinnacle_steam_betting_enabled": false,
+  "sharp_steam_betting_enabled": false,
 
   "ai_real_staking_enabled": true,
   "kelly_multiplier": 0.15,
@@ -56,5 +56,5 @@
   "min_roi_for_live": 0.0,
   "max_calibration_error_for_live": 0.05,
   "player_props_disabled": true,
-  "model_predictions_disabled": false
+  "model_predictions_disabled": true
 }
