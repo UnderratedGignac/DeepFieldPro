@@ -132,9 +132,12 @@ def run_task(
     """
     Dispatch `prompt` to AGY as a slave and return the response.
 
-    AGY reuses its per-project "brain" conversation DB rather than creating
-    a new file each time.  The bridge therefore snapshots the max step idx
-    of every existing DB before launch and polls for any DB whose idx grew.
+    AGY >= 1.0.16 prints the response to STDOUT in --print mode, then hangs
+    in its shutdown phase ("waiting for migrations") instead of exiting.
+    The bridge therefore captures stdout to a temp file, waits until the
+    output is non-empty and stable, then kills the lingering process.
+    The conversation-DB poll is kept as a fallback for older AGY builds
+    that wrote the response to the DB instead of stdout.
 
     Args:
         prompt:            The task/instruction for AGY.
@@ -142,109 +145,101 @@ def run_task(
         skip_permissions:  Pass --dangerously-skip-permissions (default True).
         cwd:               Working directory for AGY (defaults to project root).
     """
+    import tempfile
+
     _CONV_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Snapshot: record the max step idx of every existing DB.
-    # A DB whose idx increases after launch is the one AGY wrote to.
+    # Snapshot for the DB fallback path.
     before = _snapshot_all_dbs()
 
     cmd = [_AGY_EXE, "--print", prompt]
     if skip_permissions:
         cmd.append("--dangerously-skip-permissions")
 
+    fd, out_path = tempfile.mkstemp(prefix="agy_out_", suffix=".txt")
+    os.close(fd)
     try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=cwd or os.getcwd(),
-        )
-    except FileNotFoundError:
-        return AgyResult(
-            text="", ok=False, conversation_id="", error="agy.exe not found"
-        )
+        with open(out_path, "w", encoding="utf-8") as out_file:
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.DEVNULL,  # piped stdin makes AGY block reading it
+                    stdout=out_file,
+                    stderr=subprocess.DEVNULL,
+                    cwd=cwd or os.getcwd(),
+                )
+            except FileNotFoundError:
+                return AgyResult(
+                    text="", ok=False, conversation_id="", error="agy.exe not found"
+                )
 
-    # Poll for any DB whose max_step_idx has grown AND contains a new
-    # completed response step (type=15, status=3) after the snapshot idx.
-    deadline = time.time() + timeout
-    found_db: str | None = None
-    found_min_idx: int = -1
-
-    while time.time() < deadline:
-        time.sleep(1)
-        # Scan all DBs — both existing (checking if idx grew) and any new ones.
-        all_dbs = glob.glob(str(_CONV_DIR / "*.db"))
-        for db_path in all_dbs:
-            prior_idx = before.get(db_path, -1)
-            cur_idx = _max_step_idx(db_path)
-            if cur_idx > prior_idx:
-                # This DB got new steps. Check if one of them is a completed response.
+            # Output is complete when the stdout file is non-empty and its
+            # size has stopped growing for a few seconds.
+            deadline = time.time() + timeout
+            last_size, stable_since = 0, None
+            while time.time() < deadline:
+                time.sleep(0.5)
                 try:
-                    conn = sqlite3.connect(db_path, timeout=2)
-                    cur = conn.cursor()
-                    cur.execute(
-                        "SELECT COUNT(*) FROM steps "
-                        "WHERE step_type=? AND status=? AND idx>?",
-                        (_RESP_STEP_TYPE, _STATUS_DONE, prior_idx),
-                    )
-                    n = cur.fetchone()[0]
-                    conn.close()
-                    if n > 0:
-                        found_db = db_path
-                        found_min_idx = prior_idx
+                    size = os.path.getsize(out_path)
+                except OSError:
+                    size = 0
+                if size > 0:
+                    if size != last_size:
+                        last_size, stable_since = size, time.time()
+                    elif stable_since and time.time() - stable_since >= 3.0:
                         break
-                except Exception:
-                    pass
-        if found_db:
-            break
-        # If AGY process exited, do one final scan then stop waiting.
-        if proc.poll() is not None:
-            time.sleep(2)
-            # Final scan
-            for db_path in glob.glob(str(_CONV_DIR / "*.db")):
-                prior_idx = before.get(db_path, -1)
-                cur_idx = _max_step_idx(db_path)
-                if cur_idx > prior_idx:
-                    try:
-                        conn = sqlite3.connect(db_path, timeout=2)
-                        cur = conn.cursor()
-                        cur.execute(
-                            "SELECT COUNT(*) FROM steps "
-                            "WHERE step_type=? AND status=? AND idx>?",
-                            (_RESP_STEP_TYPE, _STATUS_DONE, prior_idx),
-                        )
-                        n = cur.fetchone()[0]
-                        conn.close()
-                        if n > 0:
-                            found_db = db_path
-                            found_min_idx = prior_idx
-                    except Exception:
-                        pass
-            break
+                if proc.poll() is not None:
+                    break
 
-    if proc.poll() is None:
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
+        # Kill the hung shutdown phase — the answer is already on disk.
+        if proc.poll() is None:
             proc.kill()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
 
-    if not found_db:
-        return AgyResult(
-            text="",
-            ok=False,
-            conversation_id="",
-            error=f"No new AGY response appeared within {timeout}s",
-        )
+        text = Path(out_path).read_text(encoding="utf-8", errors="replace").strip()
+        if text:
+            return AgyResult(text=text, ok=True, conversation_id="stdout")
+    finally:
+        try:
+            os.unlink(out_path)
+        except OSError:
+            pass
 
-    conv_id = Path(found_db).stem
-    text = _extract_text(found_db, min_idx=found_min_idx)
+    # Fallback: older AGY builds wrote the response to the conversation DB.
+    for db_path in glob.glob(str(_CONV_DIR / "*.db")):
+        prior_idx = before.get(db_path, -1)
+        if _max_step_idx(db_path) > prior_idx and _count_new_responses(db_path, prior_idx) > 0:
+            db_text = _extract_text(db_path, min_idx=prior_idx)
+            if db_text:
+                return AgyResult(
+                    text=db_text, ok=True, conversation_id=Path(db_path).stem
+                )
 
     return AgyResult(
-        text=text,
-        ok=bool(text),
-        conversation_id=conv_id,
-        error="" if text else "Response DB found but no text extracted",
+        text="",
+        ok=False,
+        conversation_id="",
+        error=f"No AGY response (stdout or conversation DB) within {timeout}s",
     )
+
+
+def _count_new_responses(db_path: str, after_idx: int) -> int:
+    """Completed response steps (type=15, status=3) newer than after_idx."""
+    try:
+        conn = sqlite3.connect(db_path, timeout=2)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT COUNT(*) FROM steps WHERE step_type=? AND status=? AND idx>?",
+            (_RESP_STEP_TYPE, _STATUS_DONE, after_idx),
+        )
+        n = cur.fetchone()[0]
+        conn.close()
+        return n
+    except Exception:
+        return 0
 
 
 def run_build_task(task: str, timeout: int = 180) -> AgyResult:
