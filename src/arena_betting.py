@@ -2193,6 +2193,66 @@ def _bets_overview(state):
         if fid and s.get("winning_outcome"):
             winners[fid] = str(s["winning_outcome"]).upper()
 
+    # Stair AI's settlement feed lags days behind matches — infer final 1X2
+    # outcomes locally so the bet feed shows WON/LOST instead of eternal OPEN.
+    # Source 1: the research daemon's settled paper ledger (settled from real
+    # ESPN scores). Source 2: the dashboard state's FT scores (recent matches).
+    outcomes_by_match = {}  # "home vs away" lower -> 'home'|'away'|'draw'
+    try:
+        import sqlite3 as _sq3
+
+        _blp = os.path.join(os.path.dirname(__file__), "..", "data", "bet_log.db")
+        _c = _sq3.connect(_blp)
+        for _m, _s2, _r in _c.execute(
+            "SELECT match_id, side, result FROM bet_log "
+            "WHERE market_type='1X2' AND result='W'"
+        ):
+            _sl = (_s2 or "").lower()
+            _o = (
+                "home"
+                if "home" in _sl
+                else "away"
+                if "away" in _sl
+                else "draw"
+                if "draw" in _sl
+                else None
+            )
+            if _o and _m and " vs " in str(_m).lower():
+                outcomes_by_match[str(_m).strip().lower()] = _o
+        _c.close()
+    except Exception:
+        pass
+    try:
+        import json as _json2
+
+        _stp = os.path.join(
+            os.path.dirname(__file__), "..", "data", "todays_dashboard_state.json"
+        )
+        for _mm in _json2.load(open(_stp, encoding="utf-8")):
+            _fx = _mm.get("fixture") or {}
+            _short = ((_fx.get("status") or {}).get("short") or "").upper()
+            _hs, _as = _fx.get("home_score"), _fx.get("away_score")
+            if _short == "FT" and _hs is not None and _as is not None:
+                _o = "home" if _hs > _as else "away" if _as > _hs else "draw"
+                _nm = (_mm.get("match") or "").strip().lower()
+                if _nm:
+                    outcomes_by_match.setdefault(_nm, _o)
+    except Exception:
+        pass
+
+    def _final_outcome(match_name):
+        mn = (match_name or "").strip().lower()
+        if not mn or " vs " not in mn:
+            return None
+        if mn in outcomes_by_match:
+            return outcomes_by_match[mn]
+        h, a = [t.strip() for t in mn.split(" vs ")[:2]]
+        for k, v in outcomes_by_match.items():
+            kh, ka = [t.strip() for t in k.split(" vs ")[:2]]
+            if (kh in h or h in kh) and (ka in a or a in ka):
+                return v
+        return None
+
     # Stair AI's /orders list carries no timestamps — recover them from our own
     # placement log (order_id appears in the recorded order_response string).
     import re as _re
@@ -2262,9 +2322,36 @@ def _bets_overview(state):
                 lost += 1
                 realized -= size
         else:
-            result = "OPEN"
-            open_n += 1
-            locked += size
+            # Local inference: final score known + mapping tells us whether
+            # this bet's team code was the home or away side.
+            _fin = _final_outcome(fid_to_match.get(fid, ""))
+            _bet_won = None
+            if _fin:
+                try:
+                    _map = get_mapping(fid) or {}
+                except Exception:
+                    _map = {}
+                _home = (_map.get("home_short_code") or "").upper()
+                _away = (_map.get("away_short_code") or "").upper()
+                if team == "DRAW":
+                    _bet_won = _fin == "draw"
+                elif team and team == _home:
+                    _bet_won = _fin == "home"
+                elif team and team == _away:
+                    _bet_won = _fin == "away"
+            if _bet_won is True:
+                result = "WON"
+                won += 1
+                if fill > 0:
+                    realized += size / fill - size
+            elif _bet_won is False:
+                result = "LOST"
+                lost += 1
+                realized -= size
+            else:
+                result = "OPEN"
+                open_n += 1
+                locked += size
         bets.append(
             {
                 "match": fid_to_match.get(fid, f"fixture {fid}"),
