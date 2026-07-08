@@ -21,7 +21,8 @@
   "pinnacle_steam_betting_enabled": false,
   "sharp_steam_betting_enabled": false,
 
-  "ai_real_staking_enabled": true,
+  "ai_real_staking_enabled": false,
+  "tipster_only_mode": true,
   "kelly_multiplier": 0.15,
   "min_ev_threshold": 0.02,
   "max_exposure_pct": 0.02,

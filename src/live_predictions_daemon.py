@@ -2823,6 +2823,8 @@ def log_steam_bet(
     settings.steam_betting_enabled (default True) and deduped per fixture/market/selection.
     """
     settings = load_settings()
+    if settings.get("tipster_only_mode", False):
+        return
     if not settings.get("steam_betting_enabled", True):
         return
     if _implausible_odds(market, odds):
@@ -2966,6 +2968,8 @@ def log_pinnacle_value_bet(
     Gated by settings.pinnacle_value_betting_enabled (default False — measure first).
     """
     settings = load_settings()
+    if settings.get("tipster_only_mode", False):
+        return
     if not settings.get("pinnacle_value_betting_enabled", False):
         return
     if _implausible_odds(market, odds):
@@ -3143,7 +3147,7 @@ def log_ai_bet(
     When enabled, uses Dixon-Coles + LightGBM ensemble + Platt calibrators for
     1X2 and O/U 2.5. O/U 2.5 has shown +51% ROI on settled paper bets."""
     settings = load_settings()
-    if settings.get("model_predictions_disabled", True):
+    if settings.get("tipster_only_mode", False) or settings.get("model_predictions_disabled", True):
         return
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
