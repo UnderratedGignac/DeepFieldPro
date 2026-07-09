@@ -528,9 +528,20 @@ def place_tipster_bets(
                 betarabia_sel = _resolve_selection(side_1x2, fix, odds_map, fid)
                 if betarabia_sel:
                     odds_val = odds_map.get((fid, "Match Result", betarabia_sel))
-                    if odds_val and odds_val > 1.05:
+                    # Sanity: if Forebet's confidence implies prob > 40%, odds can't
+                    # legitimately be > 8.0 — that would mean a >5x mispricing, which
+                    # indicates the wrong selection was resolved. Skip to avoid bad data.
+                    conf = pred.get("confidence") or 0
+                    max_sane_odds = max(8.0, round(100.0 / conf, 1)) if conf > 0 else 8.0
+                    if odds_val and 1.05 < odds_val <= max_sane_odds:
                         bets_to_place.append(
                             ("1X2", side_1x2, "Match Result", betarabia_sel, odds_val)
+                        )
+                    elif odds_val and odds_val > max_sane_odds:
+                        logger.debug(
+                            f"[TIPSTER] Skipped 1X2 {side_1x2} @ {odds_val:.2f} — "
+                            f"odds too high for {conf}% confidence (max_sane={max_sane_odds:.1f}), "
+                            f"likely wrong selection resolved for {fix['home_team']} vs {fix['away_team']}"
                         )
 
             # O/U bet if predicted (Betarabia uses "Total Goals" market)
@@ -607,11 +618,16 @@ def place_tipster_bets(
 def _resolve_selection(
     side: str, fix: dict, odds_map: dict, fid: str
 ) -> str | None:
-    """Map Home(1)/Draw(X)/Away(2) to the Betarabia selection string in the market table."""
+    """Map Home(1)/Draw(X)/Away(2) to the Betarabia selection string in the market table.
+
+    Strict mode only — no fuzzy fallback. Fuzzy matching was returning the wrong
+    team's selection for mismatched names, causing opponent odds to be logged instead
+    of the actual bet price. Skip the bet if we can't find a clean exact match.
+    """
     if side == "Home (1)":
         candidates = [fix["home_team"], "Home", "1"]
     elif side == "Draw (X)":
-        candidates = ["X", "Draw"]
+        candidates = ["X", "Draw", "draw"]
     elif side == "Away (2)":
         candidates = [fix["away_team"], "Away", "2"]
     else:
@@ -621,22 +637,7 @@ def _resolve_selection(
         if (fid, "Match Result", c) in odds_map:
             return c
 
-    # Fuzzy fallback: find any Match Result selection for this fixture
-    mkt_sels = [sel for (f, m, sel) in odds_map if f == fid and m == "Match Result"]
-    if not mkt_sels:
-        return None
-
-    if side == "Draw (X)":
-        return next((s for s in mkt_sels if s.upper() in ("X", "DRAW")), None)
-    if side == "Home (1)":
-        home_name = fix["home_team"].lower()
-        best = max(mkt_sels, key=lambda s: fuzz.token_set_ratio(s.lower(), home_name))
-        return best if fuzz.token_set_ratio(best.lower(), home_name) > 60 else None
-    if side == "Away (2)":
-        away_name = fix["away_team"].lower()
-        best = max(mkt_sels, key=lambda s: fuzz.token_set_ratio(s.lower(), away_name))
-        return best if fuzz.token_set_ratio(best.lower(), away_name) > 60 else None
-
+    # No exact match found — skip rather than risk returning wrong odds.
     return None
 
 
