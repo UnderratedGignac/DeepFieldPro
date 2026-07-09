@@ -47,9 +47,15 @@ def devig(oh, od, oa):
 
 
 def evaluate(rows, models, test_season, thresh):
-    """Run one threshold; return per-strategy {n,w,pnl,clv,clv_pos}."""
+    """
+    Run one threshold; return per-strategy {n,w,pnl,clv,clv_pos,bets}.
+    `bets` is the ordered list of (won, price) tuples for that strategy —
+    added for tools/edge_threshold_sweep.py (Phase 5), which needs the actual
+    bet-by-bet sequence (not just aggregates) to compute Sharpe/max-drawdown/
+    Kelly-growth. Existing callers are unaffected (all prior keys unchanged).
+    """
     strat = {
-        k: {"pnl": 0.0, "n": 0, "w": 0, "clv": 0.0, "clv_pos": 0}
+        k: {"pnl": 0.0, "n": 0, "w": 0, "clv": 0.0, "clv_pos": 0, "bets": []}
         for k in ("pinnacle-early", "best-soft-early", "pinnacle-close")
     }
     for r in rows:
@@ -102,6 +108,7 @@ def evaluate(rows, models, test_season, thresh):
             s["clv"] += clv
             if clv > 0:
                 s["clv_pos"] += 1
+            s["bets"].append((won, price))
     return strat
 
 

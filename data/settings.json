@@ -23,7 +23,7 @@
 
   "ai_real_staking_enabled": false,
   "tipster_only_mode": true,
-  "kelly_multiplier": 0.15,
+  "kelly_multiplier": 0.25,
   "min_ev_threshold": 0.02,
   "max_exposure_pct": 0.02,
   "min_confidence_pct": 40,
@@ -44,6 +44,27 @@
   "edge_min": 0.02,
   "ah_betting_enabled": false,
 
+  "arena_kelly_fraction": 0.25,
+  "arena_minimum_bet": 1.00,
+  "arena_maximum_bet": 100.00,
+  "arena_drawdown_protection_enabled": true,
+  "arena_drawdown_tiers": [
+    {"drawdown_pct": 0.40, "kelly_multiplier": 0.0,  "disable_directional": true},
+    {"drawdown_pct": 0.30, "kelly_multiplier": 0.25, "disable_directional": false},
+    {"drawdown_pct": 0.20, "kelly_multiplier": 0.50, "disable_directional": false},
+    {"drawdown_pct": 0.10, "kelly_multiplier": 0.75, "disable_directional": false}
+  ],
+  "arena_liquidity_gate_enabled": true,
+  "arena_required_liquidity_multiple": 3.0,
+  "arena_liquidity_check_pct": 0.01,
+  "arena_adaptive_kelly_enabled": false,
+  "arena_adaptive_kelly_ece_cap": 0.15,
+  "arena_adaptive_kelly_slippage_cap": 0.05,
+  "arena_adaptive_kelly_vig_cap_pp": 10.0,
+  "arena_forebet_required": true,
+  "arena_arb_enabled": true,
+  "arena_wc_model_weight": 0.65,
+
   "require_dc_coverage": false,
 
   "daily_stop_loss_pct": 0.10,
@@ -57,5 +78,5 @@
   "min_roi_for_live": 0.0,
   "max_calibration_error_for_live": 0.05,
   "player_props_disabled": true,
-  "model_predictions_disabled": true
+  "model_predictions_disabled": false
 }

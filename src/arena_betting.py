@@ -33,6 +33,11 @@ import threading
 import requests
 from flask import Blueprint, jsonify, render_template, request
 
+from src import execution_analytics as _exec_analytics
+from src import adaptive_kelly as _adaptive_kelly
+from src.calibration_metrics import expected_calibration_error as _expected_calibration_error
+from src.attribution_engine import settlement_map as _settlement_map
+
 # ---------------------------------------------------------------------------
 # AP2 commerce layer — secondary safety gate + audit ledger
 # ---------------------------------------------------------------------------
@@ -106,6 +111,111 @@ WC_MODEL_WEIGHT = 0.65       # weight for WC Elo model when blending with Sportm
 
 # Max fraction of wallet per single bet
 MAX_WALLET_FRACTION = 1.0     # TOURNAMENT MODE: a single pick may take the whole wallet
+
+# Default drawdown tiers used when data/settings.json has no arena_drawdown_tiers key.
+# Mirrors the Phase-1 spec table: (drawdown_pct, kelly_multiplier, disable_directional).
+# "Never disable arbitrage" is enforced separately by callers checking c["real_arb"] —
+# disable_directional here only ever gates non-arb picks.
+_DEFAULT_DRAWDOWN_TIERS = [
+    {"drawdown_pct": 0.40, "kelly_multiplier": 0.0, "disable_directional": True},
+    {"drawdown_pct": 0.30, "kelly_multiplier": 0.25, "disable_directional": False},
+    {"drawdown_pct": 0.20, "kelly_multiplier": 0.50, "disable_directional": False},
+    {"drawdown_pct": 0.10, "kelly_multiplier": 0.75, "disable_directional": False},
+]
+
+_SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "settings.json")
+
+
+def _load_risk_settings():
+    """
+    Read operator-level Kelly/drawdown risk knobs from data/settings.json.
+
+    These are read fresh each call (not cached / not folded into
+    _default_settings()'s per-run state["settings"] overlay) because they are
+    risk boundaries an operator sets, not per-cycle UI-editable thresholds —
+    same spirit as ap2_mandate.SpendingMandate.from_settings(). Falls back to
+    today's hardcoded defaults (0.25 quarter-Kelly / $1-$100 bet range / the
+    tiers above) if any key is absent, so sizing behavior for anyone who
+    hasn't touched settings.json is unchanged except for the 40%-floor
+    removal itself (which is unconditional, see autopilot_cycle()).
+    """
+    try:
+        with open(_SETTINGS_PATH, encoding="utf-8") as f:
+            cfg = json.load(f)
+    except (OSError, ValueError):
+        cfg = {}
+
+    def _f(key, default):
+        try:
+            v = cfg.get(key)
+            return float(v) if v is not None else default
+        except (TypeError, ValueError):
+            return default
+
+    tiers = cfg.get("arena_drawdown_tiers")
+    if not isinstance(tiers, list) or not tiers:
+        tiers = _DEFAULT_DRAWDOWN_TIERS
+    else:
+        # Validate shape defensively — a malformed settings.json entry must
+        # never crash the autopilot loop or silently disable all protection.
+        clean = []
+        for t in tiers:
+            if not isinstance(t, dict):
+                continue
+            try:
+                clean.append(
+                    {
+                        "drawdown_pct": float(t["drawdown_pct"]),
+                        "kelly_multiplier": float(t["kelly_multiplier"]),
+                        "disable_directional": bool(t.get("disable_directional", False)),
+                    }
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+        tiers = clean or _DEFAULT_DRAWDOWN_TIERS
+
+    protection_enabled = cfg.get("arena_drawdown_protection_enabled")
+    if not isinstance(protection_enabled, bool):
+        protection_enabled = True
+
+    liquidity_gate_enabled = cfg.get("arena_liquidity_gate_enabled")
+    if not isinstance(liquidity_gate_enabled, bool):
+        liquidity_gate_enabled = True
+
+    adaptive_kelly_enabled = cfg.get("arena_adaptive_kelly_enabled")
+    if not isinstance(adaptive_kelly_enabled, bool):
+        adaptive_kelly_enabled = False  # Phase 10 — off by default until validated
+
+    forebet_required = cfg.get("arena_forebet_required")
+    if not isinstance(forebet_required, bool):
+        forebet_required = True  # preserves the 2026-07-06 FOREBET-ONLY MODE default
+
+    arb_enabled = cfg.get("arena_arb_enabled")
+    if not isinstance(arb_enabled, bool):
+        arb_enabled = True  # arbitrage bypass has always been on; now explicitly configurable
+
+    return {
+        "kelly_fraction": _f("arena_kelly_fraction", 0.25),
+        "minimum_bet": _f("arena_minimum_bet", MIN_USD_PER_BET),
+        "maximum_bet": _f("arena_maximum_bet", MAX_USD_PER_BET),
+        "drawdown_protection_enabled": protection_enabled,
+        "drawdown_tiers": sorted(tiers, key=lambda t: t["drawdown_pct"], reverse=True),
+        # Phase 2 — execution quality / liquidity gate (see execution_analytics.py)
+        "liquidity_gate_enabled": liquidity_gate_enabled,
+        "required_liquidity_multiple": _f("arena_required_liquidity_multiple", 3.0),
+        "liquidity_check_pct": _f("arena_liquidity_check_pct", 0.01),
+        # Phase 10 — adaptive Kelly composite (see adaptive_kelly.py)
+        "adaptive_kelly_enabled": adaptive_kelly_enabled,
+        "adaptive_kelly_ece_cap": _f("arena_adaptive_kelly_ece_cap", 0.15),
+        "adaptive_kelly_slippage_cap": _f("arena_adaptive_kelly_slippage_cap", 0.05),
+        "adaptive_kelly_vig_cap_pp": _f("arena_adaptive_kelly_vig_cap_pp", 10.0),
+        # Phase 13 — configuration sweep: strategy values that were previously
+        # hardcoded, now configurable (defaults preserve prior behavior exactly).
+        "forebet_required": forebet_required,
+        "arb_enabled": arb_enabled,
+        "wc_model_weight": _f("arena_wc_model_weight", WC_MODEL_WEIGHT),
+    }
+
 
 arena_bp = Blueprint("arena", __name__)
 
@@ -582,11 +692,19 @@ def _discover_knockout_tokens(fixtures):
                 raw_tokens = m.get("clobTokenIds", "[]")
                 toks = json.loads(raw_tokens) if isinstance(raw_tokens, str) else raw_tokens
                 yes_tok = toks[0] if isinstance(toks, list) and len(toks) >= 1 else None
+                # NOTE: match the slug's own outcome suffix, not a raw substring.
+                # Every per-outcome market's slug shares the event's full prefix
+                # (e.g. "fifwc-fra-mar-2026-07-09-mar" contains "fra" too), so a
+                # bare `code in slug` check matches every market in the event and
+                # silently overwrites home with the away team's token (or vice
+                # versa) once the elif chain reaches it. endswith(f"-{code}")
+                # only matches the market that's actually about that team.
+                slug_l = m.get("slug", "").lower()
                 if "draw" in q:
                     draw_tok, draw_cid = yes_tok, cid
-                elif home_name.split()[0] in q or home_code in m.get("slug", ""):
+                elif home_name.split()[0] in q or slug_l.endswith(f"-{home_code}"):
                     home_tok, home_cid = yes_tok, cid
-                elif away_name.split()[0] in q or away_code in m.get("slug", ""):
+                elif away_name.split()[0] in q or slug_l.endswith(f"-{away_code}"):
                     away_tok, away_cid = yes_tok, cid
             if home_tok or away_tok or draw_tok:
                 new_mappings[fid] = {
@@ -697,29 +815,84 @@ def get_mid(token_id):
     return None
 
 
-def _wallet_kelly_size(edge, market_mid, wallet_balance, max_usd=None):
+# Order-book cache — keyed per-token with its own timestamp (unlike the
+# single-shared-ts _mid_cache above, which is reset once per analyze() cycle
+# via _clear_mid_cache()) since get_order_book() is called standalone from
+# the liquidity gate, not from within analyze()'s per-cycle loop.
+_book_cache = {}  # token_id -> (book_dict, fetched_at_ts)
+_BOOK_CACHE_TTL = 60  # seconds — liquidity moves slower than best-price ticks
+
+
+def get_order_book(token_id):
     """
-    Quarter-Kelly capped stake — conservative sizing to reduce ruin risk.
+    GET /api/v1/data/proxy/polymarket-clob/book — full bid/ask depth for a
+    Polymarket token, proxied through StairAI. Returns the unwrapped
+    {"bids": [...], "asks": [...]} dict, or None on any failure (the
+    liquidity gate in execution_analytics.py fails OPEN on None — a data-proxy
+    hiccup must never silently block all betting).
+    """
+    if not token_id:
+        return None
+    now = time.time()
+    cached = _book_cache.get(token_id)
+    if cached is not None and (now - cached[1]) < _BOOK_CACHE_TTL:
+        return cached[0]
+    try:
+        sc, book = _get("/api/v1/data/proxy/polymarket-clob/book", token_id=token_id)
+    except Exception:
+        return None
+    book = _unwrap(book)
+    if not isinstance(book, dict) or "asks" not in book:
+        return None
+    _book_cache[token_id] = (book, now)
+    return book
+
+
+def _wallet_kelly_size(
+    edge,
+    market_mid,
+    wallet_balance,
+    max_usd=None,
+    kelly_fraction=None,
+    min_usd=None,
+    dd_multiplier=1.0,
+):
+    """
+    Configurable-fraction Kelly capped stake — conservative sizing to reduce ruin risk.
 
     Kelly fraction for a Polymarket binary bet: f* = edge / (1 - market_mid)
-    We cap at QUARTER Kelly for ALL edge sizes. Full Kelly has ~50% drawdowns
-    and is far too aggressive when model probabilities have uncertainty.
+    We cap at `kelly_fraction` (default: quarter-Kelly, 0.25, read from
+    data/settings.json via _load_risk_settings() when not passed explicitly).
+    Full Kelly has ~50% drawdowns and is far too aggressive when model
+    probabilities have uncertainty.
 
     Edge tier only controls whether we bet at all (larger edge = more confident
-    the bet qualifies), but sizing is always quarter-Kelly max.
+    the bet qualifies), but sizing is always kelly_fraction max.
 
-    Hard caps: MAX_WALLET_FRACTION of wallet and max_usd (defaults to MAX_USD_PER_BET).
+    `dd_multiplier` (default 1.0, no effect) lets a caller scale the Kelly
+    fraction down further for drawdown protection — see
+    _update_drawdown_state(). NOTE: a dd_multiplier of 0.0 does NOT zero the
+    returned size; the min_usd floor below still applies. Callers that need
+    to fully disable directional betting at the worst drawdown tier must
+    bypass this function entirely (see autopilot_cycle()'s
+    _directional_blocked() check), not rely on dd_multiplier reaching zero.
+
+    Hard caps: MAX_WALLET_FRACTION of wallet and max_usd (defaults to the
+    configured arena_maximum_bet / MAX_USD_PER_BET).
     """
     if market_mid >= 1.0 or market_mid <= 0 or wallet_balance <= 0:
-        return MIN_USD_PER_BET
+        return min_usd if min_usd is not None else MIN_USD_PER_BET
+    _risk = _load_risk_settings() if kelly_fraction is None or min_usd is None else None
+    fraction = kelly_fraction if kelly_fraction is not None else _risk["kelly_fraction"]
+    floor_usd = min_usd if min_usd is not None else _risk["minimum_bet"]
     kelly_f = max(0.0, edge / (1.0 - market_mid))
-    # TOURNAMENT MODE: full Kelly — rank-race payoff rewards variance, ruin is
-    # an acceptable outcome of a virtual-bankroll leaderboard sprint.
-    multiplier = 1.0
+    # Real USDC (confirmed 2026-07-09), not a virtual tournament bankroll —
+    # configurable-fraction Kelly per this function's own sizing rationale above.
+    multiplier = fraction * dd_multiplier
     size = kelly_f * multiplier * wallet_balance
     bet_cap = max_usd if max_usd is not None else MAX_USD_PER_BET
     hard_cap = min(wallet_balance * MAX_WALLET_FRACTION, bet_cap)
-    return round(max(MIN_USD_PER_BET, min(size, hard_cap)), 2)
+    return round(max(floor_usd, min(size, hard_cap)), 2)
 
 
 def _size_for_edge(edge, max_usd):
@@ -836,7 +1009,17 @@ def analyze(
     edge_min=EDGE_MIN_DEFAULT,
     max_usd=MAX_USD_PER_BET,
     wallet_balance=None,
+    kelly_fraction=None,
 ):
+    # Read once per analyze() call, not per-candidate — this loop runs up to
+    # ~limit x 3 outcomes per cycle, so per-candidate disk reads would be
+    # wasteful. A caller (autopilot_cycle) that wants drawdown-adjusted sizing
+    # passes kelly_fraction explicitly (already folded with the drawdown
+    # multiplier); manual/preview callers that don't pass it get the plain
+    # configured fraction with no drawdown effect.
+    _risk_cfg = _load_risk_settings()
+    _kf = kelly_fraction if kelly_fraction is not None else _risk_cfg["kelly_fraction"]
+    _wc_weight = _risk_cfg["wc_model_weight"]
     _clear_mid_cache()
     _refresh_mapping_cache()
     fixtures = list_upcoming_fixtures(limit)
@@ -873,14 +1056,14 @@ def analyze(
             if wc_probs:
                 sm_probs = get_model_probs(fid)
                 if sm_probs:
-                    probs = blend_with_sportmonks(wc_probs, sm_probs, WC_MODEL_WEIGHT)
+                    probs = blend_with_sportmonks(wc_probs, sm_probs, _wc_weight)
                     prob_source = "WC+SM"
                 else:
                     probs = wc_probs
                     prob_source = "WC"
             # If no WC probs either, skip this fixture entirely (no Sportmonks-only bets)
         elif wc_probs:
-            probs = blend_with_sportmonks(wc_probs, probs, WC_MODEL_WEIGHT)
+            probs = blend_with_sportmonks(wc_probs, probs, _wc_weight)
             prob_source = "WC+DFP"
 
         mapping = get_mapping(fid)
@@ -976,7 +1159,9 @@ def analyze(
 
             if qualifies:
                 if wallet_balance is not None:
-                    suggested = _wallet_kelly_size(edge, mid, wallet_balance, max_usd=max_usd)
+                    suggested = _wallet_kelly_size(
+                        edge, mid, wallet_balance, max_usd=max_usd, kelly_fraction=_kf
+                    )
                 else:
                     suggested = _size_for_edge(edge, max_usd)
             else:
@@ -1441,6 +1626,137 @@ def _pick_key(c):
 
 
 # ---------------------------------------------------------------------------
+# Drawdown protection — Phase 1 risk management (2026-07-09)
+#
+# Tracks each UTC day's STARTING available-cash balance (not total equity —
+# open-position mark value is excluded, matching the spec's literal "starting
+# daily bankroll" wording) and maps same-day drawdown from that baseline to a
+# configurable Kelly-multiplier tier. Confirmed with the user: the baseline is
+# a FRESH snapshot taken the first time this code runs each day — it does not
+# retroactively count any pre-existing unrealized loss against the new tiers.
+# ---------------------------------------------------------------------------
+def _update_drawdown_state(state, wallet_balance, risk_cfg):
+    """
+    Snapshot today's starting Arena wallet balance once per UTC day, compute
+    drawdown_pct against it, and map to the configured Kelly-multiplier tier.
+
+    Mutates state["daily"]["start_balance"] (persisted by the caller's
+    subsequent _save_state()). Returns a dict with drawdown_pct,
+    kelly_multiplier, and disable_directional. Never raises — any bad input
+    (missing/zero/negative wallet_balance, malformed tiers) resolves to the
+    "no drawdown" default so a data hiccup can never accidentally halt or
+    (via a bug) accidentally loosen live betting.
+    """
+    daily = state.setdefault("daily", {})
+    start_balance = daily.get("start_balance")
+
+    if start_balance is None:
+        # New day (or first cycle ever after this feature was deployed to an
+        # existing arena_autopilot.json). Snapshot now rather than inventing a
+        # retroactive baseline — see module docstring above.
+        daily["start_balance"] = wallet_balance
+        return {"drawdown_pct": 0.0, "kelly_multiplier": 1.0, "disable_directional": False}
+
+    try:
+        start_balance = float(start_balance)
+        wallet_balance = float(wallet_balance)
+    except (TypeError, ValueError):
+        return {"drawdown_pct": 0.0, "kelly_multiplier": 1.0, "disable_directional": False}
+
+    if start_balance <= 0:
+        drawdown_pct = 0.0
+    else:
+        drawdown_pct = max(0.0, (start_balance - wallet_balance) / start_balance)
+
+    if not risk_cfg.get("drawdown_protection_enabled", True):
+        # Still report the real percentage for UI/operator visibility even
+        # when the feature is switched off — only the ENFORCEMENT is skipped.
+        return {"drawdown_pct": drawdown_pct, "kelly_multiplier": 1.0, "disable_directional": False}
+
+    for tier in risk_cfg.get("drawdown_tiers") or _DEFAULT_DRAWDOWN_TIERS:
+        if drawdown_pct >= tier["drawdown_pct"]:
+            return {
+                "drawdown_pct": drawdown_pct,
+                "kelly_multiplier": tier["kelly_multiplier"],
+                "disable_directional": tier["disable_directional"],
+            }
+    return {"drawdown_pct": drawdown_pct, "kelly_multiplier": 1.0, "disable_directional": False}
+
+
+def _forebet_gate_blocked(c, risk_cfg):
+    """
+    True if this candidate must be skipped under the Forebet-confirmation
+    gate (Phase 13, configurable — see arena_forebet_required /
+    arena_arb_enabled). Defaults (True, True) reproduce the unconditional
+    2026-07-06 FOREBET-ONLY MODE behavior exactly.
+    """
+    arb_exempt = risk_cfg["arb_enabled"] and c.get("real_arb")
+    return bool(risk_cfg["forebet_required"] and not c.get("tipster_confirmed") and not arb_exempt)
+
+
+def _directional_blocked(c, dd_info):
+    """
+    True if this candidate must be skipped under the current drawdown tier.
+
+    Real arbitrage picks are NEVER blocked, per spec ("never disable
+    arbitrage") — this checks the structural c["real_arb"] flag (computed in
+    analyze() from sum(mids) < 1), not an edge threshold, since an
+    edge-threshold approximation would also suppress genuine arb picks.
+    """
+    return bool(dd_info.get("disable_directional")) and not c.get("real_arb")
+
+
+def _current_calibration_and_execution_scores(state, risk_cfg):
+    """
+    Phase 10 (Adaptive Kelly) — the two GLOBAL (not per-candidate) sub-scores:
+    calibration (from settled Arena bets' ECE) and execution (from
+    execution_log.db's recorded slippage). Computed once per cycle, not once
+    per candidate. Both default to the neutral 1.0 when there isn't yet
+    enough settled/fill data — see adaptive_kelly.py's module docstring for
+    why "unknown" must not be penalized the same as "known to be bad."
+    """
+    settled = _settlement_map(state)
+    probs, outcomes = [], []
+    for p in state.get("placed", []) or []:
+        if not p.get("ok"):
+            continue
+        winning_outcome = settled.get(str(p.get("fixture_id")))
+        if winning_outcome is None or p.get("model_prob") is None:
+            continue
+        probs.append(float(p["model_prob"]))
+        outcomes.append(1 if p.get("outcome") == winning_outcome else 0)
+    ece = _expected_calibration_error(probs, outcomes) if probs else None
+    calibration = _adaptive_kelly.calibration_score(ece, ece_cap=risk_cfg["adaptive_kelly_ece_cap"])
+
+    try:
+        slip = _exec_analytics.slippage_report()
+        avg_slippage = slip.get("avg_slippage")
+    except Exception:
+        avg_slippage = None
+    execution = _adaptive_kelly.execution_score(avg_slippage, slippage_cap=risk_cfg["adaptive_kelly_slippage_cap"])
+    return calibration, execution
+
+
+def _directional_bet_size(suggested_usd, risk_cfg, max_per_bet, room):
+    """
+    Final per-pick stake for a qualifying, non-blocked directional/arb pick.
+
+    Pure Kelly (already drawdown-adjusted upstream via analyze()'s
+    kelly_fraction param) — no forced minimum-of-wallet floor. Still capped by
+    the per-bet ceiling and remaining run/day budget (`room`).
+    """
+    return round(
+        min(
+            suggested_usd or risk_cfg["minimum_bet"],
+            risk_cfg["maximum_bet"],
+            max_per_bet,
+            room,
+        ),
+        2,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Tipster confirmation — research-validated best strategy (2026-07-06):
 # TIPSTER_FOREBET is the ONLY paper strategy whose 95% CI is entirely above
 # zero (+41.7% ROI, CI [+14.5%, +68.9%], n=259 since the ledger cleanup).
@@ -1521,6 +1837,22 @@ def autopilot_cycle():
     wallet_balance = wallet["available_balance_usdc"] if wallet else 0.0
     budget = max(0.0, wallet_balance - WALLET_BUFFER) if wallet else 0.0
     daily_remaining = max(0.0, DAILY_SPEND_CAP - state["daily"]["spent"])
+
+    # Phase 1 risk management: operator-level Kelly/drawdown config, read
+    # fresh each cycle, and the resulting drawdown tier for TODAY. Must run
+    # after the date-rollover reset above so a new day's baseline snapshot
+    # never reuses yesterday's start_balance.
+    _risk = _load_risk_settings()
+    dd_info = _update_drawdown_state(state, wallet_balance, _risk)
+
+    # Phase 10 (Adaptive Kelly) — global sub-scores, computed once per cycle
+    # (not per candidate). Off by default (arena_adaptive_kelly_enabled);
+    # skip the DB reads entirely when disabled.
+    if _risk["adaptive_kelly_enabled"]:
+        _calibration_score, _execution_score = _current_calibration_and_execution_scores(state, _risk)
+    else:
+        _calibration_score = _execution_score = 1.0
+
     placed_keys = set(state.get("placed_keys", []))
     for _p in state.get("placed", []):
         if _p.get("ok"):
@@ -1541,6 +1873,7 @@ def autopilot_cycle():
         conf_min=_conf_min,
         edge_min=_edge_min,
         wallet_balance=wallet_balance or None,
+        kelly_fraction=_risk["kelly_fraction"] * dd_info["kelly_multiplier"],
     )
     qualifying = [c for c in all_candidates if c["qualifies"]]
 
@@ -1645,24 +1978,78 @@ def autopilot_cycle():
         # FOREBET-ONLY MODE (user directive 2026-07-06): the autopilot bets
         # ONLY picks Forebet agrees with — the sole strategy whose research CI
         # is entirely above zero. Exception: real arbitrages (guaranteed profit).
-        if not c.get("tipster_confirmed") and not c.get("real_arb"):
+        # Phase 13 (2026-07-09): both the overall requirement and the arb
+        # exception are now configurable (arena_forebet_required,
+        # arena_arb_enabled) — defaults (True, True) preserve this exact
+        # behavior for anyone who hasn't touched settings.json.
+        if _forebet_gate_blocked(c, _risk):
+            continue
+        # Drawdown circuit breaker (Phase 1, 2026-07-09): at the worst
+        # configured tier, new directional bets are hard-blocked regardless of
+        # sizing math — real arbitrage is NEVER blocked (see _directional_blocked()).
+        if _directional_blocked(c, dd_info):
             continue
         room = min(budget - spent, daily_remaining - spent)
-        # Aggressive tournament sizing: never less than 40% of the wallet on a
-        # confirmed pick (Kelly can be timid when the model disagrees with
-        # Forebet), capped by room and the per-bet ceiling.
-        floor_size = (wallet_balance or 0.0) * 0.40
-        size = round(
-            min(
-                max(c["suggested_usd"] or MIN_USD_PER_BET, floor_size),
-                MAX_USD_PER_BET,
-                _max_per_bet,
-                room,
-            ),
-            2,
-        )
-        if size < MIN_USD_PER_BET:
+        # Pure Kelly sizing (Phase 1, 2026-07-09): the old "never less than 40%
+        # of wallet" floor is removed — c["suggested_usd"] already reflects the
+        # configured kelly_fraction and any drawdown-tier multiplier applied
+        # upstream in analyze(). Capped by the per-bet ceiling and remaining
+        # run/day budget only.
+        size = _directional_bet_size(c["suggested_usd"], _risk, _max_per_bet, room)
+        if size < _risk["minimum_bet"]:
             continue
+
+        # Phase 2 (2026-07-09): pre-trade liquidity gate. Fails OPEN (does not
+        # block) if the order book can't be fetched — a data-proxy hiccup
+        # must never silently halt all betting — but rejects when the book IS
+        # available and shows insufficient depth for the desired size.
+        book = get_order_book(c.get("token_id"))
+        liq_ok, liq_metrics = _exec_analytics.liquidity_gate_ok(
+            book,
+            c.get("market_mid", 0.0),
+            desired_usd=size,
+            required_multiple=_risk["required_liquidity_multiple"],
+            band_pct=_risk["liquidity_check_pct"],
+        )
+        if _risk["liquidity_gate_enabled"] and not liq_ok:
+            state.setdefault("liquidity_rejections", []).insert(
+                0,
+                {
+                    "key": key,
+                    "match": c["match"],
+                    "team_code": c["team_code"],
+                    "desired_usd": size,
+                    "liquidity_metrics": liq_metrics,
+                    "ts": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                },
+            )
+            state["liquidity_rejections"] = state["liquidity_rejections"][:50]
+            continue
+
+        # Phase 10 (Adaptive Kelly, 2026-07-09): optional composite sizing
+        # multiplier (Kelly x calibration x execution x liquidity x market
+        # quality). Off by default. liquidity/market-quality are PER-PICK
+        # (reuse the book/vig data already fetched above for the liquidity
+        # gate); calibration/execution are the per-cycle globals computed
+        # once, before this loop.
+        if _risk["adaptive_kelly_enabled"]:
+            _band_label = {0.005: "liq_0.5pct", 0.01: "liq_1pct", 0.02: "liq_2pct", 0.03: "liq_3pct"}.get(
+                _risk["liquidity_check_pct"], "liq_1pct"
+            )
+            _liquidity_score = _adaptive_kelly.liquidity_score(
+                liq_metrics.get(_band_label, 0.0), size, _risk["required_liquidity_multiple"]
+            )
+            _market_quality_score = _adaptive_kelly.market_quality_score(
+                c.get("market_vig_pp"), vig_cap_pp=_risk["adaptive_kelly_vig_cap_pp"]
+            )
+            size = _adaptive_kelly.adaptive_kelly_size(
+                size, _calibration_score, _execution_score, _liquidity_score, _market_quality_score
+            )
+            if size < _risk["minimum_bet"]:
+                continue
+
+        signal_ts = time.time()
+        best_bid, best_ask = _exec_analytics.best_bid_ask(book)
         _ap2_set_ctx(
             model_prob=c.get("model_prob", 1.0),
             mid=c.get("market_mid", 0.0),
@@ -1673,6 +2060,35 @@ def autopilot_cycle():
             c["fixture_id"], c["team_code"], size, c["limit_price"]
         )
         ok = o_sc in (200, 201)
+        if ok:
+            _order_id_for_log = (
+                str(o_resp.get("order_id") or o_resp.get("id") or "")
+                if isinstance(o_resp, dict)
+                else ""
+            )
+            try:
+                _exec_analytics.log_signal(
+                    {
+                        "order_id": _order_id_for_log or key,
+                        "signal_ts": signal_ts,
+                        "fixture_id": c["fixture_id"],
+                        "match": c["match"],
+                        "outcome": c["outcome"],
+                        "model_prob": c.get("model_prob"),
+                        "fair_prob": c.get("devigged_mid"),
+                        "market_mid": c.get("market_mid"),
+                        "best_bid": best_bid,
+                        "best_ask": best_ask,
+                        "spread": (best_ask - best_bid) if (best_bid is not None and best_ask is not None) else None,
+                        "requested_size": size,
+                        "limit_price": c.get("limit_price"),
+                        "liquidity_depth": liq_metrics,
+                        "ev_at_signal": c.get("edge", 0.0) * size,
+                        "kickoff_ts": c.get("kickoff_ts"),
+                    }
+                )
+            except Exception as _log_exc:
+                print(f"[arena] execution_analytics.log_signal failed (non-fatal): {_log_exc}")
         state["placed"].insert(
             0,
             {
@@ -1781,6 +2197,19 @@ def autopilot_cycle():
     except Exception as e:
         state["last_error"] = f"exposure fetch error: {str(e)[:100]}"
 
+    # Drawdown audit trail (Phase 1, 2026-07-09) — persisted after the PnL
+    # refresh above so realized/unrealized reflect this cycle, not last cycle's.
+    state["drawdown"] = {
+        "date": _today(),
+        "start_balance": state["daily"].get("start_balance"),
+        "current_balance": wallet_balance,
+        "drawdown_pct": dd_info["drawdown_pct"],
+        "kelly_multiplier": dd_info["kelly_multiplier"],
+        "directional_disabled": dd_info["disable_directional"],
+        "realized_pnl": state["pnl"].get("realized", 0.0),
+        "unrealized_pnl": state["pnl"].get("unrealized", 0.0),
+    }
+
     # Recent orders
     try:
         recent_orders = list_orders(
@@ -1813,6 +2242,22 @@ def autopilot_cycle():
             }
             for o in (recent_orders or [])[:30]
         ]
+
+        # Phase 2 (2026-07-09): backfill execution_log fill data for orders
+        # that have reached a terminal filled/settled state. Best-effort —
+        # a failure here must never break order reconciliation below.
+        try:
+            for o in state["orders_recent"]:
+                if (o.get("status") or "").lower() in ("filled", "completed", "settled", "closed"):
+                    oid = o.get("order_id")
+                    if oid and o.get("fill_price") is not None:
+                        _exec_analytics.update_fill(
+                            str(oid),
+                            filled_size=o.get("usd_size"),
+                            fill_price=o.get("fill_price"),
+                        )
+        except Exception as _fill_log_exc:
+            print(f"[arena] execution_analytics fill backfill failed (non-fatal): {_fill_log_exc}")
 
         # Reconcile: an order the exchange ACCEPTED then REJECTED (thin book,
         # FOK killed) never filled — its key must not sit in placed_keys or the
@@ -1901,6 +2346,26 @@ def autopilot_cycle():
                 if ns["fixture_id"] not in existing:
                     state.setdefault("settlements", []).insert(0, ns)
             state["settlements"] = state["settlements"][:50]
+
+            # Phase 2 (2026-07-09): backfill execution_log.final_settlement
+            # for every placed order on a newly-settled fixture. Best-effort,
+            # matches the order_id extraction pattern already used above for
+            # the rejected-order reconciliation.
+            try:
+                import re as _re3
+
+                by_fixture = {ns["fixture_id"]: ns["outcome"] for ns in new_settlements}
+                for p in state.get("placed", []):
+                    outcome_result = by_fixture.get(p.get("fixture_id"))
+                    if not outcome_result or not p.get("ok"):
+                        continue
+                    m3 = _re3.search(
+                        r"'order_id': '([0-9a-f\-]+)'", str(p.get("order_response") or "")
+                    )
+                    if m3:
+                        _exec_analytics.update_settlement(m3.group(1), outcome_result)
+            except Exception as _settle_log_exc:
+                print(f"[arena] execution_analytics settlement backfill failed (non-fatal): {_settle_log_exc}")
 
         # CLV tracking: for each placed bet, compare entry price vs Polymarket closing price.
         # closing price = last recorded Polymarket mid before kickoff from price_history.
