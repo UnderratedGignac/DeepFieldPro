@@ -3165,10 +3165,12 @@ def log_ai_bet(
 
         # Research-mode dedup: skip ONLY an exact repeat (same source + market + side
         # on this match) — different strategies/markets may bet the same fixture.
+        # Exclude VOID records so voided bets don't permanently block re-placement.
         cur.execute(
             """
             SELECT COUNT(*) FROM bet_log
             WHERE match_id = ? AND market_type = ? AND side = ? AND bet_source = ?
+            AND result != 'VOID'
         """,
             (match, market, selection, source or "AI"),
         )
@@ -6196,6 +6198,15 @@ def run_daemon():
             maybe_send_daily_summary()    # fires once at 22:30 UTC
         except Exception as _dsa_err:
             print(f"[ALERTS] daily_signal_alerts error: {_dsa_err}")
+
+        # ── Stair AI + Gemini reasoning engine ──────────────────────────────
+        # Uses Stair AI WC probabilities + Betarabia odds to find edges, then
+        # asks Gemini CDP for a YES/NO confirmation before logging a paper bet.
+        try:
+            from src.stairai_reasoning_engine import run_cycle as _stair_cycle
+            _stair_cycle(log_bet_fn=log_ai_bet)
+        except Exception as _stair_err:
+            print(f"[STAIR_AI ENGINE] cycle error: {_stair_err}")
 
         # Wait 3 minutes (180s) before the next sweep
         time.sleep(180)

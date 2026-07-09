@@ -119,7 +119,7 @@ def get_state():
         _bc.row_factory = _sq2.Row
         _open_rows = _bc.execute(
             "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
-            "FROM bet_log WHERE result='OPEN' AND bet_source='TIPSTER_FOREBET' ORDER BY placed_at DESC"
+            "FROM bet_log WHERE result='OPEN' AND bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') ORDER BY placed_at DESC"
         ).fetchall()
         _open_bets = [dict(r) for r in _open_rows]
         _bc.close()
@@ -210,7 +210,7 @@ def stream_state():
                                 dict(r)
                                 for r in _sbc.execute(
                                     "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
-                                    "FROM bet_log WHERE result='OPEN' AND bet_source='TIPSTER_FOREBET' ORDER BY placed_at DESC"
+                                    "FROM bet_log WHERE result='OPEN' AND bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') ORDER BY placed_at DESC"
                                 ).fetchall()
                             ]
                             _sbc.close()
@@ -288,7 +288,7 @@ def get_drawdown():
         query_db(
             "bet_log.db",
             "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
-            f"WHERE result NOT IN ('OPEN') AND bet_source='TIPSTER_FOREBET' AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
+            f"WHERE result NOT IN ('OPEN') AND bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
             "GROUP BY day ORDER BY day ASC",
         )
         or []
@@ -336,7 +336,7 @@ def get_bankroll():
         query_db(
             "bet_log.db",
             "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
-            f"WHERE result NOT IN ('OPEN') AND bet_source='TIPSTER_FOREBET' AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
+            f"WHERE result NOT IN ('OPEN') AND bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
             "GROUP BY day ORDER BY day ASC",
         )
         or []
@@ -1090,7 +1090,7 @@ def get_research_summary():
             "SELECT COUNT(*) AS total, "
             "SUM(CASE WHEN result='OPEN' THEN 1 ELSE 0 END) AS open_cnt, "
             "SUM(CASE WHEN result IN ('W','L') THEN 1 ELSE 0 END) AS settled "
-            "FROM bet_log WHERE bet_source='TIPSTER_FOREBET'",
+            "FROM bet_log WHERE bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI')",
             one=True,
         )
         total_bets = (totals["total"] or 0) if totals else 0
@@ -1110,7 +1110,7 @@ def get_research_summary():
                 "SUM(CASE WHEN result IN ('W','L') THEN pnl ELSE 0 END) AS pnl, "
                 "AVG(clv) AS avg_clv, AVG(entry_odds) AS avg_odds, "
                 "MAX(placed_at) AS last_bet_at "
-                "FROM bet_log WHERE bet_source='TIPSTER_FOREBET' GROUP BY COALESCE(bet_source, 'AI')",
+                "FROM bet_log WHERE bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') GROUP BY COALESCE(bet_source, 'AI')",
             )
             or []
         )
@@ -1162,7 +1162,7 @@ def get_research_summary():
 def get_research_bets():
     """Filterable bet list (newest first) for the Research Lab table."""
     try:
-        clauses, args = ["bet_source='TIPSTER_FOREBET'"], []
+        clauses, args = ["bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI')"], []
         for param, col in (
             ("market", "market_type"),
             ("result", "result"),
