@@ -8,9 +8,14 @@ Each daemon cycle:
        a. Calls Stair AI's Sportmonks prediction proxy (resolved by team name) for a
           second probability signal (only resolves for WC2026 fixtures; gracefully
           returns None for other leagues — Sportmonks has no other season indexed).
+       a2. Reads live Polymarket mid-prices + recent steam (price-drift) moves via
+          arena_betting's existing token-mapping/CLOB plumbing (same warm in-process
+          cache Arena's own autopilot cycle populates — no extra API load). Also
+          WC2026-only, since that's the only mapping arena_betting maintains.
        b. Sends a structured YES/NO prompt to Gemini CDP, including the Stair AI prob
-          as corroborating (or cautionary) context. Advisory only — never a hard gate,
-          since arena_betting.py found Sportmonks-only picks lose standalone (10/13).
+          and Polymarket signal as corroborating (or cautionary) context. Advisory
+          only — never a hard gate, since arena_betting.py found Sportmonks-only
+          picks lose standalone (10/13).
        c. If Gemini approves (or is unavailable and GEMINI_FALLBACK=True):
            logs a STAIR_AI paper bet via log_ai_bet().
 
@@ -209,6 +214,60 @@ def _get_stairai_probs(home_name: str, away_name: str) -> dict | None:
         return None
 
 
+# ── Polymarket prediction-market probe (advisory only) ─────────────────────────
+
+def _get_polymarket_data(home_name: str, away_name: str, match: str) -> dict | None:
+    """
+    Resolve live Polymarket implied probabilities + steam (price-drift) signals
+    for a WC2026 fixture.
+
+    Reuses arena_betting's token-mapping/CLOB-mid plumbing and polymarket_steam's
+    price-history ledger — the exact same data arena_betting.py already records
+    every analyze() cycle (shared in-process caches: both modules run inside the
+    same Flask process as the daemon), so this adds no meaningful extra API load.
+
+    Resolution goes through the Sportmonks fixture id (same trick as
+    _find_sportmonks_fixture_id above) since that's the id space arena_betting's
+    mapping cache is keyed on — it does NOT line up with the dashboard's
+    Betarabia/Sofascore fixture_id. Only ever resolves for WC2026 fixtures;
+    returns None for every other league or on any lookup failure.
+
+    Returns {'implied_pct': {'home':.., 'draw':.., 'away':..}, 'steam_pct': {...}}
+    (de-vigged, 0-100 scale) or None.
+    """
+    try:
+        from src.arena_betting import get_mapping, get_mid
+        from src.polymarket_steam import record_scan, get_steam_signals
+
+        sm_fid = _find_sportmonks_fixture_id(home_name, away_name)
+        if not sm_fid:
+            return None
+        mapping = get_mapping(sm_fid)
+        if not mapping:
+            return None
+
+        mids = {}
+        for outcome in ("home", "draw", "away"):
+            tok = mapping.get(f"polymarket_{outcome}_token_yes")
+            m = get_mid(tok) if tok else None
+            if m is not None:
+                mids[outcome] = m
+        if not mids:
+            return None
+
+        record_scan(str(sm_fid), match, mids)
+        steam = get_steam_signals(str(sm_fid))
+
+        mid_sum = sum(mids.values())
+        implied_pct = (
+            {o: v / mid_sum * 100.0 for o, v in mids.items()} if mid_sum > 0 else {}
+        )
+        return {"implied_pct": implied_pct, "steam_pct": steam}
+    except Exception as exc:
+        print(f"[STAIR_AI ENGINE] Polymarket probe error: {exc}")
+        return None
+
+
 # ── De-vig helper ──────────────────────────────────────────────────────────────
 
 def _devig_selection(all_odds: list, sel_index: int) -> float | None:
@@ -241,11 +300,17 @@ def _gemini_reason(
     betz_implied_pct: float,
     edge_pp: float,
     stairai_prob_pct: float | None = None,
+    polymarket_prob_pct: float | None = None,
+    polymarket_steam_pct: float | None = None,
 ) -> str:
     """
     Ask Gemini CDP for a YES/NO bet decision.
     Returns the full response text, or 'NO_GEMINI' if Chrome/Gemini is unavailable.
     stairai_prob_pct: Sportmonks-sourced probability from Stair AI (None if unavailable).
+    polymarket_prob_pct: de-vigged Polymarket mid-implied probability for this side
+        (None if unavailable — non-WC fixture or no live token mapping).
+    polymarket_steam_pct: recent Polymarket price move (%) toward (+) or away from
+        (-) this side, None if no steam data yet.
     """
     try:
         import sys
@@ -270,6 +335,17 @@ def _gemini_reason(
             stairai_line = "STAIR AI / SPORTMONKS PROBABILITY: unavailable (non-WC fixture or API timeout)\n"
             consensus = "No Stair AI / Sportmonks corroboration available — rely on Dixon-Coles and market edge alone."
 
+        if polymarket_prob_pct is not None:
+            poly_line = (
+                f"POLYMARKET PREDICTION MARKET (real money, de-vigged): {polymarket_prob_pct:.1f}% implied  "
+                f"({'CONFIRMS' if polymarket_prob_pct >= 45.0 else 'WEAK SIGNAL'} the pick)\n"
+            )
+        else:
+            poly_line = "POLYMARKET PREDICTION MARKET: unavailable (non-WC fixture or no live token mapping)\n"
+        if polymarket_steam_pct is not None:
+            direction = "toward" if polymarket_steam_pct > 0 else "away from"
+            poly_line += f"POLYMARKET STEAM (recent price move): {polymarket_steam_pct:+.1f}% {direction} this side\n"
+
         prompt = (
             f"You are an expert football betting analyst. Your task is to decide whether a suggested bet has genuine value.\n\n"
             f"MATCH: {match}\n"
@@ -277,6 +353,7 @@ def _gemini_reason(
             f"BET: {side.upper()} WIN (1X2 market)\n"
             f"MODEL PROBABILITY (Dixon-Coles): {model_prob_pct:.1f}%\n"
             f"{stairai_line}"
+            f"{poly_line}"
             f"BETARABIA DECIMAL ODDS: {betz_odds:.2f}  (de-vigged implied: {betz_implied_pct:.1f}%)\n"
             f"EDGE VS MARKET: +{edge_pp:.1f} percentage points\n\n"
             f"SIGNAL SUMMARY: {consensus}\n\n"
@@ -419,10 +496,20 @@ def run_cycle(log_bet_fn: Callable, port: int = 5050) -> int:
 
             stairai_tag = f" SA={stairai_prob_pct:.1f}%" if stairai_prob_pct is not None else " SA=n/a"
 
+            # ── 3a2. Polymarket prediction-market probe (advisory only) ───────
+            # WC2026-only (same id-resolution limit as the Stair AI probe above).
+            poly = _get_polymarket_data(home_name, away_name, match)
+            poly_side_key = "home" if side_label == "Home" else "away"
+            poly_prob_pct = poly["implied_pct"].get(poly_side_key) if poly else None
+            poly_steam_pct = poly["steam_pct"].get(poly_side_key) if poly else None
+            poly_tag = f" PM={poly_prob_pct:.1f}%" if poly_prob_pct is not None else " PM=n/a"
+            if poly_steam_pct is not None:
+                poly_tag += f"(steam{poly_steam_pct:+.1f}%)"
+
             print(
                 f"[STAIR_AI ENGINE] CANDIDATE: {match} [{league}] | {side_label} @ {odds:.2f} "
                 f"model={prob_pct:.1f}% implied={dv_implied*100:.1f}% "
-                f"edge=+{edge*100:.1f}pp EV={ev_val*100:.1f}%{stairai_tag}"
+                f"edge=+{edge*100:.1f}pp EV={ev_val*100:.1f}%{stairai_tag}{poly_tag}"
             )
 
             # ── 3b. Gemini CDP reasoning ──────────────────────────────────────
@@ -435,6 +522,8 @@ def run_cycle(log_bet_fn: Callable, port: int = 5050) -> int:
                 betz_implied_pct=dv_implied * 100,
                 edge_pp=edge * 100,
                 stairai_prob_pct=stairai_prob_pct,
+                polymarket_prob_pct=poly_prob_pct,
+                polymarket_steam_pct=poly_steam_pct,
             )
             approved = _parse_decision(gemini_text)
 
