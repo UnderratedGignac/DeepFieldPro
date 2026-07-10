@@ -186,7 +186,11 @@ def run_task(
                 if size > 0:
                     if size != last_size:
                         last_size, stable_since = size, time.time()
-                    elif stable_since and time.time() - stable_since >= 3.0:
+                    # Multi-step tasks (read several files, then edit) can go quiet for
+                    # well over 3s between stdout writes while AGY runs tool calls that
+                    # don't stream output — a short window falsely reads that as "done"
+                    # and kills the process mid-task (observed: 30s task, opening line only).
+                    elif stable_since and time.time() - stable_since >= 12.0:
                         break
                 if proc.poll() is not None:
                     break

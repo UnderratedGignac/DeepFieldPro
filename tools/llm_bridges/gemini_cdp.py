@@ -401,6 +401,33 @@ _COUNT_RESPONSES_JS = """
 # ---------------------------------------------------------------------------
 
 
+def _new_conversation(ws, wait: float = 20) -> bool:
+    """
+    Navigate the tab to a fresh, empty Gemini conversation.
+
+    Without this, every call (across every caller sharing the tab -- the
+    live daemon's own per-candidate cycle AND any standalone script) keeps
+    appending to whatever conversation happens to already be open, forever.
+    Verified live 2026-07: once a thread accumulates several turns, Gemini's
+    per-turn generation latency grows enough that _send_prompt_and_wait's
+    own fixed `timeout` (240s) is no longer enough -- calls report
+    "No response within {timeout}s" even though Gemini eventually does
+    answer (confirmed by reading the DOM afterwards: the response was there,
+    just later than the poll deadline). This reproduced with a trivial
+    unrelated one-word prompt, not just long ones, so thread length -- not
+    prompt content -- is what was driving it. Starting every call on a
+    bare "/app" (no conversation id) gives each call a clean, short thread
+    and keeps latency bounded and predictable.
+    """
+    _send(ws, "Page.navigate", {"url": "https://gemini.google.com/app"}, wait=10)
+    deadline = time.time() + wait
+    while time.time() < deadline:
+        if _js(ws, _FIND_INPUT_JS, wait=3):
+            return True
+        time.sleep(0.5)
+    return False
+
+
 def _send_prompt_and_wait(
     ws,
     prompt: str,
@@ -410,6 +437,12 @@ def _send_prompt_and_wait(
     Inject prompt into the Gemini textarea, click send, and wait for the response.
     Returns (ok, text_or_error).
     """
+    # 0. Start clean -- see _new_conversation's docstring for why this is
+    # not optional (unbounded thread growth silently pushes real latency
+    # past this function's own timeout below).
+    if not _new_conversation(ws):
+        return False, "Could not start a fresh Gemini conversation (navigation timed out)"
+
     # 1. Check input is present
     found_sel = _js(ws, _FIND_INPUT_JS)
     if not found_sel:
