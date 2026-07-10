@@ -93,14 +93,20 @@ SEASON_ID = 26618  # World Cup 2026 (Sportmonks)
 PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 
 # ---- Risk defaults (overridable per request) -------------------------------
-CONF_MIN_DEFAULT = 0.0    # bet on every WC game — no confidence floor
-EDGE_MIN_DEFAULT = -1.0   # bet even negative-edge games; cover all fixtures
-MAX_USD_PER_BET = 100.00  # TOURNAMENT MODE: no practical per-bet cap (wallet-limited)
+# Tightened 2026-07-10 back to the validated 2026-07-05 regime after the
+# "TOURNAMENT MODE" drift (conf 0.0 / edge -1.0 / $100 per order / $999 daily /
+# $0.25 buffer / full-wallet fraction) left the ARMED autopilot with no dollar
+# ceiling below the whole wallet and a -$226 unrealized book on $113 available.
+# tests/test_arena_risk_caps.py pins every value below — loosen them only
+# together with that file, deliberately.
+CONF_MIN_DEFAULT = 0.50   # no bets below 50% model confidence
+EDGE_MIN_DEFAULT = 0.05   # require >= 5pp edge vs the Polymarket mid
+MAX_USD_PER_BET = 10.00   # hard per-order cap
 MIN_USD_PER_BET = 1.00    # arena minimum per order (Stair AI hard floor)
-AP2_MAX_PER_ORDER = 100.00  # matches MAX_USD_PER_BET
+AP2_MAX_PER_ORDER = 10.00  # matches MAX_USD_PER_BET
 MAX_FAIL_RETRIES = 3  # QF markets link late + transient unfilled orders deserve retries
-WALLET_BUFFER = 0.25      # lowered: keep $0.25 reserve to maximise bet coverage
-MAX_BETS_PER_RUN = 30     # handle all upcoming fixtures in one cycle
+WALLET_BUFFER = 10.00     # the last $10 of the wallet is untouchable
+MAX_BETS_PER_RUN = 3      # a cycle may open at most 3 new positions
 LIMIT_BUFFER = 0.02       # 2¢ above mid to help fill
 TIF_SECONDS = 30          # limit order expires if unfilled
 
@@ -110,7 +116,7 @@ DFP_MAX_RATIO = 99.0          # no sanity cap
 WC_MODEL_WEIGHT = 0.65       # weight for WC Elo model when blending with Sportmonks/DFP
 
 # Max fraction of wallet per single bet
-MAX_WALLET_FRACTION = 1.0     # TOURNAMENT MODE: a single pick may take the whole wallet
+MAX_WALLET_FRACTION = 0.10    # a single pick may risk at most 10% of the wallet
 
 # Default drawdown tiers used when data/settings.json has no arena_drawdown_tiers key.
 # Mirrors the Phase-1 spec table: (drawdown_pct, kelly_multiplier, disable_directional).
@@ -214,6 +220,10 @@ def _load_risk_settings():
         "forebet_required": forebet_required,
         "arb_enabled": arb_enabled,
         "wc_model_weight": _f("arena_wc_model_weight", WC_MODEL_WEIGHT),
+        # Conviction cap (2026-07-10): skip picks whose model-vs-market
+        # disagreement exceeds this many percentage points — see
+        # _conviction_capped() for why big "edges" are errors, not value.
+        "edge_cap_pp": _f("arena_edge_cap_pp", 20.0),
     }
 
 
@@ -520,11 +530,38 @@ def get_tournament():
 
 
 def submit_order_fok(fixture_id, team_code, usd_size, worst_price):
-    """POST /api/v1/arena/orders_fok — fill-or-kill order (all-or-nothing)."""
+    """POST /api/v1/arena/orders_fok — fill-or-kill order (all-or-nothing).
+
+    Gated like place_order (2026-07-10): this helper moves REAL money and is
+    called from tools (arg_fill_hunter, mar_leg_watcher) as well as the HTTP
+    endpoint, so the live gate, the AP2 mandate (fail-closed), and the
+    per-order cap live INSIDE it — no caller can skip them.
+    """
+    if not _arena_live():
+        return 0, {
+            "error": "blocked",
+            "reason": "real-money placement disabled (DEEPFIELD_ARENA_LIVE != 1)",
+        }
+    usd_size = min(float(usd_size), MAX_USD_PER_BET)
+    if not _AP2:
+        return 402, {
+            "error": "AP2 mandate layer unavailable (fail-closed): order refused"
+        }
+    try:
+        _m = _Mandate.from_settings()
+        _wallet = get_wallet()
+        _wb = _wallet["available_balance_usdc"] if _wallet else 0.0
+        _ok, _reason = _m.check(usd_size, _get_daily_spent(), _wb)
+        if not _ok:
+            return 402, {"error": f"AP2 mandate blocked: {_reason}"}
+    except Exception as _ap2_err:
+        return 402, {
+            "error": f"AP2 mandate check errored (fail-closed): {_ap2_err}"
+        }
     payload = {
         "fixture_id": str(fixture_id),
         "team_code": team_code,
-        "usd_size": f"{float(usd_size):.2f}",
+        "usd_size": f"{usd_size:.2f}",
         "worst_price": float(worst_price),
         "idempotency_key": str(uuid.uuid4()),
     }
@@ -1336,6 +1373,28 @@ def _build_reasoning_trace(c):
     else:
         trace += "  Underdog pick — model sees value where market is skeptical\n"
 
+    # Factor 6: Independent confirmation + stake sizing
+    trace += "\n[Factor 6: Confirmation & Sizing]\n"
+    if c.get("tipster_confirmed"):
+        trace += (
+            "  Forebet CONFIRMS this pick — the only strategy in our research "
+            "ledger with a 95% CI entirely above zero (+41.7% ROI, n=259).\n"
+        )
+    elif real_arb:
+        trace += "  No tipster needed — structural arbitrage (sum of asks < $1).\n"
+    else:
+        trace += (
+            "  No independent Forebet confirmation — pick is blocked from "
+            "real-money staking under FOREBET-ONLY MODE (ledger prediction only).\n"
+        )
+    if c.get("suggested_usd") is not None:
+        trace += (
+            f"  Stake: fractional Kelly (quarter-Kelly x drawdown tier) -> "
+            f"${c['suggested_usd']:.2f} suggested, hard-capped at "
+            f"${MAX_USD_PER_BET:.2f}/order, ${DAILY_SPEND_CAP:.2f}/day, "
+            f"{MAX_WALLET_FRACTION:.0%} of wallet per pick.\n"
+        )
+
     # Decision
     trace += "\n[Decision]\n"
     if c.get("qualifies"):
@@ -1376,46 +1435,50 @@ def submit_ledger(fid, outcome_code, model_prob, note):
 
 
 def place_order(fid, team_code, usd_size, limit_price):
-    # AP2 mandate pre-flight (logs every attempt even if the live gate blocks it)
-    _ap2_row = None
-    if _AP2:
-        try:
-            _ctx = _ap2_get_ctx()
-            _m = _Mandate.from_settings()
-            _spent = _get_daily_spent()
-            _wb = _ctx.get("wallet_balance", 999.0)
-            _conf = _ctx.get("model_prob", 1.0)
-            _edg = _ctx.get("edge", 1.0)
-            _ok, _reason = _m.check(float(usd_size), _spent, _wb, _conf, _edg)
-            _ap2_row = _log_intent(
-                fid,
-                team_code,
-                float(usd_size),
-                float(limit_price),
-                _ctx.get("model_prob", 0.0),
-                _ctx.get("mid", 0.0),
-                _ctx.get("edge", 0.0),
-                _ok,
-                _reason,
-            )
-            if not _ok:
-                return 402, {"error": f"AP2 mandate blocked: {_reason}"}
-        except Exception:
-            pass  # AP2 never blocks main flow on its own internal error
-
     # HARD SAFETY GATE — the single chokepoint for ALL real-money orders. No state
     # flag, frontend toggle, or orphaned process can place a real bet unless the
     # operator explicitly sets DEEPFIELD_ARENA_LIVE=1 in the environment. Default OFF.
+    # Runs FIRST (primary gate, per ap2_mandate.py's contract) — a disarmed system
+    # attempts nothing, not even mandate bookkeeping.
     if not _arena_live():
-        # Log the live-gate block to the AP2 ledger before returning
-        if _AP2 and _ap2_row:
-            try:
-                _log_result(_ap2_row, None, "blocked", "DEEPFIELD_ARENA_LIVE != 1")
-            except Exception:
-                pass
         return 0, {
             "error": "blocked",
             "reason": "real-money placement disabled (DEEPFIELD_ARENA_LIVE != 1)",
+        }
+
+    # AP2 mandate pre-flight — secondary gate + audit ledger.
+    # FAIL-CLOSED (2026-07-10): real money never moves without a working mandate
+    # check — an unavailable AP2 layer or an internal error blocks the order
+    # instead of silently waving it through (was `except: pass`).
+    _ap2_row = None
+    if not _AP2:
+        return 402, {
+            "error": "AP2 mandate layer unavailable (fail-closed): order refused"
+        }
+    try:
+        _ctx = _ap2_get_ctx()
+        _m = _Mandate.from_settings()
+        _spent = _get_daily_spent()
+        _wb = _ctx.get("wallet_balance", 999.0)
+        _conf = _ctx.get("model_prob", 1.0)
+        _edg = _ctx.get("edge", 1.0)
+        _ok, _reason = _m.check(float(usd_size), _spent, _wb, _conf, _edg)
+        _ap2_row = _log_intent(
+            fid,
+            team_code,
+            float(usd_size),
+            float(limit_price),
+            _ctx.get("model_prob", 0.0),
+            _ctx.get("mid", 0.0),
+            _ctx.get("edge", 0.0),
+            _ok,
+            _reason,
+        )
+        if not _ok:
+            return 402, {"error": f"AP2 mandate blocked: {_reason}"}
+    except Exception as _ap2_err:
+        return 402, {
+            "error": f"AP2 mandate check errored (fail-closed): {_ap2_err}"
         }
 
     payload = {
@@ -1463,12 +1526,28 @@ def run_autoplace(
     budget = max(0.0, wallet_balance - WALLET_BUFFER)
     per_bet_cap = min(max_usd, MAX_USD_PER_BET)
 
+    # Manual /place path honors the same research-derived gates as the
+    # autopilot (2026-07-10): Forebet confirmation and the conviction cap.
+    # Previously this path bypassed both — one localhost curl could commit
+    # the wallet to unconfirmed bug-sized-"edge" picks.
+    _risk = _load_risk_settings()
+    _cands = analyze(
+        limit, conf_min, edge_min, per_bet_cap, wallet_balance=wallet_balance
+    )
+    try:
+        _tips = _get_tipster_picks()
+        for c in _cands:
+            c["tipster_confirmed"] = _tipster_agrees(
+                _tips, c.get("match", ""), c.get("outcome", "")
+            )
+    except Exception as _tip_err:
+        print(f"[arena] tipster annotate failed (run_autoplace): {_tip_err}")
     picks = [
         c
-        for c in analyze(
-            limit, conf_min, edge_min, per_bet_cap, wallet_balance=wallet_balance
-        )
+        for c in _cands
         if c["qualifies"]
+        and not _forebet_gate_blocked(c, _risk)
+        and not _conviction_capped(c, _risk)
     ]
     results = []
     spent = 0.0
@@ -1516,6 +1595,21 @@ def run_autoplace(
         if ok:
             spent += size
             placed += 1
+            # Cross-path bookkeeping (2026-07-10 review finding): record the
+            # pick + spend in the autopilot state so the 60s loop neither
+            # re-bets a fixture the manual path just bet, nor overshoots the
+            # daily cap by not seeing this spend.
+            try:
+                with _state_lock:
+                    _st = _load_state()
+                    _k = _pick_key(c)
+                    if _k not in _st.get("placed_keys", []):
+                        _st.setdefault("placed_keys", []).append(_k)
+                    _daily = _st.setdefault("daily", {"date": _today(), "spent": 0.0})
+                    _daily["spent"] = round(float(_daily.get("spent", 0.0)) + size, 2)
+                    _save_state(_st)
+            except Exception as _bk_err:
+                print(f"[arena] run_autoplace state bookkeeping failed: {_bk_err}")
         results.append(
             {
                 **c,
@@ -1542,7 +1636,7 @@ def run_autoplace(
 # ---------------------------------------------------------------------------
 SCAN_INTERVAL = 60  # scan every minute — catch every pre-kickoff window
 AUTO_SCAN_LIMIT = 104  # look at all upcoming WC fixtures each cycle
-DAILY_SPEND_CAP = 999.0  # wallet-limited; no artificial daily cap
+DAILY_SPEND_CAP = 25.0  # hard ceiling on new real-money stake per UTC day
 STATE_FILE = os.path.join(
     os.path.dirname(__file__), "..", "data", "arena_autopilot.json"
 )
@@ -1692,6 +1786,30 @@ def _forebet_gate_blocked(c, risk_cfg):
     """
     arb_exempt = risk_cfg["arb_enabled"] and c.get("real_arb")
     return bool(risk_cfg["forebet_required"] and not c.get("tipster_confirmed") and not arb_exempt)
+
+
+def _conviction_capped(c, risk_cfg):
+    """
+    True if this pick must be skipped because the model disagrees with the
+    market by more than arena_edge_cap_pp (default 20pp).
+
+    Rationale (2026-07-10): the project's 2,386-bet out-of-sample line study
+    showed the model's LARGEST disagreements with the market are its largest
+    errors — raising the edge bar made ROI monotonically worse. The two
+    biggest recent real-money orders were placed at "66.5pp" and "72.3pp"
+    edges (France $87.05, Argentina $35.17 — model ~80% vs market mid 8-14%),
+    numbers only a mapping/data bug or model failure produces. The paper
+    daemon has enforced edge_cap_pct=10 since 2026-06-14; this brings the
+    same protection to the real-money arena path. Real arbitrage is exempt:
+    it is structural (sum of asks < $1), not model-conviction-driven.
+    """
+    if c.get("real_arb"):
+        return False
+    cap = float(risk_cfg.get("edge_cap_pp", 20.0))
+    edge_pp = c.get("edge_pp")
+    if edge_pp is None:
+        edge_pp = (c.get("edge") or 0.0) * 100.0
+    return float(edge_pp) > cap
 
 
 def _directional_blocked(c, dd_info):
@@ -2063,6 +2181,10 @@ def autopilot_cycle():
         # behavior for anyone who hasn't touched settings.json.
         if _forebet_gate_blocked(c, _risk):
             continue
+        # Conviction cap (2026-07-10): a model-vs-market gap beyond
+        # arena_edge_cap_pp is treated as error, not value — skip it.
+        if _conviction_capped(c, _risk):
+            continue
         # Drawdown circuit breaker (Phase 1, 2026-07-09): at the worst
         # configured tier, new directional bets are hard-blocked regardless of
         # sizing math — real arbitrage is NEVER blocked (see _directional_blocked()).
@@ -2225,9 +2347,13 @@ def autopilot_cycle():
             except Exception:
                 pass
         else:
-            # Only count real API failures (4xx/5xx) — status=0 means we blocked
-            # the order internally (old gatekeeper, AP2, etc.) and should retry.
-            if o_sc > 0:
+            # Only count real API failures (4xx/5xx) — status=0 means the live
+            # gate blocked internally, and 402 means the AP2 mandate (or its
+            # fail-closed error path) blocked for BUDGET reasons (daily cap,
+            # per-order cap). Neither is the pick's fault — blacklisting a good
+            # pick because the day's budget ran out would silently kill it for
+            # the whole day (2026-07-10 review finding).
+            if o_sc > 0 and o_sc != 402:
                 err_body = str(o_resp).lower() if o_resp else ""
                 fk = state.setdefault("failed_keys", {})
                 # "No Polymarket market linked" is NOT permanent in the knockout
@@ -2520,6 +2646,35 @@ def autopilot_loop():
         time.sleep(SCAN_INTERVAL)
 
 
+def _apply_ntfy_unlock(st, now_ts):
+    """
+    Unlock placed_keys for FUTURE fixtures so a balance top-up can re-bet them.
+    Fixtures that already kicked off stay deduped.
+
+    Deliberately does NOT touch st["daily"]["spent"] (changed 2026-07-10):
+    the old behavior zeroed the daily counter on every unlock, so repeated
+    phone messages could spend multiples of DAILY_SPEND_CAP in one day
+    (2026-07-06: $449.64 accepted in a day this way). The daily cap must
+    bind across unlocks — ntfy is an unauthenticated public channel and the
+    topic name is the only secret.
+
+    Mutates st in place; returns the number of unlocked picks.
+    """
+    candidates = st.get("last_candidates", []) or []
+    kickoff_map = {c["fixture_id"]: c.get("kickoff_ts", 0) for c in candidates}
+    keep_pk = []
+    unlocked_count = 0
+    for pk in st.get("placed_keys", []) or []:
+        fid = pk.split(":")[0]
+        ko = kickoff_map.get(fid, 0)
+        if ko and ko <= now_ts:
+            keep_pk.append(pk)  # already kicked off — keep deduped
+        else:
+            unlocked_count += 1
+    st["placed_keys"] = keep_pk
+    return unlocked_count
+
+
 def _ntfy_listener_loop():
     """
     Listens on the ntfy topic for incoming messages from the user's phone.
@@ -2617,30 +2772,12 @@ def _ntfy_listener_loop():
                         except Exception as _dsa_e:
                             print(f"[NTFY] daily balance store failed: {_dsa_e}")
                         try:
-                            # Unlock placed_keys for future fixtures so we can top up
+                            # Unlock placed_keys for future fixtures so we can top up.
+                            # daily.spent is preserved — DAILY_SPEND_CAP binds across
+                            # unlocks (see _apply_ntfy_unlock docstring).
                             with _state_lock:
                                 st = _load_state()
-                            now_ts2 = time.time()
-                            candidates = st.get("last_candidates", [])
-                            kickoff_map2 = {
-                                c["fixture_id"]: c.get("kickoff_ts", 0)
-                                for c in candidates
-                            }
-                            old_pk = set(st.get("placed_keys", []))
-                            keep_pk = set()
-                            unlocked_count = 0
-                            for pk in old_pk:
-                                fid2 = pk.split(":")[0]
-                                ko2 = kickoff_map2.get(fid2, 0)
-                                if ko2 and ko2 <= now_ts2:
-                                    keep_pk.add(pk)  # already kicked off
-                                else:
-                                    unlocked_count += 1
-                            st["placed_keys"] = list(keep_pk)
-                            st["daily"] = {
-                                "date": time.strftime("%Y-%m-%d"),
-                                "spent": 0.0,
-                            }
+                            unlocked_count = _apply_ntfy_unlock(st, time.time())
                             with _state_lock:
                                 _save_state(st)
                             print(f"[NTFY] Unlocked {unlocked_count} future fixtures")
@@ -2943,6 +3080,22 @@ def autopilot_status():
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+def _require_localhost():
+    """403 helper for state-changing endpoints on the 0.0.0.0-bound server.
+
+    The dashboard binds all interfaces, so without this anyone on the LAN
+    could arm the autopilot or loosen its thresholds. Returns a Flask
+    (response, status) tuple to short-circuit with, or None when allowed.
+    """
+    remote = request.remote_addr or ""
+    if remote not in ("127.0.0.1", "::1", "localhost"):
+        return (
+            jsonify({"error": "Forbidden: control endpoints allowed from localhost only."}),
+            403,
+        )
+    return None
+
+
 def _params():
     conf = request.values.get("conf", type=float)
     edge = request.values.get("edge", type=float)
@@ -3034,11 +3187,22 @@ def arena_insights():
 
 @arena_bp.route("/arena/api/toggle", methods=["POST"])
 def arena_toggle():
-    """Safety pause/resume for the autonomous loop (does not change betting logic)."""
-    body = request.get_json(silent=True) or {}
+    """Safety pause/resume for the autonomous loop (does not change betting logic).
+
+    Asymmetric gate (2026-07-10): PAUSING is allowed from anywhere — it is the
+    emergency kill switch and must stay reachable from a phone on the LAN.
+    ARMING (enabled=true) requires localhost, so no remote device can start
+    real-money betting.
+    """
     with _state_lock:
         s = _load_state()
-        s["enabled"] = bool(body.get("enabled", not s.get("enabled", False)))
+        body = request.get_json(silent=True) or {}
+        target = bool(body.get("enabled", not s.get("enabled", False)))
+        if target:
+            _denied = _require_localhost()
+            if _denied:
+                return _denied
+        s["enabled"] = target
         _save_state(s)
     return jsonify({"enabled": s["enabled"]})
 
@@ -3049,6 +3213,9 @@ def arena_settings_api():
     if request.method == "GET":
         state = _load_state()
         return jsonify({**_default_settings(), **state.get("settings", {})})
+    _denied = _require_localhost()
+    if _denied:
+        return _denied
     body = request.get_json(silent=True) or {}
     with _state_lock:
         s = _load_state()
@@ -3093,12 +3260,9 @@ def arena_analyze():
 @arena_bp.route("/arena/api/place", methods=["POST"])
 def arena_place():
     # Restrict real-money placement to requests originating from localhost only
-    remote = request.remote_addr or ""
-    if remote not in ("127.0.0.1", "::1", "localhost"):
-        return (
-            jsonify({"error": "Forbidden: placement only allowed from localhost."}),
-            403,
-        )
+    _denied = _require_localhost()
+    if _denied:
+        return _denied
     body = request.get_json(silent=True) or {}
     if not body.get("confirm"):
         return (
@@ -3146,8 +3310,18 @@ def arena_order_detail(order_id):
 
 @arena_bp.route("/arena/api/close", methods=["POST"])
 def arena_close_position():
-    """Close a filled position."""
+    """Close a filled position. Sells at caller's price — localhost + confirm only."""
+    _denied = _require_localhost()
+    if _denied:
+        return _denied
     body = request.get_json(silent=True) or {}
+    if not body.get("confirm"):
+        return (
+            jsonify(
+                {"error": "Refused: closing a real position requires {'confirm': true}."}
+            ),
+            400,
+        )
     order_id = body.get("order_id")
     limit_price = body.get("limit_price")
     if not order_id or limit_price is None:
@@ -3346,6 +3520,16 @@ def arena_research_sweep():
     source param: 'all' (default, all leagues), 'wc' (WC only), 'both'
     Regime = 'research'. $10 fixed stake. Deduped so re-calls only add new matches.
     """
+    _denied = _require_localhost()
+    if _denied:
+        return _denied
+    if not (request.get_json(silent=True) or {}).get("confirm"):
+        return (
+            jsonify(
+                {"error": "Refused: research sweep places real orders — requires {'confirm': true}."}
+            ),
+            400,
+        )
     try:
         import threading as _thr
         from src.research_betting import run_research_sweep
@@ -3367,8 +3551,18 @@ def arena_research_sweep():
 
 @arena_bp.route("/arena/api/order_fok", methods=["POST"])
 def arena_order_fok():
-    """Fill-or-kill order (all-or-nothing)."""
+    """Fill-or-kill order (all-or-nothing). Real money — localhost + confirm only."""
+    _denied = _require_localhost()
+    if _denied:
+        return _denied
     body = request.get_json(silent=True) or {}
+    if not body.get("confirm"):
+        return (
+            jsonify(
+                {"error": "Refused: real-money placement requires {'confirm': true}."}
+            ),
+            400,
+        )
     fixture_id = body.get("fixture_id")
     team_code = body.get("team_code")
     usd_size = body.get("usd_size")
