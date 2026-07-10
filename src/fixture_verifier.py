@@ -5,6 +5,23 @@ Some bets get logged against GARBLED Betarabia fixtures that never correspond to
 match (e.g. "Tindastoll vs Augnablik Under 2.5 @ 4.10" — a stale-odds artifact). No results
 source can ever settle them, so they sit OPEN as "awaiting result" forever.
 
+Bug fixed 2026-07-10: this used to rely SOLELY on a Flashscore team-search +
+Playwright schedule-page scrape to decide REAL vs PHANTOM. That check has a
+narrower/different coverage than the project's actual merged settlement
+sources (ESPN/TheSportsDB, Flashscore's own results feed, API-Football,
+Sofascore) and produced false positives -- e.g. "Real Oruro vs Universitario
+de Vinto" was voided as PHANTOM despite having a clean, exact-match score
+available in BOTH ESPN and Flashscore's results feeds. A fixture with a real,
+findable score can never be a phantom, regardless of what the separate
+schedule-page check finds.
+
+Fix: verify() now accepts an optional `finished_matches` dict (the same
+merged-sources dict settle_open_bets() builds — see
+src/name_matching.py's best_fixture_match()). If a confident match already
+exists there, the verdict is REAL immediately, no Flashscore/Playwright call
+needed. Only when finished_matches has nothing (or isn't supplied) does it
+fall back to the original search+schedule-page check.
+
 This verifies a fixture against Flashscore, whose SEARCH endpoint is open (unlike Sofascore):
   1. Search both team names — if a team isn't a real Flashscore team, that's a red flag.
   2. Load the home team's results+fixtures page (Playwright) and check whether the away team
@@ -14,7 +31,7 @@ This verifies a fixture against Flashscore, whose SEARCH endpoint is open (unlik
 Returns a verdict so callers (tools/void_phantoms.py) can decide whether to void.
 
 Public API:
-    verify(home, away) -> {
+    verify(home, away, finished_matches=None) -> {
         "verdict": "REAL" | "PHANTOM" | "UNKNOWN",
         "home_found": bool, "away_found": bool,
         "opponent_on_schedule": bool, "detail": str,
@@ -24,6 +41,8 @@ Network + Playwright heavy — intended for on-demand sweeps, NOT the hot loop.
 
 import requests
 import difflib
+
+from src.name_matching import best_fixture_match
 
 _SEARCH = (
     "https://s.livesport.services/api/v2/search/"
@@ -114,7 +133,25 @@ def _opponent_on_schedule(team_url, team_id, opponent_name):
     return found
 
 
-def verify(home, away):
+def verify(home, away, finished_matches=None):
+    # A fixture with a real, findable score in the merged settlement sources
+    # can never be a phantom -- check this FIRST, before the weaker
+    # Flashscore-search+schedule-page heuristic below ever runs.
+    if finished_matches:
+        match = best_fixture_match(home, away, finished_matches)
+        if match:
+            finished_name, score, _total = match
+            return {
+                "verdict": "REAL",
+                "home_found": True,
+                "away_found": True,
+                "opponent_on_schedule": True,
+                "detail": (
+                    f"Confirmed via merged settlement sources: {finished_name!r} "
+                    f"= {score} — a real, already-scoreable fixture, never a phantom."
+                ),
+            }
+
     h = _search_team(home)
     a = _search_team(away)
     res = {

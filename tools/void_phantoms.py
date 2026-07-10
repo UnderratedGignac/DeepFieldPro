@@ -13,6 +13,14 @@ Detection (conservative — only flags clear cases):
         opponent is absent from the team's results/fixtures).
   Bets that merely lack coverage (verifier says UNKNOWN / REAL) are LEFT OPEN.
 
+  Fixed 2026-07-10: before checking (b), we now fetch the SAME merged
+  settlement sources settle_open_bets() uses (ESPN/TheSportsDB, Flashscore,
+  API-Football, Sofascore) ONCE per run and pass them into verify(). A
+  fixture with a real, findable score there is NEVER a phantom, regardless
+  of what the separate Flashscore-search+schedule-page check would say --
+  see src/fixture_verifier.py's module docstring for the real false-positive
+  case (Real Oruro vs Universitario de Vinto) that motivated this.
+
 Voiding refunds the paper stake (pnl 0) — it does not count as a loss.
 
 Usage:
@@ -33,6 +41,41 @@ sys.path.insert(0, BASE)
 DATA = os.path.join(BASE, "data")
 
 from src.live_predictions_daemon import _implausible_odds
+
+
+def _fetch_finished_matches(dates):
+    """
+    Merge the same 4 settlement sources settle_open_bets() uses (each
+    best-effort — a failing source must never block the others), so
+    verify() can check real, already-available scores before ever falling
+    back to the weaker Flashscore-search+schedule-page heuristic.
+    """
+    merged = {}
+    try:
+        from src.free_results_scraper import get_finished_results
+
+        merged.update(get_finished_results(dates=dates))
+    except Exception as e:
+        print(f"  [finished-matches] free_results_scraper failed: {e}")
+    try:
+        from src.flashscore_scraper import get_finished_results as fs_results
+
+        merged.update(fs_results(dates=dates))
+    except Exception as e:
+        print(f"  [finished-matches] flashscore_scraper failed: {e}")
+    try:
+        from src.live_predictions_daemon import fetch_api_football_results
+
+        merged.update(fetch_api_football_results())
+    except Exception as e:
+        print(f"  [finished-matches] API-Football failed: {e}")
+    try:
+        from src.sofascore_results_scraper import get_finished_results as ss_results
+
+        merged.update(ss_results(dates=dates))
+    except Exception as e:
+        print(f"  [finished-matches] Sofascore failed: {e}")
+    return merged
 
 
 def _age_hours(iso):
@@ -61,6 +104,18 @@ def main():
         f"verify={'on' if do_verify else 'off'})...\n"
     )
 
+    # Fetch once for the whole run (not per-bet) -- these are network/browser
+    # calls, and every bet checks against the same "what's finished recently" set.
+    finished_matches = {}
+    if do_verify:
+        dates = [
+            (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=d)).strftime("%Y-%m-%d")
+            for d in range(3)
+        ]
+        print(f"Fetching merged settlement sources for {dates}...")
+        finished_matches = _fetch_finished_matches(dates)
+        print(f"  {len(finished_matches)} finished matches available for cross-check.\n")
+
     phantoms = []
     for bid, match_id, market, side, odds, stake, placed_at, fid in rows:
         age = _age_hours(placed_at)
@@ -75,7 +130,7 @@ def main():
                 try:
                     from src.fixture_verifier import verify
 
-                    v = verify(parts[0].strip(), parts[1].strip())
+                    v = verify(parts[0].strip(), parts[1].strip(), finished_matches=finished_matches)
                     if v["verdict"] == "PHANTOM":
                         reason = v["detail"]
                 except Exception as e:

@@ -20,6 +20,7 @@ import logging
 import os
 import re
 import sqlite3
+import statistics
 import time
 
 import requests
@@ -29,6 +30,13 @@ from rapidfuzz import fuzz
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# The disciplined, $200-capped "real" ledger. Only Forebet-confirmed picks
+# (the one strategy validated at +41.7% ROI, n=259 — see TOURNAMENT_PLAYBOOK.md)
+# are gated against and staked from this bankroll. All other tipster sources
+# (PredictZ, SoccerPunter) keep writing to bet_log.db only, ungated, as
+# pure research — they are NOT the validated strategy.
+REAL_BANKROLL_DB = os.path.join(BASE_DIR, "data", "real_bankroll.db")
 
 _REQ_HEADERS = {
     "User-Agent": (
@@ -348,6 +356,72 @@ def get_all_tipster_predictions(date_str: str | None = None) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
+# Forebet confirmation gate — shared by the Arena (real money) and the
+# paper-bet daemon. Same validated technique (+41.7% ROI, CI entirely above
+# zero, n=259 in the research ledger): a pick only counts as confirmed when
+# an independent Forebet.com prediction agrees with the same 1X2 side.
+# ─────────────────────────────────────────────
+_tipster_picks_cache = {"ts": 0.0, "picks": []}
+_TIPSTER_PICKS_TTL = 1800  # 30 min — Forebet updates slowly
+
+_TIPSTER_SIDE_TO_OUTCOME = {
+    "Home (1)": "home",
+    "Draw (X)": "draw",
+    "Away (2)": "away",
+}
+
+
+def get_tipster_picks() -> list[dict]:
+    """Today + tomorrow's Forebet picks, cached for _TIPSTER_PICKS_TTL seconds.
+
+    Caches the timestamp even on a failed/empty fetch (Forebet down, timeout,
+    parse error). This is called from a per-selection loop across every 1X2
+    match in a cycle (~hundreds of calls); without an unconditional cache
+    stamp, a single Forebet outage turns into hundreds of sequential 15-30s
+    network retries and hangs the whole daemon cycle for hours. A ~30 min
+    backoff on failure is also the correct fail-safe for a confirmation-
+    required gate: no Forebet data in means no picks get confirmed, same as
+    intended when the source genuinely disagrees.
+    """
+    now = time.time()
+    if now - _tipster_picks_cache["ts"] < _TIPSTER_PICKS_TTL:
+        return _tipster_picks_cache["picks"]
+    picks = []
+    try:
+        today = datetime.date.today()
+        picks = list(get_forebet_predictions(today.isoformat()) or [])
+        try:
+            picks += get_forebet_predictions(
+                (today + datetime.timedelta(days=1)).isoformat()
+            ) or []
+        except Exception:
+            pass  # tomorrow page is best-effort
+    except Exception as e:
+        logger.warning(f"[TIPSTER] confirm-gate fetch failed (non-fatal): {e}")
+    _tipster_picks_cache["picks"] = picks
+    _tipster_picks_cache["ts"] = now
+    return picks
+
+
+def tipster_agrees(picks: list[dict], match_name: str, outcome: str) -> bool:
+    """True when Forebet's 1X2 pick for this match equals the candidate outcome."""
+    if not picks or not match_name or not outcome:
+        return False
+    try:
+        home, away = [t.strip().lower() for t in match_name.split(" vs ")[:2]]
+    except ValueError:
+        return False
+    for p in picks:
+        ph = (p.get("home_team") or "").strip().lower()
+        pa = (p.get("away_team") or "").strip().lower()
+        if not ph or not pa:
+            continue
+        if (ph in home or home in ph) and (pa in away or away in pa):
+            return _TIPSTER_SIDE_TO_OUTCOME.get(p.get("predicted_side") or "") == outcome
+    return False
+
+
+# ─────────────────────────────────────────────
 # Match tipster pick → Betarabia fixture
 # ─────────────────────────────────────────────
 
@@ -444,6 +518,35 @@ def _conviction_stake(confidence, odds_val, balance, flat=5.0):
         return flat
 
 
+def _build_odds_map(market_rows) -> dict[tuple, float]:
+    """
+    Build the (fixture_id, market_name, selection_name) -> odds lookup used
+    to price tipster bets.
+
+    Bug fixed 2026-07-09: odds_stream.db's `market` table stores ODDS FROM
+    MULTIPLE BOOKMAKERS under the exact same (fixture_id, market_name,
+    selection_name) key -- e.g. a single match's "France" selection under
+    "Match Result" had ~19 rows ranging from 1.00 to 12.00, one per
+    bookmaker. The previous implementation built this dict with a plain
+    per-row assignment, so the LAST row SQLite happened to return silently
+    overwrote every earlier one -- the odds actually used to size/gate a bet
+    were effectively whichever bookmaker's row was scraped/inserted last,
+    not a deliberately chosen price. That surfaced as a real, live bet
+    (France vs Morocco) being priced at an outlier 10.0 instead of the
+    representative 1.63 most bookmakers agreed on, and got defensively
+    skipped by the odds-sanity check as a result.
+
+    Fix: collect every bookmaker's price per key and take the MEDIAN --
+    robust to single-bookmaker outliers without needing to identify or
+    trust one specific book.
+    """
+    odds_lists: dict[tuple, list] = {}
+    for fid, mname, sel, odd in market_rows:
+        if odd:
+            odds_lists.setdefault((str(fid), mname, sel), []).append(float(odd))
+    return {key: statistics.median(vals) for key, vals in odds_lists.items()}
+
+
 def place_tipster_bets(
     predictions: list[dict],
     bet_db: str | None = None,
@@ -476,11 +579,7 @@ def place_tipster_bets(
         logger.warning(f"[TIPSTER] Could not load odds: {e}")
         return 0
 
-    # Build odds lookup: (fixture_id, market_name, selection_name) → odds
-    odds_map: dict[tuple, float] = {}
-    for fid, mname, sel, odd in market_rows:
-        if odd:
-            odds_map[(str(fid), mname, sel)] = float(odd)
+    odds_map = _build_odds_map(market_rows)
 
     # Also build a selection normaliser for Match Result → 1X2 side
     # Betarabia uses home_team name, "X", and away_team name as selections
@@ -507,14 +606,48 @@ def place_tipster_bets(
     except Exception:
         pass
 
+    # Kambi (Unibet) fallback for fixtures Betarabia doesn't cover -- e.g.
+    # Australian NPL state leagues, Korean lower tiers, that Forebet publishes
+    # picks for but Betarabia's ~47-fixture feed never has. Lazy-loaded (at
+    # most one HTTP call per place_tipster_bets() invocation, only if a
+    # Betarabia miss actually happens) and 1X2-only (Kambi has no O/U data).
+    _kambi_cache = None
+
     for pred in predictions:
         try:
             fix = match_to_betarabia(pred, fixtures)
+            book_used = "Betarabia"
+            km = None
             if fix is None:
-                logger.debug(
-                    f"[TIPSTER] No Betarabia match for {pred['home_team']} vs {pred['away_team']}"
-                )
-                continue
+                if _kambi_cache is None:
+                    try:
+                        from src.kambi_scraper import fetch_kambi_1x2
+
+                        _kambi_cache = fetch_kambi_1x2() or {}
+                    except Exception as e:
+                        logger.debug(f"[TIPSTER] Kambi fallback unavailable: {e}")
+                        _kambi_cache = {}
+                if _kambi_cache:
+                    from src.line_shop import match_kambi_fixture
+
+                    km = match_kambi_fixture(
+                        pred["home_team"], pred["away_team"], _kambi_cache
+                    )
+                if km:
+                    fix = {
+                        "fixture_id": _make_kambi_fixture_id(
+                            km["home_team"], km["away_team"]
+                        ),
+                        "home_team": km["home_team"],
+                        "away_team": km["away_team"],
+                        "tournament_name": km.get("league"),
+                    }
+                    book_used = "Kambi"
+                else:
+                    logger.debug(
+                        f"[TIPSTER] No Betarabia/Kambi match for {pred['home_team']} vs {pred['away_team']}"
+                    )
+                    continue
 
             fid = str(fix["fixture_id"])
             source = pred["source"]
@@ -525,9 +658,19 @@ def place_tipster_bets(
             # 1X2 bet based on predicted_side
             side_1x2 = pred.get("predicted_side")
             if side_1x2:
-                betarabia_sel = _resolve_selection(side_1x2, fix, odds_map, fid)
-                if betarabia_sel:
-                    odds_val = odds_map.get((fid, "Match Result", betarabia_sel))
+                if book_used == "Kambi":
+                    # Kambi's feed already resolves straight to home/draw/away
+                    # odds -- no Betarabia-style selection-string lookup needed.
+                    sel_label = side_1x2
+                    odds_val = _kambi_odds_for_side(km, side_1x2)
+                else:
+                    sel_label = _resolve_selection(side_1x2, fix, odds_map, fid)
+                    odds_val = (
+                        odds_map.get((fid, "Match Result", sel_label))
+                        if sel_label
+                        else None
+                    )
+                if sel_label:
                     # Sanity: if Forebet's confidence implies prob > 40%, odds can't
                     # legitimately be > 8.0 — that would mean a >5x mispricing, which
                     # indicates the wrong selection was resolved. Skip to avoid bad data.
@@ -535,7 +678,7 @@ def place_tipster_bets(
                     max_sane_odds = max(8.0, round(100.0 / conf, 1)) if conf > 0 else 8.0
                     if odds_val and 1.05 < odds_val <= max_sane_odds:
                         bets_to_place.append(
-                            ("1X2", side_1x2, "Match Result", betarabia_sel, odds_val)
+                            ("1X2", side_1x2, "Match Result", sel_label, odds_val)
                         )
                     elif odds_val and odds_val > max_sane_odds:
                         logger.debug(
@@ -544,8 +687,10 @@ def place_tipster_bets(
                             f"likely wrong selection resolved for {fix['home_team']} vs {fix['away_team']}"
                         )
 
-            # O/U bet if predicted (Betarabia uses "Total Goals" market)
-            ou_side = pred.get("predicted_ou")
+            # O/U bet if predicted (Betarabia uses "Total Goals" market; Kambi
+            # has no O/U data, see fetch_kambi_1x2()'s docstring, so skip it
+            # entirely for Kambi-sourced fixtures)
+            ou_side = pred.get("predicted_ou") if book_used == "Betarabia" else None
             if ou_side:
                 # Try common Betarabia O/U selection naming patterns
                 over_names = ["Total OVER 2.5", "Total OVER  2.5", "Over 2.5", "OVER 2.5", "OVER"]
@@ -570,6 +715,17 @@ def place_tipster_bets(
             for market_type, side, raw_mtype, raw_sel, odds_val in bets_to_place:
                 bet_id = _make_bet_id(source, fid, market_type, side)
 
+                # bet_id is deterministic (fixture+market+side), so re-scraping
+                # today's same Forebet picks on a later cycle regenerates the
+                # same id. The INSERT below is OR IGNORE and silently no-ops on
+                # that duplicate — but the real-bankroll gate must never charge
+                # a stake for a bet that won't actually be (re-)inserted, so
+                # check existence BEFORE touching real_bankroll.db.
+                if bet_conn.execute(
+                    "SELECT 1 FROM bet_log WHERE bet_id=?", (bet_id,)
+                ).fetchone():
+                    continue
+
                 # Conviction sizing: quarter-Kelly from the tipster's own
                 # published confidence (1X2). O/U picks carry no confidence
                 # number, so they get a mild default conviction.
@@ -579,6 +735,25 @@ def place_tipster_bets(
                     else pred.get("ou_confidence") or 55.0
                 )
                 _stake = _conviction_stake(_conf, odds_val, _balance, flat=stake)
+
+                # The winning strategy: only Forebet-confirmed picks risk the
+                # real $200 bankroll. Gate + deduct here so real_bankroll.db's
+                # halt/drawdown/exposure/balance limits are enforced exactly
+                # like every other live staking path. Other tipster sources
+                # are ungated research and never touch this bankroll.
+                if source == "FOREBET":
+                    try:
+                        from src.bankroll_tracker import register_bet as _real_register_bet
+
+                        if not _real_register_bet(_stake, db_path=REAL_BANKROLL_DB):
+                            logger.debug(
+                                f"[TIPSTER_FOREBET] Skipped {fix['home_team']} vs "
+                                f"{fix['away_team']} — real bankroll declined the bet."
+                            )
+                            continue
+                    except Exception as e:
+                        logger.warning(f"[TIPSTER_FOREBET] real bankroll gate failed: {e}")
+                        continue
 
                 row_vals = _build_row(
                     cols=cols,
@@ -590,6 +765,7 @@ def place_tipster_bets(
                     stake=_stake,
                     bet_source=f"TIPSTER_{source}",
                     placed_at=now_utc,
+                    book=book_used,
                 )
                 try:
                     bet_conn.execute(
@@ -641,13 +817,32 @@ def _resolve_selection(
     return None
 
 
+def _kambi_odds_for_side(km: dict, side: str):
+    """
+    Map Home(1)/Draw(X)/Away(2) directly to Kambi's already-resolved
+    home/draw/away odds (fetch_kambi_1x2()'s dict shape) -- no
+    selection-string matching needed, unlike Betarabia's odds_map.
+    """
+    key = {"Home (1)": "home", "Draw (X)": "draw", "Away (2)": "away"}.get(side)
+    if key is None:
+        return None
+    val = km.get(key)
+    return float(val) if val else None
+
+
+def _make_kambi_fixture_id(home_team: str, away_team: str) -> str:
+    """Stable synthetic fixture_id for a Kambi-sourced (non-Betarabia) match."""
+    raw = f"{home_team}|{away_team}".lower()
+    return "KAMBI_" + hashlib.md5(raw.encode()).hexdigest()[:12]
+
+
 def _make_bet_id(source: str, fid: str, market: str, side: str) -> str:
     raw = f"TIPSTER_{source}_{fid}_{market[:3]}_{side[:3]}"
     h = hashlib.md5(raw.encode()).hexdigest()[:8]
     return f"TIP_{source[:4]}_{fid}_{h}"
 
 
-def _build_row(cols, bet_id, fix, market_type, side, odds_val, stake, bet_source, placed_at):
+def _build_row(cols, bet_id, fix, market_type, side, odds_val, stake, bet_source, placed_at, book="Betarabia"):
     """Build a tuple matching the bet_log column order."""
     field_map = {
         "bet_id": bet_id,
@@ -660,7 +855,7 @@ def _build_row(cols, bet_id, fix, market_type, side, odds_val, stake, bet_source
         "fair_odds": odds_val,
         "edge_pct": 0.0,
         "stake": stake,
-        "book": "Betarabia",
+        "book": book,
         "placed_at": placed_at,
         "lineup_drop_at": None,
         "latency_ms": None,
@@ -677,7 +872,7 @@ def _build_row(cols, bet_id, fix, market_type, side, odds_val, stake, bet_source
         "league": fix.get("tournament_name"),
         "clv_sharp": None,
         "best_odds": odds_val,
-        "best_book": "Betarabia",
+        "best_book": book,
         "signal_name": bet_source,
         "move_size": None,
         "monotonicity": None,
