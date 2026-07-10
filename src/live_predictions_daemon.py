@@ -156,6 +156,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 
+# Hard per-bet ceiling for the paper ledger (user directive, 2026-07-09, alongside a
+# $200 bankroll reset). Balance-proportional sizing (log_ai_bet, log_steam_bet, the
+# PINNACLE_VALUE path) previously had no fixed-dollar cap, so stakes silently grew to
+# $200-280+ as the paper bankroll compounded past $16k. This clamp holds regardless of
+# how large the bankroll grows again.
+MAX_PAPER_STAKE_USD = 200.0
+
 # ---------------------------------------------------------------------------
 # Calibrated league corner/card base rates (measured from football-data.co.uk)
 # ---------------------------------------------------------------------------
@@ -2151,134 +2158,12 @@ def load_settings():
         }
 
 
-# Canonical team/country aliases. Different feeds name the same team differently:
-# our odds feed uses native/French names (Cote d'Ivoire), ESPN uses English (Ivory Coast).
-# These have ZERO string overlap, so fuzzy matching fails and the bet never settles.
-# Map every known variant to ONE canonical token-phrase, applied before tokenizing.
-# Keys/values are already lowercased + accent-stripped (matches get_tokens' pipeline).
-_TEAM_ALIASES = {
-    "cote d ivoire": "ivory coast",
-    "cote divoire": "ivory coast",
-    "korea republic": "south korea",
-    "korea dpr": "north korea",
-    "ir iran": "iran",
-    "china pr": "china",
-    "usa": "united states",
-    "czechia": "czech republic",
-    "turkiye": "turkey",
-    "cabo verde": "cape verde",
-    "the gambia": "gambia",
-    "congo dr": "dr congo",
-    "dr congo": "dr congo",
-    "viet nam": "vietnam",
-    # Faroese clubs: Betarabia uses the full Faroese name; Flashscore uses the
-    # English short-form abbreviation.  Zero token overlap -> must alias before tokenizing.
-    "argja boltfelag": "ab argir",       # AB Argir (Argja Boltfelag Argir)
-    "argja boltfelag argir": "ab argir", # full form
-    # Icelandic variants seen in Flashscore
-    "breidablik": "breidablik",          # already matches; kept for docs
-}
-
-
-def _apply_aliases(n):
-    # n is lowercased, accent-stripped, non-alnum collapsed to spaces, single-spaced.
-    n = f" {n} "
-    for variant, canon in _TEAM_ALIASES.items():
-        n = n.replace(f" {variant} ", f" {canon} ")
-    return n.strip()
-
-
-def get_match_score(name1, name2):
-    if not name1 or not name2:
-        return 0.0
-    if not isinstance(name1, str) or not isinstance(name2, str):
-        return 0.0
-
-    def get_tokens(name):
-        n = name.lower()
-        n = "".join(
-            c
-            for c in unicodedata.normalize("NFD", n)
-            if unicodedata.category(c) != "Mn"
-        )
-        n = re.sub(r"[^a-z0-9\s]", " ", n)
-        n = _apply_aliases(re.sub(r"\s+", " ", n).strip())
-        noise = {
-            "fc",
-            "cf",
-            "sc",
-            "u23",
-            "pr",
-            "ii",
-            "u20",
-            "united",
-            "city",
-            "town",
-            "athletic",
-            "club",
-            "de",
-            "fk",
-            "afc",
-            "sv",
-            "sp",
-            # Scandinavian / Eastern European suffixes
-            "bk",
-            "ik",
-            "if",
-            "sk",
-            "aik",
-            "ff",
-            "bois",
-            # Other common suffixes
-            "ac",
-            "hfc",
-            "rfc",
-            "utd",
-            "jfc",
-        }
-        return [w for w in n.split() if w and w not in noise]
-
-    t1 = get_tokens(name1)
-    t2 = get_tokens(name2)
-
-    if not t1 or not t2:
-        return 0.0
-    if t1 == t2:
-        return 1.0
-
-    s1, s2 = set(t1), set(t2)
-    if s1 == s2:
-        return 0.95
-    if s1.issubset(s2) or s2.issubset(s1):
-        return 0.8 + 0.1 * (min(len(s1), len(s2)) / max(len(s1), len(s2)))
-
-    intersection = s1.intersection(s2)
-    union = s1.union(s2)
-    if intersection:
-        jaccard = len(intersection) / len(union)
-        return 0.5 + 0.3 * jaccard
-
-    if len(s1) == 1 and len(s2) == 1:
-        w1 = list(s1)[0]
-        w2 = list(s2)[0]
-        if w1 in w2 or w2 in w1:
-            return 0.6 * (min(len(w1), len(w2)) / max(len(w1), len(w2)))
-
-    # Substring word matches
-    sub_matches = 0
-    for w1 in s1:
-        for w2 in s2:
-            if len(w1) > 3 and len(w2) > 3:
-                if w1 in w2 or w2 in w1:
-                    sub_matches += 1
-    if sub_matches:
-        return 0.3 + 0.2 * (sub_matches / max(len(s1), len(s2)))
-
-    return 0.0
-
-
-def fuzzy_match_teams(name1, name2):
-    return get_match_score(name1, name2) >= 0.5
+# Fuzzy team/fixture name matching (aliases, get_match_score, fuzzy_match_teams)
+# moved to src/name_matching.py 2026-07-10 so the lightweight fixture_verifier.py
+# can reuse it without importing this whole (pandas/numpy/joblib-loading) module.
+# Re-imported here under the same names for backward compatibility with every
+# existing call site in this file.
+from src.name_matching import _TEAM_ALIASES, _apply_aliases, get_match_score, fuzzy_match_teams  # noqa: F401
 
 
 def fetch_betarabia_odds():
@@ -2878,6 +2763,7 @@ def log_steam_bet(
             stake = float(settings.get("steam_flat_stake", 25.0))
         if stake > balance:
             stake = balance
+        stake = min(stake, MAX_PAPER_STAKE_USD)
         if stake <= 0:
             conn.close()
             return
@@ -3055,6 +2941,7 @@ def log_pinnacle_value_bet(
             stake = float(settings.get("steam_flat_stake", 25.0))
         if stake > balance:
             stake = balance
+        stake = min(stake, MAX_PAPER_STAKE_USD)
         if stake <= 0:
             conn.close()
             return
@@ -3223,6 +3110,7 @@ def log_ai_bet(
                 stake = 1.0
             if stake > balance:
                 stake = balance
+            stake = min(stake, MAX_PAPER_STAKE_USD)
 
             # The AI/1X2 model has NO proven edge (it failed its own 2,386-bet out-of-sample
             # test) and is the vast majority of bets — REAL-staking it just bleeds the bankroll.
@@ -4309,6 +4197,18 @@ def settle_open_bets():
             except Exception as _rs_err:
                 print(f"[SETTLEMENT] WARNING: register_settlement failed for {bet_id}: {_rs_err}")
 
+            # Mirror settlement into the real $200 ledger for the winning
+            # (Forebet-confirmed) strategy only — placement already deducted
+            # the stake from real_bankroll.db via register_bet.
+            if bet_source == "TIPSTER_FOREBET":
+                try:
+                    register_settlement(
+                        payout, pnl,
+                        db_path=os.path.join(DATA_DIR, "real_bankroll.db"),
+                    )
+                except Exception as _rs2_err:
+                    print(f"[SETTLEMENT] WARNING: real-ledger register_settlement failed for {bet_id}: {_rs2_err}")
+
         # PARLAY SETTLEMENT
         cur.execute(
             "SELECT parlay_id, legs_json, stake, total_odds FROM parlay_log WHERE result = 'OPEN'"
@@ -5332,6 +5232,34 @@ def update_dashboard_json(fixtures, results_cache):
                             _is_draw = m_type == "1X2" and key == "Draw"
                             _draw_pin_ok = (not _is_draw) or (_pin_edge > 0)
 
+                            # Forebet tipster confirmation — same validated technique as
+                            # the Arena's real-money engine (+41.7% ROI, CI entirely above
+                            # zero, n=259; see src/arena_betting.py autopilot_cycle). 1X2
+                            # only — Forebet publishes match-winner picks, not O/U or BTTS,
+                            # so other markets pass through unaffected.
+                            require_forebet = settings.get("require_forebet_confirm", True)
+                            _tipster_confirmed = False
+                            if m_type == "1X2":
+                                try:
+                                    from src.tipster_scraper import (
+                                        get_tipster_picks as _get_tipster_picks,
+                                        tipster_agrees as _tipster_agrees,
+                                    )
+
+                                    _tipster_confirmed = _tipster_agrees(
+                                        _get_tipster_picks(),
+                                        f"{home} vs {away}",
+                                        _sel_pin_key,
+                                    )
+                                except Exception as _tip_err:
+                                    print(f"[tipster] confirm check failed: {_tip_err}")
+                            sel["tipster_confirmed"] = _tipster_confirmed
+                            tipster_ok = (
+                                (m_type != "1X2")
+                                or (not require_forebet)
+                                or _tipster_confirmed
+                            )
+
                             is_recommended = (
                                 ev >= min_ev_threshold
                                 and prob >= conf_threshold
@@ -5345,6 +5273,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 and (not require_dc or dc_covered)
                                 and (not require_steam or _steam_league_ok)
                                 and _draw_pin_ok
+                                and tipster_ok
                             )
 
                             # ASIAN HANDICAP paper bet gate (opt-in; off by default)

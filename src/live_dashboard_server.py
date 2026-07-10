@@ -6,6 +6,16 @@ import sqlite3
 import datetime
 import time
 
+# Fixture/league names from live schedule data routinely contain non-ASCII
+# characters (e.g. diacritics). stdout is often redirected to a log file
+# under the Windows legacy console codepage, which can't encode them and
+# raises UnicodeEncodeError mid-print -- that has crashed whole daemon
+# cycles (e.g. the STAIR_AI reasoning engine's try/except caught it, but
+# only after the cycle's remaining candidates were skipped). Match the
+# same guard already used by every CLI entry point under tools/.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 # Ensure src is in path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -113,13 +123,15 @@ def get_state():
         import sqlite3 as _sq2
 
         _betdb = os.path.join(DATA_DIR, "bet_log.db")
-        _bkdb = os.path.join(DATA_DIR, "bankroll.db")
+        # The "real" $200 ledger — only the Forebet-confirmed strategy stakes
+        # against this bankroll (see src/tipster_scraper.py).
+        _bkdb = os.path.join(DATA_DIR, "real_bankroll.db")
 
         _bc = _sq2.connect(_betdb)
         _bc.row_factory = _sq2.Row
         _open_rows = _bc.execute(
             "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
-            "FROM bet_log WHERE result='OPEN' AND bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') ORDER BY placed_at DESC"
+            "FROM bet_log WHERE result='OPEN' AND bet_source = 'TIPSTER_FOREBET' ORDER BY placed_at DESC"
         ).fetchall()
         _open_bets = [dict(r) for r in _open_rows]
         _bc.close()
@@ -210,11 +222,11 @@ def stream_state():
                                 dict(r)
                                 for r in _sbc.execute(
                                     "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
-                                    "FROM bet_log WHERE result='OPEN' AND bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') ORDER BY placed_at DESC"
+                                    "FROM bet_log WHERE result='OPEN' AND bet_source = 'TIPSTER_FOREBET' ORDER BY placed_at DESC"
                                 ).fetchall()
                             ]
                             _sbc.close()
-                            _sbkc = _ssq.connect(os.path.join(DATA_DIR, "bankroll.db"))
+                            _sbkc = _ssq.connect(os.path.join(DATA_DIR, "real_bankroll.db"))
                             _sbkr = _sbkc.execute(
                                 "SELECT current_balance, daily_exposure, daily_pnl, starting_balance, system_status "
                                 "FROM bankroll ORDER BY id DESC LIMIT 1"
@@ -266,8 +278,12 @@ def stream_state():
     return Response(event_stream(), mimetype="text/event-stream")
 
 
-INITIAL_CAPITAL = 5000.0  # paper bankroll seed (reset 2026-06-29)
-BANKROLL_RESET_DATE = "2026-06-29"  # only count bets placed on/after this date
+INITIAL_CAPITAL = 200.0  # paper bankroll seed (reset 2026-07-09)
+# Bumped to 2026-07-10: today's tiles were still mixing pre-reset stakes
+# (sized against the old ~$11k bankroll, before today's mid-day $200 reset)
+# with post-reset activity, so the KPI tiles kept showing stale multi-
+# thousand-dollar totals. Moving the cutoff to tomorrow gives a clean start.
+BANKROLL_RESET_DATE = "2026-07-10"  # only count bets placed on/after this date
 
 
 @app.route("/api/performance")
@@ -283,21 +299,21 @@ def get_performance():
 
 @app.route("/api/drawdown")
 def get_drawdown():
-    """Running drawdown analysis on the paper bankroll."""
+    """Running drawdown analysis on the real (real_bankroll.db) paper bankroll.
+
+    Reads real_bankroll.db's own per-day rows directly rather than recomputing
+    from bet_log — a date filter on bet_log can't distinguish "placed before
+    today's reset" from "placed after" on the same calendar day, which
+    previously let pre-reset settled bets inflate this endpoint.
+    """
     daily = (
         query_db(
-            "bet_log.db",
-            "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
-            f"WHERE result NOT IN ('OPEN') AND bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
-            "GROUP BY day ORDER BY day ASC",
+            "real_bankroll.db",
+            "SELECT date as day, current_balance FROM bankroll ORDER BY date ASC",
         )
         or []
     )
-    equity = []
-    running = INITIAL_CAPITAL
-    for row in daily:
-        running += row["dpnl"] or 0.0
-        equity.append({"day": row["day"], "balance": round(running, 2)})
+    equity = [{"day": row["day"], "balance": round(row["current_balance"], 2)} for row in daily]
 
     if not equity:
         return jsonify({"max_drawdown_pct": None, "current_drawdown_pct": None, "equity": []})
@@ -330,35 +346,30 @@ def get_drawdown():
 
 @app.route("/api/bankroll")
 def get_bankroll():
-    # Compute everything from bet_log (ground truth) — only bets placed on/after the
-    # last bankroll reset date so pre-reset P&L doesn't inflate the balance.
-    daily = (
+    # Read directly from real_bankroll.db (the actual $200 ledger for the
+    # winning Forebet-confirmed strategy) rather than recomputing from
+    # bet_log's historical pnl-by-date — a date filter alone can't tell
+    # "placed before today's reset" from "placed after" on the same day,
+    # which previously let pre-reset settled bets inflate this endpoint.
+    rows = (
         query_db(
-            "bet_log.db",
-            "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
-            f"WHERE result NOT IN ('OPEN') AND bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
-            "GROUP BY day ORDER BY day ASC",
+            "real_bankroll.db",
+            "SELECT date, starting_balance, current_balance, daily_pnl FROM bankroll "
+            "ORDER BY date ASC",
         )
         or []
     )
 
-    chart_dates, chart_balances = [], []
-    running = INITIAL_CAPITAL
-    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    today_pnl = 0.0
-    for row in daily:
-        running += row["dpnl"] or 0.0
-        chart_dates.append(row["day"])
-        chart_balances.append(round(running, 2))
-        if row["day"] == today_str:
-            today_pnl = row["dpnl"] or 0.0
-
-    all_time_pnl = running - INITIAL_CAPITAL
+    chart_dates = [r["date"] for r in rows]
+    chart_balances = [round(r["current_balance"], 2) for r in rows]
+    current = chart_balances[-1] if chart_balances else INITIAL_CAPITAL
+    today_pnl = rows[-1]["daily_pnl"] if rows else 0.0
+    all_time_pnl = current - INITIAL_CAPITAL
     roi = (all_time_pnl / INITIAL_CAPITAL) * 100
 
     return jsonify(
         {
-            "current": round(running, 2),
+            "current": round(current, 2),
             "roi": round(roi, 2),
             "pnl": round(today_pnl, 2),
             "chart_dates": chart_dates,
@@ -390,7 +401,7 @@ def get_edge_report():
             "roi": roi,
         }
 
-    base = "WHERE result NOT IN ('OPEN','VOID')"
+    base = f"WHERE result NOT IN ('OPEN','VOID') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}'"
 
     strategies = [
         to_row(dict(r, label=r["bet_source"] or "AI"))
@@ -460,7 +471,8 @@ def get_stair_balance():
 def get_settled_ledger():
     singles = query_db(
         "bet_log.db",
-        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source, league FROM bet_log ORDER BY placed_at DESC",
+        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source, league FROM bet_log "
+        f"WHERE DATE(placed_at) >= '{BANKROLL_RESET_DATE}' ORDER BY placed_at DESC",
     )
     return jsonify(
         {
@@ -473,12 +485,13 @@ def get_settled_ledger():
 def get_tracker():
     rows = query_db(
         "bet_log.db",
-        """
+        f"""
         SELECT b.bet_id, b.match_id, b.player_id, b.market_type, b.entry_odds,
                b.closing_odds, b.edge_pct, b.stake, b.result, b.pnl, b.placed_at,
                b.bet_source, b.is_recommended, b.league, p.kickoff
         FROM bet_log b
         LEFT JOIN predictions p ON b.match_id = p.match_name
+        WHERE DATE(b.placed_at) >= '{BANKROLL_RESET_DATE}'
         ORDER BY b.placed_at DESC LIMIT 50
         """,
     )
@@ -490,10 +503,12 @@ def get_tracker():
         "total_lost": 0.0,
         "total_pending": 0.0,
     }
-    # Count from database for ALL bets so the donut chart isn't empty!
+    # Scoped to bets since the bankroll reset so pre-reset history doesn't
+    # inflate the donut chart / KPI tiles with stale multi-thousand-dollar totals.
     db_stats = query_db(
         "bet_log.db",
-        "SELECT result, COUNT(*) as cnt, SUM(stake) as total_stake, SUM(pnl) as total_pnl FROM bet_log GROUP BY result",
+        f"SELECT result, COUNT(*) as cnt, SUM(stake) as total_stake, SUM(pnl) as total_pnl FROM bet_log "
+        f"WHERE DATE(placed_at) >= '{BANKROLL_RESET_DATE}' GROUP BY result",
     )
     if db_stats:
         for r in db_stats:

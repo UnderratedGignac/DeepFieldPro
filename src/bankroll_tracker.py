@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "bankroll.db")
 _SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "settings.json")
 
-STARTING_BANKROLL = 300.0  # paper bankroll seed (overridden at runtime by DB)
+STARTING_BANKROLL = 200.0  # paper bankroll seed (reset 2026-07-09; overridden at runtime by DB)
 
 
 def _load_bankroll_limits():
@@ -40,8 +40,9 @@ def _load_bankroll_limits():
         return 0.50, 0.30, 0.50, True
 
 
-def init_bankroll_db():
-    conn = sqlite3.connect(DB_PATH)
+def init_bankroll_db(db_path=None):
+    db_path = db_path or DB_PATH
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -88,10 +89,11 @@ def init_bankroll_db():
     conn.close()
 
 
-def get_status():
+def get_status(db_path=None):
     """Returns current bankroll state for today. Returns HALT if DB not ready."""
+    db_path = db_path or DB_PATH
     today = datetime.now(timezone.utc).date().isoformat()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT current_balance, daily_exposure, system_status, peak_balance, starting_balance "
@@ -103,8 +105,8 @@ def get_status():
 
     if not row:
         # conn already closed above — don't call conn.close() again
-        init_bankroll_db()
-        return get_status()  # retry once after auto-init
+        init_bankroll_db(db_path)
+        return get_status(db_path)  # retry once after auto-init
 
     current_balance, daily_exposure, system_status, peak_balance, starting_balance = row
     return {
@@ -116,11 +118,12 @@ def get_status():
     }
 
 
-def register_bet(stake):
+def register_bet(stake, db_path=None):
     """
     Called BEFORE a bet is placed. Checks limits, then deducts stake from balance.
     Returns True if the bet can proceed, False if it was blocked.
     """
+    db_path = db_path or DB_PATH
     # Reload limits from settings.json so changes apply without restart
     MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT, STOP_LOSS_ENABLED = (
         _load_bankroll_limits()
@@ -129,7 +132,7 @@ def register_bet(stake):
     today = datetime.now(timezone.utc).date().isoformat()
     # BEGIN IMMEDIATE serialises the read-modify-write under SQLite's write lock,
     # preventing two concurrent threads from both passing the exposure cap check.
-    conn = sqlite3.connect(DB_PATH, isolation_level=None)
+    conn = sqlite3.connect(db_path, isolation_level=None)
     conn.execute("BEGIN IMMEDIATE")
     cursor = conn.cursor()
 
@@ -143,8 +146,8 @@ def register_bet(stake):
     if not row:
         conn.execute("ROLLBACK")
         conn.close()
-        init_bankroll_db()
-        return register_bet(stake)  # retry once after auto-init
+        init_bankroll_db(db_path)
+        return register_bet(stake, db_path)  # retry once after auto-init
 
     current_balance, daily_exposure, system_status, starting_balance, daily_pnl = row
 
@@ -230,18 +233,19 @@ def register_bet(stake):
     return True
 
 
-def register_settlement(payout, pnl):
+def register_settlement(payout, pnl, db_path=None):
     """
     Called AFTER a bet settles.
     payout: Actual money returned to balance (0 for Loss, stake*odds for Win)
     pnl: Net profit/loss (profit for Win, -stake for Loss)
     """
+    db_path = db_path or DB_PATH
     MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT, STOP_LOSS_ENABLED = (
         _load_bankroll_limits()
     )
 
     today = datetime.now(timezone.utc).date().isoformat()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     cursor.execute(
@@ -252,8 +256,8 @@ def register_settlement(payout, pnl):
     row = cursor.fetchone()
     if not row:
         conn.close()
-        init_bankroll_db()
-        return register_settlement(payout, pnl)  # retry once after auto-init
+        init_bankroll_db(db_path)
+        return register_settlement(payout, pnl, db_path)  # retry once after auto-init
 
     current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure = row
 
