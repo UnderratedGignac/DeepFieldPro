@@ -1,5 +1,6 @@
 import logging
 from src.capital_deployment_protocol.schemas import RolloutPhase, DeploymentState
+from src.capital_deployment_protocol.cdp_config import cdp_config
 
 logger = logging.getLogger(__name__)
 
@@ -8,28 +9,32 @@ class RolloutStateMachine:
     """
     Enforces strict transitions: SHADOW -> MICRO -> LIMITED -> FULL.
     Cannot skip phases. Must support rollback.
+    
+    All phase thresholds are now configurable via environment variables
+    to enable optimization without code changes.
     """
 
     def __init__(self):
+        # Phase configuration loaded from centralized config (no hardcoding)
         self.phase_requirements = {
             RolloutPhase.PHASE_0_SHADOW: {
-                "min_days": 14,
-                "max_drawdown": 0.0,
+                "min_days": cdp_config.PHASE_0_MIN_DAYS,
+                "max_drawdown": cdp_config.PHASE_0_MAX_DRAWDOWN,
                 "next": RolloutPhase.PHASE_1_MICRO,
             },
             RolloutPhase.PHASE_1_MICRO: {
-                "min_days": 7,
-                "max_drawdown": 0.05,
+                "min_days": cdp_config.PHASE_1_MIN_DAYS,
+                "max_drawdown": cdp_config.PHASE_1_MAX_DRAWDOWN,
                 "next": RolloutPhase.PHASE_2_LIMITED,
             },
             RolloutPhase.PHASE_2_LIMITED: {
-                "min_days": 14,
-                "max_drawdown": 0.10,
+                "min_days": cdp_config.PHASE_2_MIN_DAYS,
+                "max_drawdown": cdp_config.PHASE_2_MAX_DRAWDOWN,
                 "next": RolloutPhase.PHASE_3_PRODUCTION,
             },
             RolloutPhase.PHASE_3_PRODUCTION: {
-                "min_days": 0,
-                "max_drawdown": 0.15,
+                "min_days": cdp_config.PHASE_3_MIN_DAYS,
+                "max_drawdown": cdp_config.PHASE_3_MAX_DRAWDOWN,
                 "next": None,
             },
         }

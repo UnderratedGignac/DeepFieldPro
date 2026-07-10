@@ -1,6 +1,7 @@
 import logging
 
 from src.capital_deployment_protocol.schemas import HealthStatus
+from src.capital_deployment_protocol.cdp_config import cdp_config
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ class LiveCapitalSwitch:
     ) -> bool:
         """
         Determines if the physical execution switch should remain ON.
+        Uses configurable allowed RVL signals from cdp_config.
         """
         if health_status in [HealthStatus.CRITICAL, HealthStatus.SHUTDOWN_REQUIRED]:
             logger.critical(
@@ -27,7 +29,7 @@ class LiveCapitalSwitch:
             self.is_execution_enabled = False
             return False
 
-        if rvl_signal != "READY_FOR_CAPITAL" and rvl_signal != "CONDITIONALLY_READY":
+        if rvl_signal not in cdp_config.ALLOWED_RVL_SIGNALS:
             logger.warning(
                 f"[KILL SWITCH] RVL Signal is {rvl_signal}. Execution offline."
             )

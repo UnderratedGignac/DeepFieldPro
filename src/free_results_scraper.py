@@ -20,6 +20,7 @@ every sweep without hammering the sources.
 import time
 import datetime
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _UA = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -28,118 +29,44 @@ _UA = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-# ESPN soccer league slugs — broad coverage. Unknown/empty slugs simply return 0
-# events, so over-listing is harmless.
-ESPN_LEAGUES = [
-    # Top Europe
-    "eng.1",
-    "eng.2",
-    "eng.3",
-    "eng.4",
-    "eng.fa",
-    "eng.league_cup",
-    "esp.1",
-    "esp.2",
-    "esp.copa_del_rey",
-    "ita.1",
-    "ita.2",
-    "ita.coppa_italia",
-    "ger.1",
-    "ger.2",
-    "ger.dfb_pokal",
-    "fra.1",
-    "fra.2",
-    "fra.coupe_de_france",
-    "ned.1",
-    "ned.2",
-    "por.1",
-    "por.2",
-    # Rest of Europe
-    "sco.1",
-    "sco.2",
-    "sui.1",
-    "aut.1",
-    "bel.1",
-    "gre.1",
-    "tur.1",
-    "rus.1",
-    "ukr.1",
-    "den.1",
-    "nor.1",
-    "swe.1",
-    "swe.2",
-    "pol.1",
-    "cze.1",
-    "cro.1",
-    "rou.1",
-    "srb.1",
-    "hun.1",
-    "bul.1",
-    "irl.1",
-    "svk.1",
-    "slv.1",
-    "isr.1",
-    "cyp.1",
-    "fin.1",
-    # Americas
-    "usa.1",
-    "usa.usl.1",
-    "usa.nwsl",
-    "mex.1",
-    "mex.2",
-    "bra.1",
-    "bra.2",
-    "arg.1",
-    "arg.2",
-    "chi.1",
-    "col.1",
-    "uru.1",
-    "per.1",
-    "ecu.1",
-    "par.1",
-    "ven.1",
-    "bol.1",
-    "crc.1",
-    "gua.1",
-    "hon.1",
-    # Asia / Oceania / Africa
-    "jpn.1",
-    "kor.1",
-    "chn.1",
-    "aus.1",
-    "ksa.1",
-    "qat.1",
-    "are.1",
-    "ind.1",
-    "idn.1",
-    "tha.1",
-    "mys.1",
-    "rsa.1",
-    "egy.1",
-    "mar.1",
-    "nga.1",
-    "tun.1",
-    # Internationals & continental cups
-    "fifa.world",
-    "fifa.friendly",
-    "fifa.cwc",
-    "fifa.wwc",
-    "uefa.champions",
-    "uefa.europa",
-    "uefa.europa.conf",
-    "uefa.nations",
-    "conmebol.libertadores",
-    "conmebol.sudamericana",
-    "concacaf.champions",
-    "concacaf.league",
-    "afc.champions",
-    "caf.champions_league",
-    "fifa.worldq.conmebol",
-    "fifa.worldq.uefa",
-    "fifa.worldq.concacaf",
-    "fifa.worldq.afc",
-    "fifa.worldq.caf",
+# ESPN soccer league slugs — prioritized list (most popular leagues first for faster results)
+ESPN_LEAGUES_PRIORITY = [
+    # Top Europe - check these first
+    "eng.1", "esp.1", "ita.1", "ger.1", "fra.1",
+    "eng.2", "esp.2", "ita.2", "ger.2", "fra.2",
+    # Major Americas
+    "bra.1", "arg.1", "mex.1", "usa.1",
+    # Other important leagues
+    "ned.1", "por.1", "uefa.champions", "uefa.europa",
+    "fifa.world", "fifa.worldq.uefa", "fifa.worldq.conmebol",
 ]
+
+ESPN_LEAGUES_OTHER = [
+    "eng.3", "eng.4", "eng.fa", "eng.league_cup",
+    "esp.copa_del_rey", "ita.coppa_italia", "ger.dfb_pokal", "fra.coupe_de_france",
+    "ned.2", "por.2",
+    # Rest of Europe
+    "sco.1", "sco.2", "sui.1", "aut.1", "bel.1", "gre.1", "tur.1",
+    "rus.1", "ukr.1", "den.1", "nor.1", "swe.1", "swe.2", "pol.1",
+    "cze.1", "cro.1", "rou.1", "srb.1", "hun.1", "bul.1", "irl.1",
+    "svk.1", "slv.1", "isr.1", "cyp.1", "fin.1",
+    # Americas (lower priority)
+    "usa.usl.1", "usa.nwsl", "mex.2", "bra.2", "arg.2",
+    "chi.1", "col.1", "uru.1", "per.1", "ecu.1", "par.1", "ven.1", "bol.1",
+    "crc.1", "gua.1", "hon.1",
+    # Asia / Oceania / Africa
+    "jpn.1", "kor.1", "chn.1", "aus.1", "ksa.1", "qat.1", "are.1",
+    "ind.1", "idn.1", "tha.1", "mys.1", "rsa.1", "egy.1", "mar.1", "nga.1", "tun.1",
+    # Internationals & continental cups
+    "fifa.friendly", "fifa.cwc", "fifa.wwc",
+    "uefa.europa.conf", "uefa.nations",
+    "conmebol.libertadores", "conmebol.sudamericana",
+    "concacaf.champions", "concacaf.league",
+    "afc.champions", "caf.champions_league",
+    "fifa.worldq.concacaf", "fifa.worldq.afc", "fifa.worldq.caf",
+]
+
+ESPN_LEAGUES = ESPN_LEAGUES_PRIORITY + ESPN_LEAGUES_OTHER
 
 _ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 _TSDB_BASE = "https://www.thesportsdb.com/api/v1/json/3"
@@ -154,44 +81,67 @@ def _default_dates():
     return [(now - datetime.timedelta(days=d)).strftime("%Y-%m-%d") for d in (0, 1)]
 
 
+def _fetch_espn_league(lg, compact):
+    """Fetch a single ESPN league's scoreboard. Returns dict of matches or empty dict."""
+    try:
+        r = requests.get(
+            f"{_ESPN_BASE}/{lg}/scoreboard",
+            headers=_UA,
+            params={"dates": compact},
+            timeout=3,  # Very short timeout per league
+        )
+        if r.status_code != 200:
+            return {}
+        events = r.json().get("events", []) or []
+    except Exception:
+        return {}
+    
+    out = {}
+    for e in events:
+        comp = (e.get("competitions") or [{}])[0]
+        status = (comp.get("status") or {}).get("type") or {}
+        if not status.get("completed"):
+            continue
+        cs = comp.get("competitors") or []
+        if len(cs) != 2:
+            continue
+        home = next((c for c in cs if c.get("homeAway") == "home"), None)
+        away = next((c for c in cs if c.get("homeAway") == "away"), None)
+        if not home or not away:
+            continue
+        try:
+            hs = int(home.get("score"))
+            as_ = int(away.get("score"))
+        except (TypeError, ValueError):
+            continue
+        hn = (home.get("team") or {}).get("displayName")
+        an = (away.get("team") or {}).get("displayName")
+        if hn and an:
+            out[f"{hn} vs {an}"] = (hs, as_)
+    return out
+
+
 def _espn_day(date_str):
     """All completed ESPN soccer matches for a date -> {match: (hs, as)}."""
     out = {}
     compact = date_str.replace("-", "")
-    for lg in ESPN_LEAGUES:
-        try:
-            r = requests.get(
-                f"{_ESPN_BASE}/{lg}/scoreboard",
-                headers=_UA,
-                params={"dates": compact},
-                timeout=8,
-            )
-            if r.status_code != 200:
-                continue
-            events = r.json().get("events", []) or []
-        except Exception:
-            continue
-        for e in events:
-            comp = (e.get("competitions") or [{}])[0]
-            status = (comp.get("status") or {}).get("type") or {}
-            if not status.get("completed"):
-                continue
-            cs = comp.get("competitors") or []
-            if len(cs) != 2:
-                continue
-            home = next((c for c in cs if c.get("homeAway") == "home"), None)
-            away = next((c for c in cs if c.get("homeAway") == "away"), None)
-            if not home or not away:
-                continue
+    
+    # Use thread pool to fetch multiple leagues in parallel
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit all league fetches
+        future_to_league = {
+            executor.submit(_fetch_espn_league, lg, compact): lg
+            for lg in ESPN_LEAGUES
+        }
+        
+        # Collect results as they complete
+        for future in as_completed(future_to_league, timeout=20):
             try:
-                hs = int(home.get("score"))
-                as_ = int(away.get("score"))
-            except (TypeError, ValueError):
-                continue
-            hn = (home.get("team") or {}).get("displayName")
-            an = (away.get("team") or {}).get("displayName")
-            if hn and an:
-                out[f"{hn} vs {an}"] = (hs, as_)
+                result = future.result()
+                out.update(result)
+            except Exception:
+                pass  # Ignore failed futures
+    
     return out
 
 
@@ -220,7 +170,7 @@ def _tsdb_day(date_str):
             f"{_TSDB_BASE}/eventsday.php",
             headers=_UA,
             params={"d": date_str, "s": "Soccer"},
-            timeout=12,
+            timeout=10,  # Reasonable timeout for TheSportsDB
         )
         events = (r.json() or {}).get("events") or []
     except Exception:

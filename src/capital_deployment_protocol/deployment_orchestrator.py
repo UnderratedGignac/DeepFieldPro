@@ -16,6 +16,7 @@ from src.capital_deployment_protocol.state_persistence import (
     save_deployment_state,
     load_deployment_state,
 )
+from src.capital_deployment_protocol.cdp_config import cdp_config
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,9 @@ class DeploymentOrchestrator:
     3. Calculates available capital ramp.
     4. Routes execution through the Kill Switch and Position Sizer.
     W1 FIX: State is persisted to SQLite on every update and loaded on startup.
+    
+    All thresholds and parameters are now configurable via environment variables
+    through cdp_config for optimization without code changes.
     """
 
     def __init__(self):
@@ -63,9 +67,10 @@ class DeploymentOrchestrator:
             next_phase, days_in_phase, acsi_velocity=acsi_velocity
         )
 
-        if current_drawdown < 0.05:
+        # Health status thresholds loaded from config (no hardcoding)
+        if current_drawdown < cdp_config.HEALTH_HEALTHY_THRESHOLD:
             health = HealthStatus.HEALTHY
-        elif current_drawdown < 0.12:
+        elif current_drawdown < cdp_config.HEALTH_DEGRADED_THRESHOLD:
             health = HealthStatus.DEGRADED
         else:
             health = HealthStatus.CRITICAL
