@@ -1,59 +1,54 @@
-# DeepFieldPro Gitignore
-
-# Secrets and Local Config
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
+```
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
 venv/
 .venv/
-env/
-
-# Logs
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
 *.log
-daemon_out.log
+.pytest_cache/
+.mypy_cache/
 
-# System / IDE
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDEs
 .vscode/
 .idea/
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
-
-# Project Specific (Keeping models and core data as requested)
-# We exclude temporary artifacts but keep the primary state
-*.bak
-artifacts/
-temp/
-*.tmp
-
-# Large data files — too big for GitHub (use LFS or exclude)
-data/betarabia_api_responses.json
-data/deepfield_browser_data/completed_fixtures.db
-data/betarabia_page_probe.html
-
-# Runtime / scratch files not worth tracking
-current_port.txt
-logs/
-scratch/
-scratch_*.py
-old_data/
-check_*.py
-find_*.py
-force_*.py
-inspect_*.py
-remove_*.py
-reset_*.py
-*.png
-!parlay_ui_verification.png
-!dashboard_preview.png
-!dashboard_loading.png
-!screenshot.png
+```
