@@ -1737,6 +1737,85 @@ def _current_calibration_and_execution_scores(state, risk_cfg):
     return calibration, execution
 
 
+def _settled_outcome_label(settled_team_code, fid):
+    """
+    Convert a settlement's team-code result (e.g. "COL", or the literal
+    "draw") into this project's home/draw/away outcome convention — matching
+    how p["outcome"] is stored on placed bets — using the match's own
+    home/away short codes from the Polymarket mapping. Falls back to
+    returning the raw team code unconverted if the mapping can't be found
+    (better than silently dropping the settlement) — but this can then fail
+    to match p["outcome"] downstream, which is why get_mapping()'s
+    availability matters here.
+    """
+    if settled_team_code == "draw":
+        return "draw"
+    m = get_mapping(fid)
+    if not m:
+        return settled_team_code
+    if settled_team_code == m.get("home_short_code"):
+        return "home"
+    if settled_team_code == m.get("away_short_code"):
+        return "away"
+    return settled_team_code
+
+
+def _check_settlements(state):
+    """
+    Check every ok=True placed bet's fixture for a real-world settlement via
+    GET /api/v1/data/polymarket/markets/{fixture_id}/settlement, and append
+    any newly-settled fixtures to state["settlements"] (deduped, capped at
+    50, newest first). Mutates `state` in place; returns the list of newly
+    detected settlements (same shape appended to state["settlements"]).
+
+    Bug fixed 2026-07-09: this previously never detected ANY settlement,
+    for two independent reasons, both now corrected:
+    1. It checked `s.get("settled")` (a boolean key) — the real API returns
+       `"status": "settled"` (a string field), which is what's checked now.
+    2. Even when settled, it stored the raw team-code winner (e.g. "COL")
+       directly as `outcome` — but every other consumer of
+       state["settlements"] (attribution_engine.settlement_map(), the
+       calibration/CLV/reporting tools) compares against p["outcome"], which
+       is stored as "home"/"draw"/"away". Team codes never matched that
+       convention, so even a "successfully detected" settlement would have
+       silently failed to line up with any bet. See _settled_outcome_label().
+
+    The ID passed to get_settlement() is always the raw Sportmonks numeric
+    fixture_id (same as p["fixture_id"]) — confirmed empirically 2026-07-09
+    that this endpoint does NOT need a separate "Polymarket fixture_id"; the
+    previous `polymarket_fid` indirection was based on an incorrect
+    assumption and is no longer used for settlement lookups.
+    """
+    settled_fids = set()
+    new_settlements = []
+    for p in state.get("placed", []):
+        fid = p.get("fixture_id")
+        if not fid or not p.get("ok") or fid in settled_fids:
+            continue
+        settled_fids.add(fid)
+        s = get_settlement(fid)
+        if not (s and isinstance(s, dict) and s.get("status") == "settled"):
+            continue
+        settled_team_code = s.get("settled_outcome") or s.get("outcome") or s.get("winning_outcome")
+        if settled_team_code is None:
+            continue
+        new_settlements.append(
+            {
+                "fixture_id": fid,
+                "outcome": _settled_outcome_label(settled_team_code, fid),
+                "settled_team_code": settled_team_code,
+                "resolved_at": s.get("settled_at") or s.get("resolved_at") or s.get("settlement_time"),
+            }
+        )
+    if new_settlements:
+        existing = {s["fixture_id"] for s in state.get("settlements", [])}
+        for ns in new_settlements:
+            if ns["fixture_id"] not in existing:
+                state.setdefault("settlements", []).insert(0, ns)
+        state["settlements"] = state["settlements"][:50]
+    return new_settlements
+
+
 def _directional_bet_size(suggested_usd, risk_cfg, max_per_bet, room):
     """
     Final per-pick stake for a qualifying, non-blocked directional/arb pick.
@@ -2305,52 +2384,16 @@ def autopilot_cycle():
     except Exception:
         pass
 
-    # Settlements — check placed bets for settled matches
-    # IMPORTANT: Use the Polymarket market ID for settlement lookups, NOT the
-    # Sportmonks numeric ID. The Polymarket settlement API requires its own IDs.
+    # Settlements — check placed bets for settled matches (see _check_settlements()).
     try:
         _refresh_mapping_cache()
-        settled_fids = set()
-        new_settlements = []
-        for p in state.get("placed", []):
-            fid = p.get("fixture_id")
-            if not fid or not p.get("ok"):
-                continue
-            # Prefer the Polymarket market ID stored at placement time.
-            # For older entries, look up from the mapping cache using the
-            # Sportmonks fixture ID (which is what fid stores for legacy bets).
-            pm_fid = p.get("polymarket_fid")
-            if not pm_fid:
-                _sm_mapping = get_mapping(fid)
-                if _sm_mapping:
-                    pm_fid = _sm_mapping.get("fixture_id") or fid
-                else:
-                    pm_fid = fid  # last resort: try the raw ID
-            if pm_fid in settled_fids:
-                continue
-            settled_fids.add(pm_fid)
-            s = get_settlement(pm_fid)
-            if s and isinstance(s, dict) and s.get("settled"):
-                new_settlements.append(
-                    {
-                        "fixture_id": fid,
-                        "polymarket_fid": pm_fid,
-                        "outcome": s.get("outcome") or s.get("winning_outcome"),
-                        "resolved_at": s.get("resolved_at")
-                        or s.get("settlement_time"),
-                    }
-                )
-        if new_settlements:
-            existing = {s["fixture_id"] for s in state.get("settlements", [])}
-            for ns in new_settlements:
-                if ns["fixture_id"] not in existing:
-                    state.setdefault("settlements", []).insert(0, ns)
-            state["settlements"] = state["settlements"][:50]
+        new_settlements = _check_settlements(state)
 
-            # Phase 2 (2026-07-09): backfill execution_log.final_settlement
-            # for every placed order on a newly-settled fixture. Best-effort,
-            # matches the order_id extraction pattern already used above for
-            # the rejected-order reconciliation.
+        # Phase 2 (2026-07-09): backfill execution_log.final_settlement
+        # for every placed order on a newly-settled fixture. Best-effort,
+        # matches the order_id extraction pattern already used above for
+        # the rejected-order reconciliation.
+        if new_settlements:
             try:
                 import re as _re3
 

@@ -246,3 +246,115 @@ def test_load_risk_settings_wc_model_weight_configured(tmp_path, monkeypatch):
     risk = ab._load_risk_settings()
     assert risk["wc_model_weight"] == 0.5
     assert risk["forebet_required"] is False
+
+
+# ---------------------------------------------------------------------------
+# _check_settlements() / _settled_outcome_label() — settlement bug fix (2026-07-09)
+#
+# Bug: settlement detection never fired for ANY bet because (1) the code
+# checked s.get("settled") when the real API returns "status": "settled",
+# and (2) even when settled, it stored the raw team code (e.g. "COL") as
+# outcome instead of converting to this project's home/draw/away convention.
+# The mocked API responses below are the EXACT shape confirmed live against
+# a real settled fixture (Colombia vs Ghana, 2026-07-09).
+# ---------------------------------------------------------------------------
+REAL_SETTLED_RESPONSE = {
+    "fixture_id": "19606947",
+    "outcome_prices": {"COL": 1, "GHA": 0, "draw": 0},
+    "polymarket_event_slug": "fifwc-col-gha-2026-07-03",
+    "settled_at": 1783166468714,
+    "settled_outcome": "COL",
+    "status": "settled",
+}
+REAL_MAPPING = {"home_short_code": "COL", "away_short_code": "GHA"}
+
+
+def _placed_bet(fid="19606947", outcome="home", ok=True):
+    return {"fixture_id": fid, "outcome": outcome, "ok": ok, "match": "Colombia vs Ghana"}
+
+
+def test_check_settlements_detects_real_settled_response(monkeypatch):
+    monkeypatch.setattr(ab, "get_settlement", lambda fid: dict(REAL_SETTLED_RESPONSE))
+    monkeypatch.setattr(ab, "get_mapping", lambda fid: dict(REAL_MAPPING))
+    state = {"placed": [_placed_bet()], "settlements": []}
+    new = ab._check_settlements(state)
+    assert len(new) == 1
+    assert new[0]["fixture_id"] == "19606947"
+    assert new[0]["outcome"] == "home"  # COL == home_short_code
+    assert new[0]["settled_team_code"] == "COL"
+    assert state["settlements"][0]["outcome"] == "home"
+
+
+def test_check_settlements_ignores_unsettled_matches(monkeypatch):
+    monkeypatch.setattr(ab, "get_settlement", lambda fid: {"status": "scheduled"})
+    monkeypatch.setattr(ab, "get_mapping", lambda fid: dict(REAL_MAPPING))
+    state = {"placed": [_placed_bet()], "settlements": []}
+    new = ab._check_settlements(state)
+    assert new == []
+    assert state["settlements"] == []
+
+
+def test_check_settlements_skips_not_ok_or_missing_fixture(monkeypatch):
+    calls = []
+    monkeypatch.setattr(ab, "get_settlement", lambda fid: (calls.append(fid), dict(REAL_SETTLED_RESPONSE))[1])
+    monkeypatch.setattr(ab, "get_mapping", lambda fid: dict(REAL_MAPPING))
+    state = {
+        "placed": [_placed_bet(ok=False), {"fixture_id": None, "outcome": "home", "ok": True}],
+        "settlements": [],
+    }
+    new = ab._check_settlements(state)
+    assert new == []
+    assert calls == []  # never even called get_settlement for invalid entries
+
+
+def test_check_settlements_dedupes_by_fixture(monkeypatch):
+    calls = []
+
+    def _mock_settlement(fid):
+        calls.append(fid)
+        return dict(REAL_SETTLED_RESPONSE)
+
+    monkeypatch.setattr(ab, "get_settlement", _mock_settlement)
+    monkeypatch.setattr(ab, "get_mapping", lambda fid: dict(REAL_MAPPING))
+    state = {
+        "placed": [_placed_bet(outcome="home"), _placed_bet(outcome="home")],  # same fixture twice
+        "settlements": [],
+    }
+    new = ab._check_settlements(state)
+    assert len(calls) == 1  # only checked once despite two placed entries
+    assert len(new) == 1
+
+
+def test_check_settlements_missing_outcome_field_skipped_not_crashed(monkeypatch):
+    monkeypatch.setattr(ab, "get_settlement", lambda fid: {"status": "settled"})  # no outcome field at all
+    monkeypatch.setattr(ab, "get_mapping", lambda fid: dict(REAL_MAPPING))
+    state = {"placed": [_placed_bet()], "settlements": []}
+    new = ab._check_settlements(state)
+    assert new == []
+
+
+def test_check_settlements_already_recorded_not_duplicated(monkeypatch):
+    monkeypatch.setattr(ab, "get_settlement", lambda fid: dict(REAL_SETTLED_RESPONSE))
+    monkeypatch.setattr(ab, "get_mapping", lambda fid: dict(REAL_MAPPING))
+    state = {
+        "placed": [_placed_bet()],
+        "settlements": [{"fixture_id": "19606947", "outcome": "home"}],
+    }
+    new = ab._check_settlements(state)
+    assert len(new) == 1  # still detected/returned this cycle...
+    assert len(state["settlements"]) == 1  # ...but not duplicated in the stored list
+
+
+def test_settled_outcome_label_draw_passes_through():
+    assert ab._settled_outcome_label("draw", "19606947") == "draw"
+
+
+def test_settled_outcome_label_converts_team_code_via_mapping(monkeypatch):
+    monkeypatch.setattr(ab, "get_mapping", lambda fid: dict(REAL_MAPPING))
+    assert ab._settled_outcome_label("COL", "19606947") == "home"
+    assert ab._settled_outcome_label("GHA", "19606947") == "away"
+
+
+def test_settled_outcome_label_falls_back_to_raw_code_without_mapping(monkeypatch):
+    monkeypatch.setattr(ab, "get_mapping", lambda fid: None)
+    assert ab._settled_outcome_label("COL", "19606947") == "COL"
