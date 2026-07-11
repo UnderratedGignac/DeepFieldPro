@@ -49,10 +49,50 @@ def _apply_aliases(n):
     return n.strip()
 
 
+# Age-group / reserve markers are DISTINGUISHING, not noise (fix 2026-07-11):
+# a U23 side and its senior twin must never be treated as the same team, or
+# the settlement matcher grades U23 bets against senior results (and vice
+# versa). _level_signature() extracts a fixture level; get_match_score()
+# refuses any cross-level pair. These markers are also stripped from the token
+# comparison (see `noise` below) so same-level names still score normally
+# (e.g. "River Plate Reserves" vs "River Plate Reserve").
+_AGE_RE = re.compile(r"\bu\s*-?\s*(\d{2})\b")          # u23, u-23, u 23
+_UNDER_RE = re.compile(r"\bunder\s*-?\s*(\d{2})\b")    # under 23, under-23
+_RESERVE_TOKENS = {"reserves", "reserve", "ii"}         # incl. roman-II reserve side
+_YOUTH_TOKENS = {"youth", "academy"}
+
+
+def _level_signature(name):
+    """Return the squad level of a team name: 'uNN' (age group), 'reserve',
+    'youth', or 'senior' (default). Pure/among-stdlib; never raises."""
+    if not name or not isinstance(name, str):
+        return "senior"
+    n = name.lower()
+    n = "".join(
+        c for c in unicodedata.normalize("NFD", n) if unicodedata.category(c) != "Mn"
+    )
+    n = re.sub(r"[^a-z0-9\s]", " ", n)
+    n = re.sub(r"\s+", " ", n).strip()
+    m = _AGE_RE.search(n) or _UNDER_RE.search(n)
+    if m:
+        return f"u{m.group(1)}"
+    toks = set(n.split())
+    if toks & _RESERVE_TOKENS:
+        return "reserve"
+    if toks & _YOUTH_TOKENS:
+        return "youth"
+    return "senior"
+
+
 def get_match_score(name1, name2):
     if not name1 or not name2:
         return 0.0
     if not isinstance(name1, str) or not isinstance(name2, str):
+        return 0.0
+
+    # Cross-level pairs (senior vs U23, U21 vs U23, senior vs reserves, ...)
+    # are never the same team — settle them separately or not at all.
+    if _level_signature(name1) != _level_signature(name2):
         return 0.0
 
     def get_tokens(name):
@@ -68,10 +108,7 @@ def get_match_score(name1, name2):
             "fc",
             "cf",
             "sc",
-            "u23",
             "pr",
-            "ii",
-            "u20",
             "united",
             "city",
             "town",
@@ -96,6 +133,22 @@ def get_match_score(name1, name2):
             "rfc",
             "utd",
             "jfc",
+            # Level markers — DISTINCTION is handled by _level_signature() above;
+            # strip them here so same-level names ("Reserves" vs "Reserve",
+            # "Gully U23" vs "Gully SC U23") still score on the real name tokens.
+            "u23",
+            "u21",
+            "u20",
+            "u19",
+            "u18",
+            "u17",
+            "u16",
+            "u15",
+            "ii",
+            "reserve",
+            "reserves",
+            "youth",
+            "academy",
         }
         return [w for w in n.split() if w and w not in noise]
 

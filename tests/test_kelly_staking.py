@@ -287,3 +287,16 @@ class TestBankrollTracker:
         while bt.register_bet(60.0, bankroll):
             pass
         assert _status(bankroll)["current_balance"] >= 0.0
+
+    def test_halt_is_sticky_after_a_later_win(self, bankroll):
+        """Regression (2026-07-11 forensics): a genuine HALT must NOT silently
+        un-halt itself when a later winning settlement pushes daily_pnl back
+        above the stop-loss threshold. Once halted for the day, stay halted."""
+        # Trip the breaker: 50% drawdown loss -> HALT
+        bt.register_bet(100.0, bankroll)
+        bt.register_settlement(0.0, -100.0, bankroll)
+        assert _status(bankroll)["status"] == "HALT"
+        # A big win lands afterward (daily_pnl back to +100) — must STAY halted.
+        bt.register_settlement(300.0, 200.0, bankroll)
+        assert _status(bankroll)["status"] == "HALT"
+        assert bt.register_bet(5.0, bankroll) is False

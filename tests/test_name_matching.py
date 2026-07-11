@@ -98,3 +98,56 @@ def test_best_fixture_match_returns_none_when_no_candidate_clears_threshold():
 
 def test_best_fixture_match_empty_dict_returns_none():
     assert best_fixture_match("Real Oruro", "Universitario de Vinto", {}) is None
+
+
+# ---------------------------------------------------------------------------
+# Age-group / reserve level guard (regression for the 2026-07-11 forensics:
+# 'u23'/'u20' were stripped as noise, so a U23 team tokenized identically to
+# its senior twin -> the settlement matcher graded U23 bets against senior
+# results, e.g. Green Gully SC U23 mis-graded against the senior 1-3, and
+# Canberra Juventus U23 vs the senior fixture. A level mismatch must score 0.)
+# ---------------------------------------------------------------------------
+def test_u23_does_not_match_senior():
+    assert get_match_score("Green Gully SC U23", "Green Gully") < 0.5
+    assert get_match_score("Canberra Juventus U23", "Canberra Juventus") < 0.5
+
+
+def test_u23_matches_u23():
+    assert get_match_score("Green Gully SC U23", "Green Gully U23") >= 0.9
+
+
+def test_different_age_groups_do_not_match():
+    # U21 and U23 are distinct competitions — must not cross-settle
+    assert get_match_score("Chelsea U21", "Chelsea U23") < 0.5
+
+
+def test_reserves_do_not_match_senior():
+    assert get_match_score("River Plate Reserves", "River Plate") < 0.5
+    # roman-numeral reserve marker (Bayern II is the reserve side, not Bayern)
+    assert get_match_score("Bayern Munich II", "Bayern Munich") < 0.5
+
+
+def test_reserves_match_reserves_singular_or_plural():
+    assert get_match_score("River Plate Reserves", "River Plate Reserve") >= 0.9
+
+
+def test_juniors_in_club_name_is_not_a_youth_marker():
+    # "Juniors" is part of Boca's proper name, not an age level — must not
+    # be mistaken for a youth marker and must still match itself.
+    assert get_match_score("Boca Juniors", "Boca Juniors") == 1.0
+    assert get_match_score("Boca Juniors", "Boca Juniors CABJ") >= 0.8
+
+
+def test_best_fixture_match_rejects_senior_result_for_u23_bet():
+    # The Green Gully case: only the senior result exists in the feed; a U23
+    # bet must NOT be settled against it (better OPEN than wrongly graded).
+    finished = {"Green Gully vs Altona Magic": (1, 3)}
+    result = best_fixture_match("Green Gully SC U23", "Altona Magic SC U23", finished)
+    assert result is None
+
+
+def test_best_fixture_match_accepts_matching_u23_result():
+    finished = {"Green Gully U23 vs Altona Magic U23": (2, 0)}
+    result = best_fixture_match("Green Gully SC U23", "Altona Magic SC U23", finished)
+    assert result is not None
+    assert result[1] == (2, 0)

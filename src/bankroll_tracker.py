@@ -249,7 +249,7 @@ def register_settlement(payout, pnl, db_path=None):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure "
+        "SELECT current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure, system_status "
         "FROM bankroll WHERE date = ?",
         (today,),
     )
@@ -259,7 +259,7 @@ def register_settlement(payout, pnl, db_path=None):
         init_bankroll_db(db_path)
         return register_settlement(payout, pnl, db_path)  # retry once after auto-init
 
-    current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure = row
+    current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure, prev_status = row
 
     new_balance = current_balance + payout
     new_daily_pnl = daily_pnl + pnl
@@ -269,7 +269,12 @@ def register_settlement(payout, pnl, db_path=None):
     remaining_exposure = max(0.0, (daily_exposure or 0.0) - stake_settled)
     effective_balance = new_balance + remaining_exposure
     new_peak = max(peak_balance, effective_balance)
-    status = "ACTIVE"
+    # HALT is STICKY for the rest of the UTC day (fix 2026-07-11): once the
+    # circuit breaker trips, a later winning settlement that pushes daily_pnl
+    # back above the threshold must NOT silently un-halt the day. The checks
+    # below can only escalate ACTIVE -> HALT, never the reverse. A fresh ACTIVE
+    # row is seeded at the next UTC-day rollover by init_bankroll_db().
+    status = "HALT" if prev_status == "HALT" else "ACTIVE"
 
     # Drawdown vs today's starting balance using total portfolio value (not just liquid)
     drawdown_pct = (
@@ -343,8 +348,13 @@ def reconcile_exposure():
     try:
         bl_conn = sqlite3.connect(BET_LOG_PATH)
         bl_cur = bl_conn.cursor()
+        # TIPSTER_FOREBET bets stake the real ledger (real_bankroll.db), not
+        # this research ledger — excluding them keeps the heal from booking
+        # exposure the research bankroll never paid.
         bl_cur.execute(
-            "SELECT COALESCE(SUM(stake), 0.0) FROM bet_log WHERE result = 'OPEN' AND date(placed_at) = ?",
+            "SELECT COALESCE(SUM(stake), 0.0) FROM bet_log "
+            "WHERE result = 'OPEN' AND date(placed_at) = ? "
+            "AND COALESCE(bet_source, '') != 'TIPSTER_FOREBET'",
             (today,),
         )
         true_exposure = bl_cur.fetchone()[0]

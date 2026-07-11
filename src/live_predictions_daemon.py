@@ -3353,6 +3353,21 @@ def fetch_api_football_results():
     return results
 
 
+def _register_settlement_routed(payout, pnl, bet_source):
+    """Settle into the ledger that staked the bet: TIPSTER_FOREBET bets stake
+    the real $200 ledger (real_bankroll.db); every other source stakes the
+    default research ledger. Crediting the wrong one hands a ledger money it
+    never risked."""
+    from src.bankroll_tracker import register_settlement
+
+    if bet_source == "TIPSTER_FOREBET":
+        register_settlement(
+            payout, pnl, db_path=os.path.join(DATA_DIR, "real_bankroll.db")
+        )
+    else:
+        register_settlement(payout, pnl)
+
+
 def settle_open_bets():
     """
     Settles OPEN bets in bet_log.db using finished-match scores. Tries Sofascore first
@@ -3505,7 +3520,7 @@ def settle_open_bets():
         cur = conn.cursor()
 
         cur.execute(
-            "SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, bet_source, fixture_id, side FROM bet_log WHERE result = 'OPEN'"
+            "SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, bet_source, fixture_id, side, placed_at FROM bet_log WHERE result = 'OPEN'"
         )
         open_bets = cur.fetchall()
 
@@ -3564,23 +3579,58 @@ def settle_open_bets():
         except Exception:
             pass
 
-        # GUARD: never settle a bet whose fixture hasn't kicked off. Rematch
-        # pairs (teams that met recently) otherwise fuzzy-match the PREVIOUS
-        # meeting's score and "settle" before the new match starts (the
-        # Coritiba-Palmeiras false-WIN bug, 2026-07-08).
+        # GUARD: never settle a bet whose match cannot have FINISHED yet.
+        # Kickoff merely having passed is not enough — in-play scores and
+        # previous-meeting fuzzy matches grade unfinished games (the
+        # Coritiba-Palmeiras false-WIN bug 2026-07-08, and the Spain-Belgium
+        # "12-9" false-WIN bug 2026-07-10). Require kickoff + 110 minutes.
+        # When kickoff is unknown, fall back to bet age (placed_at + 12h) —
+        # NEVER fail-open: the old guard passed any bet it couldn't map.
+        ko_by_name = {}
         try:
-            _now_utc = datetime.datetime.now(datetime.timezone.utc)
+            _osc2 = sqlite3.connect(os.path.join(DATA_DIR, "odds_stream.db"))
+            for _h, _a, _kt in _osc2.execute(
+                "SELECT home_team, away_team, kickoff_time FROM fixture "
+                "WHERE kickoff_time IS NOT NULL"
+            ):
+                try:
+                    _dt = datetime.datetime.fromisoformat(
+                        str(_kt).replace("Z", "+00:00")
+                    )
+                    if _dt.tzinfo is None:
+                        _dt = _dt.replace(tzinfo=datetime.timezone.utc)
+                    _key = f"{_h} vs {_a}".lower().strip()
+                    # Keep the latest meeting so a rematch can't settle early
+                    if _key not in ko_by_name or _dt > ko_by_name[_key]:
+                        ko_by_name[_key] = _dt
+                except Exception:
+                    continue
+            _osc2.close()
+        except Exception:
+            pass
 
-            def _ko_passed(_f):
-                _ko = ko_map.get(str(_f)) if _f else None
-                return _ko is None or _ko <= _now_utc
+        def _match_can_be_finished(_f, _mid, _placed):
+            _now = datetime.datetime.now(datetime.timezone.utc)
+            _ko = ko_map.get(str(_f)) if _f else None
+            if _ko is None and _mid:
+                _ko = ko_by_name.get(str(_mid).lower().strip())
+            if _ko is not None:
+                return _ko + datetime.timedelta(minutes=110) <= _now
+            try:
+                _p = datetime.datetime.fromisoformat(str(_placed))
+                if _p.tzinfo is None:
+                    _p = _p.replace(tzinfo=datetime.timezone.utc)
+                return _p + datetime.timedelta(hours=12) <= _now
+            except Exception:
+                return False
 
+        try:
             _pre_n = len(open_bets)
-            open_bets = [b for b in open_bets if _ko_passed(b[7])]
+            open_bets = [b for b in open_bets if _match_can_be_finished(b[7], b[1], b[9])]
             if len(open_bets) < _pre_n:
                 print(
-                    f"[SETTLEMENT] Skipped {_pre_n - len(open_bets)} bet(s) on "
-                    f"fixtures that have not kicked off yet."
+                    f"[SETTLEMENT] Skipped {_pre_n - len(open_bets)} bet(s) whose "
+                    f"matches cannot have finished yet."
                 )
         except Exception:
             pass
@@ -3601,7 +3651,11 @@ def settle_open_bets():
                 if unicodedata.category(c) != "Mn"
             )
             n = re.sub(r"[^a-z0-9\s]", "", n)
-            suffixes = ["fc", "cf", "sc", "u23", "pr", "ii", "u20", "united", "city"]
+            # Level markers (u23/u20/ii) are DELIBERATELY NOT stripped (fix
+            # 2026-07-11): stripping them let this exact-match fallback tie a
+            # U23 bet to its senior fixture_id, bypassing get_match_score()'s
+            # level guard and mis-settling age-group bets against senior scores.
+            suffixes = ["fc", "cf", "sc", "pr", "united", "city"]
             words = [w for w in n.split() if w not in suffixes]
             return "".join(words)
 
@@ -3619,6 +3673,7 @@ def settle_open_bets():
             bet_source,
             bet_fixture_id,
             bet_side,
+            _bet_placed_at,
         ) in open_bets:
             import re
 
@@ -3802,11 +3857,9 @@ def settle_open_bets():
                         )
                         conn_bet.commit()
                         try:
-                            from src.bankroll_tracker import (
-                                register_settlement as _rs_push,
+                            _register_settlement_routed(
+                                float(stake or 0), 0.0, bet_source
                             )
-
-                            _rs_push(payout=float(stake or 0), pnl=0.0)
                         except Exception:
                             pass
                         continue
@@ -3819,11 +3872,9 @@ def settle_open_bets():
                         )
                         conn_bet.commit()
                         try:
-                            from src.bankroll_tracker import (
-                                register_settlement as _rs_push,
+                            _register_settlement_routed(
+                                float(stake or 0), 0.0, bet_source
                             )
-
-                            _rs_push(payout=float(stake or 0), pnl=0.0)
                         except Exception:
                             pass
                         continue
@@ -3847,9 +3898,7 @@ def settle_open_bets():
                     )
                     conn_bet.commit()
                     try:
-                        from src.bankroll_tracker import register_settlement as _rs_push
-
-                        _rs_push(payout=float(stake or 0), pnl=0.0)
+                        _register_settlement_routed(float(stake or 0), 0.0, bet_source)
                     except Exception:
                         pass
                     continue
@@ -3893,8 +3942,7 @@ def settle_open_bets():
                     cur_bet.execute("UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?", (bet_id,))
                     conn_bet.commit()
                     try:
-                        from src.bankroll_tracker import register_settlement as _rs_push
-                        _rs_push(payout=float(stake or 0), pnl=0.0)
+                        _register_settlement_routed(float(stake or 0), 0.0, bet_source)
                     except Exception:
                         pass
                     continue
@@ -4189,25 +4237,14 @@ def settle_open_bets():
                 except Exception as _clv_sett_err:
                     print(f"[CLV TRACKER] Error settling {bet_id}: {_clv_sett_err}")
 
-            # Capital adjustments via Central Tracker
-            from src.bankroll_tracker import register_settlement
-
+            # Capital adjustments via Central Tracker. Forebet bets stake ONLY
+            # the real $200 ledger at placement, so they settle ONLY there —
+            # crediting the default research ledger too would hand it payouts
+            # it never staked. All other sources settle the research ledger.
             try:
-                register_settlement(payout, pnl)
+                _register_settlement_routed(payout, pnl, bet_source)
             except Exception as _rs_err:
                 print(f"[SETTLEMENT] WARNING: register_settlement failed for {bet_id}: {_rs_err}")
-
-            # Mirror settlement into the real $200 ledger for the winning
-            # (Forebet-confirmed) strategy only — placement already deducted
-            # the stake from real_bankroll.db via register_bet.
-            if bet_source == "TIPSTER_FOREBET":
-                try:
-                    register_settlement(
-                        payout, pnl,
-                        db_path=os.path.join(DATA_DIR, "real_bankroll.db"),
-                    )
-                except Exception as _rs2_err:
-                    print(f"[SETTLEMENT] WARNING: real-ledger register_settlement failed for {bet_id}: {_rs2_err}")
 
         # PARLAY SETTLEMENT
         cur.execute(
@@ -4321,16 +4358,23 @@ def settle_open_bets():
         if (_now_deep - _deep_lookup_last_run) >= _DEEP_LOOKUP_INTERVAL:
             try:
                 _still_open = cur.execute(
-                    "SELECT bet_id, match_id, market_type, side, entry_odds, stake "
+                    "SELECT bet_id, match_id, market_type, side, entry_odds, stake, bet_source, fixture_id, placed_at "
                     "FROM bet_log WHERE result = 'OPEN' AND match_id IS NOT NULL"
                 ).fetchall()
+                # Same finished-by-now gate as the main loop — this query
+                # re-selects ALL open bets, so without it the deep lookup
+                # settles matches that haven't finished (or even kicked off).
+                _still_open = [
+                    b for b in _still_open
+                    if _match_can_be_finished(b[7], b[1], b[8])
+                ]
                 if _still_open:
                     print(f"[SETTLEMENT] Deep score lookup: {len(_still_open)} remaining OPEN bets")
                     from tools.score_lookup import lookup_score, _grade_bet, _parse_match_teams
 
                     _settled_deep = 0
                     _seen_matches = {}
-                    for _bid, _mid, _mkt, _side, _odds, _stake in _still_open:
+                    for _bid, _mid, _mkt, _side, _odds, _stake, _bsrc, _fid2, _plc2 in _still_open:
                         _teams = _parse_match_teams(_mid)
                         if not _teams:
                             continue
@@ -4357,13 +4401,17 @@ def settle_open_bets():
                             )
                             print(f"[SETTLEMENT] DEEP-LOOKUP {_bid}: {_mkey} -> {_hs}-{_as} ({_src}) = {_grade} (PnL: {_pnl:+.2f})")
                             _settled_deep += 1
-                            # Credit/debit bankroll
+                            # Credit/debit the ledger that staked the bet
                             try:
-                                from src.bankroll_tracker import register_settlement as _rs_deep
                                 if _grade == "W":
-                                    _rs_deep(payout=_stake_f * _odds_f, pnl=_pnl)
+                                    _register_settlement_routed(
+                                        _stake_f * _odds_f, _pnl, _bsrc
+                                    )
                                 elif _grade == "L":
-                                    _rs_deep(payout=0.0, pnl=_pnl)
+                                    _register_settlement_routed(0.0, _pnl, _bsrc)
+                                else:
+                                    # VOID — refund the stake
+                                    _register_settlement_routed(_stake_f, 0.0, _bsrc)
                             except Exception:
                                 pass
                     if _settled_deep:
@@ -4395,13 +4443,13 @@ def settle_open_bets():
         try:
             cur.execute(
                 """
-                SELECT b.bet_id, b.market_type, p.kickoff, b.stake
+                SELECT b.bet_id, b.market_type, p.kickoff, b.stake, b.bet_source
                 FROM bet_log b
                 LEFT JOIN predictions p ON p.fixture_id = CAST(b.fixture_id AS TEXT)
                 WHERE b.result = 'OPEN'
                 """
             )
-            for _b_id, _b_mkt, _kick, _b_stake in cur.fetchall():
+            for _b_id, _b_mkt, _kick, _b_stake, _b_src in cur.fetchall():
                 if not _kick:
                     continue
                 try:
@@ -4421,13 +4469,22 @@ def settle_open_bets():
                             f"[SETTLEMENT] VOID {_b_id} ({_b_mkt}) — "
                             f"no result found {_elapsed_h:.0f}h past kickoff"
                         )
-                        # Credit stake back to bankroll (void = full refund)
+                        # Credit stake back to the ledger that paid it (void =
+                        # full refund). Forebet bets staked the real $200
+                        # ledger; everything else staked the research ledger.
                         try:
                             from src.bankroll_tracker import (
                                 register_settlement as _rs_void,
                             )
 
-                            _rs_void(payout=float(_b_stake or 0), pnl=0.0)
+                            if _b_src == "TIPSTER_FOREBET":
+                                _rs_void(
+                                    payout=float(_b_stake or 0),
+                                    pnl=0.0,
+                                    db_path=os.path.join(DATA_DIR, "real_bankroll.db"),
+                                )
+                            else:
+                                _rs_void(payout=float(_b_stake or 0), pnl=0.0)
                         except Exception:
                             pass
                 except Exception:

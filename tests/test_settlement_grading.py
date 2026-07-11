@@ -266,6 +266,45 @@ class Test1X2Grading:
         assert _bet_rows(data)["b1"]["result"] == "OPEN"
         assert routed == []
 
+    def test_u23_bet_not_settled_against_senior_result(self, tmp_path, monkeypatch):
+        """End-to-end regression (2026-07-11 forensics): a U23 bet must NOT be
+        graded against the senior fixture's score. Only the senior 1-3 result
+        is in the feed; the U23 bet stays OPEN rather than settling wrong."""
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Green Gully SC U23 vs Altona Magic SC U23", "Away",
+                          odds=2.95, stake=9.65)],
+        )
+        routed, _ = _run_settlement(
+            monkeypatch, data, {"Green Gully vs Altona Magic": (1, 3)}
+        )
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        assert routed == []
+
+    def test_u23_bet_settles_against_matching_u23_result(self, tmp_path, monkeypatch):
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Green Gully SC U23 vs Altona Magic SC U23", "Home",
+                          odds=2.0, stake=10.0)],
+        )
+        routed, _ = _run_settlement(
+            monkeypatch, data, {"Green Gully U23 vs Altona Magic U23": (2, 0)}
+        )
+        assert _bet_rows(data)["b1"]["result"] == "W"
+        assert routed == [(pytest.approx(20.0), pytest.approx(10.0), "AI")]
+
+    def test_senior_bet_not_settled_against_u23_result(self, tmp_path, monkeypatch):
+        """The mirror case: a senior bet must not be graded off a U23 score."""
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Canberra Juventus vs O'Connor Knights", "Home")],
+        )
+        routed, _ = _run_settlement(
+            monkeypatch, data, {"Canberra Juventus U23 vs O'Connor Knights U23": (1, 0)}
+        )
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        assert routed == []
+
     def test_recent_bet_not_settled_even_with_result(self, tmp_path, monkeypatch):
         """Finished-by-now guard: a bet placed 1h ago with unknown kickoff cannot
         have finished — must stay OPEN even if a fuzzy 'result' exists (the
