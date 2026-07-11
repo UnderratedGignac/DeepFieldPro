@@ -5,11 +5,17 @@ ceiling below the full wallet (per-order cap $100 on a ~$113 wallet, daily
 caps $999, wallet buffer $0) and the book went to -$226 unrealized. These
 tests pin the tightened regime:
 
-  per-order <= $10 | daily <= $25 | last $10 untouchable | <= 10% wallet/pick
+  per-order <= $50 | daily <= $150 | last $10 untouchable | <= 10% wallet/pick
   conf >= 0.50 | edge >= 0.05 | AP2 mandate fail-CLOSED | control endpoints
   localhost-only | ntfy unlock never resets the daily spend counter
 
-If one of these fails, the real-money path has been loosened. Do that
+The per-order cap was raised $10 -> $50 (daily $25 -> $150) on the user's
+2026-07-10 directive for the PAPER testing phase (DEEPFIELD_ARENA_LIVE=0,
+shadow stakes only). In REAL mode, MAX_WALLET_FRACTION still clamps a single
+pick to 10% of the wallet, so the $50 cap only fully applies to paper bets
+until the wallet grows or the fraction is deliberately changed.
+
+If one of these fails, the money path has been loosened. Do that
 deliberately (and update this file in the same commit) or not at all.
 """
 import json
@@ -34,14 +40,14 @@ from src.ap2_mandate import SpendingMandate
 # 1. Module constants — the hard code-level ceilings
 # ---------------------------------------------------------------------------
 class TestDollarCaps:
-    def test_per_bet_cap_at_most_10(self):
-        assert ab.MAX_USD_PER_BET <= 10.0
+    def test_per_bet_cap_at_most_50(self):
+        assert ab.MAX_USD_PER_BET <= 50.0
 
     def test_ap2_cap_matches_per_bet_cap(self):
         assert ab.AP2_MAX_PER_ORDER == ab.MAX_USD_PER_BET
 
-    def test_daily_spend_cap_at_most_25(self):
-        assert ab.DAILY_SPEND_CAP <= 25.0
+    def test_daily_spend_cap_at_most_150(self):
+        assert ab.DAILY_SPEND_CAP <= 150.0
 
     def test_wallet_buffer_at_least_10(self):
         assert ab.WALLET_BUFFER >= 10.0
@@ -68,10 +74,10 @@ class TestMandateFromLiveSettings:
         return SpendingMandate.from_settings()
 
     def test_max_per_order(self, mandate):
-        assert mandate.max_per_order <= 10.0
+        assert mandate.max_per_order <= 50.0
 
     def test_daily_cap(self, mandate):
-        assert mandate.daily_cap <= 25.0
+        assert mandate.daily_cap <= 150.0
 
     def test_wallet_buffer(self, mandate):
         assert mandate.wallet_buffer >= 10.0

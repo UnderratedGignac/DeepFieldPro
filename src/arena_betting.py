@@ -101,9 +101,13 @@ PRED_TYPE_1X2 = 237  # Sportmonks fulltime-result prediction type
 # together with that file, deliberately.
 CONF_MIN_DEFAULT = 0.50   # no bets below 50% model confidence
 EDGE_MIN_DEFAULT = 0.05   # require >= 5pp edge vs the Polymarket mid
-MAX_USD_PER_BET = 10.00   # hard per-order cap
+# $50 cap set per user directive 2026-07-10 for the PAPER testing phase
+# (DEEPFIELD_ARENA_LIVE=0 → shadow stakes only). On re-arm, real bets are
+# still clamped by MAX_WALLET_FRACTION (10% of wallet ≈ $11 on $113), so the
+# higher cap only fully applies once the paper test justifies going live.
+MAX_USD_PER_BET = 50.00   # hard per-order cap
 MIN_USD_PER_BET = 1.00    # arena minimum per order (Stair AI hard floor)
-AP2_MAX_PER_ORDER = 10.00  # matches MAX_USD_PER_BET
+AP2_MAX_PER_ORDER = 50.00  # matches MAX_USD_PER_BET
 MAX_FAIL_RETRIES = 3  # QF markets link late + transient unfilled orders deserve retries
 WALLET_BUFFER = 10.00     # the last $10 of the wallet is untouchable
 MAX_BETS_PER_RUN = 3      # a cycle may open at most 3 new positions
@@ -1636,7 +1640,11 @@ def run_autoplace(
 # ---------------------------------------------------------------------------
 SCAN_INTERVAL = 60  # scan every minute — catch every pre-kickoff window
 AUTO_SCAN_LIMIT = 104  # look at all upcoming WC fixtures each cycle
-DAILY_SPEND_CAP = 25.0  # hard ceiling on new real-money stake per UTC day
+DAILY_SPEND_CAP = 150.0  # hard ceiling on new stake per UTC day (3 x $50 paper bets)
+# Virtual bankroll used for Kelly sizing in PAPER mode (enabled=True while
+# DEEPFIELD_ARENA_LIVE != 1). Shadow stakes are sized off this, not the real
+# wallet, so the $50 regime gets a meaningful test without touching USDC.
+ARENA_PAPER_BANKROLL = 500.0
 STATE_FILE = os.path.join(
     os.path.dirname(__file__), "..", "data", "arena_autopilot.json"
 )
@@ -2022,7 +2030,12 @@ def autopilot_cycle():
     state["next_scan_ts"] = time.time() + SCAN_INTERVAL
 
     arena_live = _arena_live()
-    autopilot_enabled = arena_live and state.get("enabled", False)
+    _enabled = state.get("enabled", False)
+    autopilot_enabled = arena_live and _enabled
+    # PAPER MODE (2026-07-10, user directive): enabled but disarmed — run the
+    # exact same gates and sizing, but record shadow bets instead of POSTing
+    # orders. Sized off a virtual bankroll so the $50 cap gets a real test.
+    paper_mode = _enabled and not arena_live
 
     if state["daily"].get("date") != _today():
         state["daily"] = {"date": _today(), "spent": 0.0}
@@ -2031,8 +2044,12 @@ def autopilot_cycle():
         )  # new day → fresh start, don't carry yesterday's failures
 
     wallet = get_wallet()
-    wallet_balance = wallet["available_balance_usdc"] if wallet else 0.0
-    budget = max(0.0, wallet_balance - WALLET_BUFFER) if wallet else 0.0
+    if paper_mode:
+        wallet_balance = ARENA_PAPER_BANKROLL
+        budget = max(0.0, wallet_balance - WALLET_BUFFER)
+    else:
+        wallet_balance = wallet["available_balance_usdc"] if wallet else 0.0
+        budget = max(0.0, wallet_balance - WALLET_BUFFER) if wallet else 0.0
     daily_remaining = max(0.0, DAILY_SPEND_CAP - state["daily"]["spent"])
 
     # Phase 1 risk management: operator-level Kelly/drawdown config, read
@@ -2158,8 +2175,9 @@ def autopilot_cycle():
         if ko and ko > now_ts + _window_sec:
             continue
 
-        # Real-money orders only when live gate is armed.
-        if not autopilot_enabled:
+        # Real-money orders when armed; shadow (paper) bets when enabled but
+        # disarmed. Fully off when the autopilot is paused.
+        if not (autopilot_enabled or paper_mode):
             continue
         if placed_now >= _max_bets:
             continue
@@ -2251,17 +2269,24 @@ def autopilot_cycle():
 
         signal_ts = time.time()
         best_bid, best_ask = _exec_analytics.best_bid_ask(book)
-        _ap2_set_ctx(
-            model_prob=c.get("model_prob", 1.0),
-            mid=c.get("market_mid", 0.0),
-            edge=c.get("edge", 1.0),
-            wallet_balance=wallet_balance,
-        )
-        o_sc, o_resp = place_order(
-            c["fixture_id"], c["team_code"], size, c["limit_price"]
-        )
-        ok = o_sc in (200, 201)
-        if ok:
+        if paper_mode:
+            # Shadow placement: no order POST, no AP2 spend — but the bet is
+            # recorded, deduped, counted against the daily cap, and graded by
+            # the same settlement checker as real bets.
+            o_sc, o_resp = "PAPER", {"paper": True}
+            ok = True
+        else:
+            _ap2_set_ctx(
+                model_prob=c.get("model_prob", 1.0),
+                mid=c.get("market_mid", 0.0),
+                edge=c.get("edge", 1.0),
+                wallet_balance=wallet_balance,
+            )
+            o_sc, o_resp = place_order(
+                c["fixture_id"], c["team_code"], size, c["limit_price"]
+            )
+            ok = o_sc in (200, 201)
+        if ok and not paper_mode:
             _order_id_for_log = (
                 str(o_resp.get("order_id") or o_resp.get("id") or "")
                 if isinstance(o_resp, dict)
@@ -2308,6 +2333,7 @@ def autopilot_cycle():
                 "order_status": o_sc,
                 "order_response": str(o_resp)[:500] if o_resp else None,
                 "ok": ok,
+                "paper": paper_mode,
                 "prob_source": c["prob_source"],
                 "ts": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
             },
@@ -2335,12 +2361,12 @@ def autopilot_cycle():
                     "draw": "Draw",
                 }.get(c["outcome"], c["outcome"].upper())
                 _n._notify(
-                    f"FIFA World Cup 2026\n"
+                    f"{'[PAPER] ' if paper_mode else ''}FIFA World Cup 2026\n"
                     f"{c['match']}\n"
                     f"Kickoff: {ko_label}\n"
                     f"Pick: {outcome_label} ({c['team_code']})\n"
                     f"Edge: +{c['edge_pp']}pp | Staked: ${size:.2f}",
-                    title="Bet Placed",
+                    title="Paper Bet Recorded" if paper_mode else "Bet Placed",
                     priority="high",
                     tags="money_with_wings,soccer",
                 )
@@ -2605,7 +2631,11 @@ def autopilot_cycle():
     mode = (
         "LIVE"
         if autopilot_enabled
-        else ("armed-predict-only" if arena_live else "predict-only")
+        else (
+            "armed-predict-only"
+            if arena_live
+            else ("PAPER" if paper_mode else "predict-only")
+        )
     )
     pnl_r = state["pnl"].get("realized", 0)
     pnl_u = state["pnl"].get("unrealized", 0)
