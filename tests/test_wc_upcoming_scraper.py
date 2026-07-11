@@ -83,3 +83,27 @@ def test_missing_db_returns_empty(tmp_path, monkeypatch):
     mod = _load_module()
     monkeypatch.setattr(mod, "_COMPLETED_DB", str(tmp_path / "nope.db"))
     assert mod._get_pinnacle_from_history() == []
+
+
+def test_history_query_uses_ts_index_not_full_scan(history_db):
+    """Regression (2026-07-11): the fallback query must filter on ts (idx_soh_ts),
+    not sort by team (idx_soh_teams) — the ORDER BY forced a 15.4M-row full scan
+    that hung 106s. Assert the shipped query plan SEARCHes on the ts index."""
+    con = sqlite3.connect(history_db)
+    con.execute("CREATE INDEX IF NOT EXISTS idx_soh_ts ON sharp_odds_history(ts)")
+    con.execute(
+        "CREATE INDEX IF NOT EXISTS idx_soh_teams ON sharp_odds_history(home_team, away_team, selection)"
+    )
+    ts_max = con.execute("SELECT MAX(ts) FROM sharp_odds_history").fetchone()[0]
+    plan = "\n".join(
+        str(r)
+        for r in con.execute(
+            "EXPLAIN QUERY PLAN "
+            "SELECT home_team, away_team, league, selection, decimal_odds, starts_ts "
+            "FROM sharp_odds_history WHERE ts >= ? AND (league LIKE '%World Cup%' OR league LIKE '%FIFA%')",
+            (ts_max - 600,),
+        )
+    )
+    con.close()
+    assert "idx_soh_ts" in plan
+    assert "idx_soh_teams" not in plan  # the ORDER BY plan must not come back

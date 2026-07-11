@@ -92,12 +92,16 @@ def _get_pinnacle_from_history():
         if not ts_max:
             conn.close()
             return []
+        # NO `ORDER BY` (fix 2026-07-11): sorting by (home_team, away_team,
+        # selection) made SQLite pick idx_soh_teams and full-SCAN all 15.4M
+        # rows (~106s); without it, the `ts >= ?` predicate uses idx_soh_ts and
+        # returns in ~0.00s. Row order is irrelevant — the rows are grouped into
+        # by_match below, so nothing downstream depends on sorting.
         rows = conn.execute(
             """
             SELECT home_team, away_team, league, selection, decimal_odds, starts_ts
             FROM sharp_odds_history
             WHERE ts >= ? AND (league LIKE '%World Cup%' OR league LIKE '%FIFA%')
-            ORDER BY home_team, away_team, selection
             """,
             (ts_max - 600,),
         ).fetchall()
