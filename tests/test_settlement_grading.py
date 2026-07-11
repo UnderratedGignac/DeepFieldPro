@@ -51,7 +51,8 @@ CREATE TABLE bet_log (
     fixture_id  TEXT,
     league      TEXT,
     closing_odds REAL,
-    clv         REAL
+    clv         REAL,
+    pinnacle_clv REAL
 )
 """
 
@@ -113,6 +114,11 @@ def _make_data_dir(tmp_path, bets=(), parlays=()):
         )
     conn.commit()
     conn.close()
+    # Install the provenance columns + enforcement trigger so these E2E tests
+    # exercise the real "no unverified W/L" guarantee.
+    from src.settlement_provenance import ensure_settlement_provenance
+
+    ensure_settlement_provenance(str(data / "bet_log.db"))
     return data
 
 
@@ -189,6 +195,16 @@ def _bet_rows(data_dir):
     }
     conn.close()
     return rows
+
+
+def _prov(data_dir, bet_id):
+    conn = sqlite3.connect(data_dir / "bet_log.db")
+    r = conn.execute(
+        "SELECT result, settle_source, result_verified, settle_reason FROM bet_log WHERE bet_id=?",
+        (bet_id,),
+    ).fetchone()
+    conn.close()
+    return {"result": r[0], "settle_source": r[1], "result_verified": r[2], "settle_reason": r[3]}
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +320,46 @@ class Test1X2Grading:
         )
         assert _bet_rows(data)["b1"]["result"] == "OPEN"
         assert routed == []
+
+
+class TestSettlementProvenance:
+    """The 'never assume correct' guarantee end-to-end through settle_open_bets."""
+
+    def test_verified_win_records_source_and_flag(self, tmp_path, monkeypatch):
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Alpha FC vs Beta United", "Home", odds=2.5, stake=10.0)],
+        )
+        _run_settlement(monkeypatch, data, {"Alpha FC vs Beta United": (2, 0)})
+        p = _prov(data, "b1")
+        assert p["result"] == "W"
+        assert p["result_verified"] == 1
+        assert p["settle_source"] in ("name-match", "fid-direct", "score-match")
+        assert p["settle_reason"]  # the matched fixture is recorded
+
+    def test_unscrapeable_score_bet_voids_with_reason(self, tmp_path, monkeypatch):
+        """A score-market bet whose match is long finished but that no feed can
+        map must VOID with the reason recorded — not stay OPEN, not guess."""
+        # Give it a kickoff 100h ago via the predictions table so the time-based
+        # void pass fires (its window default is 48h for score markets).
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Obscure XI vs Unknown SK", "Home",
+                          placed_at=_old_iso(hours=100))],
+        )
+        conn = sqlite3.connect(data / "bet_log.db")
+        conn.execute("UPDATE bet_log SET fixture_id='99001' WHERE bet_id='b1'")
+        conn.execute(
+            "INSERT INTO predictions (fixture_id, kickoff) VALUES ('99001', ?)",
+            (_old_iso(hours=100),),
+        )
+        conn.commit()
+        conn.close()
+        # No matching result in the feed -> unscrapeable.
+        _run_settlement(monkeypatch, data, {"Totally Different vs Teams Here": (1, 1)})
+        p = _prov(data, "b1")
+        assert p["result"] == "VOID"
+        assert p["settle_reason"] and "past kickoff" in p["settle_reason"]
 
     def test_recent_bet_not_settled_even_with_result(self, tmp_path, monkeypatch):
         """Finished-by-now guard: a bet placed 1h ago with unknown kickoff cannot

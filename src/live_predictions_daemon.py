@@ -3515,6 +3515,15 @@ def settle_open_bets():
     if not os.path.exists(db_path):
         return
 
+    # Self-heal the provenance schema + enforcement trigger before any write, so
+    # the "never assume a result is correct" guarantee holds even if init didn't
+    # run (idempotent, cheap). See src/settlement_provenance.py.
+    try:
+        from src.settlement_provenance import ensure_settlement_provenance
+        ensure_settlement_provenance(db_path)
+    except Exception as _prov_e:
+        print(f"[SETTLEMENT] provenance schema ensure failed (non-fatal): {_prov_e}")
+
     try:
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
@@ -3716,9 +3725,11 @@ def settle_open_bets():
             candidates = (
                 []
             )  # reset per-bet — prevents scope leak from previous iteration
+            _settle_src = None  # provenance: which scrape mapped this result
             if _direct:
                 matched_score = _direct
                 best_name = match_name + " [fid-direct]"
+                _settle_src = "fid-direct"
                 print(
                     f"[SETTLEMENT] Direct fid match for '{match_name}': {matched_score}"
                 )
@@ -3783,6 +3794,7 @@ def settle_open_bets():
 
                 candidates.sort(key=lambda c: c[0], reverse=True)
                 best_total, matched_score, best_name = candidates[0]
+                _settle_src = "name-match"
 
             # AMBIGUITY GUARD (fuzzy-match path only — direct fid is unambiguous).
             if not _direct and len(candidates) > 1:
@@ -4195,10 +4207,20 @@ def settle_open_bets():
             except Exception:
                 pass
 
+            # Stamp settlement provenance in the SAME update the trigger inspects:
+            # W/L is only accepted with result_verified=1 + a mapped source.
+            _settle_now = datetime.datetime.now(datetime.timezone.utc).isoformat()
             cur.execute(
-                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ?, pinnacle_clv = ? "
+                "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ?, pinnacle_clv = ?, "
+                "settle_source = ?, result_verified = 1, settle_reason = ?, settle_checked_at = ? "
                 "WHERE bet_id = ?",
-                (result, pnl, closing_odds, clv, pinnacle_clv, bet_id),
+                (
+                    result, pnl, closing_odds, clv, pinnacle_clv,
+                    (_settle_src or "score-match"),
+                    (best_name or match_name or "")[:200],
+                    _settle_now,
+                    bet_id,
+                ),
             )
             _clv_str = f" CLV {clv*100:+.1f}%" if clv is not None else ""
             _pclv_str = (
@@ -4395,10 +4417,21 @@ def settle_open_bets():
                             else:
                                 _pnl = 0.0
                                 _grade = "VOID"
-                            cur.execute(
-                                "UPDATE bet_log SET result=?, pnl=? WHERE bet_id=?",
-                                (_grade, _pnl, _bid)
-                            )
+                            _deep_now = datetime.datetime.now(
+                                datetime.timezone.utc
+                            ).isoformat()
+                            if _grade in ("W", "L"):
+                                cur.execute(
+                                    "UPDATE bet_log SET result=?, pnl=?, settle_source='deep-lookup', "
+                                    "result_verified=1, settle_reason=?, settle_checked_at=? WHERE bet_id=?",
+                                    (_grade, _pnl, str(_src or "deep-lookup")[:200], _deep_now, _bid),
+                                )
+                            else:
+                                cur.execute(
+                                    "UPDATE bet_log SET result='VOID', pnl=0, "
+                                    "settle_reason='deep-lookup returned no gradeable score', settle_checked_at=? WHERE bet_id=?",
+                                    (_deep_now, _bid),
+                                )
                             print(f"[SETTLEMENT] DEEP-LOOKUP {_bid}: {_mkey} -> {_hs}-{_as} ({_src}) = {_grade} (PnL: {_pnl:+.2f})")
                             _settled_deep += 1
                             # Credit/debit the ledger that staked the bet
@@ -4440,6 +4473,16 @@ def settle_open_bets():
             "Draw No Bet",
             "Asian Handicap",
         }
+        # "Never assume correct" policy (2026-07-11): once a match is well past
+        # kickoff and no result could be mapped, VOID it with a reason rather
+        # than leaving it OPEN indefinitely. Window is configurable; default 48h
+        # (4x the observed ~12h feed lag) for score markets — down from the old
+        # 7-day wait — and 48h for props whose stats may never arrive.
+        try:
+            with open(os.path.join(DATA_DIR, "settings.json"), encoding="utf-8") as _sf:
+                _void_after_h = float(json.load(_sf).get("settle_void_after_hours", 48))
+        except Exception:
+            _void_after_h = 48.0
         try:
             cur.execute(
                 """
@@ -4457,17 +4500,21 @@ def settle_open_bets():
                         str(_kick).replace("Z", "+00:00")
                     ).astimezone(datetime.timezone.utc)
                     _elapsed_h = (_now_void - _kick_dt).total_seconds() / 3600
-                    # Score markets: 7-day window (should always be settleable from scores)
-                    # Prop markets: 48h window (stats may genuinely never arrive)
-                    _void_threshold_h = 168 if (_b_mkt in _SCORE_MARKETS) else 48
+                    _void_threshold_h = _void_after_h if (_b_mkt in _SCORE_MARKETS) else 48
                     if _elapsed_h > _void_threshold_h:
+                        _void_reason = (
+                            f"no result from any source {_elapsed_h:.0f}h past kickoff"
+                        )
+                        _void_now = datetime.datetime.now(
+                            datetime.timezone.utc
+                        ).isoformat()
                         cur.execute(
-                            "UPDATE bet_log SET result='VOID', pnl=0 WHERE bet_id=?",
-                            (_b_id,),
+                            "UPDATE bet_log SET result='VOID', pnl=0, "
+                            "settle_reason=?, settle_checked_at=? WHERE bet_id=?",
+                            (_void_reason, _void_now, _b_id),
                         )
                         print(
-                            f"[SETTLEMENT] VOID {_b_id} ({_b_mkt}) — "
-                            f"no result found {_elapsed_h:.0f}h past kickoff"
+                            f"[SETTLEMENT] VOID {_b_id} ({_b_mkt}) — {_void_reason}"
                         )
                         # Credit stake back to the ledger that paid it (void =
                         # full refund). Forebet bets staked the real $200

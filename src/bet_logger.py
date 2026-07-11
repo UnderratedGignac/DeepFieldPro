@@ -66,6 +66,14 @@ def init_bet_log_db():
     conn.commit()
     conn.close()
 
+    # Settlement provenance columns + the "no unverified W/L" enforcement trigger.
+    try:
+        from src.settlement_provenance import ensure_settlement_provenance
+
+        ensure_settlement_provenance(DB_PATH)
+    except Exception as _prov_e:  # never block bet logging on a schema-ensure hiccup
+        print(f"[bet_logger] provenance ensure failed (non-fatal): {_prov_e}")
+
 
 def log_parlay(total_odds, fair_prob, combined_ev, trust_score, stake, legs):
     import json
