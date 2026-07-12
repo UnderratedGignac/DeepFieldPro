@@ -52,39 +52,86 @@ _REQ_HEADERS = {
 # SOURCE 1 — Forebet (requests-based, works)
 # ─────────────────────────────────────────────
 
+def _fetch_forebet(url: str, attempts: int = 3, timeout: int = 20) -> str | None:
+    """GET a Forebet page with retry + exponential backoff.
+
+    Per-attempt classification: 403/429 mean blocked/rate-limited (warn),
+    other statuses and network errors log and back off. Returns HTML text or
+    None after the final attempt so callers degrade to "no picks" — the
+    correct fail-safe for a confirmation-required gate (nothing confirmed
+    beats confirming on bad data).
+    """
+    delay = 2.0
+    for attempt in range(1, attempts + 1):
+        try:
+            r = requests.get(url, headers=_REQ_HEADERS, timeout=timeout)
+            if r.status_code == 200 and r.text:
+                logger.info(f"[FOREBET] GET {url} -> 200 ({len(r.text)} bytes)")
+                return r.text
+            log = logger.warning if r.status_code in (403, 429) else logger.info
+            log(f"[FOREBET] GET {url} -> HTTP {r.status_code} (attempt {attempt}/{attempts})")
+        except Exception as e:
+            logger.warning(f"[FOREBET] GET {url} error (attempt {attempt}/{attempts}): {e}")
+        if attempt < attempts:
+            time.sleep(delay)
+            delay *= 2.5
+    return None
+
+
 def get_forebet_predictions(date_str: str | None = None) -> list[dict]:
     """
-    Fetch today's (or a specific day's) predictions from Forebet.
-    Returns list of prediction dicts.
+    Forebet 1X2 predictions for one calendar date: the daily list page
+    (today/tomorrow only — Forebet has no daily URL beyond that) MERGED with
+    the World Cup competition page.
+
+    The WC page merge is load-bearing: Forebet's daily list pages do NOT
+    carry World Cup fixtures at all (root cause of the 2026-07-10 incident
+    where every semifinal sat tipster_confirmed=false while forebet.com
+    visibly published picks). WC rows are date-filtered by each row's own
+    <time datetime> tag — the competition page also lists already-played
+    rounds with their old pre-match predictions, and a stale row for a
+    repeat pairing must never confirm a future fixture.
     """
     if date_str is None:
         date_str = datetime.date.today().strftime("%Y-%m-%d")
 
     today = datetime.date.today()
-    target = datetime.date.fromisoformat(date_str)
-    delta = (target - today).days
-
-    if delta == 0:
-        url = "https://www.forebet.com/en/football-tips-and-predictions-for-today"
-    elif delta == 1:
-        url = "https://www.forebet.com/en/football-tips-and-predictions-for-tomorrow"
-    else:
-        url = f"https://www.forebet.com/en/football-tips-and-predictions-for-today"
-
     try:
-        r = requests.get(url, headers=_REQ_HEADERS, timeout=15)
-        r.raise_for_status()
-    except Exception as e:
-        logger.warning(f"[FOREBET] fetch failed: {e}")
-        return []
+        delta = (datetime.date.fromisoformat(date_str) - today).days
+    except ValueError:
+        date_str = today.isoformat()
+        delta = 0
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    predictions = []
+    predictions: list[dict] = []
 
-    # Each prediction row is div.rcnt (alternates tr_0 / tr_1)
+    if delta in (0, 1):
+        url = (
+            "https://www.forebet.com/en/football-tips-and-predictions-for-today"
+            if delta == 0
+            else "https://www.forebet.com/en/football-tips-and-predictions-for-tomorrow"
+        )
+        html = _fetch_forebet(url)
+        if html:
+            predictions = _parse_forebet_daily_html(html, date_str)
+    # delta >= 2: no daily page exists. The old code silently served the
+    # TODAY page here (wrong day's predictions under a future date label);
+    # now only the date-filtered competition rows below can serve far dates.
+
+    seen = {(p["home_team"].lower(), p["away_team"].lower()) for p in predictions}
+    for p in get_forebet_wc_predictions(date_str):
+        if (p["home_team"].lower(), p["away_team"].lower()) not in seen:
+            predictions.append(p)
+
+    logger.info(f"[FOREBET] {date_str}: {len(predictions)} predictions total")
+    return predictions
+
+
+def _parse_forebet_daily_html(html: str, date_str: str) -> list[dict]:
+    """Parse a daily list page: every div.rcnt row is that day's match."""
+    soup = BeautifulSoup(html, "html.parser")
     rows = soup.find_all("div", class_="rcnt")
-    logger.info(f"[FOREBET] {len(rows)} prediction rows found")
-
+    logger.info(f"[FOREBET] daily page: {len(rows)} prediction rows")
+    predictions = []
     for row in rows:
         try:
             pred = _parse_forebet_row(row, date_str)
@@ -92,8 +139,6 @@ def get_forebet_predictions(date_str: str | None = None) -> list[dict]:
                 predictions.append(pred)
         except Exception as e:
             logger.debug(f"[FOREBET] row parse error: {e}")
-
-    logger.info(f"[FOREBET] Parsed {len(predictions)} predictions")
     return predictions
 
 
@@ -181,6 +226,70 @@ def _parse_forebet_row(row, date_str: str) -> dict | None:
         "prob_draw": prob_draw,
         "prob_away": prob_away,
     }
+
+
+# ─────────────────────────────────────────────
+# SOURCE 1b — Forebet World Cup competition page
+# ─────────────────────────────────────────────
+
+FOREBET_WC_URL = "https://www.forebet.com/en/predictions-world/world-cup"
+_WC_HTML_CACHE: dict = {"ts": 0.0, "html": None, "rows": 0}
+_WC_HTML_TTL = 900  # 15 min — page updates slowly; gates poll every few minutes
+
+
+def get_forebet_wc_predictions(date_str: str) -> list[dict]:
+    """World-Cup competition-page predictions for one calendar date.
+
+    The page HTML is cached for _WC_HTML_TTL so the today+tomorrow double
+    call the confirmation gates make each cycle costs at most one fetch.
+    A failed fetch caches None for the TTL (same fail-safe backoff rationale
+    as get_tipster_picks): no data in means nothing gets confirmed.
+    """
+    now = time.time()
+    if now - _WC_HTML_CACHE["ts"] >= _WC_HTML_TTL:
+        html = _fetch_forebet(FOREBET_WC_URL)
+        _WC_HTML_CACHE["ts"] = now
+        _WC_HTML_CACHE["html"] = html
+        if html:
+            n_rows = len(
+                BeautifulSoup(html, "html.parser").find_all("div", class_="rcnt")
+            )
+            if n_rows == 0 and _WC_HTML_CACHE["rows"] > 0:
+                logger.warning(
+                    "[FOREBET] WC page fetched OK but has 0 prediction rows "
+                    f"(previously {_WC_HTML_CACHE['rows']}) — layout change? "
+                    "Confirmations will stall until fixed."
+                )
+            _WC_HTML_CACHE["rows"] = n_rows
+    html = _WC_HTML_CACHE["html"]
+    if not html:
+        return []
+    return _parse_forebet_wc_html(html, date_str)
+
+
+def _parse_forebet_wc_html(html: str, date_str: str) -> list[dict]:
+    """Parse WC competition-page rows, keeping ONLY rows whose own
+    <time datetime="YYYY-MM-DD"> equals date_str.
+
+    The page lists played rounds alongside upcoming ones, and played rows
+    keep their old pre-match predictions — without this filter a stale row
+    (e.g. a group-stage meeting of the same two teams) could confirm a
+    future fixture it never predicted.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    predictions = []
+    for row in soup.find_all("div", class_="rcnt"):
+        try:
+            t = row.find("time")
+            row_date = (t.get("datetime") or "").strip()[:10] if t else ""
+            if row_date != date_str:
+                continue
+            pred = _parse_forebet_row(row, date_str)
+            if pred:
+                predictions.append(pred)
+        except Exception as e:
+            logger.debug(f"[FOREBET] WC row parse error: {e}")
+    return predictions
 
 
 # ─────────────────────────────────────────────
@@ -547,6 +656,57 @@ def _build_odds_map(market_rows) -> dict[tuple, float]:
     return {key: statistics.median(vals) for key, vals in odds_lists.items()}
 
 
+def _parse_kickoff_dt(raw):
+    """Parse a fixture kickoff (ISO datetime or date) into an aware UTC datetime,
+    or None if missing/unparseable. Naive timestamps are assumed UTC."""
+    if not raw:
+        return None
+    try:
+        dt = datetime.datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.astimezone(datetime.timezone.utc)
+
+
+def _fixture_has_started(fix, now=None):
+    """True when the fixture's recorded kickoff is at/before `now` — i.e. the
+    match has already kicked off, so a "pre-match" bet on it would really be an
+    in-play bet priced off stale odds (the 2026-07-11 Australian-NPL bets placed
+    7-27 min AFTER kickoff).
+
+    Fail-open (return False) when no kickoff can be parsed: never block a
+    placement on ABSENT data, only on data that positively shows the match began.
+
+    Kickertech records 00:00:00 as a DATE-ONLY placeholder when the real kickoff
+    time is unknown. A same-day placeholder is treated as "time unknown" (not
+    started) so a match that may still be hours away is not wrongly skipped;
+    only a placeholder whose DATE is already past counts as started.
+    """
+    ko = _parse_kickoff_dt((fix or {}).get("kickoff_time")) or _parse_kickoff_dt(
+        (fix or {}).get("kickoff_date")
+    )
+    if ko is None:
+        return False
+    if now is None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+    elif now.tzinfo is None:
+        now = now.replace(tzinfo=datetime.timezone.utc)
+
+    is_midnight_placeholder = ko.hour == 0 and ko.minute == 0 and ko.second == 0
+    if is_midnight_placeholder:
+        # Only the date is trustworthy: started iff that date is already past.
+        return ko.date() < now.date()
+    return ko <= now
+
+
+def _placement_now():
+    """Current UTC time for the placement-time kickoff re-check. Indirected
+    through a function so tests can freeze it."""
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
 def place_tipster_bets(
     predictions: list[dict],
     bet_db: str | None = None,
@@ -595,6 +755,7 @@ def place_tipster_bets(
 
     placed = 0
     now_utc = datetime.datetime.utcnow().isoformat()
+    _now_dt = _placement_now()  # aware UTC; for the in-play kickoff re-check
     _balance = _paper_balance()
 
     already_open = set()
@@ -651,6 +812,17 @@ def place_tipster_bets(
 
             fid = str(fix["fixture_id"])
             source = pred["source"]
+
+            # In-play placement guard (kickoff re-check): never place a "pre-match"
+            # bet on a fixture whose kickoff has already passed — that is an in-play
+            # bet on stale pre-match odds (the 2026-07-11 Australian-NPL bets placed
+            # 7-27 min AFTER kickoff). Fixtures with no/placeholder kickoff fail open.
+            if _fixture_has_started(fix, _now_dt):
+                logger.debug(
+                    f"[TIPSTER] Skipped {fix['home_team']} vs {fix['away_team']} "
+                    f"— already kicked off (in-play); pre-match odds are stale."
+                )
+                continue
 
             # Determine what to bet: 1X2 and/or O/U
             bets_to_place = []

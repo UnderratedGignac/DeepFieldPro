@@ -540,6 +540,86 @@ class TestParlaySettlement:
 
 
 # ---------------------------------------------------------------------------
+# Deep-lookup trust gate (2026-07-12): google-sourced and implausible scores
+# must never grade a bet — they are the proven garbage class (15-2 h2h records,
+# 0-12 stat boxes parsed as scores, wrong-match team-page rows).
+# ---------------------------------------------------------------------------
+
+class TestDeepLookupTrustGate:
+    def _run_deep(self, tmp_path, monkeypatch, lookup_result):
+        data = _make_data_dir(
+            tmp_path, bets=[_mk_bet("b1", "Alpha FC vs Beta United", "Home", odds=2.0, stake=10.0)]
+        )
+        routed = []
+        monkeypatch.setattr(lpd, "DATA_DIR", str(data))
+        monkeypatch.setattr(lpd, "get_todays_fixtures", lambda: [])
+        monkeypatch.setattr(lpd, "fetch_api_football_results", lambda: {})
+        monkeypatch.setattr(lpd, "load_predictions_from_db", lambda: {})
+        monkeypatch.setattr(lpd, "_kickoff_map", lambda: {})
+        monkeypatch.setattr(lpd, "_CLV_TRACKER_OK", False)
+        monkeypatch.setattr(lpd, "_deep_lookup_last_run", 0.0)  # deep pass ENABLED
+        monkeypatch.setattr(
+            lpd, "_register_settlement_routed", lambda p, n, s: routed.append((p, n, s))
+        )
+        _stub_module(
+            monkeypatch, "src.free_results_scraper",
+            get_finished_results=lambda dates=None: {"Unrelated vs Other Match": (1, 0)},
+        )
+        _stub_module(monkeypatch, "src.flashscore_scraper", get_finished_results=lambda dates=None: {})
+        _stub_module(monkeypatch, "src.sofascore_results_scraper", get_finished_results=lambda dates=None: {})
+        _stub_module(
+            monkeypatch, "tools.pinnacle_value",
+            clv_from_pinnacle=lambda *a, **k: None, clv_from_pinnacle_ou25=lambda *a, **k: None,
+        )
+
+        def _grade(mkt, side, hs, as_):
+            if mkt != "1X2":
+                return "VOID"
+            s = side.lower()
+            if "home" in s:
+                return "W" if hs > as_ else "L"
+            if "away" in s:
+                return "W" if as_ > hs else "L"
+            return "W" if hs == as_ else "L"
+
+        _stub_module(
+            monkeypatch, "tools.score_lookup",
+            _name_similarity=lambda a, b: 0.0,
+            lookup_score=lambda h, a, use_browser=True: lookup_result,
+            _grade_bet=_grade,
+            _parse_match_teams=lambda mid: tuple(t.strip() for t in mid.split(" vs ", 1))
+            if mid and " vs " in mid else None,
+        )
+        import src.bankroll_tracker as bt
+        monkeypatch.setattr(bt, "register_settlement", lambda p, n, db_path=None: None)
+        lpd.settle_open_bets()
+        return data, routed
+
+    def test_implausible_score_never_grades(self, tmp_path, monkeypatch):
+        # 15-2 is a scraped h2h record, not a football score.
+        data, routed = self._run_deep(tmp_path, monkeypatch, (15, 2, "flashscore-home"))
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        assert routed == []
+        assert "b1" in {r["bet_id"] for r in _review_rows(data)}
+
+    def test_google_source_never_grades_even_when_plausible(self, tmp_path, monkeypatch):
+        # google's score box shows h2h/live/stat numbers indistinguishable from
+        # finals — proven wrong even at plausible scorelines (0-0, 2-0 cases).
+        data, routed = self._run_deep(tmp_path, monkeypatch, (2, 0, "google"))
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        assert routed == []
+
+    def test_plausible_flashscore_score_still_settles(self, tmp_path, monkeypatch):
+        data, routed = self._run_deep(tmp_path, monkeypatch, (2, 1, "flashscore-home"))
+        rows = _bet_rows(data)
+        assert rows["b1"]["result"] == "W"
+        assert rows["b1"]["pnl"] == pytest.approx(10.0)
+        p = _prov(data, "b1")
+        assert p["settle_source"] == "deep-lookup"
+        assert p["result_verified"] == 1
+
+
+# ---------------------------------------------------------------------------
 # No finished results at all -> nothing happens
 # ---------------------------------------------------------------------------
 
@@ -551,3 +631,174 @@ def test_no_results_leaves_everything_open(tmp_path, monkeypatch):
     assert _bet_rows(data)["b1"]["result"] == "OPEN"
     assert routed == []
     assert direct == []
+
+
+# ---------------------------------------------------------------------------
+# Manual-review queue: refuse-to-grade when no covered source has the fixture
+# ---------------------------------------------------------------------------
+
+def _review_rows(data_dir, include_resolved=False):
+    from src.settlement_review import list_review_queue
+
+    return list_review_queue(str(data_dir / "bet_log.db"), include_resolved=include_resolved)
+
+
+class TestManualReviewQueue:
+    """The Uruguay-Tercera-Reserves / Australian-NPL coverage-gap class: a bet whose
+    match no covered results source carries must be left OPEN and flagged for manual
+    review — never graded off a fuzzy collision, never silently rotting OPEN."""
+
+    def test_finished_unmappable_bet_is_queued_for_review(self, tmp_path, monkeypatch):
+        data = _make_data_dir(
+            tmp_path, bets=[_mk_bet("b1", "Obscure XI vs Unknown SK", "Home")]
+        )
+        # finished feed is non-empty but has nothing matching this fixture.
+        _run_settlement(monkeypatch, data, {"Some Other vs Match Here": (1, 0)})
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        q = _review_rows(data)
+        assert [r["bet_id"] for r in q] == ["b1"]
+        assert q[0]["reason"]  # a human-readable reason is recorded
+        assert q[0]["match_id"] == "Obscure XI vs Unknown SK"
+
+    def test_ambiguous_match_is_queued_not_graded(self, tmp_path, monkeypatch):
+        data = _make_data_dir(
+            tmp_path, bets=[_mk_bet("b1", "Alpha FC vs Beta United", "Home")]
+        )
+        # Two equally-good name matches that DISAGREE on the score -> ambiguous.
+        _run_settlement(
+            monkeypatch,
+            data,
+            {"Alpha FC vs Beta United": (2, 0), "Alpha vs Beta": (0, 1)},
+        )
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        assert [r["bet_id"] for r in _review_rows(data)] == ["b1"]
+
+    def test_agreeing_scores_of_mixed_types_are_not_ambiguous(self, tmp_path, monkeypatch):
+        """Regression (2026-07-12 E2E run 2): two sources listed the same match
+        under slightly different names with the SAME score, but one source
+        returns list scores and another tuples — and (3,2) != [3,2] in Python,
+        so the ambiguity guard falsely skipped a settleable bet. Scores that
+        agree numerically must settle regardless of container type."""
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Galway United vs Sligo Rovers", "Home", odds=2.0, stake=10.0)],
+        )
+        routed = []
+        monkeypatch.setattr(lpd, "DATA_DIR", str(data))
+        monkeypatch.setattr(lpd, "get_todays_fixtures", lambda: [])
+        monkeypatch.setattr(lpd, "fetch_api_football_results", lambda: {})
+        monkeypatch.setattr(lpd, "load_predictions_from_db", lambda: {})
+        monkeypatch.setattr(lpd, "_kickoff_map", lambda: {})
+        monkeypatch.setattr(lpd, "_CLV_TRACKER_OK", False)
+        monkeypatch.setattr(lpd, "_deep_lookup_last_run", time.time())
+        monkeypatch.setattr(
+            lpd, "_register_settlement_routed", lambda p, n, s: routed.append((p, n, s))
+        )
+        _stub_module(
+            monkeypatch, "src.free_results_scraper",
+            get_finished_results=lambda dates=None: {"Galway United vs Sligo Rovers": (3, 2)},
+        )
+        _stub_module(
+            monkeypatch, "src.flashscore_scraper",
+            get_finished_results=lambda dates=None: {"Galway vs Sligo Rovers": [3, 2]},  # list!
+        )
+        _stub_module(monkeypatch, "src.sofascore_results_scraper", get_finished_results=lambda dates=None: {})
+        _stub_module(
+            monkeypatch, "tools.pinnacle_value",
+            clv_from_pinnacle=lambda *a, **k: None, clv_from_pinnacle_ou25=lambda *a, **k: None,
+        )
+        _stub_module(monkeypatch, "tools.score_lookup", _name_similarity=lambda a, b: 0.0)
+        import src.bankroll_tracker as bt
+        monkeypatch.setattr(bt, "register_settlement", lambda p, n, db_path=None: None)
+        lpd.settle_open_bets()
+        rows = _bet_rows(data)
+        assert rows["b1"]["result"] == "W"
+        assert rows["b1"]["pnl"] == pytest.approx(10.0)
+
+    def test_graded_bet_is_never_queued(self, tmp_path, monkeypatch):
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Alpha FC vs Beta United", "Home", odds=2.0, stake=10.0)],
+        )
+        _run_settlement(monkeypatch, data, {"Alpha FC vs Beta United": (2, 0)})
+        assert _bet_rows(data)["b1"]["result"] == "W"
+        assert _review_rows(data, include_resolved=True) == []
+
+    def test_unmappable_bet_queued_even_after_a_settle_in_same_sweep(self, tmp_path, monkeypatch):
+        """Regression (2026-07-12 E2E): queueing used a SECOND sqlite connection
+        while the settlement connection held the write lock from an earlier
+        UPDATE in the same sweep -> 'database is locked' -> silently swallowed
+        -> the unmappable bet never reached the review queue. The settleable bet
+        MUST come first in the sweep to reproduce."""
+        data = _make_data_dir(
+            tmp_path,
+            bets=[
+                _mk_bet("b_settles", "Alpha FC vs Beta United", "Home", odds=2.0, stake=10.0),
+                _mk_bet("b_unmap", "Obscure XI vs Unknown SK", "Home"),
+            ],
+        )
+        _run_settlement(monkeypatch, data, {"Alpha FC vs Beta United": (2, 0)})
+        rows = _bet_rows(data)
+        assert rows["b_settles"]["result"] == "W"
+        assert rows["b_unmap"]["result"] == "OPEN"
+        assert "b_unmap" in {r["bet_id"] for r in _review_rows(data)}
+
+    def test_sim2_fallback_respects_level_guard(self, tmp_path, monkeypatch):
+        """Regression (2026-07-12 E2E): the sim2 secondary matcher graded a
+        senior bet off a U21 fixture ('Melbourne City NPL' -> 'Melbourne City
+        U21 [sim2]'). Cross-level pairs must be rejected in the sim2 pass just
+        like in the primary matcher."""
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Green Gully vs Altona Magic", "Home")],
+        )
+        # Simulate production sim2 behaviour: high similarity for the same club
+        # at DIFFERENT squad levels ("Green Gully" vs "Green Gully U23"), zero
+        # across clubs — so only the level guard can stop the cross-level grade
+        # (a symmetric always-0.9 stub would trip the ambiguity guard instead).
+        def _sim(a, b):
+            return 0.9 if a.split()[0].lower() == b.split()[0].lower() else 0.0
+
+        _stub_module(monkeypatch, "tools.score_lookup", _name_similarity=_sim)
+        routed = []
+        monkeypatch.setattr(lpd, "DATA_DIR", str(data))
+        monkeypatch.setattr(lpd, "get_todays_fixtures", lambda: [])
+        monkeypatch.setattr(lpd, "fetch_api_football_results", lambda: {})
+        monkeypatch.setattr(lpd, "load_predictions_from_db", lambda: {})
+        monkeypatch.setattr(lpd, "_kickoff_map", lambda: {})
+        monkeypatch.setattr(lpd, "_CLV_TRACKER_OK", False)
+        monkeypatch.setattr(lpd, "_deep_lookup_last_run", time.time())
+        monkeypatch.setattr(
+            lpd, "_register_settlement_routed", lambda p, n, s: routed.append((p, n, s))
+        )
+        _stub_module(
+            monkeypatch, "src.free_results_scraper",
+            get_finished_results=lambda dates=None: {"Green Gully U23 vs Altona Magic U23": (1, 3)},
+        )
+        _stub_module(monkeypatch, "src.flashscore_scraper", get_finished_results=lambda dates=None: {})
+        _stub_module(monkeypatch, "src.sofascore_results_scraper", get_finished_results=lambda dates=None: {})
+        _stub_module(
+            monkeypatch, "tools.pinnacle_value",
+            clv_from_pinnacle=lambda *a, **k: None, clv_from_pinnacle_ou25=lambda *a, **k: None,
+        )
+        import src.bankroll_tracker as bt
+        monkeypatch.setattr(bt, "register_settlement", lambda p, n, db_path=None: None)
+        lpd.settle_open_bets()
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        assert routed == []
+
+    def test_queued_bet_resolved_once_result_appears(self, tmp_path, monkeypatch):
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Alpha FC vs Beta United", "Home", odds=2.0, stake=10.0)],
+        )
+        # Sweep 1: results exist but none map -> queued + OPEN.
+        _run_settlement(monkeypatch, data, {"Zzz vs Yyy": (0, 0)})
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        assert [r["bet_id"] for r in _review_rows(data)] == ["b1"]
+        # Sweep 2: the real result is now published -> graded, queue row resolved.
+        _run_settlement(monkeypatch, data, {"Alpha FC vs Beta United": (2, 0)})
+        assert _bet_rows(data)["b1"]["result"] == "W"
+        assert _review_rows(data) == []  # nothing pending
+        allrows = _review_rows(data, include_resolved=True)
+        assert len(allrows) == 1 and allrows[0]["resolved"] == 1

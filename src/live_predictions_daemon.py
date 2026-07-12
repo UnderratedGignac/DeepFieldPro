@@ -3524,12 +3524,28 @@ def settle_open_bets():
     except Exception as _prov_e:
         print(f"[SETTLEMENT] provenance schema ensure failed (non-fatal): {_prov_e}")
 
+    # Manual-review queue: bets whose fixture no covered results source carries are
+    # left OPEN and flagged here rather than graded off a fuzzy collision (the
+    # 2026-07-10 "River Plate Reserves graded L off the wrong match" bug). Bind
+    # no-op fallbacks so a queue-module failure never breaks settlement.
+    try:
+        from src.settlement_review import (
+            ensure_review_queue as _ensure_review_queue,
+            queue_for_review_on as _queue_for_review,  # same-conn: lock-safe mid-sweep
+            resolve_review as _resolve_review,
+        )
+        _ensure_review_queue(db_path)
+    except Exception as _rev_e:
+        print(f"[SETTLEMENT] review-queue ensure failed (non-fatal): {_rev_e}")
+        _queue_for_review = None
+        _resolve_review = None
+
     try:
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
         cur.execute(
-            "SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, bet_source, fixture_id, side, placed_at FROM bet_log WHERE result = 'OPEN'"
+            "SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, bet_source, fixture_id, side, placed_at, league FROM bet_log WHERE result = 'OPEN'"
         )
         open_bets = cur.fetchall()
 
@@ -3683,6 +3699,7 @@ def settle_open_bets():
             bet_fixture_id,
             bet_side,
             _bet_placed_at,
+            _bet_league,
         ) in open_bets:
             import re
 
@@ -3744,10 +3761,13 @@ def settle_open_bets():
                         continue
 
                     # Normal orientation: bet_home vs fin_home, bet_away vs fin_away
+                    # NOTE: normalize scores to tuples — sources mix list/tuple
+                    # containers and (3,2) != [3,2], which made the ambiguity
+                    # guard treat AGREEING scores as disagreeing (2026-07-12).
                     h_score = get_match_score(bet_home, fin_home)
                     a_score = get_match_score(bet_away, fin_away)
                     if h_score >= 0.5 and a_score >= 0.5:
-                        candidates.append((h_score + a_score, score, finished_name))
+                        candidates.append((h_score + a_score, tuple(score), finished_name))
 
                     # Reversed orientation: feed has teams swapped vs the bet
                     # (e.g. bet="Botev Vratsa vs Levski Sofia", feed="Levski Sofia (Bul) vs Botev Vratsa (Bul)")
@@ -3763,6 +3783,13 @@ def settle_open_bets():
                     # prefix/substring matches that get_match_score misses (e.g. "Elimai" -> "Yelimay Semey")
                     try:
                         from tools.score_lookup import _name_similarity as _sim2
+                        from src.name_matching import _level_signature as _lvl
+
+                        # Cross-level pairs (senior vs U21/U23/reserves) must be
+                        # rejected here exactly like in get_match_score — the sim2
+                        # pass graded 'Melbourne City NPL' off 'Melbourne City U21'
+                        # (2026-07-12 E2E), resurrecting the U23-collision bug.
+                        _bh_lvl, _ba_lvl = _lvl(bet_home), _lvl(bet_away)
                         for finished_name, score in finished_matches.items():
                             try:
                                 f_parts = finished_name.split(" vs ")
@@ -3770,17 +3797,20 @@ def settle_open_bets():
                                 fin_away = f_parts[1].strip()
                             except Exception:
                                 continue
+                            _fh_lvl, _fa_lvl = _lvl(fin_home), _lvl(fin_away)
                             # Normal orientation
-                            h2 = _sim2(bet_home, fin_home)
-                            a2 = _sim2(bet_away, fin_away)
-                            if h2 >= 0.65 and a2 >= 0.65:
-                                candidates.append((h2 + a2, score, finished_name + " [sim2]"))
+                            if _bh_lvl == _fh_lvl and _ba_lvl == _fa_lvl:
+                                h2 = _sim2(bet_home, fin_home)
+                                a2 = _sim2(bet_away, fin_away)
+                                if h2 >= 0.65 and a2 >= 0.65:
+                                    candidates.append((h2 + a2, tuple(score), finished_name + " [sim2]"))
                             # Reversed
-                            h2r = _sim2(bet_home, fin_away)
-                            a2r = _sim2(bet_away, fin_home)
-                            if h2r >= 0.65 and a2r >= 0.65:
-                                fin_hs, fin_as = score
-                                candidates.append((h2r + a2r, (fin_as, fin_hs), finished_name + " [sim2-rev]"))
+                            if _bh_lvl == _fa_lvl and _ba_lvl == _fh_lvl:
+                                h2r = _sim2(bet_home, fin_away)
+                                a2r = _sim2(bet_away, fin_home)
+                                if h2r >= 0.65 and a2r >= 0.65:
+                                    fin_hs, fin_as = score
+                                    candidates.append((h2r + a2r, (fin_as, fin_hs), finished_name + " [sim2-rev]"))
                         if candidates:
                             candidates.sort(key=lambda c: c[0], reverse=True)
                     except ImportError:
@@ -3790,6 +3820,21 @@ def settle_open_bets():
                     print(
                         f"[SETTLEMENT] No result found for '{match_name}' in {len(finished_matches)} results."
                     )
+                    # Finished (passed the can-be-finished gate) but no covered source
+                    # carries it -> REFUSE to grade; leave OPEN and flag for manual
+                    # review so an operator can settle it from a verified source.
+                    if _queue_for_review:
+                        try:
+                            _queue_for_review(
+                                conn,
+                                bet_id,
+                                match_id=match_name,
+                                market_type=market_type,
+                                league=_bet_league,
+                                reason="no covered results source has this fixture",
+                            )
+                        except Exception:
+                            pass
                     continue
 
                 candidates.sort(key=lambda c: c[0], reverse=True)
@@ -3808,6 +3853,22 @@ def settle_open_bets():
                         f"'{best_name}'{matched_score} vs '{second_name}'{second_score} "
                         f"— skipping to avoid wrong settlement."
                     )
+                    # Ambiguous mapping is the spec's "flag for manual review" case.
+                    if _queue_for_review:
+                        try:
+                            _queue_for_review(
+                                conn,
+                                bet_id,
+                                match_id=match_name,
+                                market_type=market_type,
+                                league=_bet_league,
+                                reason=(
+                                    f"ambiguous result match: '{best_name}'{matched_score} "
+                                    f"vs '{second_name}'{second_score}"
+                                ),
+                            )
+                        except Exception:
+                            pass
                     continue
 
             home_score, away_score = matched_score
@@ -4407,6 +4468,38 @@ def settle_open_bets():
                         _score = _seen_matches[_mkey]
                         if _score:
                             _hs, _as, _src = _score
+                            # TRUST GATE (2026-07-12 audit): never grade from a
+                            # google-sourced score (Google's page body yields h2h
+                            # records/stat boxes as 'scores' — 15-2, 0-12, and
+                            # plausible-but-wrong 0-0/2-0 all proven in the record)
+                            # or from an implausible scoreline. Queue for manual
+                            # review instead, with the suggestion recorded.
+                            try:
+                                _hs_i, _as_i = int(_hs), int(_as)
+                            except (TypeError, ValueError):
+                                continue
+                            _src_l = str(_src or "").lower()
+                            _implausible = _hs_i > 9 or _as_i > 9 or (_hs_i + _as_i) > 10
+                            if _implausible or _src_l.startswith("google"):
+                                print(
+                                    f"[SETTLEMENT] DEEP-LOOKUP untrusted for {_bid}: "
+                                    f"{_mkey} -> {_hs}-{_as} ({_src}) — queued for manual review."
+                                )
+                                if _queue_for_review:
+                                    try:
+                                        _queue_for_review(
+                                            conn,
+                                            _bid,
+                                            match_id=_mid,
+                                            market_type=_mkt,
+                                            reason=(
+                                                f"deep-lookup untrusted score {_hs}-{_as} "
+                                                f"from '{_src}' — verify manually"
+                                            ),
+                                        )
+                                    except Exception:
+                                        pass
+                                continue
                             _grade = _grade_bet(_mkt, _side or "", _hs, _as)
                             _stake_f = float(_stake) if _stake else 0.0
                             _odds_f = float(_odds) if _odds else 1.0
@@ -4564,6 +4657,22 @@ def settle_open_bets():
                     pass
         except Exception as _pe:
             print(f"[SETTLEMENT] Parlay VOID pass failed: {_pe}")
+
+        # Reconcile the manual-review queue: any queued bet that has since been
+        # settled (graded or voided by any pass, this run or earlier) is marked
+        # resolved so the operator's worklist shows only genuinely-pending bets.
+        if _resolve_review is not None:
+            try:
+                _rec_now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                cur.execute(
+                    "UPDATE settlement_review SET resolved=1, resolved_at=?, "
+                    "resolution='auto: bet no longer OPEN' "
+                    "WHERE resolved=0 AND bet_id IN "
+                    "(SELECT bet_id FROM bet_log WHERE result != 'OPEN')",
+                    (_rec_now,),
+                )
+            except Exception as _rec_e:
+                print(f"[SETTLEMENT] review-queue reconcile failed (non-fatal): {_rec_e}")
 
         conn.commit()
         conn.close()
