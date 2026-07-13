@@ -13,7 +13,6 @@ if __name__ == "__main__":
         orch.predictor,
         orch.bet_gatekeeper,
         orch.settler,
-        orch.arena_monitor,
     ]
     for ag in agents:
         print(

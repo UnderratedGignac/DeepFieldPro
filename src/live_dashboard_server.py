@@ -29,14 +29,6 @@ except ImportError:
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-# Stair AI World-Cup Arena value-betting page (real-money; placement is gated).
-try:
-    from arena_betting import arena_bp
-
-    app.register_blueprint(arena_bp)
-except Exception as _arena_err:  # never let the arena page break the main dashboard
-    print(f"[!] Arena betting page not loaded: {_arena_err}")
-
 # WC 2026 Winner Predictor (read-only model, no betting).
 try:
     from src.wc_blueprint import wc_bp
@@ -438,33 +430,6 @@ def get_edge_report():
     ]
 
     return jsonify({"strategies": strategies, "markets": markets, "leagues": leagues})
-
-
-@app.route("/api/stair_balance")
-def get_stair_balance():
-    try:
-        import requests
-
-        res = requests.get(
-            "https://stair-ai.com/api/v1/arena/agents/me",
-            headers={"x-api-key": (os.getenv("STAIR_AI_API_KEY") or "").strip()},
-            timeout=5,
-        )
-        if res.status_code == 200:
-            data = res.json()
-            # Production returns wallet at the top level with snake_case usdc fields.
-            wallet = data.get("wallet") or data.get("data", {}).get("wallet") or {}
-            return jsonify(
-                {
-                    "available": wallet.get("available_balance_usdc")
-                    or wallet.get("availableBalance", 0),
-                    "locked": wallet.get("locked_balance_usdc")
-                    or wallet.get("lockedBalance", 0),
-                }
-            )
-    except Exception:
-        pass
-    return jsonify({"available": 0, "locked": 0})
 
 
 @app.route("/api/settled_ledger")
@@ -1682,9 +1647,6 @@ _SETTINGS_SCHEMA = {
     "refresh_interval_sec": (float, 5, 300),
     "show_live_matches": bool,
     "max_odds_staleness_min": (float, 1, 1440),
-    "arena_max_per_order": (float, 0.5, 25),
-    "arena_daily_cap": (float, 0, 100),
-    "arena_wallet_buffer": (float, 0.5, 50),
     "conf_min": (float, 0.3, 0.99),
     "edge_min": (float, 0, 0.5),
     "ah_betting_enabled": bool,
@@ -2022,43 +1984,14 @@ def start_background_prediction_worker():
 if __name__ == "__main__":
     init_databases()
 
-    # Warn loudly if the arena autopilot is already armed from a previous session
-    try:
-        import json as _j
-
-        _ap_state_path = os.path.join(DATA_DIR, "arena_autopilot.json")
-        if os.path.exists(_ap_state_path):
-            _ap_state = _j.loads(open(_ap_state_path).read())
-            if _ap_state.get("enabled") and os.getenv("DEEPFIELD_ARENA_LIVE") == "1":
-                print(
-                    "[!] WARNING: arena_autopilot.json::enabled=True AND DEEPFIELD_ARENA_LIVE=1"
-                )
-                print("[!] Arena autopilot will resume LIVE betting immediately.")
-                print("[!] Visit /arena and click Pause to halt before it fires.")
-            elif _ap_state.get("enabled"):
-                print(
-                    "[*] Arena autopilot enabled (predict-only; DEEPFIELD_ARENA_LIVE not set)."
-                )
-    except Exception:
-        pass
-
     if os.getenv("DEEPFIELD_DISABLE_DAEMON") != "1":
         start_background_prediction_worker()
     else:
         print(
             "[*] Background prediction worker thread is DISABLED (running in multi-process mode)."
         )
-    # Start the autonomous Stair AI arena betting loop (real money, WC-only, pre-kickoff).
-    # Always starts regardless of daemon setting.
-    try:
-        from arena_betting import start_autopilot
 
-        start_autopilot()
-    except Exception as _ap_err:
-        print(f"[!] Arena autopilot not started: {_ap_err}")
-
-    # Start red card live monitor — polls ESPN every 30s for in-progress WC matches,
-    # fires an alert + optional arena bet when a red card creates a mispriced edge.
+    # Start red card live monitor — polls ESPN every 30s for in-progress WC matches.
     try:
         from src.redcard_monitor import start_monitor as _start_redcard
 
@@ -2076,25 +2009,6 @@ if __name__ == "__main__":
     except Exception as _ev_err:
         print(f"[!] Match event monitor not started: {_ev_err}")
 
-    # Start lineup price lag scanner — detects Polymarket underreaction to lineup
-    # announcements within 2h of kickoff (research: 36% underreaction at T+0, 5-15min lag).
-    try:
-        import threading as _thr
-        import time as _t
-
-        def _lineup_lag_loop():
-            while True:
-                try:
-                    from src.lineup_price_lag import _get_mids  # noqa: keep import alive
-                except Exception:
-                    pass
-                _t.sleep(300)  # 5-min idle; actual work triggered by lineup drops
-
-        _ll_t = _thr.Thread(target=_lineup_lag_loop, name="lineup-lag", daemon=True)
-        _ll_t.start()
-        print("[*] Lineup price lag tracker ready.")
-    except Exception as _ll_err:
-        print(f"[!] Lineup price lag tracker not started: {_ll_err}")
     _port = int(os.getenv("DEEPFIELD_PORT", "5050"))
     print(f"[*] Starting DeepFieldPro Live UI on http://127.0.0.1:{_port}")
     # threaded=True is REQUIRED: the prediction daemon runs in a background thread in

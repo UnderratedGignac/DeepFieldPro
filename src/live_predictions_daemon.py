@@ -3183,93 +3183,24 @@ def log_ai_bet(
                 except Exception as alert_err:
                     print(f"[ALERT] WhatsApp alert skipped (non-fatal): {alert_err}")
 
-            # STAIR-AI INTEGRATION
-            team_code = str(selection)
-            if "Home" in selection or "1" in selection:
-                team_code = (
-                    match.split(" vs ")[0][:3].upper() if " vs " in match else "HOME"
-                )
-            elif "Away" in selection or "2" in selection:
-                team_code = (
-                    match.split(" vs ")[1][:3].upper() if " vs " in match else "AWAY"
-                )
-            elif "Draw" in selection or "X" in selection:
-                team_code = "draw"
-
+            # Paper order-id bookkeeping. There is no real execution backend —
+            # every AI bet gets a SHADOW_ id (dedup/audit trail only, never a
+            # live order). The 'stair_orders' table name is legacy from a
+            # since-removed Stair AI integration; kept as-is so existing
+            # dashboard/test code that reads it doesn't need to change.
             try:
-                import requests
-
-                # SAFETY GATE — the paper daemon places bets across ALL markets, and the
-                # realized track record shows most are heavily -EV (Goalscorer, Player Shots,
-                # Over/Under, BTTS all lose money). It must NEVER spend real USDC. Real money
-                # flows ONLY through the disciplined 1X2-only Arena path (src/arena_betting.py).
-                # Override only with eyes open: set DEEPFIELD_DAEMON_LIVE_ORDERS=1.
-                live_orders = os.getenv("DEEPFIELD_DAEMON_LIVE_ORDERS") == "1"
-                order_id = None
-                if live_orders:
-                    stair_payload = {
-                        "fixture_code": str(match.replace(" ", "_")),
-                        "idempotency_key": str(bet_id),
-                        "limit_price": round(1.0 / odds, 3) if odds > 0 else 0.5,
-                        "team_code": team_code,
-                        "time_in_force_seconds": 30,
-                        "usd_size": str(stake),
-                    }
-                    stair_headers = {
-                        "Content-Type": "application/json",
-                        "x-api-key": _stair_api_key(),
-                    }
-                    res = requests.post(
-                        "https://stair-ai.com/api/v1/arena/orders",
-                        json=stair_payload,
-                        headers=stair_headers,
-                        timeout=10,
-                    )
-                    print(
-                        f"[STAIR AI] Place bet response: {res.status_code} - {res.text}"
-                    )
-                    if res.status_code in [200, 201]:
-                        try:
-                            res_data = res.json()
-                            if "order_id" in res_data:
-                                order_id = res_data["order_id"]
-                            elif "orderId" in res_data:
-                                order_id = res_data["orderId"]
-                            elif "data" in res_data and isinstance(
-                                res_data["data"], dict
-                            ):
-                                order_id = (
-                                    res_data["data"].get("orderId")
-                                    or res_data["data"].get("order_id")
-                                    or res_data["data"].get("id")
-                                )
-                            elif "id" in res_data:
-                                order_id = res_data["id"]
-                        except Exception as json_err:
-                            print("[STAIR AI] Error parsing response JSON:", json_err)
-                    if not order_id:
-                        order_id = f"STAIR_ERR_{bet_id[-8:]}"
-                else:
-                    # Shadow: record the intent, place no real order.
-                    order_id = f"SHADOW_{bet_id[-8:]}"
-
-                # Write to stair_orders
-                try:
-                    conn2 = sqlite3.connect(db_path)
-                    cur2 = conn2.cursor()
-                    cur2.execute(
-                        "INSERT OR IGNORE INTO stair_orders (bet_id, order_id) VALUES (?, ?)",
-                        (bet_id, order_id),
-                    )
-                    conn2.commit()
-                    conn2.close()
-                    print(
-                        f"[STAIR AI] Order logged to database: {bet_id} -> {order_id}"
-                    )
-                except Exception as db_err:
-                    print("[STAIR AI] Error saving order to database:", db_err)
-            except Exception as se:
-                print(f"[STAIR AI] Error placing bet: {se}")
+                order_id = f"SHADOW_{bet_id[-8:]}"
+                conn2 = sqlite3.connect(db_path)
+                cur2 = conn2.cursor()
+                cur2.execute(
+                    "INSERT OR IGNORE INTO stair_orders (bet_id, order_id) VALUES (?, ?)",
+                    (bet_id, order_id),
+                )
+                conn2.commit()
+                conn2.close()
+                print(f"[BET] Order logged to database: {bet_id} -> {order_id}")
+            except Exception as db_err:
+                print("[BET] Error saving order to database:", db_err)
 
         else:
             conn.close()
@@ -5445,9 +5376,8 @@ def update_dashboard_json(fixtures, results_cache):
                             _is_draw = m_type == "1X2" and key == "Draw"
                             _draw_pin_ok = (not _is_draw) or (_pin_edge > 0)
 
-                            # Forebet tipster confirmation — same validated technique as
-                            # the Arena's real-money engine (+41.7% ROI, CI entirely above
-                            # zero, n=259; see src/arena_betting.py autopilot_cycle). 1X2
+                            # Forebet tipster confirmation — validated technique
+                            # (+41.7% ROI, CI entirely above zero, n=259). 1X2
                             # only — Forebet publishes match-winner picks, not O/U or BTTS,
                             # so other markets pass through unaffected.
                             require_forebet = settings.get("require_forebet_confirm", True)
@@ -5867,76 +5797,9 @@ def refresh_completed_comparisons():
         )
 
 
-def _stair_api_key():
-    """Resolve the STAIR-AI key resiliently: env first, else read .env directly.
-    (.env is NOT loaded into os.environ at daemon-thread startup, so env alone is empty.)
-    """
-    k = os.getenv("STAIR_AI_API_KEY")
-    if k and k.strip():
-        return k.strip()
-    try:
-        with open(os.path.join(DATA_DIR, "..", ".env"), encoding="utf-8") as fh:
-            for line in fh:
-                if line.startswith("STAIR_AI_API_KEY="):
-                    return line.split("=", 1)[1].strip()
-    except OSError:
-        pass
-    return ""
-
-
-def init_stair_ai_agent():
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": _stair_api_key(),
-    }
-    try:
-        res = requests.get(
-            "https://stair-ai.com/api/v1/arena/agents/me",
-            headers=headers,
-            timeout=10,
-        )
-        if res.status_code == 200:
-            print("[STAIR AI] Agent already registered. Updating profile...")
-            patch_payload = {
-                "display_name": "DeepFieldPro AI",
-                "bio": "Institutional-grade automated quantitative sports betting AI.",
-                "social": {"twitter": "https://twitter.com/deepfieldpro"},
-            }
-            requests.patch(
-                "https://stair-ai.com/api/v1/arena/agents/me",
-                json=patch_payload,
-                headers=headers,
-                timeout=10,
-            )
-            print("[STAIR AI] Agent profile updated successfully.")
-        else:
-            print("[STAIR AI] Agent not found. Registering new agent...")
-            register_payload = {
-                "display_name": "DeepFieldPro AI",
-                "bio": "Institutional-grade automated quantitative sports betting AI.",
-                "creator_handle": "Elie",
-                "social": {"twitter": "https://twitter.com/deepfieldpro"},
-            }
-            reg_res = requests.post(
-                "https://stair-ai.com/api/v1/arena/agents/register",
-                json=register_payload,
-                headers=headers,
-                timeout=10,
-            )
-            if reg_res.status_code == 200:
-                print("[STAIR AI] Agent registered successfully.")
-            else:
-                print(
-                    f"[STAIR AI] Failed to register agent: {reg_res.status_code} - {reg_res.text}"
-                )
-    except Exception as e:
-        print(f"[STAIR AI] Error initializing agent: {e}")
-
-
 def run_daemon():
     print("[*] Starting Smart Live Predictions Daemon...")
     _init_signal_registry()
-    init_stair_ai_agent()
 
     # Heal exposure drift from any crashed/incomplete previous session
     try:
@@ -6340,15 +6203,6 @@ def run_daemon():
             maybe_send_daily_summary()    # fires once at 22:30 UTC
         except Exception as _dsa_err:
             print(f"[ALERTS] daily_signal_alerts error: {_dsa_err}")
-
-        # ── Stair AI + Gemini reasoning engine ──────────────────────────────
-        # Uses Stair AI WC probabilities + Betarabia odds to find edges, then
-        # asks Gemini CDP for a YES/NO confirmation before logging a paper bet.
-        try:
-            from src.stairai_reasoning_engine import run_cycle as _stair_cycle
-            _stair_cycle(log_bet_fn=log_ai_bet)
-        except Exception as _stair_err:
-            print(f"[STAIR_AI ENGINE] cycle error: {_stair_err}")
 
         # Wait 3 minutes (180s) before the next sweep
         time.sleep(180)

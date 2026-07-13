@@ -16,7 +16,6 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///src/data/deepfield.db"
 
     # External API Keys (Sportsbook & Intelligence)
-    STAIR_AI_API_KEY: Optional[str] = None
     API_FOOTBALL_KEY: Optional[str] = None
     ODDS_API_KEY: Optional[str] = None
     DISCORD_WEBHOOK_URL: Optional[str] = None

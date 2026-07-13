@@ -136,49 +136,6 @@ def _get_pinnacle_from_history():
         return []
 
 
-# ─── Stair AI / Polymarket mapping ────────────────────────────────────────────
-
-def _get_stair_schedule():
-    """Pull WC fixture schedule from Stair AI (for kickoff times + fixture IDs)."""
-    if _requests is None:
-        return {}
-
-    env_path = os.path.join(_ROOT, ".env")
-    api_key = os.environ.get("STAIR_AI_API_KEY", "")
-    if not api_key and os.path.exists(env_path):
-        for line in open(env_path):
-            if line.startswith("STAIR_AI_API_KEY="):
-                api_key = line.split("=", 1)[1].strip()
-    if not api_key:
-        return {}
-
-    headers = {"x-api-key": api_key, "Content-Type": "application/json"}
-    try:
-        # Get the WC 2026 season fixture list
-        r = _requests.get(
-            "https://stair-ai.com/api/v1/data/fixtures",
-            params={"season_id": "26618", "limit": 100},
-            headers=headers, timeout=15,
-        )
-        if r.status_code != 200:
-            return {}
-        data = r.json()
-        fixtures = data if isinstance(data, list) else data.get("data", [])
-        result = {}
-        for f in fixtures:
-            fid = str(f.get("fixture_id", ""))
-            if fid:
-                result[fid] = {
-                    "home": f.get("home_team", ""),
-                    "away": f.get("away_team", ""),
-                    "kickoff": f.get("kickoff_time", ""),
-                }
-        return result
-    except Exception as e:
-        logger.debug("Stair AI schedule fetch failed: %s", e)
-        return {}
-
-
 # ─── Injection ────────────────────────────────────────────────────────────────
 
 def inject_wc_upcoming(days_ahead=7, dry_run=False, verbose=True):

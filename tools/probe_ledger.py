@@ -1,11 +1,10 @@
-"""Probe the arena ledger DB and bet_log to understand what bets exist."""
+"""Probe the bet_log DB to understand what bets exist."""
 
 import sqlite3, os, sys
 
 BASE = os.path.join(os.path.dirname(__file__), "..")
 
 for db_path, label in [
-    (os.path.join(BASE, "data", "arena_ledger.db"), "arena_ledger"),
     (os.path.join(BASE, "data", "bet_log.db"), "bet_log"),
 ]:
     if not os.path.exists(db_path):

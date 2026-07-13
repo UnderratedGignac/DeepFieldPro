@@ -19,9 +19,7 @@ if (-not $port) { $port = 5063 }
 "$port" | Out-File -FilePath "current_port.txt" -Encoding ascii -NoNewline
 Write-Host "      using port $port"
 
-Write-Host "[3/4] Launching ONE instance (PAPER mode — real money DISARMED)..."
-# PAPER TESTING PHASE (2026-07-11): real-money orders disarmed per user
-# directive. Set to "1" ONLY on the user's explicit go-ahead to bet real USDC.
+Write-Host "[3/4] Launching ONE instance (PAPER mode — no real-money path exists)..."
 $env:DEEPFIELD_ARENA_LIVE = "0"
 $env:DEEPFIELD_PORT = "$port"
 Start-Process -FilePath ".\.venv\Scripts\python.exe" -ArgumentList "src\live_dashboard_server.py" -WindowStyle Hidden

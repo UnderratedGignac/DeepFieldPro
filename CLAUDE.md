@@ -113,11 +113,15 @@ Every action requires:
 
 High-risk actions require explicit review before execution:
 - Production deployments · database schema changes · credential modifications · financial actions
-- **Arena gate**: `DEEPFIELD_ARENA_LIVE=1` arms Stair AI Arena orders. VERIFIED 2026-07-05:
-  the Arena is a **virtual-bankroll tournament** (AI agents paper-trade Polymarket WC markets
-  for leaderboard rank — user competes with a virtual $100; no real money moves through it).
-  Earlier notes calling this "real USDC" were wrong. `SHADOW_MODE=True` still governs the
-  separate execution_engine path. Gate is ARMED for the WC2026 tournament run.
+- **Real-money gate**: `DEEPFIELD_ARENA_LIVE` must remain unset/`0`. There is currently no
+  real-money execution path anywhere in this app — the Stair AI World Cup Arena (the only one
+  that ever existed) was fully removed 2026-07-13 after the user lost most of the account's real
+  money chasing a #1 leaderboard rank; see `docs/removed_features.md` §4 for the full removal
+  record. `src/gatekeeper.py`'s `check_real_money_gate()` remains as a general kill switch for
+  any future real-money path — its first check is `DEEPFIELD_ARENA_LIVE == "1"` — but nothing
+  currently calls it. `SHADOW_MODE=True` governs the separate `execution_engine.py` path (paper
+  only; its LIVE branch is an unimplemented placeholder). Never re-introduce real-money order
+  placement without the user's explicit, in-the-moment go-ahead.
 
 ## Evaluation Requirements
 
@@ -185,27 +189,15 @@ SHADOW (paper) only — see Safety.**
   (default 5050). `app.run(host="0.0.0.0", ...)`.
 - `live_predictions_daemon.py` — the engine. `run_daemon()` loops: scrape odds → fetch
   fixtures → predict → write dashboard state → settle bets. Contains `fetch_betarabia_odds()`,
-  `find_betarabia_odds()`, the STAIR-AI integration, and the `place_bet()` call site.
+  `find_betarabia_odds()`, and the `place_bet()` call site.
 - `free_scraper_module.py` — Sofascore fixture fetch + the Betarabia fixture fallback builders.
 - `betarabia_scraper.py` — background subprocess (launched via `subprocess.Popen`) that scrapes
   Betarabia/Kickertech odds into `data/odds_stream.db`.
 - `execution_engine.py` — `place_bet()`; SHADOW vs LIVE branch (LIVE is an unimplemented placeholder).
-- `dfp_config.py` — settings incl. `SHADOW_MODE` (default **True**) and `STAIR_AI_API_KEY`.
+- `dfp_config.py` — settings incl. `SHADOW_MODE` (default **True**).
 - `api/main.py`, `orchestrator.py` — newer service-oriented stack (FastAPI/uvicorn), separate path.
-- `arena_betting.py` — Stair AI **World-Cup Arena** value-betting page (Flask blueprint, registered in
-  `live_dashboard_server.py`). Standalone at `/arena` and embedded in the dashboard as the
-  "World Cup Arena" sidebar tab (iframe in `index.html`'s `arena-view`). Compares the Sportmonks 1X2
-  model probability to the live Polymarket midpoint and bets only when `model_prob >= conf` AND
-  `model_prob - mid >= edge`. World-Cup-only (season `26618`) and only BEFORE kickoff (upcoming
-  fixtures filter + a placement-time `kickoff_ts > now` re-check).
-  Production API base `https://stair-ai.com`, auth header `x-api-key` (`STAIR_AI_API_KEY` in `.env`),
-  season `26618`. **VIRTUAL TOURNAMENT BANKROLL** (verified 2026-07-05 — paper-trading competition,
-  not real USDC): `/arena/api/analyze` is read-only; `/arena/api/place` only acts on a
-  POST with `{"confirm": true}`, capped per-order via AP2 mandate, and `MAX_BETS_PER_RUN`.
-  TOURNAMENT MODE (2026-07-05): full-Kelly sizing, $25/order cap, half-wallet max per pick,
-  conf_min 0.50 / edge_min 0.05, autopilot ENABLED. Endpoints:
-  schedule/fixture proxies, `/api/v1/web/mapping` (→ per-outcome Polymarket YES tokens),
-  `/api/v1/data/proxy/polymarket-clob/midpoint`, `/api/v1/arena/orders`, `/api/v1/arena/ledger/records/batch`.
+- ~~`arena_betting.py`~~ — **removed 2026-07-13.** Was the Stair AI World-Cup Arena real-money
+  value-betting page (Flask blueprint at `/arena`). See `docs/removed_features.md` §4.
 
 ## Data flow (how matches reach the dashboard)
 
@@ -233,8 +225,8 @@ populates matches.
 ## Config
 
 - `.env` (loaded via python-dotenv / pydantic-settings). Keys: `API_FOOTBALL_KEY`,
-  `STAIR_AI_API_KEY`, `WHATSAPP_*`, `DEEPFIELD_*` risk params, `BROWSER_*`, etc.
-  NOTE: `BETFAIR_*` values are placeholders (`your_username`), i.e. Betfair is not configured.
+  `WHATSAPP_*`, `DEEPFIELD_*` risk params, `BROWSER_*`, etc. Betfair (`BETFAIR_*`) is configured
+  (real login, read-only "Delayed (free)" key — odds retrieval only, no order placement).
 - ML models/artifacts live in `models/`.
 
 ## Safety (important)
@@ -242,15 +234,23 @@ populates matches.
 - **No real-money betting.** `place_bet()` runs the **SHADOW_MODE** branch (default `True` in
   `dfp_config.py`) → records mock "SHADOW" bets to DB only. The LIVE branch is an unimplemented
   placeholder ("Real capital execution not yet fully linked"). `auto_place_bets` in settings.json
-  does NOT actually gate placement.
-- The daemon DOES make external calls when running: STAIR-AI order POSTs (to `staging.stair-ai.com`),
-  optional WhatsApp alerts, and live web scraping (Playwright/Chromium). Keep this in mind before running.
+  does NOT actually gate placement. There is no other real-money path in the app (Stair AI Arena
+  removed 2026-07-13 — see `docs/removed_features.md` §4).
+- The daemon DOES make external calls when running: optional WhatsApp alerts and live web
+  scraping (Playwright/Chromium). Keep this in mind before running.
 
 ## Known issues / gotchas
 
 - **Missing dep**: `pydantic-settings` is required by the daemon — now pinned in `requirements.txt`.
-- **Sofascore returns empty** (its API is 403 bot-blocked) → fixtures fall back to Betarabia,
-  and settlement no longer uses it.
+- **Sofascore — CORRECTED 2026-07-11 (this said "returns empty / 403 bot-blocked"; that is
+  now STALE).** The `patchright` (stealth-Playwright) path bypasses the block:
+  `sofascore_patchright_scraper.py` is the **primary fixture source** today
+  (`live_predictions_daemon.py:301` — its import succeeds because patchright is installed, so
+  the Betarabia fixture fallback is rarely reached; today's dashboard state carries
+  Sofascore-style fixture IDs), and `sofascore_results_scraper.py` is a live settlement source
+  (per-date `data/sofascore_cache_*.json` refresh each cycle). Verified by a 9-scraper live
+  health check 2026-07-11. The plain-`requests` Sofascore path may still 403 — the note only
+  applies to that, not the patchright path.
 - **Settlement results source**: `free_results_scraper.py` (`get_finished_results()`) provides free,
   key-less finished scores from **ESPN** (broad league coverage incl. minor leagues) + **TheSportsDB**
   fallback, cached per-date. `settle_open_bets()` uses it as the primary feed (API-Football is only a
@@ -260,16 +260,9 @@ populates matches.
   from `odds_stream.db`. The fallback builders (daemon + `free_scraper_module.py`) use that metadata —
   do NOT revert them to stamping `now()` / `"NS"` / `"Betarabia"` (that caused the "all kickoffs show
   the scrape time" glitch).
-- **STAIR-AI**: FIXED. The daemon + dashboard now talk to **production `https://stair-ai.com`**
-  (the old hardcoded `staging.stair-ai.com` was dead). The key is resolved resiliently
-  (`_stair_api_key()`: env → read `.env`), because `.env` is NOT loaded into `os.environ` at
-  daemon-thread startup — so `os.getenv` alone returned empty and auth 401'd. Agent init now
-  logs "Agent profile updated successfully."
-- **Daemon real-money gate (IMPORTANT)**: the paper daemon bets across ALL markets, most of which
-  are heavily -EV in the realized record (Goalscorer −80%, Player Shots −62%, O/U −70%, BTTS −59%).
-  Its arena order-POST is therefore **gated OFF** — it only writes `SHADOW_*` order ids unless
-  `DEEPFIELD_DAEMON_LIVE_ORDERS=1` (do NOT set this). Real money flows ONLY through the disciplined
-  1X2-only `arena_betting.py` path (caps + `confirm:true` + paused-by-default autopilot).
+- **Daemon bet-source note**: the paper daemon bets across ALL markets, most of which are heavily
+  -EV in the realized record (Goalscorer −80%, Player Shots −62%, O/U −70%, BTTS −59%). Every AI
+  bet gets a `SHADOW_*` order id — there is no real order path left to gate.
 - **scikit-learn version**: RESOLVED — `requirements.txt` now pins `scikit-learn==1.8.0` (matches the
   calibrators) and the two legacy 1.6.1 tree models were re-pickled under 1.8.0 (`*.sk161.bak` backups
   kept in `models/`). All 15 artifacts now load with zero `InconsistentVersionWarning`. The daemon's
@@ -297,7 +290,7 @@ is settled from real scores). Changes made:
 - **Paper bankroll gotcha**: `bankroll.db` `current_balance` is liquid cash; when it hits $0 (all staked in
   open bets) the daemon silently places nothing. `tools/reset_paper_bankroll.py` restores it (PAPER ONLY).
 - Staking is already fractional-Kelly in `log_ai_bet` (`kelly_multiplier`, `max_exposure_pct`).
-- Real money (Arena) remains paused/gated; none of this arms it.
+- No real-money path exists in this app (see Safety above).
 
 ## Advanced model upgrade (2026-06-14) — Dixon-Coles + safety
 
@@ -315,11 +308,8 @@ is settled from real scores). Changes made:
   walk-forward) — DC is already near-perfectly calibrated, so it's ~identity (vs the old 53-bet fit).
 - **Market blending**: `settings.market_blend_weight` (default 0.5) shades model prob toward the
   de-vigged market in the daemon EV path — lower variance, fewer model-error bets.
-- **Real-money HARD GATE (critical)**: `arena_betting.place_order()` refuses unless
-  `DEEPFIELD_ARENA_LIVE=1`; `autopilot_cycle` is paused unless that env AND `enabled` are both set.
-  Fail-safe defaults flipped from True→False. Multiple orphaned daemons had been re-enabling the
-  state file; the env gate makes real bets impossible regardless of flag/zombie/frontend. Keep
-  `DEEPFIELD_ARENA_LIVE` UNSET. Wallet ~$53 untouched.
+- **Real-money HARD GATE**: `src/gatekeeper.py`'s `check_real_money_gate()` refuses unless
+  `DEEPFIELD_ARENA_LIVE=1` (currently unset/`0`, and nothing calls this gate — see Safety above).
 - **Ops gotcha**: orphaned python can leave zombie LISTENING sockets; the bat now auto-scans
   5052-5058 for a free port. Always `taskkill /IM python.exe /F` before relaunch.
 

@@ -90,6 +90,62 @@ Settlement was also unreliable: most prop bets fell back to `hash(bet_id) % 2` w
 
 ---
 
+## 4. Stair AI Arena (`src/arena_betting.py` and its real-money order path)
+
+**Date removed:** 2026-07-13
+
+**What it was:**
+The only real-money path this project ever had. `arena_betting.py` (~3,600 lines) compared
+the project's 1X2 model probability to the live Polymarket midpoint on Stair AI's World Cup
+2026 Arena — a real-USDC leaderboard tournament — and placed real orders when the edge
+cleared a threshold. It had its own Flask blueprint (`/arena`), a "World Cup Arena" dashboard
+tab, an autopilot loop, AP2 mandate/ledger auditing, attribution/CLV/execution-analytics
+reporting, a red-card in-play alerter, a lineup-price-lag detector, and roughly a dozen
+one-off operational scripts (`FIRE_SEMIS.ps1`, `arg_fill_hunter.py`, `mar_leg_watcher.py`,
+`resume_after_payout.py`, ...) written during the tournament to chase specific fills. A
+second, independent real-order path also existed directly in `live_predictions_daemon.py`
+(gated by `DEEPFIELD_DAEMON_LIVE_ORDERS`), never actually armed.
+
+**Why it was removed:**
+The user lost most of the real money in the account chasing a #1 leaderboard rank and asked
+to discard the feature entirely, not just disable it. The line/CLV research
+(`tools/backtest_1x2_lines.py`, see the 1X2 line/CLV analysis notes) had already shown the
+core model has no real 1X2 edge over the market — the Arena was operating on an unvalidated
+signal even before the tournament-chasing behavior compounded the losses.
+
+**Code removed:**
+- `src/arena_betting.py`, `src/templates/arena.html` — the blueprint, UI tab, and order path
+- `src/ap2_ledger.py`, `src/ap2_mandate.py`, `src/attribution_engine.py`,
+  `src/execution_analytics.py`, `src/clv_analysis.py`, `src/adaptive_kelly.py`,
+  `src/stairai_reasoning_engine.py`, `src/agents/arena_monitor.py`, `src/reporting.py`,
+  `src/polymarket_steam.py` — Arena-exclusive support modules
+- The daemon's independent `DEEPFIELD_DAEMON_LIVE_ORDERS` order path, `init_stair_ai_agent()`,
+  `_stair_api_key()`, and the `stairai_reasoning_engine.run_cycle()` call in
+  `live_predictions_daemon.py` (real-money bookkeeping simplified to always-SHADOW)
+- The Arena-only WC real-order sweep in `research_betting.py` (`_sweep_wc()`); its O/U/BTTS
+  paper sweep, which didn't depend on Arena, was kept
+- Polymarket-dependent market comparison in `redcard_monitor.py` (kept red-card detection +
+  win-probability math, dropped the now-impossible market-edge check) and all of
+  `lineup_price_lag.py` (100% Polymarket-dependent, no independent value)
+- ~16 `tools/*.py` scripts and 9 `tests/test_*.py` files exclusively about the Arena
+- `LAUNCH.bat`'s `[L] LIVE` menu and `[I] INSIGHTS` menu (Polymarket market scan), and the
+  real-money-order scripts `FIRE_SEMIS.ps1`, `logs/_server_live.bat`
+- `STAIR_AI_API_KEY` from `dfp_config.py`, `.env`, `.env.example`
+- `TOURNAMENT_PLAYBOOK.md`, `MATCH_OF_THE_DAY_ARG_EGY.md`,
+  `docs/ARENA_RISK_ANALYSIS_2026-07-09.md`, `docs/RISK_MANAGEMENT_UPGRADE_2026-07-09.md`
+
+**Data deleted:** `data/arena_ledger.db`, `data/arena_autopilot.json`,
+`data/knockout_mapping.json`, `data/polymarket_steam.db` (permanent, per explicit user
+request — these were untracked/local except `arena_autopilot.json`).
+
+**What's still in place:** `src/gatekeeper.py`'s `check_real_money_gate()` — a general
+real-money kill switch (`DEEPFIELD_ARENA_LIVE` must be `"1"`) that any *future* real-money
+path would have to pass through. It's currently unused (nothing calls it), and
+`DEEPFIELD_ARENA_LIVE` stays unset/`0`. There is no real-money execution path left in this
+app.
+
+---
+
 ## What Remains
 
 Only one strategy places real (paper) bets going forward:
