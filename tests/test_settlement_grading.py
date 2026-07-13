@@ -52,7 +52,8 @@ CREATE TABLE bet_log (
     league      TEXT,
     closing_odds REAL,
     clv         REAL,
-    pinnacle_clv REAL
+    pinnacle_clv REAL,
+    kickoff_time TEXT
 )
 """
 
@@ -72,6 +73,7 @@ def _mk_bet(
     stake=10.0,
     source="AI",
     placed_at=None,
+    kickoff=None,
 ):
     return (
         bet_id,
@@ -84,6 +86,7 @@ def _mk_bet(
         None,  # fixture_id
         selection,  # side
         placed_at or _old_iso(),
+        kickoff,  # kickoff_time recorded at placement (may be None)
     )
 
 
@@ -102,8 +105,8 @@ def _make_data_dir(tmp_path, bets=(), parlays=()):
     for b in bets:
         conn.execute(
             "INSERT INTO bet_log (bet_id, match_id, player_id, market_type,"
-            " entry_odds, stake, bet_source, fixture_id, side, placed_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            " entry_odds, stake, bet_source, fixture_id, side, placed_at, kickoff_time)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             b,
         )
     for p in parlays:
@@ -360,6 +363,38 @@ class TestSettlementProvenance:
         p = _prov(data, "b1")
         assert p["result"] == "VOID"
         assert p["settle_reason"] and "past kickoff" in p["settle_reason"]
+
+    def test_recorded_kickoff_unlocks_settlement_before_12h_rule(self, tmp_path, monkeypatch):
+        """Regression (2026-07-13): placements record the fixture's kickoff_time
+        into bet_log, but the finished-by-now guard ignored it — a bet placed 2h
+        ago on a match that kicked off 4h ago (finished ~2h ago) sat OPEN until
+        the placed+12h fallback. The recorded kickoff must unlock grading."""
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Alpha FC vs Beta United", "Home", odds=2.0, stake=10.0,
+                          placed_at=_old_iso(hours=2), kickoff=_old_iso(hours=4))],
+        )
+        routed, _ = _run_settlement(
+            monkeypatch, data, {"Alpha FC vs Beta United": (2, 0)}
+        )
+        rows = _bet_rows(data)
+        assert rows["b1"]["result"] == "W"
+        assert rows["b1"]["pnl"] == pytest.approx(10.0)
+        assert routed == [(pytest.approx(20.0), pytest.approx(10.0), "AI")]
+
+    def test_recorded_kickoff_still_blocks_mid_match(self, tmp_path, monkeypatch):
+        """A recorded kickoff 1h ago means the match is STILL RUNNING (needs
+        kickoff+110min) — must stay OPEN even if a result-like entry exists."""
+        data = _make_data_dir(
+            tmp_path,
+            bets=[_mk_bet("b1", "Alpha FC vs Beta United", "Home", odds=2.0, stake=10.0,
+                          placed_at=_old_iso(hours=2), kickoff=_old_iso(hours=1))],
+        )
+        routed, _ = _run_settlement(
+            monkeypatch, data, {"Alpha FC vs Beta United": (2, 0)}
+        )
+        assert _bet_rows(data)["b1"]["result"] == "OPEN"
+        assert routed == []
 
     def test_recent_bet_not_settled_even_with_result(self, tmp_path, monkeypatch):
         """Finished-by-now guard: a bet placed 1h ago with unknown kickoff cannot

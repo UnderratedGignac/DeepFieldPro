@@ -3480,8 +3480,13 @@ def settle_open_bets():
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
+        # kickoff_time is recorded at placement (2026-07-13) and is the
+        # authoritative per-bet kickoff for the finished-by-now guard; select
+        # defensively so older DBs without the column still settle.
+        _bl_cols = {r[1] for r in cur.execute("PRAGMA table_info(bet_log)")}
+        _ko_col = "kickoff_time" if "kickoff_time" in _bl_cols else "NULL AS kickoff_time"
         cur.execute(
-            "SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, bet_source, fixture_id, side, placed_at, league FROM bet_log WHERE result = 'OPEN'"
+            f"SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, bet_source, fixture_id, side, placed_at, league, {_ko_col} FROM bet_log WHERE result = 'OPEN'"
         )
         open_bets = cur.fetchall()
 
@@ -3570,8 +3575,24 @@ def settle_open_bets():
         except Exception:
             pass
 
-        def _match_can_be_finished(_f, _mid, _placed):
+        def _match_can_be_finished(_f, _mid, _placed, _bet_ko=None):
             _now = datetime.datetime.now(datetime.timezone.utc)
+            # The kickoff recorded ON THE BET at placement is authoritative
+            # (2026-07-13 fix: finished matches sat OPEN for hours waiting on
+            # the placed+12h fallback because the caches below had aged out).
+            # Midnight-exact values are Kickertech date-only placeholders —
+            # not a real time, fall through to the other sources.
+            if _bet_ko:
+                try:
+                    _bk = datetime.datetime.fromisoformat(
+                        str(_bet_ko).replace("Z", "+00:00")
+                    )
+                    if _bk.tzinfo is None:
+                        _bk = _bk.replace(tzinfo=datetime.timezone.utc)
+                    if not (_bk.hour == 0 and _bk.minute == 0 and _bk.second == 0):
+                        return _bk + datetime.timedelta(minutes=110) <= _now
+                except (ValueError, TypeError):
+                    pass
             _ko = ko_map.get(str(_f)) if _f else None
             if _ko is None and _mid:
                 _ko = ko_by_name.get(str(_mid).lower().strip())
@@ -3587,7 +3608,7 @@ def settle_open_bets():
 
         try:
             _pre_n = len(open_bets)
-            open_bets = [b for b in open_bets if _match_can_be_finished(b[7], b[1], b[9])]
+            open_bets = [b for b in open_bets if _match_can_be_finished(b[7], b[1], b[9], b[11])]
             if len(open_bets) < _pre_n:
                 print(
                     f"[SETTLEMENT] Skipped {_pre_n - len(open_bets)} bet(s) whose "
@@ -3636,6 +3657,7 @@ def settle_open_bets():
             bet_side,
             _bet_placed_at,
             _bet_league,
+            _bet_kickoff,
         ) in open_bets:
             import re
 
@@ -4377,7 +4399,7 @@ def settle_open_bets():
         if (_now_deep - _deep_lookup_last_run) >= _DEEP_LOOKUP_INTERVAL:
             try:
                 _still_open = cur.execute(
-                    "SELECT bet_id, match_id, market_type, side, entry_odds, stake, bet_source, fixture_id, placed_at "
+                    f"SELECT bet_id, match_id, market_type, side, entry_odds, stake, bet_source, fixture_id, placed_at, {_ko_col} "
                     "FROM bet_log WHERE result = 'OPEN' AND match_id IS NOT NULL"
                 ).fetchall()
                 # Same finished-by-now gate as the main loop — this query
@@ -4385,7 +4407,7 @@ def settle_open_bets():
                 # settles matches that haven't finished (or even kicked off).
                 _still_open = [
                     b for b in _still_open
-                    if _match_can_be_finished(b[7], b[1], b[8])
+                    if _match_can_be_finished(b[7], b[1], b[8], b[9])
                 ]
                 if _still_open:
                     print(f"[SETTLEMENT] Deep score lookup: {len(_still_open)} remaining OPEN bets")
@@ -4393,7 +4415,7 @@ def settle_open_bets():
 
                     _settled_deep = 0
                     _seen_matches = {}
-                    for _bid, _mid, _mkt, _side, _odds, _stake, _bsrc, _fid2, _plc2 in _still_open:
+                    for _bid, _mid, _mkt, _side, _odds, _stake, _bsrc, _fid2, _plc2, _ko2 in _still_open:
                         _teams = _parse_match_teams(_mid)
                         if not _teams:
                             continue
