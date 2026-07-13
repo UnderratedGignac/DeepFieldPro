@@ -149,3 +149,49 @@ class TestStakeSuggestionAndAutoDeduct:
         assert len(sent) == 1
         assert "Balance is $0" in sent[0][1]
         assert ub.get_balance() == 0.0
+
+
+class TestNationLeagueInAlert:
+    """2026-07-13: the pick alert must carry nation + league so the user can
+    find the exact match at their bookmaker (league from bet_log; nation
+    resolved via the API-Football fixtures metadata)."""
+
+    def _bet_with_league(self, bid, league):
+        return (
+            bid, "Alpha vs Beta", "1X2", "Home (1)", 2.0, 5.0, "F1",
+            "TIPSTER_FOREBET", dsa._today() + "T08:00:00", league,
+        )
+
+    def _add_with_league(self, db, bets):
+        conn = sqlite3.connect(db)
+        conn.execute("ALTER TABLE bet_log ADD COLUMN league TEXT")
+        conn.executemany(
+            "INSERT INTO bet_log (bet_id, match_id, market_type, side, entry_odds,"
+            " stake, fixture_id, bet_source, placed_at, league) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            bets,
+        )
+        conn.commit()
+        conn.close()
+
+    def test_alert_includes_nation_and_league(self, env, monkeypatch):
+        db, sent = env
+        self._add_with_league(db, [self._bet_with_league("n1", "Allsvenskan")])
+        monkeypatch.setattr(dsa, "_nation_for", lambda match: "Sweden")
+        dsa.alert_new_picks()
+        assert len(sent) == 1
+        assert "Sweden" in sent[0][1] and "Allsvenskan" in sent[0][1]
+
+    def test_alert_falls_back_to_league_only(self, env, monkeypatch):
+        db, sent = env
+        self._add_with_league(db, [self._bet_with_league("n2", "FNL")])
+        monkeypatch.setattr(dsa, "_nation_for", lambda match: None)
+        dsa.alert_new_picks()
+        assert len(sent) == 1
+        assert "FNL" in sent[0][1]
+
+    def test_alert_survives_bet_log_without_league_column(self, env, monkeypatch):
+        db, sent = env
+        _add_bets(db, [_bet("n3")])  # legacy schema, no league column
+        monkeypatch.setattr(dsa, "_nation_for", lambda match: None)
+        dsa.alert_new_picks()
+        assert len(sent) == 1  # alert still goes out

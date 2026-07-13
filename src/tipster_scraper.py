@@ -489,12 +489,63 @@ def _fetch_apifb_fixtures(date_str: str, key: str) -> list[dict]:
     for fx in data:
         fixture = fx.get("fixture") or {}
         teams = fx.get("teams") or {}
+        lg = fx.get("league") or {}
         fid = fixture.get("id")
         home = (teams.get("home") or {}).get("name")
         away = (teams.get("away") or {}).get("name")
         if fid is not None and home and away:
-            out.append({"fixture_id": fid, "home_team": home, "away_team": away})
+            out.append({
+                "fixture_id": fid, "home_team": home, "away_team": away,
+                "league": lg.get("name"), "country": lg.get("country"),
+            })
+    # Persist nation/league metadata for the whole day's fixtures (costs no
+    # extra quota — same response). Used by the ntfy pick alerts to tell the
+    # user WHICH country/league a pick is in (2026-07-13 request).
+    try:
+        import json
+
+        with open(
+            os.path.join(BASE_DIR, "data", "apifb_fixture_meta.json"), "w",
+            encoding="utf-8",
+        ) as f:
+            json.dump(
+                {"date": date_str, "fixtures": [
+                    {"home": o["home_team"], "away": o["away_team"],
+                     "league": o["league"], "country": o["country"]}
+                    for o in out
+                ]},
+                f,
+            )
+    except Exception as e:
+        logger.debug(f"[APIFB] fixture meta persist failed: {e}")
     return out
+
+
+def lookup_nation_league(home: str, away: str):
+    """(country, league) for a fixture, resolved by fuzzy team-name match
+    against the persisted API-Football fixtures metadata — or None when the
+    file is missing or no fixture matches. Read-only; never raises."""
+    try:
+        import json
+
+        with open(
+            os.path.join(BASE_DIR, "data", "apifb_fixture_meta.json"),
+            encoding="utf-8",
+        ) as f:
+            fixtures = (json.load(f) or {}).get("fixtures") or []
+    except Exception:
+        return None
+    best = None
+    for fx in fixtures:
+        h = get_match_score(home, fx.get("home") or "")
+        a = get_match_score(away, fx.get("away") or "")
+        if h >= 0.5 and a >= 0.5:
+            score = h + a
+            if best is None or score > best[0]:
+                best = (score, fx.get("country"), fx.get("league"))
+    if best is None:
+        return None
+    return best[1], best[2]
 
 
 def _fetch_apifb_prediction(fixture_id, key: str) -> dict | None:

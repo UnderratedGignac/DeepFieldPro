@@ -138,6 +138,19 @@ def _pick_confidence(match: str) -> float | None:
     return None
 
 
+def _nation_for(match: str) -> str | None:
+    """Country of a 'Home vs Away' fixture, via the API-Football fixtures
+    metadata persisted by the tipster scrape. None when unknown."""
+    try:
+        from src.tipster_scraper import lookup_nation_league
+
+        home, away = [t.strip() for t in (match or "").split(" vs ", 1)]
+        res = lookup_nation_league(home, away)
+        return res[0] if res else None
+    except Exception:
+        return None
+
+
 def _claim_alert(conn, bet_id: str) -> bool:
     """Atomically claim the right to alert this bet. INSERT OR IGNORE into a
     PRIMARY KEY table means exactly ONE process ever wins, even if two
@@ -170,8 +183,10 @@ def alert_new_picks():
 
     try:
         conn = sqlite3.connect(BET_LOG)
+        _cols = {r[1] for r in conn.execute("PRAGMA table_info(bet_log)")}
+        _lg = "league" if "league" in _cols else "NULL AS league"
         rows = conn.execute(
-            """SELECT bet_id, match_id, market_type, side, entry_odds, stake, fixture_id
+            f"""SELECT bet_id, match_id, market_type, side, entry_odds, stake, fixture_id, {_lg}
                FROM bet_log
                WHERE bet_source='TIPSTER_FOREBET'
                AND placed_at >= ?
@@ -182,7 +197,7 @@ def alert_new_picks():
         print(f"[ALERTS] bet_log read failed: {e}")
         return
 
-    for bid, match, mtype, side, odds, paper_stake, fid in rows:
+    for bid, match, mtype, side, odds, paper_stake, fid, league in rows:
         try:
             if not _claim_alert(conn, bid):
                 continue
@@ -221,8 +236,19 @@ def alert_new_picks():
         mtype_short = "O/U" if "Over" in mtype else mtype
 
         conf_str = f" ({conf}% conf)" if conf else ""
+
+        # Nation + league so the user can find the exact match at the book.
+        nation = _nation_for(match)
+        if nation and league:
+            league_line = f"League: {nation} — {league}\n"
+        elif nation or league:
+            league_line = f"League: {nation or league}\n"
+        else:
+            league_line = ""
+
         msg = (
             f"{match}\n"
+            f"{league_line}"
             f"Bet: {side_label} ({mtype_short}){conf_str}\n"
             f"Odds: {odds:.2f}\n"
             f"{stake_line}"

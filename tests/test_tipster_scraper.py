@@ -29,11 +29,20 @@ _NOW = datetime.datetime(2026, 7, 11, 5, 30, 45, tzinfo=_UTC)
 
 
 @pytest.fixture(autouse=True)
-def _no_source_whitelist(monkeypatch):
-    """Isolate tests from the PRODUCTION settings.json source whitelist
-    (tipster_sources_allowed, e.g. Forebet-only mode): by default no
-    restriction applies in tests; whitelist tests override explicitly."""
+def _no_source_whitelist(monkeypatch, tmp_path):
+    """Isolate tests from PRODUCTION state:
+    - settings.json source whitelist (tipster_sources_allowed) -> no restriction
+      by default; whitelist tests override explicitly.
+    - REAL_BANKROLL_DB -> tmp file. FOREBET-source placements route through the
+      real-bankroll gate; without this, test bets DEDUCT REAL LEDGER MONEY
+      (2026-07-13 incident: ~$17 of phantom test stakes hit real_bankroll.db
+      and the polluted exposure then tripped the daily cap inside tests)."""
     monkeypatch.setattr(ts, "_allowed_tipster_sources", lambda: set())
+    _rb = str(tmp_path / "real_bankroll_test.db")
+    monkeypatch.setattr(ts, "REAL_BANKROLL_DB", _rb)
+    from src.bankroll_tracker import init_bankroll_db
+
+    init_bankroll_db(db_path=_rb)  # funded tmp ledger so the FOREBET gate accepts
 
 
 def test_single_bookmaker_row_unchanged():
@@ -742,3 +751,34 @@ class TestPlacementApifbBypassesRealBankroll:
         assert placed == 1
         assert row[0] == "TIPSTER_APIFB"
         assert row[1] == "F1"
+
+
+class TestNationLeagueLookup:
+    """lookup_nation_league(): resolve a bet's nation+league from the
+    persisted API-Football fixtures metadata (captured at zero extra quota)."""
+
+    def _write_meta(self, base, fixtures):
+        import json, os
+        os.makedirs(os.path.join(base, "data"), exist_ok=True)
+        with open(os.path.join(base, "data", "apifb_fixture_meta.json"), "w") as f:
+            json.dump({"fixtures": fixtures}, f)
+
+    def test_lookup_finds_nation_and_league(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ts, "BASE_DIR", str(tmp_path))
+        self._write_meta(str(tmp_path), [
+            {"home": "Djurgardens IF", "away": "Halmstads BK",
+             "league": "Allsvenskan", "country": "Sweden"},
+        ])
+        assert ts.lookup_nation_league("Djurgarden", "Halmstad") == ("Sweden", "Allsvenskan")
+
+    def test_lookup_returns_none_when_no_match(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ts, "BASE_DIR", str(tmp_path))
+        self._write_meta(str(tmp_path), [
+            {"home": "Real Madrid", "away": "Barcelona",
+             "league": "La Liga", "country": "Spain"},
+        ])
+        assert ts.lookup_nation_league("Djurgarden", "Halmstad") is None
+
+    def test_lookup_missing_file_returns_none(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ts, "BASE_DIR", str(tmp_path))
+        assert ts.lookup_nation_league("A", "B") is None
