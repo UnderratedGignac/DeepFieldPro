@@ -55,7 +55,7 @@ def ai_env(tmp_path, monkeypatch):
                market_type TEXT, entry_odds REAL, fair_odds REAL, edge_pct REAL,
                stake REAL, result TEXT DEFAULT 'OPEN', pnl REAL DEFAULT 0,
                placed_at TEXT, bet_source TEXT, is_recommended INTEGER DEFAULT 1,
-               line TEXT, side TEXT, fixture_id TEXT, league TEXT)"""
+               line TEXT, side TEXT, fixture_id TEXT, league TEXT, kickoff_time TEXT)"""
     )
     conn.execute("CREATE TABLE stair_orders (bet_id TEXT, order_id TEXT)")
     conn.commit()
@@ -124,6 +124,23 @@ class TestLogAiBetKelly:
         data, _, _ = ai_env
         lpd.log_ai_bet("A vs B", "1X2", "Home", odds=2.0, prob=40.0, ev=-0.20)
         assert _stakes(data)["A vs B"] == pytest.approx(1.0)
+
+    def test_kickoff_time_captured_when_provided(self, ai_env):
+        """The fixture's kickoff time must be persisted at placement so
+        pre/post-kickoff placement is durably auditable later (2026-07-13:
+        a retroactive audit request found this was impossible to answer for
+        historical bets, since odds_stream.db only retains ~3 days)."""
+        data, _, _ = ai_env
+        lpd.log_ai_bet(
+            "A vs B", "1X2", "Home", odds=2.0, prob=55.0, ev=0.10,
+            kickoff_time="2026-07-15T18:00:00Z",
+        )
+        conn = sqlite3.connect(data / "bet_log.db")
+        row = conn.execute(
+            "SELECT kickoff_time FROM bet_log WHERE match_id='A vs B'"
+        ).fetchone()
+        conn.close()
+        assert row[0] == "2026-07-15T18:00:00Z"
 
     def test_shadow_default_zero_stake_when_real_staking_disabled(self, ai_env):
         data, _, write_settings = ai_env
@@ -224,6 +241,24 @@ def bankroll(tmp_path, monkeypatch):
 
 def _status(db):
     return bt.get_status(db)
+
+
+class TestLogSteamBetKickoff:
+    """log_steam_bet() must also persist kickoff_time at placement, same as
+    log_ai_bet — the durable-audit column added 2026-07-13."""
+
+    def test_kickoff_time_captured_when_provided(self, ai_env):
+        data, _, _ = ai_env
+        lpd.log_steam_bet(
+            "A vs B", "1X2", "Home", odds=2.0, steam_move_pct=4.5,
+            kickoff_time="2026-07-15T18:00:00Z",
+        )
+        conn = sqlite3.connect(data / "bet_log.db")
+        row = conn.execute(
+            "SELECT kickoff_time FROM bet_log WHERE match_id='A vs B'"
+        ).fetchone()
+        conn.close()
+        assert row[0] == "2026-07-15T18:00:00Z"
 
 
 class TestBankrollTracker:

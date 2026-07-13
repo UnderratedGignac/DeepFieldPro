@@ -16,6 +16,7 @@ import datetime
 
 import pytest
 
+import src.tipster_scraper as ts
 from src.tipster_scraper import (
     _build_odds_map,
     _fixture_has_started,
@@ -193,7 +194,8 @@ class TestPlacementSkipsInPlay:
             closing_odds REAL, clv REAL, result TEXT DEFAULT 'OPEN', pnl REAL DEFAULT 0,
             regime TEXT, role_shift_flag INTEGER, bet_source TEXT, is_recommended INTEGER,
             model_version TEXT, fixture_id TEXT, league TEXT, clv_sharp REAL, best_odds REAL,
-            best_book TEXT, signal_name TEXT, move_size REAL, monotonicity REAL, pinnacle_clv REAL
+            best_book TEXT, signal_name TEXT, move_size REAL, monotonicity REAL, pinnacle_clv REAL,
+            kickoff_time TEXT
         )
     """
 
@@ -260,3 +262,385 @@ class TestPlacementSkipsInPlay:
         assert "F_UP" in fids  # upcoming fixture placed
         assert "F_STARTED" not in fids  # in-play fixture skipped
         assert placed == 1
+
+    def test_kickoff_time_captured_at_placement(self, tmp_path, monkeypatch):
+        """The matched fixture's kickoff_time must be persisted into bet_log
+        at placement time, so pre/post-kickoff placement is durably auditable
+        later without depending on odds_stream.db's rolling ~3-day retention
+        (2026-07-13: a retroactive audit request found this was impossible to
+        answer for historical bets because that data had already rolled off)."""
+        import sqlite3
+        import datetime as _dt
+
+        odds_db, bet_db = self._setup(tmp_path)
+        monkeypatch.setattr(ts, "_paper_balance", lambda: 1000.0)
+        monkeypatch.setattr(
+            ts, "_placement_now", lambda: _dt.datetime(2026, 7, 11, 5, 30, 45, tzinfo=_UTC)
+        )
+
+        ts.place_tipster_bets(self._predictions(), bet_db=bet_db, odds_db=odds_db)
+
+        conn = sqlite3.connect(bet_db)
+        row = conn.execute(
+            "SELECT kickoff_time FROM bet_log WHERE fixture_id = 'F_UP'"
+        ).fetchone()
+        conn.close()
+        assert row[0] == "2026-12-31T23:00:00.000Z"
+
+
+# ---------------------------------------------------------------------------
+# API-Football second signal (2026-07-13): a decorrelated paper-bet source
+# for an A/B comparison against Forebet. Free tier = 100 req/day and
+# settlement already spends ~3/day, so fetching is cached per fixture per
+# day and hard-capped (~40 predictions/day), and only fires for fixtures
+# Betarabia/Kambi actually price. CRITICAL: only source=='FOREBET' may touch
+# real_bankroll.db (see place_tipster_bets) -- APIFB must stay pure paper.
+# ---------------------------------------------------------------------------
+
+
+class TestApiFootballKey:
+    def test_env_var_used_when_set(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("API_FOOTBALL_KEY", "env-key-123")
+        assert ts._api_football_key(base_dir=str(tmp_path)) == "env-key-123"
+
+    def test_falls_back_to_dotenv_file(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("API_FOOTBALL_KEY", raising=False)
+        (tmp_path / ".env").write_text("API_FOOTBALL_KEY=dotenv-key-456\n", encoding="utf-8")
+        assert ts._api_football_key(base_dir=str(tmp_path)) == "dotenv-key-456"
+
+    def test_env_var_wins_over_dotenv(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("API_FOOTBALL_KEY", "env-key")
+        (tmp_path / ".env").write_text("API_FOOTBALL_KEY=dotenv-key\n", encoding="utf-8")
+        assert ts._api_football_key(base_dir=str(tmp_path)) == "env-key"
+
+    def test_missing_everywhere_returns_none(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("API_FOOTBALL_KEY", raising=False)
+        assert ts._api_football_key(base_dir=str(tmp_path)) is None
+
+
+class TestParseApifbPrediction:
+    def test_picks_max_percent_as_predicted_side_home(self):
+        raw = {"predictions": {"percent": {"home": "55%", "draw": "25%", "away": "20%"}}}
+        pred = ts._parse_apifb_prediction(raw, "Team A", "Team B", "2026-07-13")
+        assert pred["predicted_side"] == "Home (1)"
+        assert pred["confidence"] == 55.0
+        assert pred["source"] == "APIFB"
+        assert pred["home_team"] == "Team A"
+        assert pred["away_team"] == "Team B"
+        assert pred["date"] == "2026-07-13"
+
+    def test_picks_draw_when_draw_is_highest(self):
+        raw = {"predictions": {"percent": {"home": "30%", "draw": "40%", "away": "30%"}}}
+        pred = ts._parse_apifb_prediction(raw, "A", "B", "2026-07-13")
+        assert pred["predicted_side"] == "Draw (X)"
+        assert pred["confidence"] == 40.0
+
+    def test_picks_away_when_away_is_highest(self):
+        raw = {"predictions": {"percent": {"home": "20%", "draw": "20%", "away": "60%"}}}
+        pred = ts._parse_apifb_prediction(raw, "A", "B", "2026-07-13")
+        assert pred["predicted_side"] == "Away (2)"
+        assert pred["confidence"] == 60.0
+
+    def test_under_over_minus_maps_to_under_25(self):
+        raw = {
+            "predictions": {
+                "percent": {"home": "50%", "draw": "30%", "away": "20%"},
+                "under_over": "-2.5",
+            }
+        }
+        pred = ts._parse_apifb_prediction(raw, "A", "B", "2026-07-13")
+        assert pred["predicted_ou"] == "Under 2.5"
+
+    def test_under_over_plus_maps_to_over_25(self):
+        raw = {
+            "predictions": {
+                "percent": {"home": "50%", "draw": "30%", "away": "20%"},
+                "under_over": "+2.5",
+            }
+        }
+        pred = ts._parse_apifb_prediction(raw, "A", "B", "2026-07-13")
+        assert pred["predicted_ou"] == "Over 2.5"
+
+    def test_missing_under_over_leaves_predicted_ou_none(self):
+        raw = {"predictions": {"percent": {"home": "50%", "draw": "30%", "away": "20%"}}}
+        pred = ts._parse_apifb_prediction(raw, "A", "B", "2026-07-13")
+        assert pred["predicted_ou"] is None
+
+    def test_missing_percent_returns_none(self):
+        raw = {"predictions": {}}
+        assert ts._parse_apifb_prediction(raw, "A", "B", "2026-07-13") is None
+
+    def test_none_raw_returns_none(self):
+        assert ts._parse_apifb_prediction(None, "A", "B", "2026-07-13") is None
+
+    def test_non_numeric_percent_returns_none(self):
+        raw = {"predictions": {"percent": {"home": "n/a", "draw": "30%", "away": "20%"}}}
+        assert ts._parse_apifb_prediction(raw, "A", "B", "2026-07-13") is None
+
+
+class TestFilterApifbFixturesMatched:
+    _BETARABIA = [
+        {"fixture_id": "B1", "home_team": "Manchester United", "away_team": "Liverpool"},
+        {"fixture_id": "B2", "home_team": "Real Madrid", "away_team": "Barcelona"},
+    ]
+
+    def test_keeps_only_fixtures_priced_by_betarabia(self):
+        apifb = [
+            {"fixture_id": 1, "home_team": "Manchester United", "away_team": "Liverpool"},
+            {"fixture_id": 2, "home_team": "Some Obscure FC", "away_team": "Another Obscure FC"},
+        ]
+        matched = ts._filter_apifb_fixtures_matched(apifb, self._BETARABIA, limit=40)
+        assert [m["fixture_id"] for m in matched] == [1]
+
+    def test_respects_budget_cap(self):
+        apifb = [
+            {"fixture_id": i, "home_team": "Manchester United", "away_team": "Liverpool"}
+            for i in range(5)
+        ]
+        matched = ts._filter_apifb_fixtures_matched(apifb, self._BETARABIA, limit=3)
+        assert len(matched) == 3
+
+    def test_empty_betarabia_returns_empty(self):
+        apifb = [{"fixture_id": 1, "home_team": "Manchester United", "away_team": "Liverpool"}]
+        assert ts._filter_apifb_fixtures_matched(apifb, [], limit=40) == []
+
+    def test_empty_apifb_returns_empty(self):
+        assert ts._filter_apifb_fixtures_matched([], self._BETARABIA, limit=40) == []
+
+
+class TestGetApiFootballPredictions:
+    def test_no_key_returns_empty_and_makes_no_calls(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(ts, "_api_football_key", lambda base_dir=None: None)
+        called = []
+        monkeypatch.setattr(
+            ts, "_fetch_apifb_fixtures", lambda *a, **k: called.append("fixtures") or []
+        )
+        preds = ts.get_api_football_predictions(
+            "2026-07-13", odds_db=str(tmp_path / "missing.db")
+        )
+        assert preds == []
+        assert called == []
+
+    def test_no_betarabia_fixtures_short_circuits_before_network(self, monkeypatch, tmp_path):
+        import sqlite3
+
+        odds_db = str(tmp_path / "odds_stream.db")
+        conn = sqlite3.connect(odds_db)
+        conn.execute(
+            "CREATE TABLE fixture (fixture_id TEXT, home_team TEXT, away_team TEXT, "
+            "tournament_name TEXT, kickoff_time TEXT, kickoff_date TEXT)"
+        )
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(ts, "_api_football_key", lambda base_dir=None: "some-key")
+        called = []
+        monkeypatch.setattr(
+            ts, "_fetch_apifb_fixtures", lambda *a, **k: called.append("fixtures") or []
+        )
+        preds = ts.get_api_football_predictions("2026-07-13", odds_db=odds_db)
+        assert preds == []
+        assert called == []
+
+    @staticmethod
+    def _seed_betarabia(tmp_path):
+        import sqlite3
+
+        odds_db = str(tmp_path / "odds_stream.db")
+        conn = sqlite3.connect(odds_db)
+        conn.execute(
+            "CREATE TABLE fixture (fixture_id TEXT, home_team TEXT, away_team TEXT, "
+            "tournament_name TEXT, kickoff_time TEXT, kickoff_date TEXT)"
+        )
+        conn.execute(
+            "INSERT INTO fixture VALUES "
+            "('B1','Manchester United','Liverpool','EPL','2026-07-13T18:00:00Z','2026-07-13')"
+        )
+        conn.commit()
+        conn.close()
+        return odds_db
+
+    def test_fetches_and_parses_matched_fixture(self, monkeypatch, tmp_path):
+        odds_db = self._seed_betarabia(tmp_path)
+        ts._apifb_predictions_cache.clear()
+        monkeypatch.setattr(ts, "_api_football_key", lambda base_dir=None: "key123")
+        monkeypatch.setattr(
+            ts,
+            "_fetch_apifb_fixtures",
+            lambda date_str, key: [
+                {"fixture_id": 99, "home_team": "Manchester United", "away_team": "Liverpool"}
+            ],
+        )
+        fetch_calls = []
+
+        def fake_fetch_pred(fid, key):
+            fetch_calls.append(fid)
+            return {"predictions": {"percent": {"home": "60%", "draw": "25%", "away": "15%"}}}
+
+        monkeypatch.setattr(ts, "_fetch_apifb_prediction", fake_fetch_pred)
+        preds = ts.get_api_football_predictions("2026-07-13", odds_db=odds_db)
+        assert len(preds) == 1
+        assert preds[0]["source"] == "APIFB"
+        assert preds[0]["predicted_side"] == "Home (1)"
+        assert fetch_calls == [99]
+
+    def test_caches_per_fixture_per_day_no_duplicate_fetch(self, monkeypatch, tmp_path):
+        odds_db = self._seed_betarabia(tmp_path)
+        ts._apifb_predictions_cache.clear()
+        monkeypatch.setattr(ts, "_api_football_key", lambda base_dir=None: "key123")
+        monkeypatch.setattr(
+            ts,
+            "_fetch_apifb_fixtures",
+            lambda date_str, key: [
+                {"fixture_id": 99, "home_team": "Manchester United", "away_team": "Liverpool"}
+            ],
+        )
+        fetch_calls = []
+
+        def fake_fetch_pred(fid, key):
+            fetch_calls.append(fid)
+            return {"predictions": {"percent": {"home": "60%", "draw": "25%", "away": "15%"}}}
+
+        monkeypatch.setattr(ts, "_fetch_apifb_prediction", fake_fetch_pred)
+        ts.get_api_football_predictions("2026-07-13", odds_db=odds_db)
+        ts.get_api_football_predictions("2026-07-13", odds_db=odds_db)
+        assert fetch_calls == [99]  # second call served entirely from cache
+
+    def test_budget_cap_limits_prediction_fetches(self, monkeypatch, tmp_path):
+        odds_db = self._seed_betarabia(tmp_path)
+        ts._apifb_predictions_cache.clear()
+        monkeypatch.setattr(ts, "_api_football_key", lambda base_dir=None: "key123")
+        many_fixtures = [
+            {"fixture_id": i, "home_team": "Manchester United", "away_team": "Liverpool"}
+            for i in range(50)
+        ]
+        monkeypatch.setattr(ts, "_fetch_apifb_fixtures", lambda date_str, key: many_fixtures)
+        fetch_calls = []
+
+        def fake_fetch_pred(fid, key):
+            fetch_calls.append(fid)
+            return {"predictions": {"percent": {"home": "60%", "draw": "25%", "away": "15%"}}}
+
+        monkeypatch.setattr(ts, "_fetch_apifb_prediction", fake_fetch_pred)
+        preds = ts.get_api_football_predictions("2026-07-13", odds_db=odds_db)
+        assert len(fetch_calls) <= ts._APIFB_MAX_PER_DAY
+        assert len(preds) <= ts._APIFB_MAX_PER_DAY
+        assert len(fetch_calls) < len(many_fixtures)  # budget actually capped it
+
+
+class TestGetAllTipsterPredictionsIncludesApifb:
+    def test_includes_apifb_predictions_in_combined_list(self, monkeypatch):
+        monkeypatch.setattr(ts, "get_forebet_predictions", lambda date_str: [])
+        monkeypatch.setattr(ts, "get_soccerpunter_predictions", lambda date_str: [])
+        monkeypatch.setattr(ts, "get_predictz_predictions", lambda date_str: [])
+        monkeypatch.setattr(
+            ts,
+            "get_api_football_predictions",
+            lambda date_str: [
+                {
+                    "home_team": "A",
+                    "away_team": "B",
+                    "source": "APIFB",
+                    "predicted_side": "Home (1)",
+                    "confidence": 60.0,
+                    "predicted_ou": None,
+                    "date": date_str,
+                }
+            ],
+        )
+        preds = ts.get_all_tipster_predictions("2026-07-13")
+        assert any(p["source"] == "APIFB" for p in preds)
+
+    def test_apifb_error_does_not_break_other_sources(self, monkeypatch):
+        monkeypatch.setattr(
+            ts,
+            "get_forebet_predictions",
+            lambda date_str: [
+                {
+                    "home_team": "X",
+                    "away_team": "Y",
+                    "source": "FOREBET",
+                    "predicted_side": "Home (1)",
+                    "confidence": 50.0,
+                    "predicted_ou": None,
+                    "date": date_str,
+                }
+            ],
+        )
+        monkeypatch.setattr(ts, "get_soccerpunter_predictions", lambda date_str: [])
+        monkeypatch.setattr(ts, "get_predictz_predictions", lambda date_str: [])
+
+        def boom(date_str):
+            raise RuntimeError("APIFB down")
+
+        monkeypatch.setattr(ts, "get_api_football_predictions", boom)
+        preds = ts.get_all_tipster_predictions("2026-07-13")
+        assert len(preds) == 1
+        assert preds[0]["source"] == "FOREBET"
+
+
+class TestPlacementApifbBypassesRealBankroll:
+    """CRITICAL (see CLAUDE.md): only source=='FOREBET' may touch
+    real_bankroll.db. APIFB is a pure paper research track and must never
+    reach that gate."""
+
+    _BET_LOG_SCHEMA = TestPlacementSkipsInPlay._BET_LOG_SCHEMA
+
+    def _setup(self, tmp_path):
+        import sqlite3
+
+        odds_db = str(tmp_path / "odds_stream.db")
+        bet_db = str(tmp_path / "bet_log.db")
+        far_future = "2026-12-31T23:00:00.000Z"
+        oc = sqlite3.connect(odds_db)
+        oc.execute(
+            "CREATE TABLE fixture (fixture_id TEXT, home_team TEXT, away_team TEXT, "
+            "tournament_name TEXT, kickoff_time TEXT, kickoff_date TEXT)"
+        )
+        oc.execute(
+            "CREATE TABLE market (fixture_id TEXT, market_name TEXT, selection_name TEXT, raw_odds REAL)"
+        )
+        oc.executemany(
+            "INSERT INTO fixture VALUES (?,?,?,?,?,?)",
+            [("F1", "Alpha City", "Beta United", "NPL", far_future, "2026-12-31")],
+        )
+        oc.executemany(
+            "INSERT INTO market VALUES (?,?,?,?)",
+            [("F1", "Match Result", "Home", 1.8)],
+        )
+        oc.commit()
+        oc.close()
+        sqlite3.connect(bet_db).executescript(self._BET_LOG_SCHEMA)
+        return odds_db, bet_db
+
+    def test_apifb_bet_inserted_with_correct_source_and_no_real_bankroll_gate(
+        self, tmp_path, monkeypatch
+    ):
+        import sqlite3
+
+        odds_db, bet_db = self._setup(tmp_path)
+        monkeypatch.setattr(ts, "_paper_balance", lambda: 1000.0)
+
+        def _boom_real_register_bet(*a, **k):
+            raise AssertionError("APIFB bet must never touch the real bankroll gate")
+
+        monkeypatch.setattr(
+            "src.bankroll_tracker.register_bet", _boom_real_register_bet, raising=False
+        )
+
+        predictions = [
+            {
+                "home_team": "Alpha City",
+                "away_team": "Beta United",
+                "source": "APIFB",
+                "predicted_side": "Home (1)",
+                "confidence": 60.0,
+            }
+        ]
+        placed = ts.place_tipster_bets(predictions, bet_db=bet_db, odds_db=odds_db)
+
+        conn = sqlite3.connect(bet_db)
+        row = conn.execute("SELECT bet_source, fixture_id FROM bet_log").fetchone()
+        conn.close()
+        assert placed == 1
+        assert row[0] == "TIPSTER_APIFB"
+        assert row[1] == "F1"

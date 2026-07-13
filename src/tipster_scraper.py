@@ -27,6 +27,8 @@ import requests
 from bs4 import BeautifulSoup
 from rapidfuzz import fuzz
 
+from src.name_matching import get_match_score
+
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -428,6 +430,237 @@ def get_soccerpunter_predictions(date_str: str | None = None) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
+# SOURCE 4 — API-Football Predictions endpoint (percent-based model)
+# ─────────────────────────────────────────────
+# A second, decorrelated paper-bet signal run alongside Forebet (source=APIFB)
+# for a clean A/B comparison in the research ledger -- see edge_milestone_check.py.
+# Free tier = 100 requests/day and settlement (fetch_api_football_results() in
+# live_predictions_daemon.py) already spends ~3/day, so this stays hard
+# budget-conscious: skip entirely without a key or without Betarabia fixtures
+# to match against, fetch the day's fixture list in ONE request, keep only
+# fixtures Betarabia/Kambi actually price, and cache each fixture's prediction
+# per calendar day so repeat calls never re-spend the per-fixture budget.
+
+_APIFB_URL_FIXTURES = "https://v3.football.api-sports.io/fixtures"
+_APIFB_URL_PREDICTIONS = "https://v3.football.api-sports.io/predictions"
+_APIFB_MAX_PER_DAY = 40  # prediction-fetch budget; well under the 100/day free quota
+_apifb_predictions_cache: dict[str, dict] = {}  # date_str -> {fixture_id: pred_dict_or_None}
+
+
+def _api_football_key(base_dir: str | None = None) -> str | None:
+    """Resolve API_FOOTBALL_KEY from the environment, falling back to reading
+    .env directly -- os.getenv alone can return empty in daemon threads since
+    .env isn't loaded into os.environ there (same fallback pattern as
+    fetch_api_football_results() in live_predictions_daemon.py)."""
+    key = os.getenv("API_FOOTBALL_KEY")
+    if key:
+        return key
+    if base_dir is None:
+        base_dir = BASE_DIR
+    try:
+        with open(os.path.join(base_dir, ".env"), encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("API_FOOTBALL_KEY="):
+                    return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return None
+
+
+def _fetch_apifb_fixtures(date_str: str, key: str) -> list[dict]:
+    """GET /fixtures?date=... -> [{fixture_id, home_team, away_team}, ...]. One request."""
+    try:
+        r = requests.get(
+            _APIFB_URL_FIXTURES,
+            headers={"x-apisports-key": key},
+            params={"date": date_str},
+            timeout=20,
+        )
+        payload = r.json()
+        if payload.get("errors"):
+            logger.warning(f"[APIFB] fixtures fetch error for {date_str}: {payload['errors']}")
+            return []
+        data = payload.get("response", [])
+    except Exception as e:
+        logger.warning(f"[APIFB] fixtures fetch failed for {date_str}: {e}")
+        return []
+
+    out = []
+    for fx in data:
+        fixture = fx.get("fixture") or {}
+        teams = fx.get("teams") or {}
+        fid = fixture.get("id")
+        home = (teams.get("home") or {}).get("name")
+        away = (teams.get("away") or {}).get("name")
+        if fid is not None and home and away:
+            out.append({"fixture_id": fid, "home_team": home, "away_team": away})
+    return out
+
+
+def _fetch_apifb_prediction(fixture_id, key: str) -> dict | None:
+    """GET /predictions?fixture=... -> the raw prediction payload for one fixture,
+    or None. One request per call -- callers must budget these."""
+    try:
+        r = requests.get(
+            _APIFB_URL_PREDICTIONS,
+            headers={"x-apisports-key": key},
+            params={"fixture": fixture_id},
+            timeout=20,
+        )
+        payload = r.json()
+        if payload.get("errors"):
+            logger.debug(
+                f"[APIFB] prediction fetch error for fixture {fixture_id}: {payload['errors']}"
+            )
+            return None
+        data = payload.get("response", [])
+        return data[0] if data else None
+    except Exception as e:
+        logger.debug(f"[APIFB] prediction fetch failed for fixture {fixture_id}: {e}")
+        return None
+
+
+def _parse_apifb_prediction(
+    raw: dict | None, home_team: str, away_team: str, date_str: str
+) -> dict | None:
+    """Parse one API-Football /predictions response entry into the shared
+    tipster-prediction dict shape ({home_team, away_team, source, predicted_side,
+    confidence, predicted_ou, ...}). Returns None when the percent breakdown --
+    the minimum needed to pick a side and a confidence -- is missing or unusable.
+    """
+    if not raw:
+        return None
+    preds = raw.get("predictions") or {}
+    percent = preds.get("percent") or {}
+
+    def _pct(v):
+        try:
+            return float(str(v).strip().rstrip("%"))
+        except (TypeError, ValueError):
+            return None
+
+    prob_home = _pct(percent.get("home"))
+    prob_draw = _pct(percent.get("draw"))
+    prob_away = _pct(percent.get("away"))
+    if prob_home is None or prob_draw is None or prob_away is None:
+        return None
+
+    maxp = max(prob_home, prob_draw, prob_away)
+    if maxp == prob_home:
+        predicted_side = "Home (1)"
+    elif maxp == prob_draw:
+        predicted_side = "Draw (X)"
+    else:
+        predicted_side = "Away (2)"
+
+    # under_over is API-Football's signed goals-line advice, e.g. "-2.5" (predicts
+    # under) or "+2.5" (predicts over). Only the sign is used; the line is fixed
+    # at 2.5 to match the rest of the pipeline's O/U convention.
+    predicted_ou = None
+    under_over = preds.get("under_over")
+    if under_over:
+        s = str(under_over).strip()
+        if s.startswith("-"):
+            predicted_ou = "Under 2.5"
+        elif s.startswith("+"):
+            predicted_ou = "Over 2.5"
+
+    return {
+        "home_team": home_team,
+        "away_team": away_team,
+        "date": date_str,
+        "source": "APIFB",
+        "predicted_side": predicted_side,
+        "confidence": float(maxp),
+        "predicted_ou": predicted_ou,
+        "ou_confidence": None,
+        "avg_goals": None,
+        "prob_home": prob_home,
+        "prob_draw": prob_draw,
+        "prob_away": prob_away,
+    }
+
+
+def _filter_apifb_fixtures_matched(
+    apifb_fixtures: list[dict], betarabia_fixtures: list[dict], limit: int
+) -> list[dict]:
+    """Keep only API-Football fixtures that a Betarabia/Kambi fixture actually
+    prices (fuzzy team-name match via name_matching.get_match_score, the same
+    age-group-aware matcher the settlement pipeline uses), capped at `limit` --
+    the free-tier prediction-fetch budget.
+    """
+    if not apifb_fixtures or not betarabia_fixtures:
+        return []
+    matched = []
+    for af in apifb_fixtures:
+        for bf in betarabia_fixtures:
+            if (
+                get_match_score(af.get("home_team"), bf.get("home_team")) >= 0.5
+                and get_match_score(af.get("away_team"), bf.get("away_team")) >= 0.5
+            ):
+                matched.append(af)
+                break
+        if len(matched) >= limit:
+            break
+    return matched
+
+
+def get_api_football_predictions(
+    date_str: str | None = None, odds_db: str | None = None
+) -> list[dict]:
+    """
+    API-Football Predictions endpoint -- a second, decorrelated paper-bet
+    signal run alongside Forebet for an A/B comparison (source='APIFB').
+
+    Skips entirely (no network spent) without a key or without any Betarabia
+    fixtures to match against. Otherwise: one request to list the day's
+    fixtures, filter to fixtures Betarabia/Kambi actually price and cap at
+    _APIFB_MAX_PER_DAY, then one prediction request per NEW (uncached)
+    fixture -- a fixture already fetched today is served from cache.
+    """
+    if date_str is None:
+        date_str = datetime.date.today().strftime("%Y-%m-%d")
+
+    key = _api_football_key()
+    if not key:
+        return []
+
+    if odds_db is None:
+        odds_db = os.path.join(BASE_DIR, "data", "odds_stream.db")
+    betarabia_fixtures = _load_betarabia_fixtures(odds_db)
+    if not betarabia_fixtures:
+        return []
+
+    apifb_fixtures = _fetch_apifb_fixtures(date_str, key)
+    if not apifb_fixtures:
+        return []
+
+    matched = _filter_apifb_fixtures_matched(
+        apifb_fixtures, betarabia_fixtures, _APIFB_MAX_PER_DAY
+    )
+
+    cache = _apifb_predictions_cache.setdefault(date_str, {})
+    predictions = []
+    fetched = 0
+    for af in matched:
+        fid = af["fixture_id"]
+        if fid in cache:
+            cached_pred = cache[fid]
+            if cached_pred:
+                predictions.append(cached_pred)
+            continue
+        raw = _fetch_apifb_prediction(fid, key)
+        fetched += 1
+        pred = _parse_apifb_prediction(raw, af["home_team"], af["away_team"], date_str)
+        cache[fid] = pred
+        if pred:
+            predictions.append(pred)
+
+    logger.info(f"[APIFB] {date_str}: {len(predictions)} predictions from {fetched} API calls")
+    return predictions
+
+
+# ─────────────────────────────────────────────
 # Aggregator
 # ─────────────────────────────────────────────
 
@@ -446,6 +679,13 @@ def get_all_tipster_predictions(date_str: str | None = None) -> list[dict]:
         all_preds.extend(get_forebet_predictions(date_str))
     except Exception as e:
         logger.warning(f"[TIPSTER] Forebet error: {e}")
+
+    # API-Football — second decorrelated signal, run in parallel with Forebet
+    # for a clean A/B comparison (source=APIFB, bet_source=TIPSTER_APIFB).
+    try:
+        all_preds.extend(get_api_football_predictions(date_str))
+    except Exception as e:
+        logger.warning(f"[TIPSTER] API-Football error: {e}")
 
     # SoccerPunter — requests-based fallback
     try:
@@ -1042,6 +1282,7 @@ def _build_row(cols, bet_id, fix, market_type, side, odds_val, stake, bet_source
         "model_version": None,
         "fixture_id": fix["fixture_id"],
         "league": fix.get("tournament_name"),
+        "kickoff_time": fix.get("kickoff_time") or fix.get("kickoff_date"),
         "clv_sharp": None,
         "best_odds": odds_val,
         "best_book": book,

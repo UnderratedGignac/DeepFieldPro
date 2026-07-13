@@ -2699,6 +2699,7 @@ def log_steam_bet(
     league=None,
     monotonicity=None,
     bet_source="STEAM",
+    kickoff_time=None,
 ):
     """Shadow flat-stake bet for a fired STEAM (line-movement) signal.
 
@@ -2781,6 +2782,7 @@ def log_steam_bet(
             "ALTER TABLE bet_log ADD COLUMN signal_name TEXT",
             "ALTER TABLE bet_log ADD COLUMN move_size REAL",
             "ALTER TABLE bet_log ADD COLUMN monotonicity REAL",
+            "ALTER TABLE bet_log ADD COLUMN kickoff_time TEXT",
         ]:
             try:
                 conn.execute(col_sql)
@@ -2790,8 +2792,8 @@ def log_steam_bet(
         cur.execute(
             """INSERT OR IGNORE INTO bet_log
                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
-                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, signal_name, move_size, monotonicity)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, signal_name, move_size, monotonicity, kickoff_time)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 bet_id,
                 match,
@@ -2813,6 +2815,7 @@ def log_steam_bet(
                 bet_source,
                 steam_move_pct,
                 monotonicity,
+                kickoff_time,
             ),
         )
         # Line-shop: record the BEST price across Betarabia + Kambi (metadata only — the bet
@@ -3027,7 +3030,8 @@ def log_pinnacle_value_bet(
 
 
 def log_ai_bet(
-    match, market, selection, odds, prob, ev, fixture_id=None, league=None, source=None
+    match, market, selection, odds, prob, ev, fixture_id=None, league=None, source=None,
+    kickoff_time=None,
 ):
     """AI model-dependent paper bet (shadow mode).
     Gated by settings.model_predictions_disabled (default True = disabled).
@@ -3130,8 +3134,8 @@ def log_ai_bet(
             cur.execute(
                 """
                 INSERT INTO bet_log
-                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake, result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake, result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, kickoff_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     bet_id,
@@ -3151,6 +3155,7 @@ def log_ai_bet(
                     selection,
                     str(fixture_id) if fixture_id is not None else None,
                     league,
+                    kickoff_time,
                 ),
             )
             print(
@@ -5108,6 +5113,7 @@ def update_dashboard_json(fixtures, results_cache):
                                     fid,
                                     league,
                                     monotonicity=steam_mono,
+                                    kickoff_time=match_time,
                                 )
                                 try:
                                     from src.services.alerting import notifier as _ntfy
@@ -5277,6 +5283,7 @@ def update_dashboard_json(fixtures, results_cache):
                                         league,
                                         monotonicity=steam_mono,
                                         bet_source="SHARP_STEAM",
+                                        kickoff_time=match_time,
                                     )
                                 except Exception:
                                     pass
@@ -5311,6 +5318,7 @@ def update_dashboard_json(fixtures, results_cache):
                                         fid,
                                         league,
                                         bet_source="PINNACLE_STEAM",
+                                        kickoff_time=match_time,
                                     )
                                 except Exception as _pse:
                                     print(f"[PINNACLE_STEAM] bet error: {_pse}")
@@ -5445,6 +5453,7 @@ def update_dashboard_json(fixtures, results_cache):
                                         fid,
                                         league,
                                         source="AI_AH",
+                                        kickoff_time=match_time,
                                     )
 
                             sel.update(
@@ -5528,6 +5537,7 @@ def update_dashboard_json(fixtures, results_cache):
                             _mw["ev"],
                             fid,
                             league,
+                            kickoff_time=match_time,
                         )
                         print(
                             f"[DAEMON] MARKET PICK logged: {_mw['m_type']} | {_mw['selection']} @ {_mw['odds']} (EV: {_mw['ev']*100:.1f}%)"
