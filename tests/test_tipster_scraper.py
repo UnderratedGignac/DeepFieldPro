@@ -138,6 +138,48 @@ def test_make_kambi_fixture_id_distinct_per_matchup():
 
 
 # ---------------------------------------------------------------------------
+# Bankroll-scaled conviction staking (2026-07-13): the user mirrors picks with
+# a real $100 bankroll, so stake sizing must be settings-driven — notional and
+# clamps from settings.json instead of the hardcoded $500 / [$2, $25].
+# ---------------------------------------------------------------------------
+
+class TestBankrollScaledStaking:
+    def test_stake_params_defaults_when_unconfigured(self, monkeypatch, tmp_path):
+        # Point BASE_DIR at an empty dir -> no settings.json -> legacy defaults.
+        monkeypatch.setattr(ts, "BASE_DIR", str(tmp_path))
+        assert ts._stake_params() == (500.0, 2.0, 25.0)
+
+    def test_stake_params_read_from_settings(self, monkeypatch, tmp_path):
+        import json, os
+        os.makedirs(tmp_path / "data", exist_ok=True)
+        (tmp_path / "data" / "settings.json").write_text(
+            json.dumps({"stake_notional": 100, "stake_min": 1, "stake_max": 5})
+        )
+        monkeypatch.setattr(ts, "BASE_DIR", str(tmp_path))
+        assert ts._stake_params() == (100.0, 1.0, 5.0)
+
+    def test_kelly_stake_scales_with_notional(self, monkeypatch):
+        monkeypatch.setattr(ts, "_stake_params", lambda: (100.0, 1.0, 5.0))
+        # p=0.55 @ 2.0: kelly_f = (1.10-1)/1 = 0.10 -> 100 * 0.10 * 0.25 = $2.50
+        assert ts._conviction_stake(55.0, 2.0, 1000.0) == pytest.approx(2.5)
+
+    def test_high_conviction_clamps_to_max(self, monkeypatch):
+        monkeypatch.setattr(ts, "_stake_params", lambda: (100.0, 1.0, 5.0))
+        # p=0.70 @ 3.3 is a huge kelly edge -> clamps to the $5 max (5% of $100)
+        assert ts._conviction_stake(70.0, 3.3, 1000.0) == pytest.approx(5.0)
+
+    def test_no_kelly_edge_returns_min(self, monkeypatch):
+        monkeypatch.setattr(ts, "_stake_params", lambda: (100.0, 1.0, 5.0))
+        # p=0.40 @ 2.0 -> kelly <= 0 -> minimum stake, not the legacy $2
+        assert ts._conviction_stake(40.0, 2.0, 1000.0) == pytest.approx(1.0)
+
+    def test_flat_fallback_clamped_to_max(self, monkeypatch):
+        monkeypatch.setattr(ts, "_stake_params", lambda: (100.0, 1.0, 5.0))
+        # Missing confidence -> flat fallback, but never above the configured max.
+        assert ts._conviction_stake(None, 2.0, 1000.0, flat=25.0) == pytest.approx(5.0)
+
+
+# ---------------------------------------------------------------------------
 # In-play placement guard (2026-07-12): never place a pre-match bet on a fixture
 # whose real kickoff has already passed (stale-odds in-play bet). The 2026-07-11
 # Australian-NPL bets placed 7-27 min AFTER kickoff are the motivating bug.

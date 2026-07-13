@@ -843,28 +843,51 @@ def _paper_balance() -> float:
         return 1000.0
 
 
+def _stake_params():
+    """(notional, stake_min, stake_max) for conviction sizing, from
+    settings.json (stake_notional / stake_min / stake_max). Defaults to the
+    legacy $500 / [$2, $25] when unconfigured. Settings-driven (2026-07-13)
+    because the user mirrors picks with a real bankroll — sizing must match
+    the capital actually at risk, not a hardcoded research notional."""
+    notional, s_min, s_max = 500.0, 2.0, 25.0
+    try:
+        import json
+
+        with open(os.path.join(BASE_DIR, "data", "settings.json"), encoding="utf-8") as f:
+            s = json.load(f)
+        notional = float(s.get("stake_notional", notional))
+        s_min = float(s.get("stake_min", s_min))
+        s_max = float(s.get("stake_max", s_max))
+    except Exception:
+        pass
+    return notional, s_min, s_max
+
+
 def _conviction_stake(confidence, odds_val, balance, flat=5.0):
     """Quarter-Kelly stake from the tipster's own published confidence.
 
     confidence: tipster probability for the pick in percent (e.g. 63.0).
-    Sized against a FIXED $500 notional (not the drifting paper bankroll) so
-    stakes stay comparable across the whole research ledger and actually
+    Sized against a FIXED notional (settings.stake_notional; not the drifting
+    paper bankroll) so stakes stay comparable across the ledger and actually
     graduate with conviction instead of pinning to the clamps. Falls back to
-    the flat stake when confidence/odds are missing. Clamped to [$2, $25].
-    """
-    NOTIONAL = 500.0
+    the flat stake when confidence/odds are missing. Every path is clamped to
+    [stake_min, stake_max] from settings."""
+    notional, s_min, s_max = _stake_params()
+
+    def _clamp(v):
+        return round(max(s_min, min(s_max, float(v))), 2)
+
     try:
         p = float(confidence) / 100.0
         b = float(odds_val) - 1.0
         if not (0.0 < p < 1.0) or b <= 0:
-            return flat
+            return _clamp(flat)
         kelly_f = (p * float(odds_val) - 1.0) / b
         if kelly_f <= 0:
-            return 2.0  # tipster picked it but the price gives no Kelly edge
-        stake = NOTIONAL * kelly_f * 0.25
-        return round(max(2.0, min(25.0, stake)), 2)
+            return _clamp(s_min)  # tipster picked it but the price gives no Kelly edge
+        return _clamp(notional * kelly_f * 0.25)
     except (TypeError, ValueError):
-        return flat
+        return _clamp(flat)
 
 
 def _build_odds_map(market_rows) -> dict[tuple, float]:
