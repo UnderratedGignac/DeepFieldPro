@@ -5811,6 +5811,14 @@ def run_daemon():
     print("[*] Starting Smart Live Predictions Daemon...")
     _init_signal_registry()
 
+    # Listen for the user's ntfy balance replies (real-money mirror-betting test:
+    # user replies "100" -> tracked balance $100; pick alerts size stakes from it).
+    try:
+        from src.ntfy_balance_watcher import start_watcher
+        start_watcher()
+    except Exception as _nbw_err:
+        print(f"[NTFY_WATCHER] failed to start: {_nbw_err}")
+
     # Heal exposure drift from any crashed/incomplete previous session
     try:
         from src.bankroll_tracker import reconcile_exposure

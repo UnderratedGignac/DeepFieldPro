@@ -121,16 +121,52 @@ def maybe_send_morning_prompt():
 
 # ── per-pick alert ────────────────────────────────────────────────────────────
 
+def _pick_confidence(match: str) -> float | None:
+    """Look up the tipster's published confidence for this match, if cached."""
+    try:
+        from src.tipster_scraper import get_forebet_predictions
+        import datetime as _dt
+        preds = get_forebet_predictions(_dt.date.today().isoformat()) or []
+        for p in preds:
+            h = (p.get("home_team") or "").lower()
+            a = (p.get("away_team") or "").lower()
+            mn = (match or "").lower()
+            if h in mn and a in mn:
+                return p.get("confidence")
+    except Exception:
+        pass
+    return None
+
+
+def _claim_alert(conn, bet_id: str) -> bool:
+    """Atomically claim the right to alert this bet. INSERT OR IGNORE into a
+    PRIMARY KEY table means exactly ONE process ever wins, even if two
+    daemons run this concurrently — the twin-daemon race that made the old
+    JSON-list dedup double-send (and re-send everything when the state file
+    was lost) can't happen against the DB."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS user_alerts (bet_id TEXT PRIMARY KEY, sent_at TEXT)"
+    )
+    cur = conn.execute(
+        "INSERT OR IGNORE INTO user_alerts (bet_id, sent_at) VALUES (?, ?)",
+        (bet_id, datetime.datetime.now(datetime.timezone.utc).isoformat()),
+    )
+    conn.commit()
+    return cur.rowcount > 0
+
+
 def alert_new_picks():
     """
     Check bet_log for new TIPSTER_FOREBET bets placed today that haven't been
-    alerted yet. Fire one ntfy per pick with the match, side, odds, and the
-    real suggested stake from the user's Betarabia balance.
+    alerted yet. Fire ONE ntfy per pick — ever — with the match, side, odds,
+    and a real suggested stake sized from the user's persistent tracked
+    balance (src.user_bankroll). The suggestion is auto-deducted from the
+    tracked balance so the next pick is sized from what's actually left;
+    the user corrects the balance anytime by replying with a number.
     """
-    s = _load_state()
+    from src import user_bankroll
+
     today = _today()
-    balance = s.get("betarabia_balance") if s.get("date") == today else None
-    alerted = set(s.get("alerted_bet_ids") or [])
 
     try:
         conn = sqlite3.connect(BET_LOG)
@@ -142,38 +178,36 @@ def alert_new_picks():
                ORDER BY placed_at ASC""",
             (today + "T00:00:00",),
         ).fetchall()
-        conn.close()
     except Exception as e:
         print(f"[ALERTS] bet_log read failed: {e}")
         return
 
-    new_alerts = []
     for bid, match, mtype, side, odds, paper_stake, fid in rows:
-        if bid in alerted:
+        try:
+            if not _claim_alert(conn, bid):
+                continue
+        except Exception as e:
+            print(f"[ALERTS] dedup claim failed for {bid}: {e}")
             continue
 
-        # Fetch tipster confidence from the predictions cache if possible
-        conf = None
-        try:
-            from src.tipster_scraper import get_forebet_predictions
-            import datetime as _dt
-            preds = get_forebet_predictions(_dt.date.today().isoformat()) or []
-            for p in preds:
-                h = (p.get("home_team") or "").lower()
-                a = (p.get("away_team") or "").lower()
-                mn = (match or "").lower()
-                if h in mn and a in mn:
-                    conf = p.get("confidence")
-                    break
-        except Exception:
-            pass
+        conf = _pick_confidence(match)
+        balance = user_bankroll.get_balance()
 
-        # Suggested real stake
-        if balance and odds:
-            real_stake = _real_stake(conf or 55, odds, balance)
-            stake_line = f"Suggested stake: ${real_stake:.2f} of your ${balance:.2f}"
+        # Suggested real stake from the user's tracked balance
+        real_stake = None
+        if balance is None or not odds:
+            stake_line = "Reply with your balance (just a number) to get stake suggestions"
+        elif balance <= 0:
+            stake_line = (
+                "Balance is $0 — no stake suggested.\n"
+                "Reply with your current balance to resume suggestions."
+            )
         else:
-            stake_line = "Reply with your balance to get stake suggestions"
+            real_stake = _real_stake(conf or 55, odds, balance)
+            stake_line = (
+                f"Suggested stake: ${real_stake:.2f} of your ${balance:.2f}\n"
+                f"(balance auto-updates; reply with a number anytime to correct it)"
+            )
 
         # Side label
         side_map = {
@@ -200,14 +234,11 @@ def alert_new_picks():
             priority="high",
             tags="soccer,moneybag",
         )
-        alerted.add(bid)
-        new_alerts.append(bid)
+        if real_stake:
+            user_bankroll.deduct(real_stake, note=f"suggested stake for {bid}")
         print(f"[ALERTS] Pick alert sent: {match} | {side_label} @ {odds:.2f}")
 
-    if new_alerts:
-        s["date"] = today
-        s["alerted_bet_ids"] = list(alerted)
-        _save_state(s)
+    conn.close()
 
 
 # ── evening summary ───────────────────────────────────────────────────────────
