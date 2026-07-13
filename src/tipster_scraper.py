@@ -947,6 +947,24 @@ def _placement_now():
     return datetime.datetime.now(datetime.timezone.utc)
 
 
+def _allowed_tipster_sources() -> set:
+    """Upper-cased set of tipster sources allowed to PLACE bets, from
+    settings.json's `tipster_sources_allowed` (e.g. ["FOREBET"]).
+
+    Empty set (key missing/empty/unreadable) = no restriction, all sources
+    place — backward compatible. Enforced at the placement boundary rather
+    than in the aggregator so a future source can't bypass it and the picks
+    themselves remain visible for research."""
+    try:
+        import json
+
+        with open(os.path.join(BASE_DIR, "data", "settings.json"), encoding="utf-8") as f:
+            allowed = json.load(f).get("tipster_sources_allowed") or []
+        return {str(s).upper() for s in allowed}
+    except Exception:
+        return set()
+
+
 def place_tipster_bets(
     predictions: list[dict],
     bet_db: str | None = None,
@@ -996,6 +1014,7 @@ def place_tipster_bets(
     placed = 0
     now_utc = datetime.datetime.utcnow().isoformat()
     _now_dt = _placement_now()  # aware UTC; for the in-play kickoff re-check
+    _src_allowed = _allowed_tipster_sources()  # Forebet-only mode etc.
     _balance = _paper_balance()
 
     already_open = set()
@@ -1016,6 +1035,12 @@ def place_tipster_bets(
 
     for pred in predictions:
         try:
+            # Source whitelist (settings.tipster_sources_allowed): in
+            # Forebet-only mode every other source's picks are research-visible
+            # but never placed. Checked first so blocked sources cost nothing.
+            if _src_allowed and str(pred.get("source", "")).upper() not in _src_allowed:
+                continue
+
             fix = match_to_betarabia(pred, fixtures)
             book_used = "Betarabia"
             km = None

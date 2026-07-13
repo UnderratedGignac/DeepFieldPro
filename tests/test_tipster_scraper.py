@@ -28,6 +28,14 @@ _UTC = datetime.timezone.utc
 _NOW = datetime.datetime(2026, 7, 11, 5, 30, 45, tzinfo=_UTC)
 
 
+@pytest.fixture(autouse=True)
+def _no_source_whitelist(monkeypatch):
+    """Isolate tests from the PRODUCTION settings.json source whitelist
+    (tipster_sources_allowed, e.g. Forebet-only mode): by default no
+    restriction applies in tests; whitelist tests override explicitly."""
+    monkeypatch.setattr(ts, "_allowed_tipster_sources", lambda: set())
+
+
 def test_single_bookmaker_row_unchanged():
     rows = [("F1", "Match Result", "France", 1.63)]
     odds_map = _build_odds_map(rows)
@@ -262,6 +270,54 @@ class TestPlacementSkipsInPlay:
         assert "F_UP" in fids  # upcoming fixture placed
         assert "F_STARTED" not in fids  # in-play fixture skipped
         assert placed == 1
+
+    def test_source_whitelist_blocks_non_forebet_sources(self, tmp_path, monkeypatch):
+        """Forebet-only mode (2026-07-13): settings.tipster_sources_allowed
+        restricts WHICH tipster sources may place bets. With ['FOREBET'], an
+        APIFB prediction for the same fixture must be skipped at the placement
+        boundary while the Forebet one places normally."""
+        import sqlite3
+
+        import src.tipster_scraper as ts
+
+        odds_db, bet_db = self._setup(tmp_path)
+        monkeypatch.setattr(ts, "_paper_balance", lambda: 1000.0)
+        monkeypatch.setattr(ts, "_allowed_tipster_sources", lambda: {"FOREBET"})
+        preds = [
+            {"home_team": "Alpha City", "away_team": "Beta United",
+             "source": "FOREBET", "predicted_side": "Home (1)", "confidence": 55.0},
+            {"home_team": "Alpha City", "away_team": "Beta United",
+             "source": "APIFB", "predicted_side": "Home (1)", "confidence": 55.0},
+        ]
+        placed = ts.place_tipster_bets(preds, bet_db=bet_db, odds_db=odds_db)
+
+        conn = sqlite3.connect(bet_db)
+        sources = {r[0] for r in conn.execute("SELECT bet_source FROM bet_log")}
+        conn.close()
+        assert sources == {"TIPSTER_FOREBET"}
+        assert placed == 1
+
+    def test_source_whitelist_empty_allows_all_sources(self, tmp_path, monkeypatch):
+        """No whitelist configured -> every source places (backward compatible)."""
+        import sqlite3
+
+        import src.tipster_scraper as ts
+
+        odds_db, bet_db = self._setup(tmp_path)
+        monkeypatch.setattr(ts, "_paper_balance", lambda: 1000.0)
+        monkeypatch.setattr(ts, "_allowed_tipster_sources", lambda: set())
+        preds = [
+            {"home_team": "Alpha City", "away_team": "Beta United",
+             "source": "FOREBET", "predicted_side": "Home (1)", "confidence": 55.0},
+            {"home_team": "Alpha City", "away_team": "Beta United",
+             "source": "APIFB", "predicted_side": "Home (1)", "confidence": 55.0},
+        ]
+        placed = ts.place_tipster_bets(preds, bet_db=bet_db, odds_db=odds_db)
+        conn = sqlite3.connect(bet_db)
+        sources = {r[0] for r in conn.execute("SELECT bet_source FROM bet_log")}
+        conn.close()
+        assert sources == {"TIPSTER_FOREBET", "TIPSTER_APIFB"}
+        assert placed == 2
 
     def test_kickoff_time_captured_at_placement(self, tmp_path, monkeypatch):
         """The matched fixture's kickoff_time must be persisted into bet_log
