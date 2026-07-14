@@ -5097,18 +5097,19 @@ def update_dashboard_json(fixtures, results_cache):
                             _league_country_valid = _league_resolution.get(
                                 "is_valid", True
                             )
-                            _steam_league_ok = (
+                            _steam_in_wl = (
                                 not _steam_wl
                                 or _league_lower in _steam_wl_set
                                 or _league_normalized in _steam_wl_set
-                            ) and _league_country_valid
+                            )
+                            _steam_league_ok = _steam_in_wl and _league_country_valid
                             if not _league_country_valid and _league_resolution:
                                 _detected = _league_resolution.get("country", "unknown")
                                 print(
                                     f"[LEAGUE FILTER] Blocked '{league}' for {home} vs {away} "
                                     f"(detected country: {_detected}, not liquid)"
                                 )
-                            steam_fired = (
+                            _steam_base_ok = (
                                 steam_move >= steam_min
                                 and odds
                                 and odds >= dfp_settings.MODEL_MIN_ODDS
@@ -5116,10 +5117,21 @@ def update_dashboard_json(fixtures, results_cache):
                                 and not league_blocked
                                 and not draw_excluded
                                 and odds_fresh
-                                and _steam_league_ok
                                 and _registry.get("STEAM_FWD", {}).get("enabled", True)
                             )
-                            if steam_fired:
+                            steam_fired = _steam_base_ok and _steam_league_ok
+                            # Lower-league cohort (2026-07-14, user request): same
+                            # signal outside the whitelist, tracked as STEAM_LL so
+                            # its (historically noisy) results can never contaminate
+                            # the whitelisted validation sample. Country-liquidity
+                            # guard still applies — the Queensland class stays out.
+                            steam_ll_fired = (
+                                _steam_base_ok
+                                and not _steam_in_wl
+                                and _league_country_valid
+                                and settings.get("steam_lower_leagues_enabled", False)
+                            )
+                            if steam_fired or steam_ll_fired:
                                 _record_steam_signal(
                                     fid,
                                     league,
@@ -5133,6 +5145,8 @@ def update_dashboard_json(fixtures, results_cache):
                                 )
                                 # Flat-stake shadow bet for the steam signal (separate
                                 # strategy from the model; paper only; deduped internally).
+                                # Whitelisted leagues -> STEAM; lower leagues -> STEAM_LL
+                                # (separate validation cohort).
                                 log_steam_bet(
                                     f"{home} vs {away}",
                                     m_type,
@@ -5142,6 +5156,7 @@ def update_dashboard_json(fixtures, results_cache):
                                     fid,
                                     league,
                                     monotonicity=steam_mono,
+                                    bet_source="STEAM" if steam_fired else "STEAM_LL",
                                     kickoff_time=match_time,
                                 )
                                 try:

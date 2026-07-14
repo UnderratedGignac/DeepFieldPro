@@ -109,5 +109,6 @@
   ],
   "stake_notional": 100.0,
   "stake_min": 1.0,
-  "stake_max": 5.0
+  "stake_max": 5.0,
+  "steam_lower_leagues_enabled": true
 }

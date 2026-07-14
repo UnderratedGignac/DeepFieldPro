@@ -67,3 +67,14 @@ def test_tipster_only_still_blocks_when_flag_absent(env, monkeypatch):
     _settings(monkeypatch, tipster_only_mode=True)
     lpd.log_steam_bet("Alpha vs Beta", "1X2", "Home (1)", 2.0, 4.5, fixture_id="F9")
     assert _rows(env) == []
+
+
+def test_lower_league_cohort_source_passthrough(env, monkeypatch):
+    # The lower-league cohort places under bet_source='STEAM_LL' so it can
+    # never contaminate the whitelisted STEAM validation sample.
+    _settings(monkeypatch, tipster_only_mode=True, steam_betting_enabled=True)
+    lpd.log_steam_bet(
+        "Alpha vs Beta", "1X2", "Home (1)", 2.0, 4.5,
+        fixture_id="F9", bet_source="STEAM_LL",
+    )
+    assert _rows(env) == [("STEAM_LL", 1.0)]

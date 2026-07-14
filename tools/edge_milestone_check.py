@@ -87,6 +87,7 @@ def main():
         ("FOREBET", "TIPSTER_FOREBET", N_MIN),
         ("APIFB", "TIPSTER_APIFB", N_MIN),
         ("STEAM", "STEAM", 100),
+        ("STEAM_LL", "STEAM_LL", 100),
         ("PIN_STEAM", "PINNACLE_STEAM", 100),
         ("SHARP_ST", "SHARP_STEAM", 100),
         ("AI", "AI", N_MIN),
