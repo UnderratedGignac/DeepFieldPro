@@ -2740,12 +2740,16 @@ def log_steam_bet(
         if cur.fetchone()[0] > 0:
             conn.close()
             return
-        # Cross-source dedup: one open bet per fixture total — prevents AI + STEAM doubling
-        # up on the same game from opposite/same sides, which doubles loss risk.
+        # Same-source dedup: one open steam bet per fixture PER SOURCE.
+        # (2026-07-14: was cross-source — any tipster bet on the fixture starved
+        # the steam arm of its validation sample. With per-strategy virtual
+        # ledgers the strategies are accounting-isolated, so parallel bets on
+        # the same fixture are independent experiment arms, not doubled risk.)
         if fixture_id is not None:
             cur.execute(
-                "SELECT COUNT(*) FROM bet_log WHERE fixture_id=? AND result='OPEN'",
-                (str(fixture_id),),
+                "SELECT COUNT(*) FROM bet_log WHERE fixture_id=? AND result='OPEN' "
+                "AND bet_source=?",
+                (str(fixture_id), bet_source),
             )
             if cur.fetchone()[0] > 0:
                 conn.close()

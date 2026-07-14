@@ -78,3 +78,28 @@ def test_lower_league_cohort_source_passthrough(env, monkeypatch):
         fixture_id="F9", bet_source="STEAM_LL",
     )
     assert _rows(env) == [("STEAM_LL", 1.0)]
+
+
+def test_steam_not_blocked_by_other_strategys_open_bet(env, monkeypatch):
+    """Per-strategy bankroll isolation (2026-07-14): with separate virtual
+    ledgers, a tipster bet on a fixture must NOT starve the steam arm of its
+    sample — cross-source dedup becomes same-source-only."""
+    data = env
+    conn = sqlite3.connect(data / "bet_log.db")
+    conn.execute(
+        "INSERT INTO bet_log (bet_id, match_id, market_type, side, entry_odds,"
+        " stake, result, bet_source, fixture_id) VALUES"
+        " ('t1','Alpha vs Beta','1X2','Home (1)',2.0,5.0,'OPEN','TIPSTER_FOREBET','F9')"
+    )
+    conn.commit()
+    conn.close()
+    _settings(monkeypatch, tipster_only_mode=True, steam_betting_enabled=True)
+    lpd.log_steam_bet("Alpha vs Beta", "1X2", "Home (1)", 2.0, 4.5, fixture_id="F9")
+    assert ("STEAM", 1.0) in _rows(env)
+
+
+def test_steam_still_dedups_within_its_own_source(env, monkeypatch):
+    _settings(monkeypatch, tipster_only_mode=True, steam_betting_enabled=True)
+    lpd.log_steam_bet("Alpha vs Beta", "1X2", "Home (1)", 2.0, 4.5, fixture_id="F9")
+    lpd.log_steam_bet("Alpha vs Beta", "1X2", "Away (2)", 3.0, 4.5, fixture_id="F9")
+    assert len(_rows(env)) == 1  # one steam bet per fixture, still

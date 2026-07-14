@@ -37,6 +37,14 @@ try:
 except Exception as _wc_err:
     print(f"[!] WC predictor page not loaded: {_wc_err}")
 
+# Per-strategy virtual bankroll pages (/strategies, /strategy/<source>).
+try:
+    from src.strategies_blueprint import strategies_bp
+
+    app.register_blueprint(strategies_bp)
+except Exception as _strat_err:
+    print(f"[!] Strategies pages not loaded: {_strat_err}")
+
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 
