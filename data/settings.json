@@ -104,7 +104,8 @@
   "player_props_disabled": true,
   "model_predictions_disabled": false,
   "tipster_sources_allowed": [
-    "FOREBET"
+    "FOREBET",
+    "APIFB"
   ],
   "stake_notional": 100.0,
   "stake_min": 1.0,
