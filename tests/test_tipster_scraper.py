@@ -782,3 +782,64 @@ class TestNationLeagueLookup:
     def test_lookup_missing_file_returns_none(self, tmp_path, monkeypatch):
         monkeypatch.setattr(ts, "BASE_DIR", str(tmp_path))
         assert ts.lookup_nation_league("A", "B") is None
+
+
+class TestConsensusStrategy:
+    """Mix strategy (2026-07-14): a CONSENSUS pick exists only where FOREBET
+    and APIFB independently agree on the same side of the same fixture
+    (fuzzy team matching — the two sources name teams differently). Placed as
+    bet_source='TIPSTER_CONSENSUS', research ledger only."""
+
+    def _preds(self, fb_side="Home (1)", af_side="Home (1)", af_home="Djurgardens IF", af_away="Halmstads BK"):
+        return [
+            {"home_team": "Djurgarden", "away_team": "Halmstad", "source": "FOREBET",
+             "predicted_side": fb_side, "confidence": 60.0, "predicted_ou": "Over 2.5",
+             "ou_confidence": 58.0},
+            {"home_team": af_home, "away_team": af_away, "source": "APIFB",
+             "predicted_side": af_side, "confidence": 70.0, "predicted_ou": "Over 2.5",
+             "ou_confidence": 62.0},
+        ]
+
+    def test_agreement_produces_consensus_with_averaged_confidence(self):
+        cons = ts.build_consensus_predictions(self._preds())
+        assert len(cons) == 1
+        c = cons[0]
+        assert c["source"] == "CONSENSUS"
+        assert c["predicted_side"] == "Home (1)"
+        assert c["confidence"] == pytest.approx(65.0)  # mean of 60 and 70
+        assert c["predicted_ou"] == "Over 2.5"          # O/U agreement too
+        assert c["ou_confidence"] == pytest.approx(60.0)
+
+    def test_disagreement_produces_nothing(self):
+        assert ts.build_consensus_predictions(self._preds(af_side="Away (2)")) == []
+
+    def test_different_fixtures_do_not_pair(self):
+        assert ts.build_consensus_predictions(
+            self._preds(af_home="Real Madrid", af_away="Barcelona")) == []
+
+    def test_ou_disagreement_drops_ou_but_keeps_1x2(self):
+        preds = self._preds()
+        preds[1]["predicted_ou"] = "Under 2.5"
+        cons = ts.build_consensus_predictions(preds)
+        assert len(cons) == 1
+        assert cons[0]["predicted_side"] == "Home (1)"
+        assert cons[0]["predicted_ou"] is None
+
+    def test_consensus_places_as_tipster_consensus(self, tmp_path, monkeypatch):
+        import sqlite3
+        odds_db, bet_db = TestPlacementSkipsInPlay()._setup(tmp_path)
+        monkeypatch.setattr(ts, "_paper_balance", lambda: 1000.0)
+        monkeypatch.setattr(ts, "_allowed_tipster_sources", lambda: {"CONSENSUS"})
+        preds = [
+            {"home_team": "Alpha City", "away_team": "Beta United", "source": "FOREBET",
+             "predicted_side": "Home (1)", "confidence": 60.0},
+            {"home_team": "Alpha City FC", "away_team": "Beta Utd", "source": "APIFB",
+             "predicted_side": "Home (1)", "confidence": 70.0},
+        ]
+        all_preds = preds + ts.build_consensus_predictions(preds)
+        placed = ts.place_tipster_bets(all_preds, bet_db=bet_db, odds_db=odds_db)
+        conn = sqlite3.connect(bet_db)
+        sources = {r[0] for r in conn.execute("SELECT bet_source FROM bet_log")}
+        conn.close()
+        assert sources == {"TIPSTER_CONSENSUS"}
+        assert placed == 1

@@ -105,7 +105,8 @@
   "model_predictions_disabled": false,
   "tipster_sources_allowed": [
     "FOREBET",
-    "APIFB"
+    "APIFB",
+    "CONSENSUS"
   ],
   "stake_notional": 100.0,
   "stake_min": 1.0,

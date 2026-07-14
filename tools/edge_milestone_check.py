@@ -86,6 +86,10 @@ def main():
     for name, like, n_min in [
         ("FOREBET", "TIPSTER_FOREBET", N_MIN),
         ("APIFB", "TIPSTER_APIFB", N_MIN),
+        # CONSENSUS at the 100-bar: agreements are rare, so 300 would never
+        # conclude — but an early crossing is weaker evidence (more tracked
+        # strategies = more lottery tickets); treat with extra skepticism.
+        ("CONSENSUS", "TIPSTER_CONSENSUS", 100),
         ("STEAM", "STEAM", 100),
         ("STEAM_LL", "STEAM_LL", 100),
         ("PIN_STEAM", "PINNACLE_STEAM", 100),

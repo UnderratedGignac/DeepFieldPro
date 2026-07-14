@@ -715,6 +715,63 @@ def get_api_football_predictions(
 # Aggregator
 # ─────────────────────────────────────────────
 
+def _mean_conf(*vals):
+    vs = [float(v) for v in vals if v is not None]
+    return round(sum(vs) / len(vs), 2) if vs else None
+
+
+def build_consensus_predictions(predictions: list[dict]) -> list[dict]:
+    """CONSENSUS mix strategy (2026-07-14): a synthetic prediction exists only
+    where FOREBET and APIFB independently agree on the same side of the same
+    fixture — two decorrelated models agreeing is the ensemble signal worth
+    validating. Teams are fuzzy-matched (the sources name clubs differently);
+    confidence is the mean of the two models'. The O/U pick rides along only
+    when both models agree on it as well. Placed downstream under
+    bet_source='TIPSTER_CONSENSUS' — research ledger only (the real-bankroll
+    gate remains FOREBET-exclusive)."""
+    fb = [p for p in predictions if p.get("source") == "FOREBET"]
+    af = [p for p in predictions if p.get("source") == "APIFB"]
+    out = []
+    used = set()
+    for f in fb:
+        for i, a in enumerate(af):
+            if i in used:
+                continue
+            if (
+                get_match_score(f.get("home_team", ""), a.get("home_team", "")) >= 0.5
+                and get_match_score(f.get("away_team", ""), a.get("away_team", "")) >= 0.5
+            ):
+                used.add(i)  # this APIFB fixture is paired either way
+                side = f.get("predicted_side")
+                if side and side == a.get("predicted_side"):
+                    ou = (
+                        f.get("predicted_ou")
+                        if f.get("predicted_ou")
+                        and f.get("predicted_ou") == a.get("predicted_ou")
+                        else None
+                    )
+                    out.append(
+                        {
+                            "home_team": f["home_team"],
+                            "away_team": f["away_team"],
+                            "date": f.get("date"),
+                            "source": "CONSENSUS",
+                            "predicted_side": side,
+                            "confidence": _mean_conf(
+                                f.get("confidence"), a.get("confidence")
+                            ),
+                            "predicted_ou": ou,
+                            "ou_confidence": _mean_conf(
+                                f.get("ou_confidence"), a.get("ou_confidence")
+                            )
+                            if ou
+                            else None,
+                        }
+                    )
+                break
+    return out
+
+
 def get_all_tipster_predictions(date_str: str | None = None) -> list[dict]:
     """
     Fetch predictions from all sources and return a combined list.
@@ -750,6 +807,15 @@ def get_all_tipster_predictions(date_str: str | None = None) -> list[dict]:
             all_preds.extend(get_predictz_predictions(date_str))
         except Exception as e:
             logger.warning(f"[TIPSTER] PredictZ error: {e}")
+
+    # CONSENSUS mix — synthetic picks where FOREBET and APIFB agree.
+    try:
+        cons = build_consensus_predictions(all_preds)
+        if cons:
+            logger.info(f"[TIPSTER] CONSENSUS agreements: {len(cons)}")
+        all_preds.extend(cons)
+    except Exception as e:
+        logger.warning(f"[TIPSTER] consensus build error: {e}")
 
     logger.info(f"[TIPSTER] Total predictions: {len(all_preds)}")
     return all_preds
