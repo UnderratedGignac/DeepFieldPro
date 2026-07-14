@@ -10,12 +10,36 @@ One strategy's results can never touch another's numbers by construction.
 Used by the /strategies dashboard pages and ad-hoc reporting.
 """
 
+import datetime
+import json
+import os
 import sqlite3
 
 DEFAULT_STARTING = 100.0
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_EPOCH_FILE = os.path.join(_BASE, "data", "strategy_ledger_epoch.json")
 
 
-def strategy_ledgers(db_path, starting=DEFAULT_STARTING):
+def _load_epoch(epoch_file):
+    """ISO timestamp of the last ledger reset, or None (count everything)."""
+    try:
+        with open(epoch_file, encoding="utf-8") as f:
+            return (json.load(f) or {}).get("epoch")
+    except Exception:
+        return None
+
+
+def reset_strategy_ledgers(when=None, epoch_file=DEFAULT_EPOCH_FILE):
+    """Reset every strategy's virtual bankroll to the starting amount by
+    stamping a new epoch: only bets placed at/after it count. bet_log history
+    is untouched — the ledgers simply restart."""
+    epoch = when or datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with open(epoch_file, "w", encoding="utf-8") as f:
+        json.dump({"epoch": epoch}, f)
+    return epoch
+
+
+def strategy_ledgers(db_path, starting=DEFAULT_STARTING, epoch_file=DEFAULT_EPOCH_FILE):
     """{bet_source: ledger dict} for every strategy present in bet_log.
 
     Ledger fields:
@@ -25,6 +49,7 @@ def strategy_ledgers(db_path, starting=DEFAULT_STARTING):
       total_value  — balance + open_stake (what the strategy is worth)
       n_open / n_settled / n_won / n_lost, roi (settled pnl / settled stake)
     """
+    epoch = _load_epoch(epoch_file)
     conn = sqlite3.connect(db_path)
     try:
         rows = conn.execute(
@@ -37,8 +62,9 @@ def strategy_ledgers(db_path, starting=DEFAULT_STARTING):
                       SUM(result = 'L'),
                       COALESCE(SUM(CASE WHEN result IN ('W','L') THEN stake END), 0)
                FROM bet_log
-               WHERE bet_source IS NOT NULL
-               GROUP BY bet_source"""
+               WHERE bet_source IS NOT NULL AND placed_at >= ?
+               GROUP BY bet_source""",
+            (epoch or "",),
         ).fetchall()
     finally:
         conn.close()
