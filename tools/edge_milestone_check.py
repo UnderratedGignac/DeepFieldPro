@@ -80,16 +80,22 @@ def main():
             pass
 
     met = []
-    for name, like in [
-        ("FOREBET", "TIPSTER_FOREBET"),
-        ("STEAM", "STEAM"),
-        ("AI", "AI"),
-        ("ALL", "%"),
+    # Steam variants use the project's STEAM_FWD validation ladder bar
+    # (100 samples, CI above zero) rather than the 300-bet tipster bar:
+    # they are flat-staked signal bets, and 100 was the pre-agreed milestone.
+    for name, like, n_min in [
+        ("FOREBET", "TIPSTER_FOREBET", N_MIN),
+        ("APIFB", "TIPSTER_APIFB", N_MIN),
+        ("STEAM", "STEAM", 100),
+        ("PIN_STEAM", "PINNACLE_STEAM", 100),
+        ("SHARP_ST", "SHARP_STEAM", 100),
+        ("AI", "AI", N_MIN),
+        ("ALL", "%", N_MIN),
     ]:
         s = strategy_stats(cur, like)
-        ok = s["n"] >= N_MIN and s["t"] >= T_MIN and s["net"] > 0
+        ok = s["n"] >= n_min and s["t"] >= T_MIN and s["net"] > 0
         print(
-            f"{name:8} n={s['n']:4}/{N_MIN} verified  net={s['net']:+9.2f}  "
+            f"{name:9} n={s['n']:4}/{n_min} verified  net={s['net']:+9.2f}  "
             f"roi={s.get('roi', 0):+6.1f}%  t(clustered)={s['t']:+5.2f}/{T_MIN}  "
             f"-> {'EDGE VALIDATED' if ok else 'not yet'}"
         )

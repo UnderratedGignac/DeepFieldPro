@@ -2709,9 +2709,16 @@ def log_steam_bet(
     settings.steam_betting_enabled (default True) and deduped per fixture/market/selection.
     """
     settings = load_settings()
-    if settings.get("tipster_only_mode", False):
-        return
+    # An EXPLICIT steam_betting_enabled=True overrides tipster_only_mode
+    # (2026-07-14: steam is the strategy under forward validation; its flat-
+    # stake PAPER bets must flow through the verified settlement pipeline to
+    # accumulate STEAM_FWD samples — research ledger only, never real money).
+    # With the flag absent or False, tipster_only_mode blocks as before.
     if not settings.get("steam_betting_enabled", True):
+        return
+    if settings.get("tipster_only_mode", False) and not settings.get(
+        "steam_betting_enabled", False
+    ):
         return
     if _implausible_odds(market, odds):
         print(
