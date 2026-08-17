@@ -28,6 +28,12 @@ _LABELS = {
     "STEAM_LL": "Steam (lower leagues)",
     "PINNACLE_STEAM": "Pinnacle Steam",
     "SHARP_STEAM": "Sharp Steam",
+    "PINNACLE_VALUE": "Pinnacle Value",
+    "VALUE_STEAM_ALIGN": "Value + Steam Consensus",
+    "MODEL_VALUE_ALIGN": "Model + Value Consensus",
+    "AI": "Dixon-Coles Model (AI)",
+    "STAIR_AI": "Stair AI",
+    "RESEARCH_BATCH": "Research Batch",
 }
 
 _STYLE = """
@@ -54,11 +60,23 @@ def _fmt(v, plus=False):
 def strategies_overview():
     ledgers = strategy_ledgers(BET_LOG)
     cards = []
-    order = list(_LABELS) + sorted(set(ledgers) - set(_LABELS))
-    for src in order:
+    # Always include all whitelisted strategies from _LABELS, plus any custom ones from ledgers
+    all_strategies = list(_LABELS.keys()) + [k for k in ledgers if k not in _LABELS]
+    for src in all_strategies:
         led = ledgers.get(src)
         if not led:
-            continue
+            led = {
+                "settled_pnl": 0.0,
+                "open_stake": 0.0,
+                "balance": 100.0,
+                "total_value": 100.0,
+                "n_open": 0,
+                "n_settled": 0,
+                "n_won": 0,
+                "n_lost": 0,
+                "roi": 0.0,
+                "starting": 100.0,
+            }
         cls = "pos" if led["settled_pnl"] >= 0 else "neg"
         cards.append(f"""
         <a class="card" href="/strategy/{html.escape(src)}">
@@ -84,7 +102,21 @@ def strategy_detail(source):
     ledgers = strategy_ledgers(BET_LOG)
     led = ledgers.get(source)
     if not led:
-        abort(404)
+        if source in _LABELS:
+            led = {
+                "settled_pnl": 0.0,
+                "open_stake": 0.0,
+                "balance": 100.0,
+                "total_value": 100.0,
+                "n_open": 0,
+                "n_settled": 0,
+                "n_won": 0,
+                "n_lost": 0,
+                "roi": 0.0,
+                "starting": 100.0,
+            }
+        else:
+            abort(404)
     rows = []
     for b in strategy_bets(BET_LOG, source):
         pnl = f"{b['pnl']:+,.2f}" if b["result"] in ("W", "L") else "—"

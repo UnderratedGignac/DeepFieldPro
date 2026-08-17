@@ -1,0 +1,14 @@
+{
+  "status": "SHADOW_MODE",
+  "total_paper_bets": 1213,
+  "settled_paper_bets": 1188,
+  "avg_clv_pct": -13.63,
+  "roi_pct": 0.3,
+  "win_rate_pct": 42.17,
+  "calibration_error": 0,
+  "ready_for_real_money": false,
+  "last_check_at": "2026-07-05T20:50:16.909730+00:00",
+  "failure_reasons": [
+    "Average CLV must be > 0.0%, currently -13.63%"
+  ]
+}

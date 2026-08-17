@@ -76,6 +76,37 @@ try:
 except Exception:
     _check_arb = None
     _ARB_OK = False
+
+# ── xG-Elo Divergence Strategy ──────────────────────────────────────────────
+try:
+    from src.xg_elo_engine import (
+        is_value_bet as _xg_elo_is_value,
+        compute_edge as _xg_elo_edge,
+        update_from_result as _xg_elo_update,
+        rating_summary as _xg_elo_summary,
+    )
+    _XG_ELO_OK = True
+except Exception as _xge_err:
+    _xg_elo_is_value = None
+    _xg_elo_edge = None
+    _xg_elo_update = None
+    _xg_elo_summary = None
+    _XG_ELO_OK = False
+
+# ── Environment / Structural Strategies ──────────────────────────────────────
+try:
+    from src.environment_edge import (
+        weather_edge_signal as _weather_edge_sig,
+        fatigue_edge_signal as _fatigue_edge_sig,
+        referee_edge_signal as _referee_edge_sig,
+    )
+    _ENV_EDGES_OK = True
+except Exception as _env_err:
+    _weather_edge_sig = None
+    _fatigue_edge_sig = None
+    _referee_edge_sig = None
+    _ENV_EDGES_OK = False
+
 from src.execution_engine import place_bet  # TASK 1: Import place_bet
 
 # ── NEW ARCHITECTURE: Pinnacle-value strategy + CLV tracking + shadow gate ──
@@ -1913,6 +1944,9 @@ def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=Non
             "high_risk_reward": f"{winner} & BTTS (Yes)",
         },
         "tactical_summary": f"Tactically, {home_team} is projected to control possession (approx {possession_h}%) utilizing high-intensity central passing channels. {away_team} will adopt a counter-attacking posture. Key matchups center on {home_team}'s wingers pressing {away_team}'s fullbacks.",
+        "weather_info": _weather_info,
+        "fatigue_info": _fatigue_info,
+        "referee_info": _referee_info,
     }
 
     return {
@@ -2218,9 +2252,48 @@ def fetch_betarabia_odds():
 
 def find_betarabia_odds(home_team, away_team):
     """
-    Looks up a match in odds_stream.db fixture table and grabs odds from market table.
+    Looks up a match in primary bookmaker feeds (Kambi/Unibet, Pinnacle, Betarabia fallback).
     Returns a dict with market keys and selection odds.
     """
+    # Tier 1: Try Kambi (Unibet public API) for clean live odds
+    try:
+        from src.kambi_scraper import fetch_kambi_1x2
+        kdata = fetch_kambi_1x2()
+        if kdata:
+            best_k = None
+            best_ks = 0.0
+            for m_name, m_info in kdata.items():
+                kh = m_info.get("home_team", "")
+                ka = m_info.get("away_team", "")
+                if kh and ka:
+                    h_s = get_match_score(home_team, kh)
+                    a_s = get_match_score(away_team, ka)
+                    if h_s >= 0.65 and a_s >= 0.65:
+                        tot_s = h_s + a_s
+                        if tot_s > best_ks:
+                            best_ks = tot_s
+                            best_k = m_info
+            if best_k and best_ks >= 1.3:
+                return {
+                    "1X2": {
+                        "Home (1)": best_k.get("home"),
+                        "Draw (X)": best_k.get("draw"),
+                        "Away (2)": best_k.get("away"),
+                    },
+                    "Over/Under 2.5": {},
+                    "Over/Under 3.0": {},
+                    "Over/Under 2.0": {},
+                    "BTTS": {},
+                    "Double Chance": {},
+                    "Draw No Bet": {},
+                    "Corners": {},
+                    "Total Cards": {},
+                    "Goalscorer": {},
+                    "Player Shots on Target": {},
+                }
+    except Exception:
+        pass
+
     db_path = os.path.join(DATA_DIR, "odds_stream.db")
     if not os.path.exists(db_path):
         return None
@@ -2762,19 +2835,51 @@ def log_steam_bet(
             ).fetchone()[0]
             br_conn.close()
         except Exception:
-            balance = 10000.0
+            balance = 10.0
+
+        # Get the strategy's own virtual bankroll balance (fair evaluation at $100.00 starting balance)
+        strategy_balance = 100.0
+        try:
+            from src.strategy_ledger import strategy_ledgers
+            ledgers = strategy_ledgers(db_path)
+            led = ledgers.get(bet_source or "STEAM")
+            if led:
+                strategy_balance = float(led["balance"])
+        except Exception as _br_err:
+            pass
+        strategy_balance = max(10.0, strategy_balance)
 
         # Bankroll-proportional stake (a small fixed fraction ~ 1/8-1/4 Kelly), floored/capped.
-        # Auto-scales with the bankroll instead of a flat $ that drifts from 2% to 5% as the
-        # balance moves. Falls back to the flat stake if steam_kelly_frac is unset.
-        frac = settings.get("steam_kelly_frac", 0.02)
-        if frac and frac > 0:
-            stake = round(balance * frac, 2)
-            stake = max(1.0, min(stake, balance * 0.03))  # floor $1, cap 3% of bankroll
+        # Differentiate Pinnacle Steam and Sharp Steam staking
+        if bet_source == "PINNACLE_STEAM":
+            frac = settings.get("pinnacle_steam_kelly_frac", 0.025)
+            flat_default = settings.get("pinnacle_steam_flat_stake", 5.0)
+            cap = 0.04
+        elif bet_source == "SHARP_STEAM":
+            frac = settings.get("sharp_steam_kelly_frac", 0.035)
+            flat_default = settings.get("sharp_steam_flat_stake", 5.0)
+            cap = 0.05
+        elif bet_source == "VALUE_STEAM_ALIGN":
+            frac = settings.get("value_steam_align_kelly_frac", 0.04)
+            flat_default = settings.get("value_steam_align_flat_stake", 5.0)
+            cap = 0.05
         else:
-            stake = float(settings.get("steam_flat_stake", 25.0))
-        if stake > balance:
-            stake = balance
+            frac = settings.get("steam_kelly_frac", 0.02)
+            flat_default = settings.get("steam_flat_stake", 5.0)
+            cap = 0.03
+
+        s_min = float(settings.get("stake_min", 1.0))
+        s_max = float(settings.get("stake_max", 5.0))
+
+        if frac and frac > 0:
+            stake = round(strategy_balance * frac, 2)
+            stake = max(s_min, min(stake, s_max, strategy_balance * cap))
+        else:
+            stake = float(flat_default)
+
+        # Remove global paper liquid balance clamping.
+        # if stake > balance:
+        #     stake = balance
         stake = min(stake, MAX_PAPER_STAKE_USD)
         if stake <= 0:
             conn.close()
@@ -2843,6 +2948,75 @@ def log_steam_bet(
             pass
         conn.commit()
         conn.close()
+
+        # Send push notification for VALUE_STEAM_ALIGN strategy
+        if bet_source == "VALUE_STEAM_ALIGN":
+            try:
+                from src.services.alerting import notifier as _ntfy
+                # Recommended stake: 4% of $45
+                rec_stake = round(45.00 * 0.04, 2)
+                rec_stake = max(0.20, min(rec_stake, 2.25))
+
+                if "(1)" in selection or "home" in selection.lower():
+                    _pick = f"{match.split(' vs ')[0]} to Win"
+                elif "(2)" in selection or "away" in selection.lower():
+                    _pick = f"{match.split(' vs ')[-1]} to Win"
+                else:
+                    _pick = selection
+
+                _nation = _nation_from_league(league or "")
+
+                # ── Context lines: weather, fatigue signals ──
+                _ctx_lines_s = []
+                try:
+                    if _WEATHER_OK and _weather_adj is not None:
+                        _wdata_s = _weather_adj(
+                            match.split(" vs ")[0] if " vs " in match else match,
+                            match.split(" vs ")[-1] if " vs " in match else "",
+                        )
+                        if _wdata_s.get("rain") or _wdata_s.get("heavy_wind"):
+                            _wf_s = []
+                            if _wdata_s.get("rain"):
+                                _wf_s.append(f"rain {_wdata_s['precipitation_mm']:.1f}mm")
+                            if _wdata_s.get("very_heavy_wind"):
+                                _wf_s.append(f"⚠️ high wind {_wdata_s['wind_kmh']:.0f}km/h")
+                            elif _wdata_s.get("heavy_wind"):
+                                _wf_s.append(f"wind {_wdata_s['wind_kmh']:.0f}km/h")
+                            _ctx_lines_s.append("🌧️ Weather: " + ", ".join(_wf_s))
+                except Exception:
+                    pass
+                try:
+                    if _FATIGUE_OK and _congestion_summary is not None:
+                        _finfo_s = _congestion_summary(
+                            match.split(" vs ")[0] if " vs " in match else match,
+                            match.split(" vs ")[-1] if " vs " in match else "",
+                        )
+                        if _finfo_s.get("home_fatigued") or _finfo_s.get("away_fatigued"):
+                            _fp_s = []
+                            if _finfo_s.get("home_fatigued"):
+                                _fp_s.append(f"{match.split(' vs ')[0]} ({_finfo_s['home_games_7d']}g/7d)")
+                            if _finfo_s.get("away_fatigued"):
+                                _fp_s.append(f"{match.split(' vs ')[-1]} ({_finfo_s['away_games_7d']}g/7d)")
+                            _ctx_lines_s.append("😓 Fatigue: " + " | ".join(_fp_s))
+                except Exception:
+                    pass
+                _ctx_block_s = ("\n" + "\n".join(_ctx_lines_s)) if _ctx_lines_s else ""
+
+                _ntfy._notify(
+                    f"🔥 Match: {match}\n"
+                    f"📌 Pick: {_pick} ({market})\n"
+                    f"🏆 League: {league or 'Unknown'} ({_nation})\n"
+                    f"💰 Odds: {odds:.2f} (Betarabia)\n"
+                    f"📈 Steam Move: +{steam_move_pct:.1f}%\n"
+                    f"📊 Stake ($45 Bankroll): ${rec_stake:.2f}"
+                    f"{_ctx_block_s}\n"
+                    f"🛡️ Strategy: VALUE_STEAM_ALIGN (CLV + Steam confirmed)",
+                    title="CONSENSUS VALUE+STEAM SIGNAL",
+                    priority="high",
+                    tags="fire,soccer",
+                )
+            except Exception as _ntfy_err:
+                pass
         print(
             f"[{bet_source}] Shadow flat-stake bet: {match} ({selection}) @ {odds} "
             f"move +{steam_move_pct:.1f}% stake {stake}"
@@ -2945,16 +3119,37 @@ def log_pinnacle_value_bet(
             ).fetchone()[0]
             br_conn.close()
         except Exception:
-            balance = 10000.0
+            balance = 10.0
 
-        frac = settings.get("steam_kelly_frac", 0.02)
-        if frac and frac > 0:
-            stake = round(balance * frac, 2)
-            stake = max(1.0, min(stake, balance * 0.03))
+        # Get the strategy's own virtual bankroll balance (fair evaluation at $100.00 starting balance)
+        strategy_balance = 100.0
+        try:
+            from src.strategy_ledger import strategy_ledgers
+            ledgers = strategy_ledgers(db_path)
+            led = ledgers.get("PINNACLE_VALUE")
+            if led:
+                strategy_balance = float(led["balance"])
+        except Exception as _br_err:
+            pass
+        strategy_balance = max(10.0, strategy_balance)
+
+        # Exact Kelly Criterion calculation for Pinnacle Value
+        kelly_mult = settings.get("kelly_multiplier", 0.25)
+        edge = max(0.0, float(pinnacle_edge_pct) / 100.0)
+        b = float(odds) - 1.0
+        s_min = float(settings.get("stake_min", 1.0))
+        s_max = float(settings.get("stake_max", 5.0))
+
+        if b > 0:
+            kelly_f = edge / b
+            stake = round(strategy_balance * kelly_f * kelly_mult, 2)
+            stake = max(s_min, min(stake, s_max, strategy_balance * 0.05))
         else:
-            stake = float(settings.get("steam_flat_stake", 25.0))
-        if stake > balance:
-            stake = balance
+            stake = float(settings.get("pinnacle_value_flat_stake", 5.0))
+
+        # Remove global paper liquid balance clamping.
+        # if stake > balance:
+        #     stake = balance
         stake = min(stake, MAX_PAPER_STAKE_USD)
         if stake <= 0:
             conn.close()
@@ -3007,6 +3202,79 @@ def log_pinnacle_value_bet(
             pass
         conn.commit()
         conn.close()
+
+        # Send push notification for Pinnacle Value strategy
+        try:
+            from src.services.alerting import notifier as _ntfy
+            kelly_mult = settings.get("kelly_multiplier", 0.25)
+            edge = max(0.0, float(pinnacle_edge_pct) / 100.0)
+            b = float(odds) - 1.0
+            rec_stake = 0.20
+            if b > 0:
+                rec_stake = round(45.00 * (edge / b) * kelly_mult, 2)
+            rec_stake = max(0.20, min(rec_stake, 2.25))
+
+            if "(1)" in selection or "home" in selection.lower():
+                _pick = f"{match.split(' vs ')[0]} to Win"
+            elif "(2)" in selection or "away" in selection.lower():
+                _pick = f"{match.split(' vs ')[-1]} to Win"
+            else:
+                _pick = selection
+
+            _nation = _nation_from_league(league or "")
+
+            # ── Context lines: weather, fatigue, referee signals ──
+            _ctx_lines = []
+            try:
+                if _WEATHER_OK and _weather_adj is not None:
+                    _wdata = _weather_adj(
+                        match.split(" vs ")[0] if " vs " in match else match,
+                        match.split(" vs ")[-1] if " vs " in match else "",
+                    )
+                    if _wdata.get("rain") or _wdata.get("heavy_wind"):
+                        _wflags = []
+                        if _wdata.get("rain"):
+                            _wflags.append(f"rain {_wdata['precipitation_mm']:.1f}mm")
+                        if _wdata.get("very_heavy_wind"):
+                            _wflags.append(f"⚠️ high wind {_wdata['wind_kmh']:.0f}km/h")
+                        elif _wdata.get("heavy_wind"):
+                            _wflags.append(f"wind {_wdata['wind_kmh']:.0f}km/h")
+                        _ctx_lines.append("🌧️ Weather: " + ", ".join(_wflags))
+            except Exception:
+                pass
+            try:
+                if _FATIGUE_OK and _congestion_summary is not None:
+                    import datetime as _dt_ntfy
+                    _finfo = _congestion_summary(
+                        match.split(" vs ")[0] if " vs " in match else match,
+                        match.split(" vs ")[-1] if " vs " in match else "",
+                    )
+                    if _finfo.get("home_fatigued") or _finfo.get("away_fatigued"):
+                        _fparts = []
+                        if _finfo.get("home_fatigued"):
+                            _fparts.append(f"{match.split(' vs ')[0]} ({_finfo['home_games_7d']}g/7d)")
+                        if _finfo.get("away_fatigued"):
+                            _fparts.append(f"{match.split(' vs ')[-1]} ({_finfo['away_games_7d']}g/7d)")
+                        _ctx_lines.append("😓 Fatigue: " + " | ".join(_fparts))
+            except Exception:
+                pass
+            _ctx_block = ("\n" + "\n".join(_ctx_lines)) if _ctx_lines else ""
+
+            _ntfy._notify(
+                f"🚨 Match: {match}\n"
+                f"📌 Pick: {_pick} ({market})\n"
+                f"🏆 League: {league or 'Unknown'} ({_nation})\n"
+                f"💰 Odds: {odds:.2f} (Betarabia)\n"
+                f"📈 Edge: +{pinnacle_edge_pct:.1f}% (Pinnacle CLV)\n"
+                f"📊 Stake ($45 Bankroll): ${rec_stake:.2f}"
+                f"{_ctx_block}\n"
+                f"🛡️ Strategy: PINNACLE_VALUE",
+                title="VALUE SIGNAL",
+                priority="high",
+                tags="moneybag,soccer",
+            )
+        except Exception as _ntfy_err:
+            pass
         print(
             f"[PINNACLE VALUE] Shadow bet: {match} ({selection}) @ {odds} "
             f"edge +{pinnacle_edge_pct:.1f}% vs Pinnacle fair stake {stake}"
@@ -3105,26 +3373,45 @@ def log_ai_bet(
                 balance = br_cur.fetchone()[0]
                 br_conn.close()
             except Exception:
-                balance = 10000.0
+                balance = 10.0
 
-            settings = load_settings()
+            # Get the strategy's own virtual bankroll balance (fair evaluation at $100.00 starting balance)
+            strategy_balance = 100.0
+            try:
+                from src.strategy_ledger import strategy_ledgers
+                ledgers = strategy_ledgers(db_path)
+                led = ledgers.get(source or "AI")
+                if led:
+                    strategy_balance = float(led["balance"])
+            except Exception as _br_err:
+                pass
+            strategy_balance = max(10.0, strategy_balance)
+
+            # Proportional/Kelly staking using strategy_balance
             kelly_mult = settings.get("kelly_multiplier", 0.25)
-
             p = prob / 100.0
             b = odds - 1.0
+            s_min = float(settings.get("stake_min", 1.0))
+            s_max = float(settings.get("stake_max", 5.0))
+
+            if source == "MODEL_VALUE_ALIGN":
+                mult = kelly_mult * 1.5  # Consensus model gets a 1.5x scaling
+            elif source == "STAIR_AI":
+                mult = kelly_mult * 1.2  # Stair AI gets a 1.2x scaling
+            else:
+                mult = kelly_mult
+
             if b > 0:
                 kelly_f = (p * odds - 1.0) / b
-                kelly_f = max(
-                    0, min(settings.get("max_exposure_pct", 0.05), kelly_f * kelly_mult)
-                )
+                kelly_f = max(0.0, kelly_f * mult)
+                stake = round(strategy_balance * kelly_f, 2)
+                stake = max(s_min, min(stake, s_max, strategy_balance * 0.05))
             else:
-                kelly_f = 0.01
+                stake = s_min
 
-            stake = round(balance * kelly_f, 2)
-            if stake < 1.0:
-                stake = 1.0
-            if stake > balance:
-                stake = balance
+            # Remove global paper liquid balance clamping.
+            # if stake > balance:
+            #     stake = balance
             stake = min(stake, MAX_PAPER_STAKE_USD)
 
             # The AI/1X2 model has NO proven edge (it failed its own 2,386-bet out-of-sample
@@ -3176,6 +3463,42 @@ def log_ai_bet(
             # Commit and close DB before making synchronous network request
             conn.commit()
             conn.close()
+
+            # Send push notification for MODEL_VALUE_ALIGN strategy
+            if source == "MODEL_VALUE_ALIGN":
+                try:
+                    from src.services.alerting import notifier as _ntfy
+                    # Quarter-Kelly with 1.5x scaling on $45
+                    kelly_mult = settings.get("kelly_multiplier", 0.25)
+                    p = prob / 100.0
+                    b = odds - 1.0
+                    rec_stake = 0.20
+                    if b > 0:
+                        kelly_f = (p * odds - 1.0) / b
+                        rec_stake = round(45.00 * max(0.0, kelly_f * kelly_mult * 1.5), 2)
+                    rec_stake = max(0.20, min(rec_stake, 2.25))
+
+                    if "(1)" in selection or "home" in selection.lower():
+                        _pick = f"{match.split(' vs ')[0]} to Win"
+                    elif "(2)" in selection or "away" in selection.lower():
+                        _pick = f"{match.split(' vs ')[-1]} to Win"
+                    else:
+                        _pick = selection
+
+                    _nation = _nation_from_league(league or "")
+                    _ntfy._notify(
+                        f"💎 Match: {match}\n"
+                        f"📌 Pick: {_pick} ({market})\n"
+                        f"🏆 League: {league or 'Unknown'} ({_nation})\n"
+                        f"💰 Odds: {odds:.2f} (Betarabia)\n"
+                        f"📊 Stake ($45 Bankroll): ${rec_stake:.2f}\n"
+                        f"🛡️ Strategy: MODEL_VALUE_ALIGN",
+                        title="CONSENSUS MODEL+VALUE SIGNAL",
+                        priority="high",
+                        tags="gem,soccer",
+                    )
+                except Exception as _ntfy_err:
+                    pass
 
             # Massive Edge Alert — best-effort only. WhatsApp is an EXTERNAL, keyed
             # dependency; it must never break or stall the bet path, so isolate it fully.
@@ -3321,6 +3644,18 @@ def settle_open_bets():
     (often empty) then augments with API-Football finished results.
     """
     print("[SETTLEMENT] Running settlement check...")
+
+    try:
+        _bl_conn = sqlite3.connect(os.path.join(DATA_DIR, "bet_log.db"))
+        _open_count = _bl_conn.execute(
+            "SELECT COUNT(*) FROM bet_log WHERE result='OPEN'"
+        ).fetchone()[0]
+        _bl_conn.close()
+    except Exception:
+        _open_count = 0
+    if _open_count == 0:
+        print("[SETTLEMENT] No open bets to settle. Skipping settlement check.")
+        return
 
     # Load completed comparisons for minor market results
     completed_path = os.path.join(DATA_DIR, "completed_comparisons.json")
@@ -4808,6 +5143,42 @@ def update_dashboard_json(fixtures, results_cache):
             # has_lineup field for post-analysis.
             bet_allowed = True
             if True:
+                # --- RESOLVE ENVIRONMENTAL INFO ONCE PER MATCH ---
+                _det_pred = (prediction or {}).get("detailed_prediction", {})
+                _wx_info = _det_pred.get("weather_info", {}) if isinstance(_det_pred, dict) else {}
+                _fat_info = _det_pred.get("fatigue_info", {}) if isinstance(_det_pred, dict) else {}
+                _ref_info = _det_pred.get("referee_info", {}) if isinstance(_det_pred, dict) else {}
+
+                # Dynamic Fallbacks
+                if not _wx_info and _WEATHER_OK and _weather_adj is not None:
+                    try:
+                        import dateutil.parser as _dup
+                        _ko_dt_wx = None
+                        if match_time:
+                            _ko_dt_wx = _dup.parse(match_time)
+                        _wx_info = _weather_adj(home, away, _ko_dt_wx)
+                    except Exception:
+                        pass
+
+                if not _fat_info and _FATIGUE_OK and _congestion_summary is not None:
+                    try:
+                        import dateutil.parser as _dup
+                        _ko_date = None
+                        if match_time:
+                            _ko_date = _dup.parse(match_time).date()
+                        _fat_info = _congestion_summary(home, away, _ko_date)
+                    except Exception:
+                        pass
+
+                if not _ref_info and _REFEREE_OK and _referee_signal is not None:
+                    try:
+                        _ref_name = (prediction or {}).get("referee") or None
+                        if not _ref_name:
+                            _ref_name = (f.get("fixture") or {}).get("referee") or None
+                        _ref_info = _referee_signal(_ref_name)
+                    except Exception:
+                        pass
+
                 match_bet_candidates = []
                 for m_type, selections in prediction["markets"].items():
                     for sel in selections:
@@ -5163,29 +5534,30 @@ def update_dashboard_json(fixtures, results_cache):
                                     bet_source="STEAM" if steam_fired else "STEAM_LL",
                                     kickoff_time=match_time,
                                 )
-                                try:
-                                    from src.services.alerting import notifier as _ntfy
+                                if settings.get("general_steam_notifications_enabled", False):
+                                    try:
+                                        from src.services.alerting import notifier as _ntfy
 
-                                    _nation = _nation_from_league(league or "")
-                                    if "(1)" in sel_name or "home" in sel_name.lower():
-                                        _pick = f"{home} to win"
-                                    elif (
-                                        "(2)" in sel_name or "away" in sel_name.lower()
-                                    ):
-                                        _pick = f"{away} to win"
-                                    else:
-                                        _pick = sel_name
-                                    _ntfy._notify(
-                                        f"Bet {_pick}\n"
-                                        f"{home} vs {away}\n"
-                                        f"{league} · {_nation}\n"
-                                        f"@ {odds:.2f}",
-                                        title="STEAM Signal",
-                                        priority="high",
-                                        tags="soccer,chart_with_upwards_trend",
-                                    )
-                                except Exception:
-                                    pass
+                                        _nation = _nation_from_league(league or "")
+                                        if "(1)" in sel_name or "home" in sel_name.lower():
+                                            _pick = f"{home} to win"
+                                        elif (
+                                            "(2)" in sel_name or "away" in sel_name.lower()
+                                        ):
+                                            _pick = f"{away} to win"
+                                        else:
+                                            _pick = sel_name
+                                        _ntfy._notify(
+                                            f"Bet {_pick}\n"
+                                            f"{home} vs {away}\n"
+                                            f"{league} · {_nation}\n"
+                                            f"@ {odds:.2f}",
+                                            title="STEAM Signal",
+                                            priority="high",
+                                            tags="soccer,chart_with_upwards_trend",
+                                        )
+                                    except Exception:
+                                        pass
                             # Opt-in: require the market to be moving toward a model pick.
                             require_steam = settings.get("require_steam_confirm", False)
                             steam_ok = (not require_steam) or (steam_move >= steam_min)
@@ -5336,26 +5708,20 @@ def update_dashboard_json(fixtures, results_cache):
                                 except Exception:
                                     pass
 
-                            # STANDALONE PINNACLE STEAM: bet when Pinnacle moves >= threshold
-                            # even when Betarabia hasn't moved (which is almost always — Betarabia
-                            # is a static soft book). This is the main high-volume bet path.
-                            # Requires Betarabia to have a current price (odds is not None here)
-                            # so the bet has a real price to record.
-                            _pin_steam_max_odds = settings.get(
-                                "pinnacle_steam_max_odds", 10.0
-                            )
-                            if (
+                            # Define helper boolean flags for both strategies to build a consensus system
+                            _pin_steam_max_odds = settings.get("pinnacle_steam_max_odds", 10.0)
+                            _ps_qualifies = (
                                 _pin_steam_fired
                                 and _pin_steam_sel == _sel_pin_key
                                 and not draw_excluded
                                 and odds
                                 and odds >= dfp_settings.MODEL_MIN_ODDS
-                                and odds
-                                <= _pin_steam_max_odds  # no extreme longshots (e.g. 23.0)
+                                and odds <= _pin_steam_max_odds  # no extreme longshots (e.g. 23.0)
                                 and odds_fresh
                                 and _steam_league_ok
                                 and settings.get("pinnacle_steam_betting_enabled", True)
-                            ):
+                            )
+                            if _ps_qualifies:
                                 try:
                                     log_steam_bet(
                                         f"{home} vs {away}",
@@ -5398,7 +5764,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 except Exception:
                                     _timing_ok = True  # fail-open
 
-                            if (
+                            _pv_qualifies = (
                                 _pin_edge > 0
                                 and not _pinnacle_fallback_used  # skip when odds are from Pinnacle itself
                                 and odds
@@ -5409,7 +5775,9 @@ def update_dashboard_json(fixtures, results_cache):
                                 and odds_fresh
                                 and _pv_league_ok
                                 and _timing_ok
-                            ):
+                                and settings.get("pinnacle_value_betting_enabled", True)
+                            )
+                            if _pv_qualifies:
                                 log_pinnacle_value_bet(
                                     f"{home} vs {away}",
                                     m_type,
@@ -5420,6 +5788,23 @@ def update_dashboard_json(fixtures, results_cache):
                                     league=league,
                                     pinnacle_data=_pin_data,
                                 )
+
+                            # VALUE_STEAM_ALIGN: Consensus strategy combining Pinnacle Value + Pinnacle Steam
+                            if _pv_qualifies and _ps_qualifies:
+                                try:
+                                    log_steam_bet(
+                                        f"{home} vs {away}",
+                                        m_type,
+                                        sel_name,
+                                        odds,
+                                        _pin_steam_move,
+                                        fid,
+                                        league,
+                                        bet_source="VALUE_STEAM_ALIGN",
+                                        kickoff_time=match_time,
+                                    )
+                                except Exception as _ce:
+                                    print(f"[VALUE_STEAM_ALIGN] Consensus bet logging failed: {_ce}")
 
                             require_dc = settings.get("require_dc_coverage", True)
                             dc_covered = (prediction or {}).get("dc_covered", False)
@@ -5474,6 +5859,157 @@ def update_dashboard_json(fixtures, results_cache):
                                 and _draw_pin_ok
                                 and tipster_ok
                             )
+
+                            # MODEL_VALUE_ALIGN: Consensus strategy combining Dixon-Coles Model + Pinnacle Value
+                            if (
+                                is_recommended
+                                and _pv_qualifies
+                                and settings.get("model_value_align_enabled", True)
+                            ):
+                                try:
+                                    log_ai_bet(
+                                        f"{home} vs {away}",
+                                        m_type,
+                                        sel_name,
+                                        odds,
+                                        prob,
+                                        ev,
+                                        fixture_id=fid,
+                                        league=league,
+                                        source="MODEL_VALUE_ALIGN",
+                                        kickoff_time=match_time,
+                                    )
+                                except Exception as _mve:
+                                    print(f"[MODEL_VALUE_ALIGN] Consensus bet logging failed: {_mve}")
+
+                            # ── XG_ELO: xG-Elo Divergence Strategy ──────────────────────────
+                            # Rate teams by xG process not results. When model diverges from
+                            # market odds by >= 7%, fire a paper value bet (XG_ELO source).
+                            if (
+                                _XG_ELO_OK
+                                and _xg_elo_is_value is not None
+                                and settings.get("xg_elo_betting_enabled", True)
+                                and m_type == "1X2"
+                                and odds
+                                and odds_fresh
+                                and not league_blocked
+                            ):
+                                try:
+                                    _xge_fire, _xge_data = _xg_elo_is_value(
+                                        home, away, m_type, sel_name, odds,
+                                        min_edge_pct=settings.get("xg_elo_min_edge_pct", 7.0),
+                                    )
+                                    if _xge_fire:
+                                        _xge_prob = _xge_data.get("model_prob", 50.0)
+                                        _xge_ev = _xge_data.get("edge_pct", 0.0) / 100.0
+                                        log_ai_bet(
+                                            f"{home} vs {away}",
+                                            m_type,
+                                            sel_name,
+                                            odds,
+                                            _xge_prob,
+                                            _xge_ev,
+                                            fixture_id=fid,
+                                            league=league,
+                                            source="XG_ELO",
+                                            kickoff_time=match_time,
+                                        )
+                                        print(
+                                            f"[XG-ELO] Value signal: {home} vs {away} {sel_name} "
+                                            f"@ {odds} | {_xge_data.get('signal', '')}"
+                                        )
+                                except Exception as _xge_err:
+                                    print(f"[XG-ELO] Error: {_xge_err}")
+
+                            # ── WEATHER_EDGE Strategy ───────────────────────────────────────
+                            if (
+                                _ENV_EDGES_OK
+                                and _weather_edge_sig is not None
+                                and settings.get("weather_edge_enabled", True)
+                                and odds
+                                and odds_fresh
+                                and not league_blocked
+                            ):
+                                try:
+                                    _we_res = _weather_edge_sig(home, away, m_type, sel_name, odds, _wx_info)
+                                    if _we_res.get("fire"):
+                                        _we_edge = _we_res.get("edge_pct", 0.0)
+                                        _we_prob = _we_edge + (100.0 / odds)
+                                        log_ai_bet(
+                                            f"{home} vs {away}",
+                                            m_type,
+                                            sel_name,
+                                            odds,
+                                            _we_prob,
+                                            _we_edge / 100.0,
+                                            fixture_id=fid,
+                                            league=league,
+                                            source="WEATHER_EDGE",
+                                            kickoff_time=match_time,
+                                        )
+                                        print(f"[WEATHER_EDGE] Shadow bet: {home} vs {away} {sel_name} @ {odds} | {_we_res.get('reason')}")
+                                except Exception as _we_err:
+                                    print(f"[WEATHER_EDGE] Error: {_we_err}")
+
+                            # ── FATIGUE_EDGE Strategy ───────────────────────────────────────
+                            if (
+                                _ENV_EDGES_OK
+                                and _fatigue_edge_sig is not None
+                                and settings.get("fatigue_edge_enabled", True)
+                                and odds
+                                and odds_fresh
+                                and not league_blocked
+                            ):
+                                try:
+                                    _fe_res = _fatigue_edge_sig(home, away, m_type, sel_name, odds, _fat_info)
+                                    if _fe_res.get("fire"):
+                                        _fe_edge = _fe_res.get("edge_pct", 0.0)
+                                        _fe_prob = _fe_edge + (100.0 / odds)
+                                        log_ai_bet(
+                                            f"{home} vs {away}",
+                                            m_type,
+                                            sel_name,
+                                            odds,
+                                            _fe_prob,
+                                            _fe_edge / 100.0,
+                                            fixture_id=fid,
+                                            league=league,
+                                            source="FATIGUE_EDGE",
+                                            kickoff_time=match_time,
+                                        )
+                                        print(f"[FATIGUE_EDGE] Shadow bet: {home} vs {away} {sel_name} @ {odds} | {_fe_res.get('reason')}")
+                                except Exception as _fe_err:
+                                    print(f"[FATIGUE_EDGE] Error: {_fe_err}")
+
+                            # ── REFEREE_EDGE Strategy ───────────────────────────────────────
+                            if (
+                                _ENV_EDGES_OK
+                                and _referee_edge_sig is not None
+                                and settings.get("referee_edge_enabled", True)
+                                and odds
+                                and odds_fresh
+                                and not league_blocked
+                            ):
+                                try:
+                                    _re_res = _referee_edge_sig(home, away, m_type, sel_name, odds, _ref_info)
+                                    if _re_res.get("fire"):
+                                        _re_edge = _re_res.get("edge_pct", 0.0)
+                                        _re_prob = _re_edge + (100.0 / odds)
+                                        log_ai_bet(
+                                            f"{home} vs {away}",
+                                            m_type,
+                                            sel_name,
+                                            odds,
+                                            _re_prob,
+                                            _re_edge / 100.0,
+                                            fixture_id=fid,
+                                            league=league,
+                                            source="REFEREE_EDGE",
+                                            kickoff_time=match_time,
+                                        )
+                                        print(f"[REFEREE_EDGE] Shadow bet: {home} vs {away} {sel_name} @ {odds} | {_re_res.get('reason')}")
+                                except Exception as _re_err:
+                                    print(f"[REFEREE_EDGE] Error: {_re_err}")
 
                             # ASIAN HANDICAP paper bet gate (opt-in; off by default)
                             # AH -0.5 = home must WIN outright. AH +0.5 = home must not LOSE.
@@ -5575,21 +6111,26 @@ def update_dashboard_json(fixtures, results_cache):
                     except Exception as e:
                         print(f"[ERROR] Failed to place best bet: {e}")
 
-                    for _mw in market_winners.values():
-                        log_ai_bet(
-                            f"{home} vs {away}",
-                            _mw["m_type"],
-                            _mw["selection"],
-                            _mw["odds"],
-                            _mw["prob"],
-                            _mw["ev"],
-                            fid,
-                            league,
-                            kickoff_time=match_time,
-                        )
-                        print(
-                            f"[DAEMON] MARKET PICK logged: {_mw['m_type']} | {_mw['selection']} @ {_mw['odds']} (EV: {_mw['ev']*100:.1f}%)"
-                        )
+                    # Standalone "AI" source bets are a separate (weak, +4.6% ROI) strategy
+                    # from MODEL_VALUE_ALIGN — both route through log_ai_bet(), but
+                    # MODEL_VALUE_ALIGN's own call above is gated by _pv_qualifies/is_recommended,
+                    # not by this flag, so turning this off leaves MODEL_VALUE_ALIGN untouched.
+                    if settings.get("ai_standalone_betting_enabled", True):
+                        for _mw in market_winners.values():
+                            log_ai_bet(
+                                f"{home} vs {away}",
+                                _mw["m_type"],
+                                _mw["selection"],
+                                _mw["odds"],
+                                _mw["prob"],
+                                _mw["ev"],
+                                fid,
+                                league,
+                                kickoff_time=match_time,
+                            )
+                            print(
+                                f"[DAEMON] MARKET PICK logged: {_mw['m_type']} | {_mw['selection']} @ {_mw['odds']} (EV: {_mw['ev']*100:.1f}%)"
+                            )
 
                     # Arena autopilot handles real-bet notifications (one push per placed order)
 
@@ -5989,10 +6530,14 @@ def run_daemon():
         settle_open_bets()
         time.sleep(5)
 
-        # 3. Daily tipster scrape — runs once per calendar day (guard inside)
+        # 3. Daily tipster scrape — runs once per calendar day (guard inside).
+        # Places TIPSTER_FOREBET/TIPSTER_APIFB/TIPSTER_CONSENSUS bets, all separate
+        # strategies from MODEL_VALUE_ALIGN. Does NOT affect is_recommended's
+        # tipster_ok check (that reads _get_tipster_picks() directly).
         try:
-            from src.tipster_scraper import run_tipster_cycle
-            run_tipster_cycle()
+            if load_settings().get("tipster_strategies_enabled", True):
+                from src.tipster_scraper import run_tipster_cycle
+                run_tipster_cycle()
         except Exception as _ts_err:
             print(f"[TIPSTER] cycle failed: {_ts_err}")
 
@@ -6003,7 +6548,11 @@ def run_daemon():
         print(
             f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Scanning fixtures for predictions..."
         )
-        fixtures = get_todays_fixtures()
+        try:
+            fixtures = get_todays_fixtures()
+        except Exception as _fx_err:
+            print(f"[!] Error fetching get_todays_fixtures() - falling back: {_fx_err}")
+            fixtures = []
         if not fixtures:
             # Fallback to Betarabia matches
             print(
@@ -6255,7 +6804,7 @@ def run_daemon():
         # 4. Crowd paper bets — DISABLED (floods bet_log with all-outcome batches)
         # Re-enable only for deliberate research runs via crowd_bets_scraper directly.
 
-        print("[*] Sweep complete. Dashboard state updated. Sleeping for 3 minutes...")
+        print("[*] Sweep complete. Dashboard state updated. Sleeping for 45 seconds...")
 
         # ── Daily signal alerts (Betarabia pick notifications) ──────────────
         try:
@@ -6270,8 +6819,15 @@ def run_daemon():
         except Exception as _dsa_err:
             print(f"[ALERTS] daily_signal_alerts error: {_dsa_err}")
 
-        # Wait 3 minutes (180s) before the next sweep
-        time.sleep(180)
+        # ── Stair AI + Gemini reasoning engine ──────────────────────────────
+        try:
+            from src.stairai_reasoning_engine import run_cycle as _stair_cycle
+            _stair_cycle(log_bet_fn=log_ai_bet)
+        except Exception as _stair_err:
+            print(f"[STAIR_AI ENGINE] cycle error: {_stair_err}")
+
+        # Wait 45 seconds before the next sweep
+        time.sleep(45)
 
 
 if __name__ == "__main__":

@@ -1061,7 +1061,24 @@ async def run_scraper():
     ApiResponses_V = []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=HEADLESS_MODE)
+        # Lean launch: this scraper only reads intercepted JSON + (as a fallback)
+        # the raw DOM text — it never needs images/fonts/media rendered, so
+        # blocking them cuts Chromium's RAM/CPU footprint substantially with
+        # zero effect on what gets captured.
+        browser = await p.chromium.launch(
+            headless=HEADLESS_MODE,
+            args=[
+                "--disable-gpu",
+                "--disable-dev-shm-usage",
+                "--disable-extensions",
+                "--disable-background-networking",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
+                "--mute-audio",
+                "--blink-settings=imagesEnabled=false",
+            ],
+        )
         context = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -1070,6 +1087,12 @@ async def run_scraper():
             ),
             viewport={"width": 1280, "height": 800},
             locale="en-US",
+        )
+        await context.route(
+            "**/*",
+            lambda route: route.abort()
+            if route.request.resource_type in ("image", "media", "font", "stylesheet")
+            else route.continue_(),
         )
         page = await context.new_page()
 

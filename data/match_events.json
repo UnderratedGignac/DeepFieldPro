@@ -1,0 +1,173 @@
+{
+  "matches": {
+    "760489": {
+      "match": "Germany vs Paraguay",
+      "home": "Germany",
+      "away": "Paraguay",
+      "home_abbrev": "GER",
+      "away_abbrev": "PAR",
+      "status": "STATUS_FINAL_PEN",
+      "clock": "120'",
+      "score": "1-1",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760488": {
+      "match": "Netherlands vs Morocco",
+      "home": "Netherlands",
+      "away": "Morocco",
+      "home_abbrev": "NED",
+      "away_abbrev": "MAR",
+      "status": "STATUS_FINAL_PEN",
+      "clock": "120'",
+      "score": "1-1",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760493": {
+      "match": "Belgium vs Senegal",
+      "home": "Belgium",
+      "away": "Senegal",
+      "home_abbrev": "BEL",
+      "away_abbrev": "SEN",
+      "status": "STATUS_FINAL_AET",
+      "clock": "120'+12'",
+      "score": "3-2",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760499": {
+      "match": "Australia vs Egypt",
+      "home": "Australia",
+      "away": "Egypt",
+      "home_abbrev": "AUS",
+      "away_abbrev": "EGY",
+      "status": "STATUS_FINAL_PEN",
+      "clock": "120'",
+      "score": "1-1",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760500": {
+      "match": "Argentina vs Cape Verde",
+      "home": "Argentina",
+      "away": "Cape Verde",
+      "home_abbrev": "ARG",
+      "away_abbrev": "CPV",
+      "status": "STATUS_FINAL_AET",
+      "clock": "120'+3'",
+      "score": "3-2",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760508": {
+      "match": "Switzerland vs Colombia",
+      "home": "Switzerland",
+      "away": "Colombia",
+      "home_abbrev": "SUI",
+      "away_abbrev": "COL",
+      "status": "STATUS_FINAL_PEN",
+      "clock": "120'",
+      "score": "0-0",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760510": {
+      "match": "France vs Morocco",
+      "home": "France",
+      "away": "Morocco",
+      "home_abbrev": "FRA",
+      "away_abbrev": "MAR",
+      "status": "FT",
+      "clock": "90'+6'",
+      "score": "2-0",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760511": {
+      "match": "Spain vs Belgium",
+      "home": "Spain",
+      "away": "Belgium",
+      "home_abbrev": "ESP",
+      "away_abbrev": "BEL",
+      "status": "FT",
+      "clock": "90'+7'",
+      "score": "2-1",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760512": {
+      "match": "Norway vs England",
+      "home": "Norway",
+      "away": "England",
+      "home_abbrev": "NOR",
+      "away_abbrev": "ENG",
+      "status": "STATUS_FINAL_AET",
+      "clock": "120'+2'",
+      "score": "1-2",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760513": {
+      "match": "Argentina vs Switzerland",
+      "home": "Argentina",
+      "away": "Switzerland",
+      "home_abbrev": "ARG",
+      "away_abbrev": "SUI",
+      "status": "STATUS_SECOND_HALF",
+      "clock": "67'",
+      "score": "1-0",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760514": {
+      "match": "France vs Spain",
+      "home": "France",
+      "away": "Spain",
+      "home_abbrev": "FRA",
+      "away_abbrev": "ESP",
+      "status": "FT",
+      "clock": "90'+7'",
+      "score": "0-2",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760515": {
+      "match": "England vs Argentina",
+      "home": "England",
+      "away": "Argentina",
+      "home_abbrev": "ENG",
+      "away_abbrev": "ARG",
+      "status": "FT",
+      "clock": "90'+12'",
+      "score": "1-2",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760516": {
+      "match": "France vs England",
+      "home": "France",
+      "away": "England",
+      "home_abbrev": "FRA",
+      "away_abbrev": "ENG",
+      "status": "FT",
+      "clock": "90'+9'",
+      "score": "4-6",
+      "events": [],
+      "seen_event_ids": []
+    },
+    "760517": {
+      "match": "Spain vs Argentina",
+      "home": "Spain",
+      "away": "Argentina",
+      "home_abbrev": "ESP",
+      "away_abbrev": "ARG",
+      "status": "STATUS_FINAL_AET",
+      "clock": "120'+5'",
+      "score": "1-0",
+      "events": [],
+      "seen_event_ids": []
+    }
+  },
+  "updated_at": "2026-08-17 07:13:31"
+}

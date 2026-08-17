@@ -154,44 +154,56 @@ def _default_dates():
     return [(now - datetime.timedelta(days=d)).strftime("%Y-%m-%d") for d in (0, 1)]
 
 
+from concurrent.futures import ThreadPoolExecutor
+
+def _espn_fetch_league(lg, compact):
+    try:
+        r = requests.get(
+            f"{_ESPN_BASE}/{lg}/scoreboard",
+            headers=_UA,
+            params={"dates": compact},
+            timeout=8,
+        )
+        if r.status_code != 200:
+            return []
+        return r.json().get("events", []) or []
+    except Exception:
+        return []
+
+
 def _espn_day(date_str):
     """All completed ESPN soccer matches for a date -> {match: (hs, as)}."""
     out = {}
     compact = date_str.replace("-", "")
-    for lg in ESPN_LEAGUES:
-        try:
-            r = requests.get(
-                f"{_ESPN_BASE}/{lg}/scoreboard",
-                headers=_UA,
-                params={"dates": compact},
-                timeout=8,
-            )
-            if r.status_code != 200:
-                continue
-            events = r.json().get("events", []) or []
-        except Exception:
-            continue
-        for e in events:
-            comp = (e.get("competitions") or [{}])[0]
-            status = (comp.get("status") or {}).get("type") or {}
-            if not status.get("completed"):
-                continue
-            cs = comp.get("competitors") or []
-            if len(cs) != 2:
-                continue
-            home = next((c for c in cs if c.get("homeAway") == "home"), None)
-            away = next((c for c in cs if c.get("homeAway") == "away"), None)
-            if not home or not away:
-                continue
+    
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        futures = [executor.submit(_espn_fetch_league, lg, compact) for lg in ESPN_LEAGUES]
+        for fut in futures:
             try:
-                hs = int(home.get("score"))
-                as_ = int(away.get("score"))
-            except (TypeError, ValueError):
+                events = fut.result()
+            except Exception:
                 continue
-            hn = (home.get("team") or {}).get("displayName")
-            an = (away.get("team") or {}).get("displayName")
-            if hn and an:
-                out[f"{hn} vs {an}"] = (hs, as_)
+            for e in events:
+                comp = (e.get("competitions") or [{}])[0]
+                status = (comp.get("status") or {}).get("type") or {}
+                if not status.get("completed"):
+                    continue
+                cs = comp.get("competitors") or []
+                if len(cs) != 2:
+                    continue
+                home = next((c for c in cs if c.get("homeAway") == "home"), None)
+                away = next((c for c in cs if c.get("homeAway") == "away"), None)
+                if not home or not away:
+                    continue
+                try:
+                    hs = int(home.get("score"))
+                    as_ = int(away.get("score"))
+                except (TypeError, ValueError):
+                    continue
+                hn = (home.get("team") or {}).get("displayName")
+                an = (away.get("team") or {}).get("displayName")
+                if hn and an:
+                    out[f"{hn} vs {an}"] = (hs, as_)
     return out
 
 

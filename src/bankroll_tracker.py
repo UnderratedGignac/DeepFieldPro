@@ -61,7 +61,7 @@ def init_bankroll_db(db_path=None):
 
     today = datetime.now(timezone.utc).date().isoformat()
     cursor.execute(
-        "SELECT current_balance, peak_balance FROM bankroll ORDER BY id DESC LIMIT 1"
+        "SELECT current_balance, peak_balance, daily_exposure FROM bankroll ORDER BY id DESC LIMIT 1"
     )
     last_row = cursor.fetchone()
 
@@ -76,13 +76,15 @@ def init_bankroll_db(db_path=None):
     else:
         cursor.execute("SELECT id FROM bankroll WHERE date = ?", (today,))
         if not cursor.fetchone():
-            last_balance, last_peak = last_row
+            last_balance, last_peak, last_exposure = last_row
+            last_exposure = last_exposure or 0.0
+            total_net_worth = last_balance + last_exposure
             cursor.execute(
                 """
                 INSERT INTO bankroll (date, starting_balance, current_balance, peak_balance, daily_exposure, daily_pnl)
-                VALUES (?, ?, ?, ?, 0.0, 0.0)
+                VALUES (?, ?, ?, ?, ?, 0.0)
             """,
-                (today, last_balance, last_balance, last_peak),
+                (today, total_net_worth, last_balance, last_peak, last_exposure),
             )
 
     conn.commit()
@@ -196,8 +198,8 @@ def register_bet(stake, db_path=None):
                     f"{MAX_DRAWDOWN_PCT*100:.0f}%) but stop_loss_enabled=False — proceeding."
                 )
 
-    # Block bets that would drive the liquid balance negative.
-    if stake > current_balance:
+    # Block bets that would drive the liquid balance negative (only for real bankroll).
+    if "real_bankroll.db" in str(db_path) and stake > current_balance:
         print(
             f"BLOCKED: Stake ${stake:.2f} exceeds current liquid balance ${current_balance:.2f}."
         )
@@ -205,16 +207,17 @@ def register_bet(stake, db_path=None):
         conn.close()
         return False
 
-    # Enforce the daily-exposure cap (max % of today's starting balance at risk at once).
-    exposure_cap = starting_balance * MAX_DAILY_EXPOSURE_PCT
-    if daily_exposure + stake > exposure_cap:
-        print(
-            f"BLOCKED: Exposure ${daily_exposure + stake:.2f} would exceed daily cap "
-            f"${exposure_cap:.2f} ({MAX_DAILY_EXPOSURE_PCT:.0%} of ${starting_balance:.2f})."
-        )
-        conn.execute("ROLLBACK")
-        conn.close()
-        return False
+    # Enforce the daily-exposure cap (only for real bankroll).
+    if "real_bankroll.db" in str(db_path):
+        exposure_cap = starting_balance * MAX_DAILY_EXPOSURE_PCT
+        if daily_exposure + stake > exposure_cap:
+            print(
+                f"BLOCKED: Exposure ${daily_exposure + stake:.2f} would exceed daily cap "
+                f"${exposure_cap:.2f} ({MAX_DAILY_EXPOSURE_PCT:.0%} of ${starting_balance:.2f})."
+            )
+            conn.execute("ROLLBACK")
+            conn.close()
+            return False
 
     # All checks passed — deduct stake atomically within the IMMEDIATE transaction.
     cursor.execute(

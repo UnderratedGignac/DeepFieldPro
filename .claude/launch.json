@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "DeepFieldPro Dashboard",
+      "runtimeExecutable": ".venv\\Scripts\\python.exe",
+      "runtimeArgs": ["src\\live_dashboard_server.py"],
+      "port": 5050
+    }
+  ]
+}

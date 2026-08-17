@@ -21,7 +21,7 @@ except ImportError:
 
 logger = logging.getLogger("pinnacle_feed")
 
-POLL_INTERVAL = 120  # seconds between fetches
+POLL_INTERVAL = 45  # seconds between fetches
 
 _BASE = "https://guest.api.arcadia.pinnacle.com/0.1"
 _HEADERS = {

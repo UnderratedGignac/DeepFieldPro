@@ -39,6 +39,18 @@ temp/
 data/betarabia_api_responses.json
 data/deepfield_browser_data/completed_fixtures.db
 data/betarabia_page_probe.html
+data/bet_log.db
+data/research_bet_log.db
+
+# Browser automation profiles — contain live session cookies, never commit
+data/copilot_browser_profile/
+data/qwen_browser_profile/
+
+# Third-party/vendored repos and tool caches accidentally left in the tree
+UsersEliebotasaurus/
+.playwright-mcp/
+.qoder/
+.understand-anything/
 
 # Runtime / scratch files not worth tracking
 current_port.txt

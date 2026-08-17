@@ -984,11 +984,9 @@ def _conviction_stake(confidence, odds_val, balance, flat=5.0):
     """Quarter-Kelly stake from the tipster's own published confidence.
 
     confidence: tipster probability for the pick in percent (e.g. 63.0).
-    Sized against a FIXED notional (settings.stake_notional; not the drifting
-    paper bankroll) so stakes stay comparable across the ledger and actually
-    graduate with conviction instead of pinning to the clamps. Falls back to
-    the flat stake when confidence/odds are missing. Every path is clamped to
-    [stake_min, stake_max] from settings."""
+    Sized against the strategy's virtual bankroll balance (not the global
+    paper bankroll) so stakes stay comparable across the ledger.
+    Every path is clamped to [stake_min, stake_max] from settings."""
     notional, s_min, s_max = _stake_params()
 
     def _clamp(v):
@@ -998,13 +996,13 @@ def _conviction_stake(confidence, odds_val, balance, flat=5.0):
         p = float(confidence) / 100.0
         b = float(odds_val) - 1.0
         if not (0.0 < p < 1.0) or b <= 0:
-            return _clamp(flat)
+            return _clamp(balance * 0.05)
         kelly_f = (p * float(odds_val) - 1.0) / b
         if kelly_f <= 0:
             return _clamp(s_min)  # tipster picked it but the price gives no Kelly edge
-        return _clamp(notional * kelly_f * 0.25)
+        return _clamp(balance * kelly_f * 0.25)
     except (TypeError, ValueError):
-        return _clamp(flat)
+        return _clamp(balance * 0.05)
 
 
 def _build_odds_map(market_rows) -> dict[tuple, float]:
@@ -1311,7 +1309,20 @@ def place_tipster_bets(
                     if market_type == "1X2"
                     else pred.get("ou_confidence") or 55.0
                 )
-                _stake = _conviction_stake(_conf, odds_val, _balance, flat=stake)
+                # Get the strategy's own virtual bankroll balance (fair evaluation at $100.00 starting balance)
+                strategy_balance = 100.0
+                try:
+                    from src.strategy_ledger import strategy_ledgers
+                    ledgers = strategy_ledgers(bet_db)
+                    strat_id = f"TIPSTER_{source}"
+                    led = ledgers.get(strat_id)
+                    if led:
+                        strategy_balance = float(led["balance"])
+                except Exception as _br_err:
+                    logger.warning(f"[BANKROLL] strategy_ledgers fetch failed: {_br_err}")
+                strategy_balance = max(10.0, strategy_balance)
+
+                _stake = _conviction_stake(_conf, odds_val, strategy_balance, flat=stake)
 
                 # The winning strategy: only Forebet-confirmed picks risk the
                 # real $200 bankroll. Gate + deduct here so real_bankroll.db's
