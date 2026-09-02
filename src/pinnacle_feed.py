@@ -21,7 +21,13 @@ except ImportError:
 
 logger = logging.getLogger("pinnacle_feed")
 
-POLL_INTERVAL = 45  # seconds between fetches
+# Seconds between fetches. Was 45s, which polled ~20x faster than the data it
+# was reading: the guest endpoint is Cloudflare-cached with max-age=905, so 19
+# of every 20 polls re-downloaded a byte-identical ~24MB payload. 240s stays
+# comfortably inside the CDN window (so a refreshed copy is picked up promptly),
+# stays under HEARTBEAT_SEC so heartbeat rows keep landing for the 60-minute
+# staleness gate, and is far inside that gate either way.
+POLL_INTERVAL = 240
 
 # ─── sharp_odds_history growth control ───────────────────────────────────────
 # The feed used to append every polled price unconditionally. At POLL_INTERVAL=45s
@@ -71,7 +77,8 @@ _STOP = threading.Event()
 # ─── Pinnacle API helpers ──────────────────────────────────────────────────────
 
 
-def _get(path, params=None, timeout=15):
+def _get_raw(path, params=None, timeout=15):
+    """Issue the request and return the raw Response (headers included)."""
     if requests is None:
         raise RuntimeError("requests not installed")
     # Fresh session per request — avoids Pinnacle blocking persistent connections
@@ -79,7 +86,79 @@ def _get(path, params=None, timeout=15):
         s.headers.update(_HEADERS)
         r = s.get(f"{_BASE}{path}", params=params, timeout=timeout)
     r.raise_for_status()
-    return r.json()
+    return r
+
+
+def _get(path, params=None, timeout=15):
+    return _get_raw(path, params=params, timeout=timeout).json()
+
+
+# ─── Shared raw-response cache ────────────────────────────────────────────────
+# The guest endpoint sits behind Cloudflare and says so:
+#     cache-control: public, max-age=905, must-revalidate
+#     cf-cache-status: HIT
+#     age: 809
+# So the data behind it only changes about every 15 minutes. Meanwhile all three
+# fetchers (fetch_1x2_snapshot / fetch_pinnacle_totals / fetch_pinnacle_btts)
+# request the SAME two paths, and both the feed loop and the prediction daemon
+# call them every cycle — six round-trips of a ~24MB payload where two would do,
+# repeated far faster than the bytes ever change.
+#
+# The TTL is taken from the CDN's OWN remaining freshness (max-age minus age)
+# rather than a number we invent. That is what makes this safe: the cache can
+# never hand back anything staler than what the CDN was already going to serve,
+# so it adds exactly zero staleness to the edge calculation — it only stops us
+# re-downloading bytes we have already been given.
+_MIN_CACHE_SEC = 30.0  # floor, so a nearly-expired CDN copy still dedups a cycle
+_MAX_CACHE_SEC = 900.0
+_DEFAULT_CACHE_SEC = 120.0  # used when the response carries no cache-control
+_RESP_CACHE = {}  # path -> (expires_at, payload)
+_CACHE_LOCK = threading.Lock()
+
+
+def _cache_ttl_from_headers(headers):
+    """Seconds this payload stays valid, derived from the CDN's own headers."""
+    cc = (headers or {}).get("cache-control") or ""
+    max_age = None
+    for part in cc.split(","):
+        part = part.strip().lower()
+        if part.startswith("max-age="):
+            try:
+                max_age = float(part.split("=", 1)[1])
+            except (ValueError, IndexError):
+                max_age = None
+            break
+    if max_age is None:
+        return _DEFAULT_CACHE_SEC
+    try:
+        age = float((headers or {}).get("age") or 0.0)
+    except (TypeError, ValueError):
+        age = 0.0
+    remaining = max_age - age
+    # Clamp: never below the floor (so an about-to-expire copy still collapses
+    # the duplicate calls inside one cycle) and never above the CDN's own window.
+    return max(_MIN_CACHE_SEC, min(remaining, max_age, _MAX_CACHE_SEC))
+
+
+def _get_cached(path, params=None, timeout=15):
+    """_get() for the big shared endpoints, memoised for the CDN's own TTL."""
+    now = time.time()
+    with _CACHE_LOCK:
+        hit = _RESP_CACHE.get(path)
+        if hit and hit[0] > now:
+            return hit[1]
+    # Fetch outside the lock so a slow request never blocks the other thread.
+    r = _get_raw(path, params=params, timeout=timeout)
+    payload = r.json()
+    ttl = _cache_ttl_from_headers(getattr(r, "headers", {}))
+    with _CACHE_LOCK:
+        _RESP_CACHE[path] = (time.time() + ttl, payload)
+    return payload
+
+
+def _cache_clear():
+    with _CACHE_LOCK:
+        _RESP_CACHE.clear()
 
 
 def _amer_to_dec(amer):
@@ -115,10 +194,10 @@ def fetch_1x2_snapshot():
       match_key, home_team, away_team, league,
       h_dec, d_dec, a_dec, p_home, p_draw, p_away, starts_ts
     """
-    matchups = _get(
+    matchups = _get_cached(
         "/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"}
     )
-    markets = _get("/sports/29/markets/straight")
+    markets = _get_cached("/sports/29/markets/straight")
 
     # Index markets by matchupId — keep only moneyline period=0
     mk_idx = {}
@@ -437,10 +516,10 @@ def fetch_pinnacle_btts():
     Total-Goals/Winner combo variants that share the same "Team Props" category.
     """
     try:
-        matchups = _get(
+        matchups = _get_cached(
             "/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"}
         )
-        markets = _get("/sports/29/markets/straight")
+        markets = _get_cached("/sports/29/markets/straight")
         mk_idx = {}
         for m in markets:
             if m.get("type") == "moneyline" and m.get("period") == 0:
@@ -521,10 +600,10 @@ SOCCER = 29  # Pinnacle sport ID for soccer
 def fetch_pinnacle_totals(line=2.5):
     """Return dict of 'Home vs Away' -> {'over': dec, 'under': dec, 'p_over': float, 'p_under': float, 'starts_ts': float|None}."""
     try:
-        matchups = _get(
+        matchups = _get_cached(
             "/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"}
         )
-        markets = _get("/sports/29/markets/straight")
+        markets = _get_cached("/sports/29/markets/straight")
         mk_idx = {}
         for m in markets:
             if m.get("type") == "total" and m.get("period") == 0:

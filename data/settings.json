@@ -10,11 +10,7 @@
   "exclude_draws": true,
   "require_dc_coverage": false,
   "require_forebet_confirm": false,
-  "league_blocklist": [
-    "Chinese Super League",
-    "USL Championship",
-    "MLS"
-  ],
+  "league_blocklist": [],
   "steam_betting_enabled": false,
   "steam_flat_stake": 5.0,
   "steam_kelly_frac": 0.02,

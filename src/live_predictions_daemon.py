@@ -5214,6 +5214,11 @@ def update_dashboard_json(fixtures, results_cache):
         _pin_btts_all = _fpb_btts() or {}
     except Exception as _btts_fetch_err:
         print(f"[BTTS] Pinnacle BTTS fetch failed (non-fatal): {_btts_fetch_err}")
+    # fetch_pinnacle_btts swallows its own exceptions and returns {}, so a silent
+    # failure is indistinguishable from "Pinnacle prices no BTTS today" — every
+    # selection would just read as no-match with zero visibility. Log the universe
+    # size each cycle so an empty feed is obvious instead of looking like no edge.
+    print(f"[BTTS] Pinnacle BTTS universe: {len(_pin_btts_all)} matches")
 
     for f in fixtures:
         fid = f["fixture"]["id"]
