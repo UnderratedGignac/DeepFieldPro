@@ -10,7 +10,7 @@ from sofascore_results_scraper import _fetch_date_async
 
 
 async def main():
-    results = await _fetch_date_async("2026-06-17")
+    results, _events = await _fetch_date_async("2026-06-17")
     print(f"Total finished: {len(results)}\n")
 
     targets = [

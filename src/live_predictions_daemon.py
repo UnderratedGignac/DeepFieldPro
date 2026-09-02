@@ -108,6 +108,7 @@ except Exception as _env_err:
     _ENV_EDGES_OK = False
 
 from src.execution_engine import place_bet  # TASK 1: Import place_bet
+from src.bet_gate_telemetry import GATES as _GATES
 
 # ── NEW ARCHITECTURE: Pinnacle-value strategy + CLV tracking + shadow gate ──
 try:
@@ -1951,6 +1952,11 @@ def predict_match(fixture, lineups, player_model, match_model, df, mkt_probs=Non
 
     return {
         "fixture_id": fixture["fixture"]["id"],
+        # Which id space that fixture_id belongs to (sofascore / betarabia /
+        # espn / synthetic:*). Carried into todays_dashboard_state.json so the
+        # durable fixture_results store can key results correctly instead of
+        # lumping every source into one ambiguous id space.
+        "fixture_ns": fixture.get("fixture_ns"),
         "match": f"{home_team} vs {away_team}",
         "league": league_name,
         "kickoff": fixture["fixture"]["date"],
@@ -2216,10 +2222,15 @@ def fetch_betarabia_odds():
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
+        # fixture_id is the REAL Kickertech event id. It used to be discarded
+        # here, which forced the fixture fallback to mint an md5 of the team
+        # names — an id that can never join to a result from any other source
+        # (Betarabia-namespace bets sat at 0.0% fid-direct settlement).
         cur.execute(
-            "SELECT home_team, away_team, kickoff_time, tournament_name FROM fixture"
+            "SELECT home_team, away_team, kickoff_time, tournament_name, fixture_id "
+            "FROM fixture"
         )
-        for home, away, kickoff_time, tournament in cur.fetchall():
+        for home, away, kickoff_time, tournament, fixture_id in cur.fetchall():
             if not (home and away):
                 continue
             # Normalise the scraped ISO kickoff (e.g. 2026-06-09T00:00:00.000Z)
@@ -2243,6 +2254,7 @@ def fetch_betarabia_odds():
                 "kickoff": kickoff_iso,
                 "league": tournament or "Betarabia",
                 "status": status_short,
+                "fixture_id": str(fixture_id) if fixture_id else None,
             }
         conn.close()
     except Exception as e:
@@ -2254,10 +2266,19 @@ def find_betarabia_odds(home_team, away_team):
     """
     Looks up a match in primary bookmaker feeds (Kambi/Unibet, Pinnacle, Betarabia fallback).
     Returns a dict with market keys and selection odds.
+
+    Also publishes _betarabia_odds_age_min — how old the returned odds are, read
+    by the bet gate as `odds_fresh`. It MUST be set on every return path: it is a
+    module global, so any path that leaves it untouched makes this fixture
+    inherit the previous fixture's staleness. That bug rejected 43% of
+    selections as stale when only 9% of fixtures actually were.
     """
+    global _betarabia_odds_age_min
+    _betarabia_odds_age_min = None  # unknown until a tier answers
+
     # Tier 1: Try Kambi (Unibet public API) for clean live odds
     try:
-        from src.kambi_scraper import fetch_kambi_1x2
+        from src.kambi_scraper import fetch_kambi_1x2, cache_age_min
         kdata = fetch_kambi_1x2()
         if kdata:
             best_k = None
@@ -2274,6 +2295,9 @@ def find_betarabia_odds(home_team, away_team):
                             best_ks = tot_s
                             best_k = m_info
             if best_k and best_ks >= 1.3:
+                # Kambi answered — report ITS age (<=90s by its own TTL), not
+                # whatever the previous fixture left in the global.
+                _betarabia_odds_age_min = cache_age_min()
                 return {
                     "1X2": {
                         "Home (1)": best_k.get("home"),
@@ -2336,7 +2360,7 @@ def find_betarabia_odds(home_team, away_team):
                     best_scraped_at = sat
 
         # Expose how stale the matched fixture's odds are (for the bet-gate guard).
-        global _betarabia_odds_age_min
+        # (the global is declared + reset at the top of this function)
         _betarabia_odds_age_min = None
         if best_scraped_at:
             try:
@@ -3310,7 +3334,7 @@ def log_pinnacle_value_bet(
 
 def log_ai_bet(
     match, market, selection, odds, prob, ev, fixture_id=None, league=None, source=None,
-    kickoff_time=None,
+    kickoff_time=None, fixture_ns=None,
 ):
     """AI model-dependent paper bet (shadow mode).
     Gated by settings.model_predictions_disabled (default True = disabled).
@@ -3394,12 +3418,23 @@ def log_ai_bet(
             s_min = float(settings.get("stake_min", 1.0))
             s_max = float(settings.get("stake_max", 5.0))
 
-            if source == "MODEL_VALUE_ALIGN":
-                mult = kelly_mult * 1.5  # Consensus model gets a 1.5x scaling
-            elif source == "STAIR_AI":
-                mult = kelly_mult * 1.2  # Stair AI gets a 1.2x scaling
-            else:
-                mult = kelly_mult
+            # Per-strategy multiplier, now settings-driven (see _kelly_mult_for).
+            # Defaults reproduce the old hardcoded 1.5x / 1.2x boosts.
+            mult = _kelly_mult_for(source, kelly_mult, settings)
+
+            # ── Research-mode per-strategy stake override (2026-09-01) ──────
+            # settings["research_min_stakes"] = {"SMALL_STEAM": true, ...}
+            # maps a bet_source to a flat $0.20 min-stake shadow bet: the
+            # strategy keeps firing so its ledger record keeps growing (edge
+            # validation needs samples), but paper losses are capped at the
+            # minimum stake. Kelly is skipped entirely — flat stake_max is the
+            # whole point. MODEL_VALUE_ALIGN (the fid-direct winner) is never
+            # listed here and keeps its normal sizing.
+            _src = source or "AI"
+            _research_cap = settings.get("research_min_stakes") or {}
+            if _src in _research_cap:
+                s_min = 0.20
+                s_max = 0.20
 
             if b > 0:
                 kelly_f = (p * odds - 1.0) / b
@@ -3429,11 +3464,21 @@ def log_ai_bet(
                     print(f"[!] Bankroll tracker blocked bet {bet_id} for ${stake:.2f}")
                     return
 
+            # fixture_ns records WHICH id space fixture_id belongs to. Without
+            # it a result keyed by one source's id could never be matched to a
+            # bet placed from another's — every non-Sofascore namespace sat at
+            # 0.0% fid-direct settlement. Idempotent; legacy rows stay NULL and
+            # fall back to the ambiguity-guarded flat lookup.
+            try:
+                conn.execute("ALTER TABLE bet_log ADD COLUMN fixture_ns TEXT")
+            except Exception:
+                pass
+
             cur.execute(
                 """
                 INSERT INTO bet_log
-                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake, result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, kickoff_time)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake, result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, kickoff_time, fixture_ns)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     bet_id,
@@ -3454,6 +3499,7 @@ def log_ai_bet(
                     str(fixture_id) if fixture_id is not None else None,
                     league,
                     kickoff_time,
+                    fixture_ns,
                 ),
             )
             print(
@@ -3463,6 +3509,28 @@ def log_ai_bet(
             # Commit and close DB before making synchronous network request
             conn.commit()
             conn.close()
+
+            # ── CLV TRACKING: register the bet so settlement can sync closing
+            # odds + result into clv_tracking.db (per-strategy kill criteria).
+            # Without this, _clv_record_closing/_clv_settle_bet are no-ops. ──
+            if _CLV_TRACKER_OK and _clv_record_bet:
+                try:
+                    _clv_record_bet(
+                        bet_id=bet_id,
+                        fixture_id=fixture_id,
+                        match_name=match,
+                        league=league or "",
+                        selection=selection,
+                        bet_source=source or "AI",
+                        opening_odds=odds,
+                        bet_odds=odds,
+                        edge=ev,
+                        ev=ev,
+                        stake=stake,
+                        market_type=market,
+                    )
+                except Exception as _clv_reg_err:
+                    print(f"[CLV TRACKER] Error registering {bet_id}: {_clv_reg_err}")
 
             # Send push notification for MODEL_VALUE_ALIGN strategy
             if source == "MODEL_VALUE_ALIGN":
@@ -3765,11 +3833,16 @@ def settle_open_bets():
     # regardless of ESPN/Flashscore/SofaScore gaps.  Indexed by fixture_id for
     # zero-fuzzy-matching direct lookup.
     _fid_to_score: dict = {}  # str(fixture_id) -> (home_score, away_score)
+    # (namespace, str(fixture_id)) -> (home, away). Preferred over the bare-id
+    # map for any bet that carries a stamped fixture_ns.
+    _fid_ns_to_score: dict = {}
+    _dash_state_for_store: list = []  # kept for the durable fixture_results feed
     try:
         _dash_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
         if os.path.exists(_dash_path):
             with open(_dash_path, "r", encoding="utf-8") as _f:
                 _dash = json.load(_f)
+            _dash_state_for_store = _dash if isinstance(_dash, list) else []
             _added = 0
             for _m in _dash:
                 _fix = _m.get("fixture") or {}
@@ -3788,6 +3861,56 @@ def settle_open_bets():
                 )
     except Exception as e:
         print(f"[SETTLEMENT] Dashboard state load failed: {e}")
+
+    # ── Durable fixture_id -> score store ────────────────────────────────────
+    # todays_dashboard_state.json only ever holds TODAY's fixtures, so the index
+    # above had forgotten the fixture by the time most bets settled: fid-direct
+    # was 14.9% same-day, 5.7% at +1 day and 0.0% from +2 days on, leaving 88%
+    # of grades to fuzzy name matching. src/fixture_results.py persists results
+    # across cycles and dates, keyed by (namespace, fixture_id) so ids from
+    # different sources can never be joined to each other.
+    try:
+        from src import fixture_results as _fx
+
+        _fx_db = os.path.join(
+            DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"
+        )
+        _fx.ensure_fixture_results(_fx_db)
+
+        # Feed today's dashboard state in (it is the only source of Betarabia-
+        # namespace results we have).
+        _wrote = _fx.record_results(_fx_db, _fx.rows_from_dashboard_state(_dash_state_for_store))
+
+        # Feed Sofascore's per-date events in. This is the source that actually
+        # closes the coverage cliff: it spans the whole settlement lookback, not
+        # just today, and its ids are native Sofascore ids — the same namespace
+        # as ~70% of our bets. It rides the results scraper's 30-minute cache,
+        # so a cycle that already fetched results pays nothing extra here.
+        try:
+            from src.sofascore_results_scraper import get_events as _ss_events
+
+            _wrote += _fx.record_results(
+                _fx_db, _fx.rows_from_sofascore_events(_ss_events(dates=_settle_dates))
+            )
+        except Exception as _ev_err:
+            print(f"[SETTLEMENT] Sofascore event harvest failed: {_ev_err}")
+
+        # Read the durable index back. Dashboard entries already in
+        # _fid_to_score win — they are the freshest view of today.
+        _fid_ns_to_score = _fx.load_scores(_fx_db)
+        _durable = _fx.load_flat_scores(_fx_db)
+        _new = 0
+        for _k, _v in _durable.items():
+            if _k not in _fid_to_score:
+                _fid_to_score[_k] = _v
+                _new += 1
+        print(
+            f"[SETTLEMENT] fixture_results: wrote {_wrote}, index now "
+            f"{len(_fid_to_score)} fixture_ids (+{_new} from durable store)."
+        )
+        _fx.purge_fixture_results(_fx_db)
+    except Exception as _fx_err:
+        print(f"[SETTLEMENT] fixture_results store unavailable (non-fatal): {_fx_err}")
 
     if not finished_matches:
         print("[SETTLEMENT] No finished matches found from any source yet.")
@@ -3831,8 +3954,11 @@ def settle_open_bets():
         # defensively so older DBs without the column still settle.
         _bl_cols = {r[1] for r in cur.execute("PRAGMA table_info(bet_log)")}
         _ko_col = "kickoff_time" if "kickoff_time" in _bl_cols else "NULL AS kickoff_time"
+        # fixture_ns tells us which id space fixture_id belongs to; legacy rows
+        # predate the column and fall back to the ambiguity-guarded flat lookup.
+        _ns_col = "fixture_ns" if "fixture_ns" in _bl_cols else "NULL AS fixture_ns"
         cur.execute(
-            f"SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, bet_source, fixture_id, side, placed_at, league, {_ko_col} FROM bet_log WHERE result = 'OPEN'"
+            f"SELECT bet_id, match_id, player_id, market_type, entry_odds, stake, bet_source, fixture_id, side, placed_at, league, {_ko_col}, {_ns_col} FROM bet_log WHERE result = 'OPEN'"
         )
         open_bets = cur.fetchall()
 
@@ -4004,6 +4130,7 @@ def settle_open_bets():
             _bet_placed_at,
             _bet_league,
             _bet_kickoff,
+            _bet_fixture_ns,
         ) in open_bets:
             import re
 
@@ -4042,7 +4169,16 @@ def settle_open_bets():
 
             # Direct fixture_id lookup — bypasses fuzzy matching entirely for
             # leagues (Ethiopian, Georgian, Estonian) that external sources can't name-match.
-            _direct = _fid_to_score.get(str(bet_fixture_id)) if bet_fixture_id else None
+            # Prefer an exact (namespace, fixture_id) hit; fall back to the
+            # bare-id map for legacy bets placed before namespace stamping.
+            _direct = None
+            if bet_fixture_id:
+                if _bet_fixture_ns:
+                    _direct = _fid_ns_to_score.get(
+                        (str(_bet_fixture_ns), str(bet_fixture_id))
+                    )
+                if _direct is None:
+                    _direct = _fid_to_score.get(str(bet_fixture_id))
             candidates = (
                 []
             )  # reset per-bet — prevents scope leak from previous iteration
@@ -4984,6 +5120,74 @@ def settle_open_bets():
         print("Error during settlement:", e)
 
 
+# Per-strategy Kelly multipliers. These were hardcoded inside log_ai_bet
+# (MODEL_VALUE_ALIGN got kelly_multiplier * 1.5, STAIR_AI * 1.2) while
+# `model_value_align_kelly_frac` sat in settings.json doing absolutely nothing —
+# editing it changed no behaviour at all. The defaults below reproduce the old
+# hardcoded values exactly, so nothing moves until a setting is actually set.
+_STRATEGY_KELLY_SETTING = {
+    "MODEL_VALUE_ALIGN": ("model_value_align_kelly_frac", 1.5),
+    "STAIR_AI": ("stair_ai_kelly_frac", 1.2),
+}
+
+# A multiplier above 1.0 would stake more than full Kelly off the strategy's
+# virtual bankroll — almost certainly a typo (35 for 0.35), so clamp it.
+_MAX_KELLY_MULT = 1.0
+
+
+def _kelly_mult_for(source, base_mult, settings):
+    """Resolve the Kelly multiplier for *source*.
+
+    Falls back to the historical hardcoded boost when the setting is absent or
+    unusable, and clamps to [0, _MAX_KELLY_MULT] so a bad value can never
+    inflate a stake.
+    """
+    key, boost = _STRATEGY_KELLY_SETTING.get(source or "", (None, 1.0))
+    default = base_mult * boost
+    if not key or not isinstance(settings, dict):
+        return default
+    raw = settings.get(key)
+    if raw is None or isinstance(raw, bool):
+        return default
+    try:
+        val = float(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(0.0, min(val, _MAX_KELLY_MULT))
+
+
+def _kickoff_passed(match_time, grace_min=0.0):
+    """True if this fixture has already kicked off (so it must not be bet).
+
+    The prediction loop's own filter only skips a fixture when its status is
+    FT/AET/PEN *and* kickoff was more than 12 hours ago, so a match that kicked
+    off a few hours back — or one still mis-labelled "NS" because its source
+    never updated — reached the bet gate. On 2026-08-25 that was 17 South
+    American fixtures from the previous day carrying 13-hour-old prices, stopped
+    only by `odds_fresh`. A staleness check is the wrong last line of defence
+    here: an in-play price is fresh by definition, so odds_fresh fails OPEN
+    exactly when the odds are live.
+
+    Default grace is 0: a match one minute past kickoff is in-play and must not
+    be bet. Callers can pass grace_min for clock-skew tolerance if a feed proves
+    unreliable, but strict is the right default for a system whose whole problem
+    has been bets it should never have taken.
+
+    Fails open (returns False) on an unparseable kickoff — an unknown time must
+    not blank the slate; the other gates still apply.
+    """
+    if not match_time or not isinstance(match_time, str):
+        return False
+    try:
+        ko = datetime.datetime.fromisoformat(match_time.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return False
+    if ko.tzinfo is None:
+        ko = ko.replace(tzinfo=datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return (now - ko).total_seconds() > float(grace_min) * 60.0
+
+
 def update_dashboard_json(fixtures, results_cache):
     dashboard_data = []
     res_map = load_predictions_from_db()
@@ -5001,8 +5205,21 @@ def update_dashboard_json(fixtures, results_cache):
     except Exception as _ou_fetch_err:
         print(f"[OU25] Pinnacle totals fetch failed (non-fatal): {_ou_fetch_err}")
 
+    # Fetch Pinnacle BTTS once per cycle for the BTTS value check — same
+    # cadence/pattern as the O/U 2.5 fetch above.
+    _pin_btts_all = {}
+    try:
+        from src.pinnacle_feed import fetch_pinnacle_btts as _fpb_btts
+
+        _pin_btts_all = _fpb_btts() or {}
+    except Exception as _btts_fetch_err:
+        print(f"[BTTS] Pinnacle BTTS fetch failed (non-fatal): {_btts_fetch_err}")
+
     for f in fixtures:
         fid = f["fixture"]["id"]
+        # Which id space fid belongs to — threaded onto every paper bet so
+        # settlement can match a result by (namespace, fixture_id).
+        fns = f.get("fixture_ns")
         match_time = f["fixture"]["date"]
         status = f["fixture"]["status"]["short"]
 
@@ -5623,6 +5840,32 @@ def update_dashboard_json(fixtures, results_cache):
                                         )
                                 except Exception:
                                     pass
+                            elif (
+                                m_type == "BTTS"
+                                and market_allowed
+                                and odds
+                                and odds > 1.0
+                            ):
+                                try:
+                                    from tools.pinnacle_value import (
+                                        _fuzzy_match_ou25 as _pv_fuzzy_btts,
+                                        check_btts_value as _pv_btts_check,
+                                    )
+
+                                    _pin_btts = _pin_btts_all.get(f"{home} vs {away}")
+                                    if _pin_btts is None:
+                                        _pin_btts = _pv_fuzzy_btts(home, away, _pin_btts_all)
+                                    if _pin_btts:
+                                        _pin_edge, _pin_data = _pv_btts_check(
+                                            home,
+                                            away,
+                                            sel_name,
+                                            odds,
+                                            _pin_btts,
+                                            min_edge=_pin_min_edge,
+                                        )
+                                except Exception:
+                                    pass
                             sel["pinnacle_edge"] = round(_pin_edge * 100.0, 2)
 
                             # PINNACLE STEAM: detect sharp-money line movement in
@@ -5764,20 +6007,41 @@ def update_dashboard_json(fixtures, results_cache):
                                 except Exception:
                                     _timing_ok = True  # fail-open
 
-                            _pv_qualifies = (
-                                _pin_edge > 0
-                                and not _pinnacle_fallback_used  # skip when odds are from Pinnacle itself
-                                and odds
-                                and odds >= dfp_settings.MODEL_MIN_ODDS
-                                and market_allowed
-                                and not league_blocked
-                                and not draw_excluded
-                                and odds_fresh
-                                and _pv_league_ok
-                                and _timing_ok
-                                and settings.get("pinnacle_value_betting_enabled", True)
+                            # 2026-08-31: `enabled` used to read
+                            # pinnacle_value_betting_enabled, which ALSO silently
+                            # killed MODEL_VALUE_ALIGN (it consumes _pv_qualifies
+                            # below as its consensus-input gate). The two
+                            # strategies are independent: that flag stops
+                            # PINNACLE_VALUE placing its OWN bets — enforced at
+                            # the log_pinnacle_value_bet call — while
+                            # MODEL_VALUE_ALIGN is gated by
+                            # model_value_align_enabled where it is consumed.
+                            # The key stays True here purely so the consensus
+                            # pipeline can flow when Pinnacle agrees.
+                            _pv_qualifies = _GATES.record(
+                                "PINNACLE_VALUE",
+                                {
+                                    "pin_edge_positive": _pin_edge > 0,
+                                    # skip when odds are from Pinnacle itself
+                                    "not_pinnacle_fallback": not _pinnacle_fallback_used,
+                                    "has_odds": odds,
+                                    "min_odds": odds and odds >= dfp_settings.MODEL_MIN_ODDS,
+                                    "market_allowed": market_allowed,
+                                    "league_not_blocked": not league_blocked,
+                                    "draw_not_excluded": not draw_excluded,
+                                    "odds_fresh": odds_fresh,
+                                    "pv_league_ok": _pv_league_ok,
+                                    "timing_ok": _timing_ok,
+                                    # Placer-enable handled at the call site now;
+                                    # always True here (see comment above).
+                                    "enabled": True,
+                                    "not_kicked_off": not _kickoff_passed(match_time),
+                                },
                             )
-                            if _pv_qualifies:
+                            if (
+                                _pv_qualifies
+                                and settings.get("pinnacle_value_betting_enabled", True)
+                            ):
                                 log_pinnacle_value_bet(
                                     f"{home} vs {away}",
                                     m_type,
@@ -5844,20 +6108,32 @@ def update_dashboard_json(fixtures, results_cache):
                                 or _tipster_confirmed
                             )
 
-                            is_recommended = (
-                                ev >= min_ev_threshold
-                                and prob >= conf_threshold
-                                and odds >= dfp_settings.MODEL_MIN_ODDS
-                                and market_allowed
-                                and not league_blocked
-                                and not draw_excluded
-                                and conviction_ok
-                                and steam_ok
-                                and odds_fresh
-                                and (not require_dc or dc_covered)
-                                and (not require_steam or _steam_league_ok)
-                                and _draw_pin_ok
-                                and tipster_ok
+                            # Same chain as before, expressed as named gates so a
+                            # rejection is countable. Without this, a silently
+                            # gated-off engine looks identical to one with
+                            # nothing worth betting — which is how nothing was
+                            # placed between 2026-08-18 and 2026-08-25.
+                            is_recommended = _GATES.record(
+                                "MODEL",
+                                {
+                                    "ev": ev >= min_ev_threshold,
+                                    "prob": prob >= conf_threshold,
+                                    "min_odds": odds >= dfp_settings.MODEL_MIN_ODDS,
+                                    "market_allowed": market_allowed,
+                                    "league_not_blocked": not league_blocked,
+                                    "draw_not_excluded": not draw_excluded,
+                                    "conviction_ok": conviction_ok,
+                                    "steam_ok": steam_ok,
+                                    "odds_fresh": odds_fresh,
+                                    "dc_covered": (not require_dc or dc_covered),
+                                    "steam_league_ok": (
+                                        not require_steam or _steam_league_ok
+                                    ),
+                                    "draw_pin_ok": _draw_pin_ok,
+                                    "tipster_ok": tipster_ok,
+                                    # Never bet a match already under way.
+                                    "not_kicked_off": not _kickoff_passed(match_time),
+                                },
                             )
 
                             # MODEL_VALUE_ALIGN: Consensus strategy combining Dixon-Coles Model + Pinnacle Value
@@ -5875,12 +6151,147 @@ def update_dashboard_json(fixtures, results_cache):
                                         prob,
                                         ev,
                                         fixture_id=fid,
+                                        fixture_ns=fns,
                                         league=league,
                                         source="MODEL_VALUE_ALIGN",
                                         kickoff_time=match_time,
                                     )
                                 except Exception as _mve:
                                     print(f"[MODEL_VALUE_ALIGN] Consensus bet logging failed: {_mve}")
+
+                            # ── UNDER_FOCUS: Under-2.5 specialist (2026-08-27 research batch) ──
+                            # Ledger: AI Under 2.5 = +27.9% ROI (n=737) vs Over +14.8%.
+                            # Wheatcroft 2020 (Int. J. Forecasting, 68k bets): the under side
+                            # is systematically the better-priced side of totals. Walk-forward
+                            # 2026-08-28: the edge lives in FRIENDLIES (+26% ROI in both train
+                            # and August validation); league unders flipped negative in August,
+                            # so friendlies-only is the default.
+                            if (
+                                settings.get("under_focus_enabled", True)
+                                and m_type == "Over/Under 2.5"
+                                and key == "Under"
+                                and odds
+                                and odds_fresh
+                                and market_allowed
+                                and not league_blocked
+                            ):
+                                _uf_ok = _GATES.record(
+                                    "UNDER_FOCUS",
+                                    {
+                                        "ev": ev >= settings.get("under_focus_min_ev", 0.04),
+                                        "prob": prob >= settings.get("under_focus_min_prob_pct", 50.0),
+                                        "friendly_ok": (not settings.get("under_focus_friendlies_only", True))
+                                        or ("friendl" in (league or "").lower()),
+                                        "min_odds": odds >= dfp_settings.MODEL_MIN_ODDS,
+                                        "not_kicked_off": not _kickoff_passed(match_time),
+                                    },
+                                )
+                                if _uf_ok:
+                                    try:
+                                        log_ai_bet(
+                                            f"{home} vs {away}",
+                                            m_type,
+                                            sel_name,
+                                            odds,
+                                            prob,
+                                            ev,
+                                            fixture_id=fid,
+                                            fixture_ns=fns,
+                                            league=league,
+                                            source="UNDER_FOCUS",
+                                            kickoff_time=match_time,
+                                        )
+                                    except Exception as _uf_err:
+                                        print(f"[UNDER_FOCUS] Error: {_uf_err}")
+
+                            # ── DRAW_AWAY_VALUE: away-team mispricing (2026-08-27 research batch) ──
+                            # Lezana 2026 (J. Sports Economics, "Fear of the Draw"): soft books
+                            # consistently overprice draws and shade away teams. Walk-forward
+                            # 2026-08-28 on our ledger: draw-side value bets are toxic
+                            # (-26% ROI train, n=248) and friendlies are an away-value trap
+                            # (-85% ROI, rotation); away-only in real leagues held +50% ROI
+                            # in train. Draws/friendlies therefore off by default.
+                            _da_allow_draws = settings.get("draw_away_allow_draws", False)
+                            if (
+                                settings.get("draw_away_value_enabled", True)
+                                and m_type == "1X2"
+                                and (key == "Away" or (_da_allow_draws and key == "Draw"))
+                                and odds
+                                and odds_fresh
+                                and market_allowed
+                                and not league_blocked
+                                and not draw_excluded
+                            ):
+                                _da_ok = _GATES.record(
+                                    "DRAW_AWAY_VALUE",
+                                    {
+                                        "ev": ev >= settings.get("draw_away_min_ev", 0.05),
+                                        "min_odds": odds >= dfp_settings.MODEL_MIN_ODDS,
+                                        "draw_pin_ok": (key != "Draw") or (_pin_edge > 0),
+                                        "friendly_ok": settings.get("draw_away_friendlies_allowed", False)
+                                        or ("friendl" not in (league or "").lower()),
+                                        "not_kicked_off": not _kickoff_passed(match_time),
+                                    },
+                                )
+                                if _da_ok:
+                                    try:
+                                        log_ai_bet(
+                                            f"{home} vs {away}",
+                                            m_type,
+                                            sel_name,
+                                            odds,
+                                            prob,
+                                            ev,
+                                            fixture_id=fid,
+                                            fixture_ns=fns,
+                                            league=league,
+                                            source="DRAW_AWAY_VALUE",
+                                            kickoff_time=match_time,
+                                        )
+                                    except Exception as _da_err:
+                                        print(f"[DRAW_AWAY_VALUE] Error: {_da_err}")
+
+                            # ── SMALL_STEAM: early sharp creep follower (2026-08-27 research batch) ──
+                            # Ledger: de-vigged moves <3% = +10.7% ROI (n=297) while moves >=5%
+                            # = -26% (n=605) — big late steam gets chased into corrected prices;
+                            # small early creeps still carry the sharp signal. Buchdahl (20k-bet
+                            # record): steam is only profitable at stale prices, never chased.
+                            if (
+                                settings.get("small_steam_enabled", True)
+                                and m_type == "1X2"
+                                and odds
+                                and odds_fresh
+                                and market_allowed
+                                and not league_blocked
+                            ):
+                                _ss_move_pct = steam_move * 100.0
+                                _ss_ok = _GATES.record(
+                                    "SMALL_STEAM",
+                                    {
+                                        "move_positive": _ss_move_pct > 0,
+                                        "move_small": _ss_move_pct < settings.get("small_steam_max_move_pct", 3.0),
+                                        "ev": ev >= settings.get("small_steam_min_ev", 0.02),
+                                        "min_odds": odds >= dfp_settings.MODEL_MIN_ODDS,
+                                        "not_kicked_off": not _kickoff_passed(match_time),
+                                    },
+                                )
+                                if _ss_ok:
+                                    try:
+                                        log_ai_bet(
+                                            f"{home} vs {away}",
+                                            m_type,
+                                            sel_name,
+                                            odds,
+                                            prob,
+                                            ev,
+                                            fixture_id=fid,
+                                            fixture_ns=fns,
+                                            league=league,
+                                            source="SMALL_STEAM",
+                                            kickoff_time=match_time,
+                                        )
+                                    except Exception as _ss_err:
+                                        print(f"[SMALL_STEAM] Error: {_ss_err}")
 
                             # ── XG_ELO: xG-Elo Divergence Strategy ──────────────────────────
                             # Rate teams by xG process not results. When model diverges from
@@ -5910,6 +6321,7 @@ def update_dashboard_json(fixtures, results_cache):
                                             _xge_prob,
                                             _xge_ev,
                                             fixture_id=fid,
+                                        fixture_ns=fns,
                                             league=league,
                                             source="XG_ELO",
                                             kickoff_time=match_time,
@@ -5943,6 +6355,7 @@ def update_dashboard_json(fixtures, results_cache):
                                             _we_prob,
                                             _we_edge / 100.0,
                                             fixture_id=fid,
+                                        fixture_ns=fns,
                                             league=league,
                                             source="WEATHER_EDGE",
                                             kickoff_time=match_time,
@@ -5973,6 +6386,7 @@ def update_dashboard_json(fixtures, results_cache):
                                             _fe_prob,
                                             _fe_edge / 100.0,
                                             fixture_id=fid,
+                                        fixture_ns=fns,
                                             league=league,
                                             source="FATIGUE_EDGE",
                                             kickoff_time=match_time,
@@ -6003,6 +6417,7 @@ def update_dashboard_json(fixtures, results_cache):
                                             _re_prob,
                                             _re_edge / 100.0,
                                             fixture_id=fid,
+                                        fixture_ns=fns,
                                             league=league,
                                             source="REFEREE_EDGE",
                                             kickoff_time=match_time,
@@ -6127,6 +6542,7 @@ def update_dashboard_json(fixtures, results_cache):
                                 fid,
                                 league,
                                 kickoff_time=match_time,
+                                fixture_ns=fns,
                             )
                             print(
                                 f"[DAEMON] MARKET PICK logged: {_mw['m_type']} | {_mw['selection']} @ {_mw['odds']} (EV: {_mw['ev']*100:.1f}%)"
@@ -6136,6 +6552,9 @@ def update_dashboard_json(fixtures, results_cache):
 
         item = {
             "fixture_id": fid,
+            # Namespace of fid — read back by fixture_results.rows_from_dashboard_state()
+            # so results are stored under the right id space instead of NS_UNKNOWN.
+            "fixture_ns": fns,
             "match": f"{home} vs {away}",
             "league": league,
             "kickoff": match_time,
@@ -6194,6 +6613,17 @@ def update_dashboard_json(fixtures, results_cache):
         json.dump(dashboard_data, f, indent=4)
     os.replace(_state_tmp, _state_path)
 
+    # Report why selections were or were not bet. A cycle that places nothing
+    # should say WHICH gate rejected everything, not stay silent — silence is
+    # what let the engine sit blocked from 2026-08-18 to 2026-08-25 unnoticed.
+    try:
+        _gate_report = _GATES.format_summary()
+        if _gate_report:
+            print(_gate_report)
+        _GATES.roll()  # snapshot for /api/health, then reset (per-cycle counts)
+    except Exception:
+        pass
+
     # Notifications handled by Arena autopilot (one push per placed bet, not per cycle)
 
 
@@ -6224,48 +6654,48 @@ def refresh_completed_comparisons():
         # Let's temporarily monkeypatch or just use the logic here if get_todays_fixtures_free doesn't support it.
         # Actually, let's just use the logic from free_scraper_module directly for the loop.
 
+        # Events come from sofascore_results_scraper's per-date cache — the same
+        # fetch settlement already refreshes each cycle. No browser is launched
+        # here. (The old code booted a SeleniumBase uc-Chrome per date per cycle;
+        # its teardown forced a full-heap gc.collect() that froze the daemon for
+        # minutes-to-hours as the heap grew, and api.sofascore.com direct
+        # navigation is Cloudflare-blocked anyway so it returned nothing.)
         for dt in [yesterday, today]:
             date_str = dt.strftime("%Y-%m-%d")
-            url = f"https://api.sofascore.com/api/v1/sport/football/scheduled-events/{date_str}"
 
             print(f"[COMPLETION] Scanning fixtures for {date_str}...")
             try:
-                from seleniumbase import SB
+                from src.sofascore_results_scraper import get_events
 
-                with SB(uc=True, headless=True) as sb:
-                    sb.open(url)
-                    time.sleep(2)
-                    content = sb.execute_script("return document.body.innerText;")
-                    data = json.loads(content)
-                    events = data.get("events", [])
-                    for e in events:
-                        status_code = "NS"
-                        if e["status"]["type"] == "inprogress":
-                            status_code = "1H"
-                        elif e["status"]["type"] == "finished":
-                            status_code = "FT"
+                events = get_events([date_str]).get(date_str, [])
+                for e in events:
+                    status_code = "NS"
+                    if e["status"]["type"] == "inprogress":
+                        status_code = "1H"
+                    elif e["status"]["type"] == "finished":
+                        status_code = "FT"
 
-                        all_fixtures.append(
-                            {
-                                "fixture": {
-                                    "id": e["id"],
-                                    "status": {"short": status_code},
-                                    "home_score": e.get("homeScore", {}).get(
-                                        "normaltime",
-                                        e.get("homeScore", {}).get("current"),
-                                    ),
-                                    "away_score": e.get("awayScore", {}).get(
-                                        "normaltime",
-                                        e.get("awayScore", {}).get("current"),
-                                    ),
-                                },
-                                "league": {"name": e["tournament"]["name"]},
-                                "teams": {
-                                    "home": {"name": e["homeTeam"]["name"]},
-                                    "away": {"name": e["awayTeam"]["name"]},
-                                },
-                            }
-                        )
+                    all_fixtures.append(
+                        {
+                            "fixture": {
+                                "id": e["id"],
+                                "status": {"short": status_code},
+                                "home_score": e.get("homeScore", {}).get(
+                                    "normaltime",
+                                    e.get("homeScore", {}).get("current"),
+                                ),
+                                "away_score": e.get("awayScore", {}).get(
+                                    "normaltime",
+                                    e.get("awayScore", {}).get("current"),
+                                ),
+                            },
+                            "league": {"name": e["tournament"]["name"]},
+                            "teams": {
+                                "home": {"name": e["homeTeam"]["name"]},
+                                "away": {"name": e["awayTeam"]["name"]},
+                            },
+                        }
+                    )
             except Exception as e:
                 print(f"[COMPLETION] Error scanning {date_str}: {e}")
 
@@ -6274,6 +6704,32 @@ def refresh_completed_comparisons():
         return
 
     res_map = load_predictions_from_db()
+
+    # Collect every fixture needing stats FIRST, then fetch them all in one
+    # browser session. Fetching inside the loop spawned a full Chromium per
+    # finished match (~13 per 45s cycle, 200-400 MB each) — the single biggest
+    # source of browser-process stacking in the daemon.
+    _pending_fids = []
+    for f in all_fixtures:
+        if f["fixture"]["status"]["short"] != "FT":
+            continue
+        fid = f["fixture"]["id"]
+        if str(fid) in completed_data or fid not in res_map:
+            continue
+        _pending_fids.append(fid)
+
+    _stats_by_fid = {}
+    if _pending_fids:
+        print(
+            f"[COMPLETION] Fetching detailed reality stats for {len(_pending_fids)} "
+            f"finished fixtures in one browser session..."
+        )
+        try:
+            from src.free_scraper_module import get_fixture_stats_free_batch
+
+            _stats_by_fid = get_fixture_stats_free_batch(_pending_fids)
+        except Exception as _bs_err:
+            print(f"[COMPLETION] Batched stats fetch failed: {_bs_err}")
 
     updated = False
     for f in all_fixtures:
@@ -6289,13 +6745,8 @@ def refresh_completed_comparisons():
             if fid not in res_map:
                 continue
 
-            print(
-                f"[COMPLETION] Fetching detailed reality stats for {f['teams']['home']['name']} vs {f['teams']['away']['name']} (ID: {fid})..."
-            )
             try:
-                from src.free_scraper_module import get_fixture_stats_free
-
-                stats_raw = get_fixture_stats_free(fid)
+                stats_raw = _stats_by_fid.get(fid)
                 if not stats_raw:
                     continue
 
@@ -6493,29 +6944,61 @@ def run_daemon():
                     "[SCRAPER] Previous Betarabia scrape still running; skipping (no stacking)."
                 )
             else:
-                # Reap finished/crashed process before spawning a new one
-                if _scraper_proc is not None:
-                    rc = _scraper_proc.poll()
-                    if rc is not None and rc != 0:
-                        print(
-                            f"[SCRAPER] Previous scrape exited with code {rc} — restarting."
-                        )
-                    try:
-                        _scraper_proc.wait(timeout=1)
-                    except Exception:
-                        pass
-                scraper_path = os.path.join(
-                    os.path.dirname(__file__), "betarabia_scraper.py"
-                )
-                _scraper_proc = subprocess.Popen(
-                    [sys.executable, scraper_path], close_fds=True
-                )
-                print("[SCRAPER] Launched fresh Betarabia scrape.")
+                # ── Freshness gate (2026-08-31) ─────────────────────────────
+                # Odds stay bettable for `max_odds_staleness_min` (60 min) but
+                # the scraper was launched EVERY cycle (~50% Chromium duty
+                # cycle, ~800 MB) regardless. Skip the launch while the data
+                # is still fresh; the hung-scrape guard above still replaces
+                # a wedged process when data does go stale. First run after
+                # boot (no data at all) still launches: odds_stale() is True
+                # when the newest scrape is older than scraper_max_stale_min
+                # (default 20 min).
+                _fresh = False
+                try:
+                    from src.scraper_watchdog import odds_stale as _odds_stale
+
+                    _fresh = not _odds_stale()
+                except Exception:
+                    _fresh = False  # probe failed -> keep the old always-launch behaviour
+                if _fresh:
+                    print(
+                        "[SCRAPER] Odds still fresh (age < scraper_max_stale_min) — "
+                        "skipping Chromium launch."
+                    )
+                else:
+                    # Reap finished/crashed process before spawning a new one
+                    if _scraper_proc is not None:
+                        rc = _scraper_proc.poll()
+                        if rc is not None and rc != 0:
+                            print(
+                                f"[SCRAPER] Previous scrape exited with code {rc} — restarting."
+                            )
+                        try:
+                            _scraper_proc.wait(timeout=1)
+                        except Exception:
+                            pass
+                    scraper_path = os.path.join(
+                        os.path.dirname(__file__), "betarabia_scraper.py"
+                    )
+                    _scraper_proc = subprocess.Popen(
+                        [sys.executable, scraper_path], close_fds=True
+                    )
+                    print("[SCRAPER] Launched fresh Betarabia scrape.")
         except Exception as e:
             print("Failed to start background scraper:", e)
 
         # Bound odds_history growth once per cycle (keeps steam/CLV queries fast).
         _purge_odds_history()
+
+        # Same for the Pinnacle sharp_odds_history table. Without this it grew
+        # unbounded to 65M rows / 16.6 GB (~1.03M rows/day), which was the single
+        # largest disk + OS page-cache cost in the system.
+        try:
+            from src.pinnacle_feed import purge_sharp_odds_history
+
+            purge_sharp_odds_history()
+        except Exception as _pso_err:
+            print(f"[PinFeed] sharp_odds_history purge failed: {_pso_err}")
 
         # Inject upcoming WC fixtures from Pinnacle so STEAM detection starts early.
         try:
@@ -6562,16 +7045,27 @@ def run_daemon():
                 import hashlib
 
                 b_odds, _ = fetch_betarabia_odds()
+                from src import fixture_results as _fxns
+
                 for b_name, b_info in b_odds.items():
                     if " vs " in b_name:
                         h, a = b_name.split(" vs ", 1)
-                        fid = (
-                            int(hashlib.md5(b_name.encode()).hexdigest(), 16)
-                            % 100000000
-                        )
                         info = b_info or {}
+                        # Real Kickertech id where odds_stream.db has one; the
+                        # md5 fallback is labelled synthetic so it is never
+                        # joined to another source's ids.
+                        fid = info.get("fixture_id")
+                        if fid:
+                            fns = _fxns.NS_BETARABIA
+                        else:
+                            fid = (
+                                int(hashlib.md5(b_name.encode()).hexdigest(), 16)
+                                % 100000000
+                            )
+                            fns = _fxns.synthetic_ns(_fxns.NS_BETARABIA)
                         fixtures.append(
                             {
+                                "fixture_ns": fns,
                                 "fixture": {
                                     "id": fid,
                                     "date": info.get("kickoff") or now_utc.isoformat(),
@@ -6820,14 +7314,96 @@ def run_daemon():
             print(f"[ALERTS] daily_signal_alerts error: {_dsa_err}")
 
         # ── Stair AI + Gemini reasoning engine ──────────────────────────────
+        # Separate strategy from MODEL_VALUE_ALIGN — routes through the same
+        # log_ai_bet() (source="STAIR_AI") but has its own call site here with
+        # no settings.json gate of its own, so it must be stopped explicitly.
         try:
-            from src.stairai_reasoning_engine import run_cycle as _stair_cycle
-            _stair_cycle(log_bet_fn=log_ai_bet)
+            if load_settings().get("stair_ai_engine_enabled", True):
+                from src.stairai_reasoning_engine import run_cycle as _stair_cycle
+                _stair_cycle(log_bet_fn=log_ai_bet)
         except Exception as _stair_err:
             print(f"[STAIR_AI ENGINE] cycle error: {_stair_err}")
 
+        # ── Per-cycle memory diagnostics (opt-in: DEEPFIELD_MEMTRACE=1) ─────
+        if os.environ.get("DEEPFIELD_MEMTRACE") == "1":
+            try:
+                _memtrace_cycle_report()
+            except Exception as _mt_err:
+                print(f"[MEMTRACE] error: {_mt_err}")
+
+        # ── Per-cycle memory hygiene (2026-08-31) ──────────────────────────────
+        # The daemon accumulates per-cycle debris (fixture dicts, model outputs,
+        # settlement intermediates) that CPython's lazy free keeps resident.
+        # Full collect + Windows working-set trim returns it to the OS each
+        # sweep. Cheap (<50 ms) and stops the steady RSS creep between restarts.
+        try:
+            import gc
+
+            gc.collect()
+            if os.name == "nt":
+                import ctypes
+
+                ctypes.windll.kernel32.SetProcessWorkingSetSize(
+                    ctypes.windll.kernel32.GetCurrentProcess(), -1, -1
+                )
+            if os.environ.get("DEEPFIELD_MEMHYG_QUIET", "0") != "1":
+                import psutil  # type: ignore
+
+                print(
+                    f"[MEMHYG] cycle-end: gc collected, working set trimmed "
+                    f"(rss={psutil.Process().memory_info().rss/1e6:.0f}MB)"
+                )
+        except Exception as _hyg_err:
+            print(f"[MEMHYG] cycle-end hygiene error: {_hyg_err}")
+
         # Wait 45 seconds before the next sweep
         time.sleep(45)
+
+
+_MEMTRACE_PREV = None
+
+
+def _memtrace_cycle_report():
+    """Log private-bytes / gc-object growth and the top allocation-site deltas
+    once per daemon cycle. Diagnostic only; enabled via DEEPFIELD_MEMTRACE=1."""
+    global _MEMTRACE_PREV
+    import gc
+    import tracemalloc
+
+    if not tracemalloc.is_tracing():
+        tracemalloc.start(10)
+        print("[MEMTRACE] tracing started (baseline next cycle)")
+        return
+
+    try:
+        import psutil
+
+        priv_mb = psutil.Process().memory_info().private / 1048576
+    except Exception:
+        priv_mb = -1
+    snap = tracemalloc.take_snapshot()
+    snap = snap.filter_traces(
+        [
+            tracemalloc.Filter(False, tracemalloc.__file__),
+            tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+        ]
+    )
+    traced_mb = tracemalloc.get_traced_memory()[0] / 1048576
+    print(
+        f"[MEMTRACE] private={priv_mb:.0f}MB traced={traced_mb:.0f}MB "
+        f"gc_objects={len(gc.get_objects()):,}"
+    )
+    if _MEMTRACE_PREV is not None:
+        for stat in snap.compare_to(_MEMTRACE_PREV, "lineno")[:12]:
+            if stat.size_diff == 0:
+                continue
+            frame = stat.traceback[0]
+            print(
+                f"[MEMTRACE]   {stat.size_diff / 1024:+,.0f} KB "
+                f"(now {stat.size / 1048576:.1f} MB, {stat.count_diff:+,} objs) "
+                f"{frame.filename}:{frame.lineno}"
+            )
+    _MEMTRACE_PREV = snap
 
 
 if __name__ == "__main__":

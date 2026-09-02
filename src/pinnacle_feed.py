@@ -23,6 +23,28 @@ logger = logging.getLogger("pinnacle_feed")
 
 POLL_INTERVAL = 45  # seconds between fetches
 
+# ─── sharp_odds_history growth control ───────────────────────────────────────
+# The feed used to append every polled price unconditionally. At POLL_INTERVAL=45s
+# that is ~1.03M rows/day; the table reached 65M rows / 16.6 GB, which dominated
+# both disk and OS page-cache pressure (random B-tree writes across a 16 GB file
+# on every insert, times three indexes).
+#
+# Two controls bound it, both chosen to preserve every existing read contract:
+#   * dedup — an UNCHANGED price is not re-appended, but a heartbeat row is still
+#     written every HEARTBEAT_SEC. That keeps "latest row" fresh for the daemon's
+#     max_odds_staleness_min gate (default 60 min) and keeps the COUNT(*) >= 10
+#     reliability gates in check_value()/_pinnacle_fallback_odds() climbing.
+#     Genuine line movement is NEVER deduped — that is the CLV/steam signal.
+#   * retention — rows older than SHARP_ODDS_RETENTION_DAYS are purged each cycle.
+#     Settlement looks back at most 7 days and wc_upcoming injects 7 days ahead,
+#     so 14 days spans every reader with margin.
+# 5 min: 12x inside the 60-min staleness gate, and a static line still reaches
+# the COUNT(*) >= 10 reliability gate in ~50 min of being listed (fixtures are
+# normally listed hours-to-days ahead, and any real price move writes a row
+# immediately). Still ~7x fewer rows than the raw 45s poll.
+HEARTBEAT_SEC = 300
+SHARP_ODDS_RETENTION_DAYS = 14
+
 _BASE = "https://guest.api.arcadia.pinnacle.com/0.1"
 _HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
@@ -204,8 +226,89 @@ def _ensure_table(conn):
     conn.commit()
 
 
+def _latest_prices(conn, since_ts):
+    """{(match_key, selection): decimal_odds} for rows newer than *since_ts*.
+
+    Bounded by ts so the scan rides idx_soh_ts and only touches the last
+    HEARTBEAT_SEC of rows, never the whole table.
+    """
+    try:
+        rows = conn.execute(
+            "SELECT match_key, selection, decimal_odds FROM ("
+            "  SELECT match_key, selection, decimal_odds,"
+            "         ROW_NUMBER() OVER ("
+            "             PARTITION BY match_key, selection ORDER BY ts DESC"
+            "         ) AS rn"
+            "  FROM sharp_odds_history WHERE ts >= ?"
+            ") WHERE rn = 1",
+            (since_ts,),
+        ).fetchall()
+    except sqlite3.Error:
+        # Window functions need SQLite >= 3.25. Without them we simply do not
+        # dedup — correctness first, the retention purge still bounds growth.
+        return {}
+    return {(r[0], r[1]): r[2] for r in rows}
+
+
+def _drop_unchanged(conn, rows, ts):
+    """Filter *rows* down to prices that moved or whose heartbeat has elapsed.
+
+    rows: (match_key, home, away, league, selection, dec, prob, ts, starts_ts)
+    """
+    latest = _latest_prices(conn, ts - HEARTBEAT_SEC)
+    if not latest:
+        return rows
+    out = []
+    for r in rows:
+        prev = latest.get((r[0], r[4]))
+        if prev is not None and abs(prev - r[5]) < 1e-9:
+            continue  # unchanged and inside the heartbeat window
+        out.append(r)
+    return out
+
+
+def purge_sharp_odds_history(days=None):
+    """Delete sharp_odds_history rows older than *days*. Returns rows removed.
+
+    Called once per daemon cycle, mirroring _purge_odds_history() for the
+    sibling odds_history table (which was already bounded — this one was not).
+    Never raises: telemetry retention must not be able to break the loop.
+    """
+    if days is None:
+        days = SHARP_ODDS_RETENTION_DAYS
+    if not os.path.exists(_COMPLETED_DB):
+        return 0
+    try:
+        cutoff = time.time() - float(days) * 86400.0
+        conn = sqlite3.connect(_COMPLETED_DB, timeout=30)
+        try:
+            cur = conn.execute(
+                "DELETE FROM sharp_odds_history WHERE ts < ?", (cutoff,)
+            )
+            removed = cur.rowcount or 0
+            conn.commit()
+            if removed:
+                logger.info(
+                    "[PinFeed] Purged %d sharp_odds_history rows older than %d days",
+                    removed,
+                    days,
+                )
+            return removed
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.debug("purge_sharp_odds_history error: %s", e)
+        return 0
+
+
 def write_snapshot(snapshot):
-    """Write a list of fetch_1x2_snapshot() results to sharp_odds_history."""
+    """Write a list of fetch_1x2_snapshot() results to sharp_odds_history.
+
+    Unchanged prices inside the heartbeat window are skipped (see
+    HEARTBEAT_SEC). The return value is still the number of MATCHES in the
+    snapshot, not the number of rows actually written, so caller logging keeps
+    its original meaning.
+    """
     if not snapshot:
         return 0
 
@@ -232,17 +335,20 @@ def write_snapshot(snapshot):
     if not rows:
         return 0
 
+    n_matches = len(rows) // 3  # matches, not price rows
     conn = sqlite3.connect(_COMPLETED_DB, timeout=10)
     try:
         _ensure_table(conn)
-        conn.executemany(
-            "INSERT INTO sharp_odds_history "
-            "(match_key, home_team, away_team, league, selection, decimal_odds, devig_prob, ts, starts_ts) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
-            rows,
-        )
-        conn.commit()
-        return len(rows) // 3  # matches, not price rows
+        fresh = _drop_unchanged(conn, rows, ts)
+        if fresh:
+            conn.executemany(
+                "INSERT INTO sharp_odds_history "
+                "(match_key, home_team, away_team, league, selection, decimal_odds, devig_prob, ts, starts_ts) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
+                fresh,
+            )
+            conn.commit()
+        return n_matches
     finally:
         conn.close()
 
@@ -319,6 +425,92 @@ def start_feed_thread(daemon=True):
 
 def stop_feed():
     _STOP.set()
+
+
+def fetch_pinnacle_btts():
+    """Return dict of 'Home vs Away' -> {'yes': dec, 'no': dec, 'p_yes': float, 'p_no': float, 'starts_ts': float|None}.
+
+    Both Teams To Score is priced by Pinnacle as a 'special' market (Yes/No
+    participants), not a straight market on the parent matchup — its odds live
+    in /markets/straight keyed by the SPECIAL's own id, not the parent match id.
+    Filtered to the exact full-time description to exclude the 1st-half and
+    Total-Goals/Winner combo variants that share the same "Team Props" category.
+    """
+    try:
+        matchups = _get(
+            "/sports/29/matchups", params={"withSpecials": "true", "brandId": "0"}
+        )
+        markets = _get("/sports/29/markets/straight")
+        mk_idx = {}
+        for m in markets:
+            if m.get("type") == "moneyline" and m.get("period") == 0:
+                mk_idx.setdefault(m["matchupId"], []).append(m)
+
+        now_ts = time.time()
+        result = {}
+        for item in matchups:
+            if item.get("type") != "special":
+                continue
+            special = item.get("special") or {}
+            if special.get("description") != "Both Teams To Score?":
+                continue
+            parent = item.get("parent") or {}
+            parts = parent.get("participants", [])
+            home_p = next((p for p in parts if p.get("alignment") == "home"), None)
+            away_p = next((p for p in parts if p.get("alignment") == "away"), None)
+            if not home_p or not away_p:
+                continue
+
+            starts_ts = None
+            try:
+                import datetime
+
+                dt = datetime.datetime.fromisoformat(
+                    (parent.get("startTime") or "").replace("Z", "+00:00")
+                )
+                starts_ts = dt.timestamp()
+            except Exception:
+                pass
+            if starts_ts and starts_ts < now_ts - 120:
+                continue
+
+            yes_id = next(
+                (p["id"] for p in item.get("participants", []) if p.get("name") == "Yes"),
+                None,
+            )
+            no_id = next(
+                (p["id"] for p in item.get("participants", []) if p.get("name") == "No"),
+                None,
+            )
+            if yes_id is None or no_id is None:
+                continue
+
+            for m in mk_idx.get(item["id"], []):
+                prices = {
+                    pr.get("participantId"): pr.get("price")
+                    for pr in m.get("prices", [])
+                }
+                if yes_id not in prices or no_id not in prices:
+                    continue
+                y_dec = _amer_to_dec(prices[yes_id])
+                n_dec = _amer_to_dec(prices[no_id])
+                if not y_dec or not n_dec:
+                    continue
+                inv = 1 / y_dec + 1 / n_dec
+                result[f"{home_p['name']} vs {away_p['name']}"] = {
+                    "yes": y_dec,
+                    "no": n_dec,
+                    "p_yes": round((1 / y_dec) / inv, 4),
+                    "p_no": round((1 / n_dec) / inv, 4),
+                    "starts_ts": starts_ts,
+                    "_home": home_p["name"],
+                    "_away": away_p["name"],
+                }
+                break
+        return result
+    except Exception as e:
+        logger.debug("fetch_pinnacle_btts error: %s", e)
+        return {}
 
 
 # ─── Compatibility shims for old sharp_scraper imports ───────────────────────
@@ -424,17 +616,20 @@ def write_ou25_snapshot(totals: dict) -> int:
     if not rows:
         return 0
 
+    n_matches = len(rows) // 2
     conn = sqlite3.connect(_COMPLETED_DB, timeout=10)
     try:
         _ensure_table(conn)
-        conn.executemany(
-            "INSERT INTO sharp_odds_history "
-            "(match_key, home_team, away_team, league, selection, decimal_odds, devig_prob, ts, starts_ts) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
-            rows,
-        )
-        conn.commit()
-        return len(rows) // 2
+        fresh = _drop_unchanged(conn, rows, ts)
+        if fresh:
+            conn.executemany(
+                "INSERT INTO sharp_odds_history "
+                "(match_key, home_team, away_team, league, selection, decimal_odds, devig_prob, ts, starts_ts) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
+                fresh,
+            )
+            conn.commit()
+        return n_matches
     finally:
         conn.close()
 

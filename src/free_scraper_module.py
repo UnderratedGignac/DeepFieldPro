@@ -6,6 +6,8 @@ import requests
 
 from seleniumbase import SB  # still used by lineup / stats helpers below
 
+from src import fixture_results as _fx
+
 _UA = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -233,11 +235,14 @@ def _espn_fixtures_today():
 
                 try:
                     fid = int(e.get("id", 0))
+                    fns = _fx.NS_ESPN
                 except (TypeError, ValueError):
                     fid = int(hashlib.md5(key.encode()).hexdigest(), 16) % 100000000
+                    fns = _fx.synthetic_ns(_fx.NS_ESPN)
 
                 fixtures.append(
                     {
+                        "fixture_ns": fns,
                         "fixture": {
                             "id": fid,
                             "date": kickoff_iso,
@@ -272,10 +277,19 @@ def _betarabia_fixture_fallback():
         for b_name, b_info in b_odds.items():
             if " vs " in b_name:
                 h, a = b_name.split(" vs ", 1)
-                fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
                 info = b_info or {}
+                # Prefer the REAL Kickertech event id from odds_stream.db. The
+                # md5 fallback is stable only within this source, so it is
+                # stamped as synthetic and can never be joined to another feed.
+                fid = info.get("fixture_id")
+                if fid:
+                    fns = _fx.NS_BETARABIA
+                else:
+                    fid = int(hashlib.md5(b_name.encode()).hexdigest(), 16) % 100000000
+                    fns = _fx.synthetic_ns(_fx.NS_BETARABIA)
                 fixtures.append(
                     {
+                        "fixture_ns": fns,
                         "fixture": {
                             "id": fid,
                             "date": info.get("kickoff")
@@ -382,23 +396,40 @@ def get_fixture_lineups_free(fixture_id):
         return []
 
 
-def get_fixture_stats_free(fixture_id):
-    url = f"https://api.sofascore.com/api/v1/event/{fixture_id}/statistics"
+def _stats_path(fixture_id):
+    return f"/api/v1/event/{fixture_id}/statistics"
 
-    # Outer guard: SB browser launch/navigation failure must return None, not raise
+
+def get_fixture_stats_free_batch(fixture_ids):
+    """{fixture_id: stats_or_None} for all *fixture_ids* in ONE browser session.
+
+    fetch_api_json() takes a list of paths and serves them all from a single
+    Chromium + one sofascore.com navigation. Calling it per fixture (as the
+    completion scan used to) spawns a full browser per finished match — ~13
+    Chromium launches per 45s cycle, each 200-400 MB. Batching makes it one.
+
+    Never raises: a dead session yields {fid: None} so the caller degrades.
+    """
+    ids = list(dict.fromkeys(fixture_ids))  # dedup, preserve order
+    if not ids:
+        return {}
+    paths = {fid: _stats_path(fid) for fid in ids}
     try:
-        with SB(uc=True, headless=True) as sb:
-            sb.open(url)
-            time.sleep(1)
-            try:
-                content = sb.execute_script("return document.body.innerText;")
-                data = json.loads(content)
-                return data
-            except Exception:
-                return None
+        from src.sofascore_patchright_scraper import fetch_api_json
+
+        got = fetch_api_json(list(paths.values())) or {}
     except Exception as ex:
-        print(f"[!] Stats fetch failed for {fixture_id}: {ex}")
-        return None
+        print(f"[!] Batched stats fetch failed for {len(ids)} fixtures: {ex}")
+        return {fid: None for fid in ids}
+    return {fid: got.get(p) for fid, p in paths.items()}
+
+
+def get_fixture_stats_free(fixture_id):
+    # Patchright same-origin fetch — NOT SeleniumBase. SB(uc=True) teardown runs
+    # a full-heap gc.collect() (froze the daemon as its heap grew) and direct
+    # api.sofascore.com navigation is Cloudflare-blocked anyway.
+    # Prefer get_fixture_stats_free_batch() for more than one fixture.
+    return get_fixture_stats_free_batch([fixture_id]).get(fixture_id)
 
 
 def get_fixture_lineups_batch(fixture_ids):

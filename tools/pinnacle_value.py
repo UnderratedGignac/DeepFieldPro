@@ -115,6 +115,58 @@ def _fuzzy_match_ou25(home: str, away: str, candidates: dict, threshold: float =
     return best_val if best_score >= threshold else None
 
 
+_PIN_PAIRS_CACHE = {"ts": 0.0, "pairs": []}
+_PAIRS_TTL_SEC = 300.0
+_FUZZY_PAIR_THRESHOLD = 0.72  # same bar as _fuzzy_match_ou25
+
+
+def _fuzzy_resolve_pair(home: str, away: str, kickoff_ts=None):
+    """Resolve Betarabia team names to Pinnacle's names when they differ.
+
+    Pinnacle abbreviates ("JJ Urquiza" vs "Justo José de Urquiza", "Barcelona"
+    vs "FC Barcelona", "Besiktas" vs "Beşiktaş JK"). The old exact-only lookup
+    silently returned None for entire leagues, which read as "Pinnacle does
+    not carry this match" — killing the MODEL_VALUE_ALIGN consensus gate for
+    ~2/3 of the slate. Mirrors _fuzzy_match_ou25: exact-first, then
+    SequenceMatcher on the normalised "home vs away" pair string, threshold
+    0.72. Candidate pairs are cached for 5 min (one cheap recent-window
+    DISTINCT instead of one per lookup).
+    Returns (pin_home, pin_away) or None.
+    """
+    import time as _time
+
+    now = _time.time()
+    if now - _PIN_PAIRS_CACHE["ts"] > _PAIRS_TTL_SEC:
+        try:
+            con = sqlite3.connect(_COMPLETED_DB, timeout=5)
+            try:
+                # Recent window only (12h) — upcoming fixtures, and keeps the
+                # DISTINCT cheap via idx_soh_ts instead of a 6.9M-row scan.
+                pairs = con.execute(
+                    "SELECT DISTINCT home_team, away_team FROM sharp_odds_history "
+                    "WHERE ts >= ?",
+                    (now - 43200.0,),
+                ).fetchall()
+            finally:
+                con.close()
+            _PIN_PAIRS_CACHE["ts"] = now
+            _PIN_PAIRS_CACHE["pairs"] = [(h, a) for h, a in pairs if h and a]
+        except Exception:
+            _PIN_PAIRS_CACHE["ts"] = now  # don't hammer on error either
+
+    h_n, a_n = _normalize_team(home), _normalize_team(away)
+    query = f"{h_n} vs {a_n}"
+    best_score, best = 0.0, None
+    for ph, pa in _PIN_PAIRS_CACHE["pairs"]:
+        candidate = f"{_normalize_team(ph)} vs {_normalize_team(pa)}"
+        score = SequenceMatcher(None, query, candidate).ratio()
+        if score > best_score:
+            best_score, best = score, (ph, pa)
+    if best_score >= _FUZZY_PAIR_THRESHOLD:
+        return best
+    return None
+
+
 def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
     """
     Return latest Pinnacle snapshot for a match/selection.
@@ -126,16 +178,9 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
     if not os.path.exists(_COMPLETED_DB):
         return None
 
-    try:
-        con = sqlite3.connect(_COMPLETED_DB, timeout=5)
-        con.row_factory = sqlite3.Row
-
-        h_norm = _normalize_team(home)
-        a_norm = _normalize_team(away)
-
-        # P4 FIX: Check snapshot count for data freshness.
-        # Stale Pinnacle data on minor leagues produces phantom edges.
-        # Need at least MIN_SNAPSHOTS for a reliable price.
+    def _lookup(con, h, a):
+        h_norm = _normalize_team(h)
+        a_norm = _normalize_team(a)
         count_row = con.execute(
             "SELECT COUNT(*) as cnt FROM sharp_odds_history "
             "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
@@ -144,41 +189,33 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
         ).fetchone()
         snapshot_count = count_row["cnt"] if count_row else 0
 
-        # Try exact match first, then partial
-        queries = [
-            (
-                "SELECT devig_prob, decimal_odds, ts FROM sharp_odds_history "
-                "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-                "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
-                "AND selection=? ORDER BY ts DESC LIMIT 1"
-            ),
-        ]
-        # Add kickoff filter if provided
-        if kickoff_ts:
-            queries.append(
+        query = (
+            "SELECT devig_prob, decimal_odds, ts FROM sharp_odds_history "
+            "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
+            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
+            "AND selection=? ORDER BY ts DESC LIMIT 1"
+        )
+        row = con.execute(query, (h_norm, a_norm, pin_sel)).fetchone()
+        if not row and kickoff_ts:
+            row = con.execute(
                 "SELECT devig_prob, decimal_odds, ts FROM sharp_odds_history "
                 "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
                 "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
                 "AND selection=? "
-                "AND starts_ts BETWEEN ? AND ? ORDER BY ts DESC LIMIT 1"
-            )
-
-        row = None
-        row = con.execute(queries[0], (h_norm, a_norm, pin_sel)).fetchone()
-        if not row and kickoff_ts:
-            row = con.execute(
-                queries[1] if len(queries) > 1 else queries[0],
-                (h_norm, a_norm, pin_sel, kickoff_ts - 7200, kickoff_ts + 3600),
+                "AND starts_ts BETWEEN ? AND ? ORDER BY ts DESC LIMIT 1",
+                (
+                    h_norm,
+                    a_norm,
+                    pin_sel,
+                    float(kickoff_ts) - 7200,
+                    float(kickoff_ts) + 3600,
+                ),
             ).fetchone()
-
-        con.close()
         if not row:
             return None
-
         devig_prob = row["devig_prob"]
         if not devig_prob or devig_prob <= 0:
             return None
-
         return {
             "devig_prob": devig_prob,
             "decimal_odds": row["decimal_odds"],
@@ -186,6 +223,24 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
             "ts": row["ts"],
             "snapshot_count": snapshot_count,
         }
+
+    try:
+        con = sqlite3.connect(_COMPLETED_DB, timeout=5)
+        con.row_factory = sqlite3.Row
+
+        # 1. Exact normalized names first (old behaviour).
+        result = _lookup(con, home, away)
+
+        # 2. Fuzzy fallback (2026-08-31): Pinnacle abbreviates team names;
+        #    exact-only was silently dropping ~2/3 of the slate from the
+        #    MODEL_VALUE_ALIGN consensus gate.
+        if result is None:
+            resolved = _fuzzy_resolve_pair(home, away, kickoff_ts)
+            if resolved:
+                result = _lookup(con, resolved[0], resolved[1])
+
+        con.close()
+        return result
     except Exception:
         return None
 
@@ -272,6 +327,51 @@ def check_ou25_value(
 
     pin_odds = pinnacle_ou25_data.get(sel_key)
     pin_prob = pinnacle_ou25_data.get(f"p_{sel_key}")
+    if not pin_odds or not pin_prob or pin_prob <= 0:
+        return 0.0, None
+
+    fair_odds = 1.0 / pin_prob
+    edge = betarabia_odds / fair_odds - 1.0
+    if edge >= min_edge:
+        return round(edge, 4), {
+            "devig_prob": pin_prob,
+            "decimal_odds": pin_odds,
+            "fair_odds": round(fair_odds, 4),
+        }
+    return 0.0, None
+
+
+def check_btts_value(
+    home: str,
+    away: str,
+    selection: str,
+    betarabia_odds: float,
+    pinnacle_btts_data: dict,
+    min_edge: float = 0.03,
+):
+    """
+    Returns (edge_pct, pin_data) if Betarabia BTTS odds beat Pinnacle fair by min_edge.
+
+    pinnacle_btts_data: dict from fetch_pinnacle_btts() for this match —
+      {"yes": float, "no": float, "p_yes": float, "p_no": float}
+    selection: "Yes" or "No" (BTTS side)
+    Returns (0.0, None) if no edge or missing data.
+    """
+    if not betarabia_odds or betarabia_odds <= 1.0:
+        return 0.0, None
+    if not pinnacle_btts_data:
+        return 0.0, None
+
+    sel_lower = (selection or "").lower()
+    if "yes" in sel_lower:
+        sel_key = "yes"
+    elif "no" in sel_lower:
+        sel_key = "no"
+    else:
+        return 0.0, None
+
+    pin_odds = pinnacle_btts_data.get(sel_key)
+    pin_prob = pinnacle_btts_data.get(f"p_{sel_key}")
     if not pin_odds or not pin_prob or pin_prob <= 0:
         return 0.0, None
 

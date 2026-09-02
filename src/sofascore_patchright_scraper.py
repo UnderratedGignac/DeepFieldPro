@@ -72,12 +72,19 @@ def _parse_event(ev: dict) -> Optional[dict]:
         if not ht or not at:
             return None
 
+        # Namespace the id so settlement can tell a real Sofascore event id from
+        # a locally-minted md5 (which is stable only within this source and must
+        # never be joined to another feed's ids).
+        from src import fixture_results as _fx
+
         fid = ev.get("id")
         if not fid:
             key = f"{ht} vs {at}"
             fid = int(hashlib.md5(key.encode()).hexdigest(), 16) % 100_000_000
+            fns = _fx.synthetic_ns(_fx.NS_SOFASCORE)
         else:
             fid = int(fid)
+            fns = _fx.NS_SOFASCORE
 
         # Kickoff: Sofascore uses Unix timestamp in "startTimestamp"
         ts = ev.get("startTimestamp")
@@ -96,6 +103,7 @@ def _parse_event(ev: dict) -> Optional[dict]:
         league_name = tournament.get("name") or tournament.get("uniqueTournament", {}).get("name") or "Sofascore"
 
         return {
+            "fixture_ns": fns,
             "fixture": {
                 "id": fid,
                 "date": date_iso,
@@ -242,6 +250,56 @@ def get_sofascore_fixtures(date_str: Optional[str] = None, headless: bool = True
 
 def get_sofascore_fixtures_today() -> list[dict]:
     return get_sofascore_fixtures()
+
+
+def fetch_api_json(paths: list, headless: bool = True, timeout: int = 30) -> dict:
+    """
+    Fetch one or more www.sofascore.com/api/v1 *paths* (e.g.
+    "/api/v1/event/123/statistics") in a single Patchright browser session via
+    same-origin fetch(). Returns {path: parsed_json_or_None}.
+
+    Replaces the old per-call SeleniumBase uc-Chrome launches (whose teardown
+    forced a full-heap gc.collect() in the daemon and which Cloudflare blocks
+    on api.sofascore.com anyway).
+    """
+    out: dict = {p: None for p in paths}
+    if not paths:
+        return out
+
+    try:
+        from patchright.sync_api import sync_playwright
+    except ImportError:
+        log.error("[SOFASCORE] patchright not installed. Run: pip install patchright && python -m patchright install chromium")
+        return out
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=headless)
+            try:
+                ctx = browser.new_context(
+                    viewport={"width": 1280, "height": 800},
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                    locale="en-US",
+                    timezone_id="Europe/London",
+                )
+                page = ctx.new_page()
+                page.goto(
+                    "https://www.sofascore.com/football",
+                    wait_until="domcontentloaded",
+                    timeout=timeout * 1000,
+                )
+                page.wait_for_timeout(2000)
+                for path in paths:
+                    out[path] = _same_origin_fetch(page, path)
+            finally:
+                browser.close()
+    except Exception as e:
+        log.warning(f"[SOFASCORE] fetch_api_json failed: {e}")
+    return out
 
 
 # ---------------------------------------------------------------------------

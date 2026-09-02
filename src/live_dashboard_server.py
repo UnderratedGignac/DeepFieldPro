@@ -183,6 +183,50 @@ def get_state():
         )
 
 
+@app.route("/api/health")
+def api_health():
+    """Engine health — is the prediction worker actually alive and working?
+
+    Exists because a dead worker used to be invisible: Flask served /api/state
+    perfectly for ten hours after run_daemon crashed on 2026-08-24. Combines
+    the supervisor's view (is the thread running, has it crashed) with a
+    liveness proxy (how stale is the state file the worker rewrites each cycle).
+    """
+    import time as _t
+
+    try:
+        from src.daemon_supervisor import get_health
+
+        health = get_health()
+    except Exception as _e:
+        health = {"error": str(_e)}
+
+    state_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
+    age = None
+    try:
+        if os.path.exists(state_path):
+            age = round(_t.time() - os.path.getmtime(state_path), 1)
+    except OSError:
+        pass
+
+    # The worker rewrites state every cycle (~45s + work). 30 min without a
+    # write means it is wedged even if the thread technically still exists.
+    stale = age is None or age > 1800
+    health["state_age_sec"] = age
+    health["state_stale"] = stale
+    health["ok"] = bool(health.get("alive")) and not stale
+
+    # Why the last cycle bet (or didn't). An engine that is silently gated off
+    # is otherwise indistinguishable from one with nothing worth betting.
+    try:
+        from src.bet_gate_telemetry import GATES
+
+        health["gates"] = GATES.last_summary
+    except Exception:
+        health["gates"] = {}
+    return jsonify(health)
+
+
 @app.route("/api/stream")
 def stream_state():
     def event_stream():
@@ -1981,10 +2025,16 @@ def start_background_prediction_worker():
     else:
         try:
             from live_predictions_daemon import run_daemon
+            from src.daemon_supervisor import start_supervised
 
-            thread = threading.Thread(target=run_daemon, daemon=True)
-            thread.start()
-            print("[*] Background prediction worker thread started successfully.")
+            # Supervised, not bare. On 2026-08-24 a TypeError killed the bare
+            # run_daemon thread at 23:02; Flask kept serving /api/state all
+            # night so nothing looked wrong, and the engine scraped, predicted
+            # and settled nothing for ten hours. The supervisor restarts the
+            # worker with capped backoff and publishes its health at
+            # /api/health so a dead engine is visible instead of inferred.
+            start_supervised(run_daemon, name="predictions")
+            print("[*] Background prediction worker started (supervised).")
         except Exception as e:
             print("[!] Failed to start background prediction worker thread:", e)
 
@@ -1999,23 +2049,33 @@ if __name__ == "__main__":
             "[*] Background prediction worker thread is DISABLED (running in multi-process mode)."
         )
 
-    # Start red card live monitor — polls ESPN every 30s for in-progress WC matches.
-    try:
-        from src.redcard_monitor import start_monitor as _start_redcard
+    # WC-2026 monitors (red cards / match events) poll ESPN every 30s for a
+    # tournament that ended 2026-07-19. Each runs a permanent thread and holds
+    # its event/alert state in RAM for zero value. Opt out with
+    # DEEPFIELD_DISABLE_WC_MONITORS=1 (the Hermes watchdog sets this).
+    if os.getenv("DEEPFIELD_DISABLE_WC_MONITORS") == "1":
+        print(
+            "[*] WC monitors disabled (DEEPFIELD_DISABLE_WC_MONITORS=1) "
+            "- redcard + match-events threads not started."
+        )
+    else:
+        # Start red card live monitor — polls ESPN every 30s for in-progress WC matches.
+        try:
+            from src.redcard_monitor import start_monitor as _start_redcard
 
-        _start_redcard(interval=30)
-        print("[*] Red card live monitor started.")
-    except Exception as _rc_err:
-        print(f"[!] Red card monitor not started: {_rc_err}")
+            _start_redcard(interval=30)
+            print("[*] Red card live monitor started.")
+        except Exception as _rc_err:
+            print(f"[!] Red card monitor not started: {_rc_err}")
 
-    # Start match event monitor — tracks goals, cards, score changes for live WC matches.
-    try:
-        from src.match_events_monitor import start_monitor as _start_events
+        # Start match event monitor — tracks goals, cards, score changes for live WC matches.
+        try:
+            from src.match_events_monitor import start_monitor as _start_events
 
-        _start_events(interval=30)
-        print("[*] Match event monitor started.")
-    except Exception as _ev_err:
-        print(f"[!] Match event monitor not started: {_ev_err}")
+            _start_events(interval=30)
+            print("[*] Match event monitor started.")
+        except Exception as _ev_err:
+            print(f"[!] Match event monitor not started: {_ev_err}")
 
     _port = int(os.getenv("DEEPFIELD_PORT", "5050"))
     print(f"[*] Starting DeepFieldPro Live UI on http://127.0.0.1:{_port}")

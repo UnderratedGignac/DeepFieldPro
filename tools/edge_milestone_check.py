@@ -30,6 +30,34 @@ N_MIN = 300
 T_MIN = 2.0
 CLUSTER_HAIRCUT = 0.75  # 1X2 + O/U on the same fixture are correlated
 
+# Every strategy that writes to bet_log. This list was hand-maintained inside
+# main() and had drifted: MODEL_VALUE_ALIGN — the only strategy in the whole
+# verified record with a clustered t above the 2.0 bar (t=+3.52, n=190,
+# +43.5% ROI) — was never tracked, so every run reported MILESTONE_NOT_MET
+# while the best signal went unmeasured. PINNACLE_VALUE (+$134.98) and
+# STAIR_AI (-$142.63) were missing too.
+#
+# Adding a bet_source to the daemon means adding it here. Steam variants and
+# CONSENSUS use the STEAM_FWD ladder's 100-sample bar rather than the 300-bet
+# tipster bar: they are flat-staked signal bets and 100 was the pre-agreed
+# milestone. An early crossing at 100 is weaker evidence than one at 300 —
+# more tracked strategies means more lottery tickets, so treat a 100-bar
+# crossing with extra skepticism.
+TRACKED = [
+    ("FOREBET", "TIPSTER_FOREBET", N_MIN),
+    ("APIFB", "TIPSTER_APIFB", N_MIN),
+    ("CONSENSUS", "TIPSTER_CONSENSUS", 100),
+    ("STEAM", "STEAM", 100),
+    ("STEAM_LL", "STEAM_LL", 100),
+    ("PIN_STEAM", "PINNACLE_STEAM", 100),
+    ("SHARP_ST", "SHARP_STEAM", 100),
+    ("AI", "AI", N_MIN),
+    ("MODEL_VAL", "MODEL_VALUE_ALIGN", N_MIN),
+    ("PIN_VALUE", "PINNACLE_VALUE", N_MIN),
+    ("STAIR_AI", "STAIR_AI", N_MIN),
+    ("ALL", "%", N_MIN),
+]
+
 
 def strategy_stats(cur, source_like):
     rows = cur.execute(
@@ -80,23 +108,7 @@ def main():
             pass
 
     met = []
-    # Steam variants use the project's STEAM_FWD validation ladder bar
-    # (100 samples, CI above zero) rather than the 300-bet tipster bar:
-    # they are flat-staked signal bets, and 100 was the pre-agreed milestone.
-    for name, like, n_min in [
-        ("FOREBET", "TIPSTER_FOREBET", N_MIN),
-        ("APIFB", "TIPSTER_APIFB", N_MIN),
-        # CONSENSUS at the 100-bar: agreements are rare, so 300 would never
-        # conclude — but an early crossing is weaker evidence (more tracked
-        # strategies = more lottery tickets); treat with extra skepticism.
-        ("CONSENSUS", "TIPSTER_CONSENSUS", 100),
-        ("STEAM", "STEAM", 100),
-        ("STEAM_LL", "STEAM_LL", 100),
-        ("PIN_STEAM", "PINNACLE_STEAM", 100),
-        ("SHARP_ST", "SHARP_STEAM", 100),
-        ("AI", "AI", N_MIN),
-        ("ALL", "%", N_MIN),
-    ]:
+    for name, like, n_min in TRACKED:
         s = strategy_stats(cur, like)
         ok = s["n"] >= n_min and s["t"] >= T_MIN and s["net"] > 0
         print(

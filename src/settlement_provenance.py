@@ -34,6 +34,11 @@ PROVENANCE_COLUMNS = {
     "result_verified": "INTEGER DEFAULT 0",
     "settle_reason": "TEXT",
     "settle_checked_at": "TEXT",
+    # Which id space fixture_id belongs to (sofascore / betarabia / espn /
+    # synthetic:*). Migrated eagerly here rather than lazily on first bet, so
+    # settle_open_bets() can select it from the very first cycle. Legacy rows
+    # stay NULL and fall back to the ambiguity-guarded bare-id lookup.
+    "fixture_ns": "TEXT",
 }
 
 TRIGGER_NAME = "trg_no_unverified_settlement"

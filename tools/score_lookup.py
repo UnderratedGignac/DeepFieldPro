@@ -23,6 +23,7 @@ import os
 import re
 import sys
 import json
+import time
 import sqlite3
 import datetime
 import difflib
@@ -170,10 +171,32 @@ def _fs_scrape_team_results(team_id: str, team_slug: str, opponent: str, searche
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            # This settlement lookup fires repeatedly (every daemon cycle, for
+            # every still-unresolved bet) — block rendering-only resources so
+            # each launch/teardown is as cheap as possible.
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-gpu",
+                    "--disable-dev-shm-usage",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-renderer-backgrounding",
+                    "--mute-audio",
+                    "--blink-settings=imagesEnabled=false",
+                ],
+            )
             try:
                 page = browser.new_page(
                     user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36"
+                )
+                page.route(
+                    "**/*",
+                    lambda route: route.abort()
+                    if route.request.resource_type in ("image", "media", "font", "stylesheet")
+                    else route.continue_(),
                 )
                 page.goto(url, timeout=30000, wait_until="domcontentloaded")
                 page.wait_for_timeout(3000)
@@ -353,6 +376,58 @@ def _google_score(home: str, away: str) -> tuple[int, int] | None:
 # ---------------------------------------------------------------------------
 # Combined lookup
 # ---------------------------------------------------------------------------
+# ─── Negative-result cache ───────────────────────────────────────────────────
+# lookup_score() is the deep fallback: a Flashscore team search + results-page
+# scrape for BOTH teams, then a Google fallback — each launching its own
+# headless Chromium. One observed daemon cycle did 10 lookups = 18 FS-SCRAPE
+# launches + 9 Google launches = 27 Chromium spawns. Nothing remembered the
+# misses, so fixtures Flashscore simply does not carry (reserve sides, obscure
+# minor leagues) were re-attempted on every settlement pass — every ~45s,
+# indefinitely.
+#
+# Remembering a miss for NEG_CACHE_TTL collapses that retry storm. Hits are
+# never cached: a real score always returns immediately.
+# Must exceed the daemon's own deep-lookup throttle
+# (live_predictions_daemon._DEEP_LOOKUP_INTERVAL, 1800s) or the cache expires
+# exactly when the throttle lifts and suppresses nothing. At 2h an
+# unresolvable fixture is retried ~4x/day instead of ~48x. The deep lookup is
+# the LAST-resort path — ESPN/Flashscore/Sofascore/dashboard-state all still run
+# unthrottled every cycle — so a delay here cannot hold up a normal settlement.
+NEG_CACHE_TTL = float(os.getenv("DEEPFIELD_LOOKUP_NEG_TTL", "7200"))  # 2 h
+NEG_CACHE_MAX = 2000
+
+_NEG_CACHE: dict = {}
+
+
+def _neg_key(home: str, away: str) -> tuple:
+    return (str(home).strip().lower(), str(away).strip().lower())
+
+
+def _neg_cached(home: str, away: str) -> bool:
+    """True if this fixture missed recently and should not be retried yet."""
+    key = _neg_key(home, away)
+    exp = _NEG_CACHE.get(key)
+    if exp is None:
+        return False
+    if time.time() >= exp:
+        _NEG_CACHE.pop(key, None)
+        return False
+    return True
+
+
+def _neg_remember(home: str, away: str) -> None:
+    key = _neg_key(home, away)
+    _NEG_CACHE.pop(key, None)  # re-insert so dict order == recency
+    _NEG_CACHE[key] = time.time() + NEG_CACHE_TTL
+    while len(_NEG_CACHE) > NEG_CACHE_MAX:
+        _NEG_CACHE.pop(next(iter(_NEG_CACHE)))
+
+
+def clear_lookup_cache() -> None:
+    """Forget every remembered miss (used by tests and manual re-settles)."""
+    _NEG_CACHE.clear()
+
+
 def lookup_score(home: str, away: str, use_browser: bool = True) -> tuple[int, int, str] | None:
     """
     Find the final score for a match. Returns (home_score, away_score, source) or None.
@@ -363,6 +438,12 @@ def lookup_score(home: str, away: str, use_browser: bool = True) -> tuple[int, i
     3. Flashscore search for away team -> scrape results page for home team
     4. Google search fallback (if use_browser=True)
     """
+    if _neg_cached(home, away):
+        print(
+            f"[LOOKUP] Skipping {home} vs {away} — no result found recently (cached miss)"
+        )
+        return None
+
     print(f"\n[LOOKUP] Searching for: {home} vs {away}")
 
     def _sane(hs, as_) -> bool:
@@ -417,6 +498,9 @@ def lookup_score(home: str, away: str, use_browser: bool = True) -> tuple[int, i
         if result and _sane(result[0], result[1]):
             return result[0], result[1], "google"
 
+    # Every strategy missed — remember it so the next settlement pass (~45s
+    # away) does not spawn the same ~3 browsers again for this fixture.
+    _neg_remember(home, away)
     return None
 
 

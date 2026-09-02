@@ -428,3 +428,114 @@ scraped price into `odds_history` (fixture_id, market, selection, odds, timestam
 
 - Run Python via the venv interpreter explicitly (`.venv\Scripts\python.exe`), not bare `python`.
 - This is a Windows machine; shell is PowerShell. Background the server; tail `server*.log`.
+
+## Settlement integrity + memory (2026-08-24)
+
+**Settlement was grading 88% of bets by fuzzy team name.** `_fid_to_score` was built
+only from `todays_dashboard_state.json` (rewritten each cycle, today only) while
+settlement looks back 7 days, so fid-direct went 14.9% same-day → 5.7% (+1d) → **0.0%
+(+2d and beyond)**. Splitting realized P&L by `settle_source` shows the returns track the
+GRADING METHOD, not betting skill: `fid-direct` is **−19.6%** ROI across every strategy
+(n=406), `name-match` +1.7%, `deep-lookup` +43.9%. Within MODEL_VALUE_ALIGN alone — same
+window, same stakes — fid-direct +2.7%, name-match +45.4%, deep-lookup +93.3%.
+**Treat any apparent edge as a grading artifact until it survives `settle_source='fid-direct'`.**
+
+- **`src/fixture_results.py` (new)** — durable `fixture_results(namespace, fixture_id,
+  home_score, away_score, status, seen_at)` table in `completed_fixtures.db`. Fed each
+  cycle from the dashboard state and from `sofascore_results_scraper.get_events()` across
+  the whole lookback; 30-day retention. `load_flat_scores()` serves legacy bets that have
+  no namespace and **drops any id meaning different results in two namespaces**.
+  Live effect: fid index **13 → 359 fixture_ids** on the first cycle.
+- **`fixture_ns` everywhere** — fixture dicts, dashboard state entries, and a `bet_log`
+  column (migrated via `settlement_provenance.PROVENANCE_COLUMNS`). Ids are NOT one space:
+  Sofascore 14–17M, Betarabia/Kickertech 27–29M, ESPN 4xxxxxxxx, plus md5 fallbacks now
+  stamped `synthetic:<source>` so they can never be cross-joined.
+- **`fetch_betarabia_odds()` now returns the real Kickertech `fixture_id`** (it selected
+  every column except that one), so the fallback builders stop minting md5 ids.
+- **`tools/edge_milestone_check.py`**: strategy list hoisted to a module constant `TRACKED`;
+  MODEL_VALUE_ALIGN, PINNACLE_VALUE and STAIR_AI were never tracked. MODEL_VALUE_ALIGN is
+  the only strategy to clear t≥2.0 (t=+3.52, n=190/300) — but see the settle_source caveat.
+
+**Memory: peak 5.9 GB → 4.0 GB, avg system free 1.8 GB → 2.8 GB** (16 GB machine).
+- `sharp_odds_history` grew unbounded to **65M rows / 16.6 GB** (~1.03M rows/day, no purge
+  while sibling `odds_history` had one). `pinnacle_feed` now dedups unchanged prices with a
+  300s heartbeat and purges past `SHARP_ODDS_RETENTION_DAYS` (14) each cycle.
+  `tools/prune_sharp_odds_history.py --archive` reclaimed **16.09 GB** (16.64 → 0.55 GB),
+  archiving all 62.3M dropped rows losslessly to `sharp_odds_history_archive.db`.
+- `betarabia_scraper` retained every JSON response while driving one page through 50 event
+  navigations → a single renderer at **1.34 GB**. Now `_ResponseStore` keeps only payloads
+  the parsers read (deduped by URL), and the page recycles every `_PAGE_RECYCLE_EVERY` (3)
+  navigations (~120 MB of renderer heap per event page is never released).
+- The completion scan launched **one Chromium per finished fixture**; now one batched
+  session via `get_fixture_stats_free_batch()`.
+- `sofascore_results_scraper` trims+dedups events on arrival (`_EventCollector`) instead of
+  holding raw payloads, and `_mem_cache` is bounded.
+- `tools/score_lookup.py` gained a negative-result cache — one cycle did 27 Chromium spawns
+  re-checking fixtures Flashscore does not carry. `NEG_CACHE_TTL` is **7200s (2h), which
+  MUST stay above the daemon's own `_DEEP_LOOKUP_INTERVAL` (1800s)** — a TTL at or below
+  that expires exactly when the throttle lifts and suppresses nothing. Guarded by
+  `tests/test_score_lookup_negcache.py::test_ttl_exceeds_the_daemons_own_deep_lookup_throttle`.
+
+## Daemon supervision + /api/health (2026-08-25)
+
+**The prediction worker could die silently, and did.** On 2026-08-24 23:02 `run_daemon`
+raised `TypeError: log_pinnacle_value_bet() got an unexpected keyword argument
+'fixture_ns'` and the thread exited. It was started as a bare
+`threading.Thread(target=run_daemon, daemon=True)`, so nothing restarted it and nothing
+reported it. Flask kept answering `/api/state` every 30 minutes; the dashboard looked
+perfectly healthy while nothing was scraped, predicted or settled for ~10 hours.
+
+- **`src/daemon_supervisor.py` (new)** — `start_supervised(run_daemon, name="predictions")`
+  replaces the bare thread in `live_dashboard_server.start_background_prediction_worker()`.
+  Crashes are logged, counted and retried with capped exponential backoff; the backoff
+  RESETS after a healthy run so a crash six hours in retries immediately. A clean return
+  is also treated as a fault (run_daemon must loop forever). Never re-raises.
+- **`GET /api/health`** — `{alive, ok, restarts, last_crash, last_crash_at,
+  state_age_sec, state_stale}`. `ok` is false when the worker is dead OR
+  `todays_dashboard_state.json` is >30 min stale, so a wedged-but-alive thread also reads
+  as broken. **`/api/state` returning 200 proves nothing about the engine — check this.**
+- **`tests/test_call_signature_guard.py` (new)** — AST-checks every keyword call site in
+  the daemon against the callee's real signature. The outage came from a bulk text replace
+  of `fixture_id=fid,` that hit two functions taking no `fixture_ns`; one killed the
+  thread, the other (`is_good_time_to_bet`) sat inside a bare `except` and silently left
+  the bet-timing filter failing open. `py_compile` cannot catch this.
+
+**Debugging a quiet daemon**: `py-spy` is installed in the venv —
+`.venv\Scripts\py-spy.exe dump --pid <pid>`. It distinguishes *blocked* from *dead*: if
+`Thread-N (run_daemon)` is missing entirely, it crashed, and the traceback is in the
+server's **stderr** log, not stdout. Launch with `python -u` so stdout is not
+block-buffered (a stalled thread otherwise leaves its last lines unflushed).
+
+## odds_fresh traced — it was a kickoff guard in disguise (2026-08-25)
+
+Gate telemetry showed `odds_fresh` rejecting 54 of 127 selections (43%) while only 9% of
+fixtures in `odds_stream.db` were older than the 60-minute limit. Chasing that produced
+two findings.
+
+**1. The apparent 43% was correct, and every one of those rejections was an
+already-kicked-off match.** The prediction loop only skips a fixture when `status in
+("FT","AET","PEN")` AND kickoff was >12h ago, so 17 South American fixtures from the
+previous day — kicked off 9–13h earlier, carrying 13-hour-old prices — reached the bet
+gate. `odds_fresh` was the ONLY thing stopping bets on them. That is far too load-bearing
+for a defence-in-depth check, and it **fails open exactly when it matters**: an in-play
+price is fresh by definition. `_kickoff_passed(match_time, grace_min=0.0)` now gates both
+bet chains explicitly. Live proof — the two gates reject an identical set:
+
+```
+[GATES] MODEL: 1/127 | blocked_by: ev=96, odds_fresh=54, not_kicked_off=54, prob=46
+```
+
+**2. A real staleness leak, separate from the above.** `_betarabia_odds_age_min` is a
+module global that `find_betarabia_odds()` set only on its Betarabia branch, near the END
+of the function. The Tier-1 **Kambi** branch returns early (Kambi serves ~164 fixtures, the
+majority of the slate), so every Kambi-priced fixture inherited whatever staleness the
+previous fixture left behind. Fixed: the global is reset on entry and set on every return
+path; `kambi_scraper.cache_age_min()` reports Kambi's true age (its own TTL is 90s).
+**Any module-global written on one branch and read by another is a leak waiting to happen
+— set it on entry.**
+
+Tests: `tests/test_kickoff_guard.py` (13), `tests/test_odds_freshness.py` (9).
+
+**Note on reading gate telemetry**: `blocked_by` counts SELECTIONS, `odds_stream.db` rows
+are FIXTURES. Comparing the two directly is apples-to-oranges — roughly 5 selections per
+fixture reach the gate, so ~10 stale fixtures produce ~50 selection rejections.

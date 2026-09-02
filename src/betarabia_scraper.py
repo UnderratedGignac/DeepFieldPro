@@ -43,6 +43,62 @@ API_RESPONSES_PATH = os.path.join(BASE_DIR, "data", "betarabia_api_responses.jso
 # Kickertech/SBTech API domains
 SBTECH_DOMAINS = ["websbkt.com", "api-m-sp-cdl"]
 
+# ─── API-capture memory bounds ───────────────────────────────────────────────
+# The response handler used to append EVERY JSON response to an unbounded list
+# while the same page was driven through 50 event navigations. Each navigation
+# re-fetches the same boilerplate, so the list ended up holding ~50 copies of
+# payloads the parsers never look at. Measured: one renderer at 1.34 GB.
+#
+# parse_kickertech_events()/parse_kickertech_odds() only read the top-level keys
+# below, so anything else is dead weight. Dedup by URL collapses the repeats.
+_PARSEABLE_KEYS = ("events", "odds", "data")
+_MAX_CAPTURED_RESPONSES = 1500  # backstop against a pathological page
+# Navigations before the page (and its renderer heap) is reset. Each betarabia
+# event page is a full SPA load costing ~120 MB of renderer heap that is NOT
+# released between same-origin navigations. Measured peaks per window:
+#     no recycle -> 1341 MB      every 10 -> 901 MB      every 5 -> ~650 MB
+# Closing the page does start a fresh renderer process (verified: the OS pid
+# changes on every recycle), so the window size sets the peak directly.
+# 3 keeps it near ~400 MB for about a second of extra page setup per batch.
+_PAGE_RECYCLE_EVERY = 3
+
+
+class _ResponseStore:
+    """URL-keyed store of only the API payloads the parsers actually consume.
+
+    Bounded three ways: SBTech domains only, parseable top-level keys only, and
+    one entry per URL (latest wins) up to a hard cap.
+    """
+
+    def __init__(self):
+        self._by_url = {}
+
+    @staticmethod
+    def _wanted(Url_P: str, Data_P) -> bool:
+        if not isinstance(Data_P, dict):
+            return False
+        if not any(D_V in Url_P for D_V in SBTECH_DOMAINS):
+            return False
+        return any(K_V in Data_P for K_V in _PARSEABLE_KEYS)
+
+    def add(self, Url_P: str, Data_P) -> bool:
+        if not self._wanted(Url_P, Data_P):
+            return False
+        if (
+            Url_P not in self._by_url
+            and len(self._by_url) >= _MAX_CAPTURED_RESPONSES
+        ):
+            return False
+        self._by_url[Url_P] = Data_P
+        return True
+
+    def as_list(self) -> list:
+        """Shape the parsers expect: [{"url": ..., "data": ...}, ...]."""
+        return [{"url": U_V, "data": D_V} for U_V, D_V in self._by_url.items()]
+
+    def __len__(self):
+        return len(self._by_url)
+
 # Market name mapping from SBTech oddCode → human-readable
 ODD_CODE_MAP = {
     # Match result
@@ -1058,7 +1114,7 @@ async def run_scraper():
     MarketsScraped_V = 0
     PlayerPropsFound_V = 0
 
-    ApiResponses_V = []
+    ApiResponses_V = _ResponseStore()
 
     async with async_playwright() as p:
         # Lean launch: this scraper only reads intercepted JSON + (as a fallback)
@@ -1104,8 +1160,10 @@ async def run_scraper():
             if "json" in ContentType_V:
                 try:
                     JsonData_V = await Response_P.json()
-                    ApiResponses_V.append({"url": Url_V, "data": JsonData_V})
-                    if any(D_V in Url_V for D_V in SBTECH_DOMAINS):
+                    # Only parseable payloads are retained, deduped by URL —
+                    # the 50 event navigations otherwise stack ~50 copies of
+                    # boilerplate nobody reads (see _ResponseStore).
+                    if ApiResponses_V.add(Url_V, JsonData_V):
                         logger.info(f"[KT API] Captured: {Url_V[:90]}")
                 except Exception:
                     pass
@@ -1165,7 +1223,7 @@ async def run_scraper():
 
             # ── Step 2.5: Visit individual event pages for FULL markets ──────
             # This captures corners, cards, and player props
-            temp_events = parse_kickertech_events(ApiResponses_V)
+            temp_events = parse_kickertech_events(ApiResponses_V.as_list())
             today_event_ids = list(
                 filter_todays_fixtures(temp_events, DAYS_AHEAD).keys()
             )
@@ -1174,8 +1232,24 @@ async def run_scraper():
                 f"Found {len(today_event_ids)} events for today. Fetching full markets for top 50..."
             )
             # Limiting to 50 for performance
-            for eid in today_event_ids[:50]:
+            for Idx_V, eid in enumerate(today_event_ids[:50]):
                 try:
+                    # Recycle the page every _PAGE_RECYCLE_EVERY navigations. Driving
+                    # one page through 50 same-origin SPA loads grew the renderer to
+                    # 1.34 GB — the JS heap plus the response bodies Playwright must
+                    # retain while the page lives. A fresh page drops both.
+                    if Idx_V and Idx_V % _PAGE_RECYCLE_EVERY == 0:
+                        try:
+                            await page.close()
+                        except Exception:
+                            pass
+                        page = await context.new_page()
+                        page.on("response", handle_response)
+                        logger.info(
+                            f"[MEM] Recycled scraper page after {Idx_V} events "
+                            f"({len(ApiResponses_V)} payloads retained)"
+                        )
+
                     event_url = f"https://www.betarabia.com/en/sports/kickertech/football/event/{eid}"
                     logger.info(f"Scouting full markets: {event_url}")
                     await page.goto(
@@ -1187,20 +1261,27 @@ async def run_scraper():
                     # Short backoff so one bad page doesn't hammer the site
                     await asyncio.sleep(2)
 
-            # Save all captured API responses for debugging (best-effort:
-            # a non-serializable payload must not abort the scrape pre-write)
-            try:
-                with open(API_RESPONSES_PATH, "w") as F_V:
-                    json.dump(ApiResponses_V, F_V, indent=2)
-                logger.info(
-                    f"Saved {len(ApiResponses_V)} API responses → {API_RESPONSES_PATH}"
-                )
-            except Exception as DumpErr_V:
-                logger.warning(f"Could not save API responses debug file: {DumpErr_V}")
+            # Debug dump of the captured payloads. Off by default: json.dump with
+            # indent=2 materialises the whole capture as one string, which on a
+            # busy day is hundreds of MB of peak RSS for a file nothing reads.
+            # Set BETARABIA_DUMP_API=1 to re-enable when debugging the parsers.
+            if os.environ.get("BETARABIA_DUMP_API") == "1":
+                try:
+                    with open(API_RESPONSES_PATH, "w") as F_V:
+                        json.dump(ApiResponses_V.as_list(), F_V)
+                    logger.info(
+                        f"Saved {len(ApiResponses_V)} API responses → {API_RESPONSES_PATH}"
+                    )
+                except Exception as DumpErr_V:
+                    logger.warning(
+                        f"Could not save API responses debug file: {DumpErr_V}"
+                    )
 
             # ── Step 3: Parse Kickertech API events + odds ───────────────────
-            AllEventsById_V = parse_kickertech_events(ApiResponses_V)
-            AllOddsByEvent_V = parse_kickertech_odds(ApiResponses_V, AllEventsById_V)
+            AllEventsById_V = parse_kickertech_events(ApiResponses_V.as_list())
+            AllOddsByEvent_V = parse_kickertech_odds(
+                ApiResponses_V.as_list(), AllEventsById_V
+            )
 
             # Filter to today (+ DAYS_AHEAD)
             TodayEvents_V = filter_todays_fixtures(AllEventsById_V, DAYS_AHEAD)

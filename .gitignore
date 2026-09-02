@@ -41,6 +41,21 @@ data/deepfield_browser_data/completed_fixtures.db
 data/betarabia_page_probe.html
 data/bet_log.db
 data/research_bet_log.db
+data/deepfield_browser_data/sharp_odds_history_archive.db
+data/deepfield_browser_data/*.db-wal
+data/deepfield_browser_data/*.db-shm
+
+# Ad-hoc scratch/debug scripts and their output captures
+tmp_*.py
+tools/_*.py
+_fix_all.py
+_full_diag.py
+*_out.txt
+*_out2.txt
+*_err.txt
+*_err2.txt
+sofa_test.txt
+agy_capture.txt
 
 # Browser automation profiles — contain live session cookies, never commit
 data/copilot_browser_profile/

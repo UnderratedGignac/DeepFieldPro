@@ -33,6 +33,20 @@ _cache = {"ts": 0.0, "data": {}}
 _TTL = 90
 
 
+def cache_age_min():
+    """Minutes since the current Kambi snapshot was fetched, or None if never.
+
+    The bet gate needs to know how old the odds it is about to bet on actually
+    are. Kambi's own TTL is 90s, so this is always well inside the 60-minute
+    staleness limit — but it must be REPORTED, not assumed: when the Kambi
+    branch reported nothing, every Kambi-priced fixture silently inherited the
+    previous fixture's staleness and got rejected as stale.
+    """
+    if not _cache.get("ts"):
+        return None
+    return (time.time() - _cache["ts"]) / 60.0
+
+
 def _starts_ts(iso):
     try:
         return datetime.datetime.fromisoformat(
