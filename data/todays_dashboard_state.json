@@ -261,30 +261,8 @@
         "has_lineup": false,
         "prediction": null,
         "prematch_markets": {
-            "1X2": [
-                {
-                    "selection": "Home (1)",
-                    "odds": 2.04
-                },
-                {
-                    "selection": "Draw (X)",
-                    "odds": 4.29
-                },
-                {
-                    "selection": "Away (2)",
-                    "odds": 3.05
-                }
-            ],
-            "Over/Under 2.5": [
-                {
-                    "selection": "Over 2.5",
-                    "odds": 1.35
-                },
-                {
-                    "selection": "Under 2.5",
-                    "odds": 3.19
-                }
-            ],
+            "1X2": [],
+            "Over/Under 2.5": [],
             "Over/Under 3.0": [],
             "Over/Under 2.0": [],
             "BTTS": [],
@@ -1077,7 +1055,7 @@
             "status": {
                 "short": "1H"
             },
-            "home_score": 1,
+            "home_score": 2,
             "away_score": 0
         }
     },
@@ -1105,8 +1083,8 @@
             "status": {
                 "short": "NS"
             },
-            "home_score": null,
-            "away_score": null
+            "home_score": 0,
+            "away_score": 0
         }
     },
     {
@@ -1820,7 +1798,7 @@
             "1X2": [
                 {
                     "selection": "Home (1)",
-                    "odds": 3.56
+                    "odds": 3.76
                 },
                 {
                     "selection": "Draw (X)",
@@ -1828,17 +1806,17 @@
                 },
                 {
                     "selection": "Away (2)",
-                    "odds": 2.07
+                    "odds": 2.01
                 }
             ],
             "Over/Under 2.5": [
                 {
                     "selection": "Over 2.5",
-                    "odds": 1.88
+                    "odds": 1.93
                 },
                 {
                     "selection": "Under 2.5",
-                    "odds": 1.96
+                    "odds": 1.91
                 }
             ],
             "Over/Under 3.0": [],
@@ -1874,11 +1852,11 @@
                 },
                 {
                     "selection": "Draw (X)",
-                    "odds": 5.22
+                    "odds": 5.23
                 },
                 {
                     "selection": "Away (2)",
-                    "odds": 6.75
+                    "odds": 6.76
                 }
             ],
             "Over/Under 2.5": [
@@ -2395,26 +2373,6 @@
             },
             "home_score": null,
             "away_score": null
-        }
-    },
-    {
-        "fixture_id": 17036727,
-        "fixture_ns": "sofascore",
-        "match": "Nabuka Miyosolav vs Nabuka Int. FFC",
-        "league": "Nabuka City Amateur League",
-        "kickoff": "2026-09-07T23:38:50+00:00",
-        "status_code": "FT",
-        "has_lineup": false,
-        "prediction": null,
-        "prematch_markets": null,
-        "fixture": {
-            "id": 17036727,
-            "date": "2026-09-07T23:38:50+00:00",
-            "status": {
-                "short": "FT"
-            },
-            "home_score": 0,
-            "away_score": 486
         }
     },
     {
@@ -3115,7 +3073,7 @@
         "match": "FC Bentonit vs Lernayin Artsakh FC",
         "league": "First League",
         "kickoff": "2026-09-08T11:30:00+00:00",
-        "status_code": "NS",
+        "status_code": "1H",
         "has_lineup": false,
         "prediction": null,
         "prematch_markets": null,
@@ -3123,10 +3081,10 @@
             "id": 16912928,
             "date": "2026-09-08T11:30:00+00:00",
             "status": {
-                "short": "NS"
+                "short": "1H"
             },
-            "home_score": null,
-            "away_score": null
+            "home_score": 1,
+            "away_score": 0
         }
     },
     {
@@ -3293,8 +3251,8 @@
             "status": {
                 "short": "NS"
             },
-            "home_score": null,
-            "away_score": null
+            "home_score": 0,
+            "away_score": 0
         }
     },
     {
@@ -3823,7 +3781,7 @@
         "match": "Uchetelya FC vs Baku Electronics",
         "league": "Extra Play-Off",
         "kickoff": "2026-09-08T09:30:00+00:00",
-        "status_code": "1H",
+        "status_code": "FT",
         "has_lineup": false,
         "prediction": null,
         "prematch_markets": null,
@@ -3831,7 +3789,7 @@
             "id": 17029165,
             "date": "2026-09-08T09:30:00+00:00",
             "status": {
-                "short": "1H"
+                "short": "FT"
             },
             "home_score": 0,
             "away_score": 2
@@ -3903,7 +3861,7 @@
         "match": "Uchetelya FC vs Baku Electronics",
         "league": "Extra Play-Off",
         "kickoff": "2026-09-08T09:30:00+00:00",
-        "status_code": "1H",
+        "status_code": "FT",
         "has_lineup": false,
         "prediction": null,
         "prematch_markets": null,
@@ -3911,7 +3869,7 @@
             "id": 17029165,
             "date": "2026-09-08T09:30:00+00:00",
             "status": {
-                "short": "1H"
+                "short": "FT"
             },
             "home_score": 0,
             "away_score": 2
@@ -3974,7 +3932,7 @@
                 "short": "1H"
             },
             "home_score": 2,
-            "away_score": 1
+            "away_score": 5
         }
     },
     {
@@ -4063,7 +4021,7 @@
         "match": "11 Pagla vs Khailkur Titans",
         "league": "Khailkur Football Leaugue ",
         "kickoff": "2026-09-08T09:00:00+00:00",
-        "status_code": "NS",
+        "status_code": "FT",
         "has_lineup": false,
         "prediction": null,
         "prematch_markets": null,
@@ -4071,10 +4029,10 @@
             "id": 17021892,
             "date": "2026-09-08T09:00:00+00:00",
             "status": {
-                "short": "NS"
+                "short": "FT"
             },
-            "home_score": null,
-            "away_score": null
+            "home_score": 0,
+            "away_score": 0
         }
     },
     {
@@ -4385,7 +4343,7 @@
         "live_only": true,
         "fixture": {
             "id": "FS_IV6lfZCi",
-            "home_score": 0,
+            "home_score": 4,
             "away_score": 0,
             "status": {
                 "short": "LIVE"
@@ -4405,8 +4363,8 @@
         "live_only": true,
         "fixture": {
             "id": "FS_xrdE00z2",
-            "home_score": 0,
-            "away_score": 1,
+            "home_score": 3,
+            "away_score": 2,
             "status": {
                 "short": "LIVE"
             },
@@ -4426,7 +4384,7 @@
         "fixture": {
             "id": "FS_Uyq0O3S8",
             "home_score": 0,
-            "away_score": 1,
+            "away_score": 2,
             "status": {
                 "short": "LIVE"
             },
@@ -4445,12 +4403,32 @@
         "live_only": true,
         "fixture": {
             "id": "FS_tvkT94DF",
-            "home_score": 1,
-            "away_score": 2,
+            "home_score": 2,
+            "away_score": 3,
             "status": {
                 "short": "LIVE"
             },
             "date": "2026-09-08T10:00:00+00:00"
+        }
+    },
+    {
+        "fixture_id": "FS_WbW7K874",
+        "match": "Lion City II vs Hougang II",
+        "league": "SINGAPORE: Premier League 2",
+        "kickoff": "2026-09-08T11:30:00+00:00",
+        "status_code": "LIVE",
+        "has_lineup": false,
+        "prediction": null,
+        "prematch_markets": null,
+        "live_only": true,
+        "fixture": {
+            "id": "FS_WbW7K874",
+            "home_score": 1,
+            "away_score": 0,
+            "status": {
+                "short": "LIVE"
+            },
+            "date": "2026-09-08T11:30:00+00:00"
         }
     },
     {
@@ -4465,7 +4443,7 @@
         "live_only": true,
         "fixture": {
             "id": "FS_hOKxhV4e",
-            "home_score": 1,
+            "home_score": 2,
             "away_score": 1,
             "status": {
                 "short": "LIVE"
@@ -4505,8 +4483,8 @@
         "live_only": true,
         "fixture": {
             "id": "FS_lGlbO8eE",
-            "home_score": 0,
-            "away_score": 2,
+            "home_score": 1,
+            "away_score": 3,
             "status": {
                 "short": "LIVE"
             },
@@ -4526,27 +4504,7 @@
         "fixture": {
             "id": "FS_hOVDPIRr",
             "home_score": 0,
-            "away_score": 1,
-            "status": {
-                "short": "LIVE"
-            },
-            "date": "2026-09-08T10:00:00+00:00"
-        }
-    },
-    {
-        "fixture_id": "FS_x6dpfFeU",
-        "match": "Olympia Savyntsi vs Kryvbas",
-        "league": "UKRAINE: Ukrainian Cup",
-        "kickoff": "2026-09-08T10:00:00+00:00",
-        "status_code": "LIVE",
-        "has_lineup": false,
-        "prediction": null,
-        "prematch_markets": null,
-        "live_only": true,
-        "fixture": {
-            "id": "FS_x6dpfFeU",
-            "home_score": 0,
-            "away_score": 1,
+            "away_score": 2,
             "status": {
                 "short": "LIVE"
             },
