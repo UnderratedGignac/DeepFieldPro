@@ -1,0 +1,101 @@
+[
+  {
+    "id": 1,
+    "run_date": "2026-07-16",
+    "signal_name": "STEAM_FWD",
+    "matches": 94,
+    "wins": 26,
+    "avg_clv": 1.6044944500174372,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 18.6
+  },
+  {
+    "id": 2,
+    "run_date": "2026-07-16",
+    "signal_name": "EARLY_STEAM",
+    "matches": 46,
+    "wins": 12,
+    "avg_clv": 0.8709709024638351,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 9.1
+  },
+  {
+    "id": 3,
+    "run_date": "2026-07-16",
+    "signal_name": "LARGE_SPREAD",
+    "matches": 31,
+    "wins": 10,
+    "avg_clv": 1.2454974166691581,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 6.1
+  },
+  {
+    "id": 4,
+    "run_date": "2026-07-16",
+    "signal_name": "MOMENTUM_ACCEL",
+    "matches": 26,
+    "wins": 7,
+    "avg_clv": 4.275960658591351,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 5.1
+  },
+  {
+    "id": 5,
+    "run_date": "2026-07-16",
+    "signal_name": "STEAM_REV",
+    "matches": 19,
+    "wins": 8,
+    "avg_clv": -5.763330101741078,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 3.8
+  },
+  {
+    "id": 6,
+    "run_date": "2026-07-16",
+    "signal_name": "FAV_DRIFT_REV",
+    "matches": 3,
+    "wins": 1,
+    "avg_clv": -15.299128420645546,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 0.6
+  },
+  {
+    "id": 7,
+    "run_date": "2026-07-16",
+    "signal_name": "FAV_DRIFT",
+    "matches": 30,
+    "wins": 14,
+    "avg_clv": -1.3575160170237912,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 5.9
+  },
+  {
+    "id": 8,
+    "run_date": "2026-07-16",
+    "signal_name": "LATE_STEAM",
+    "matches": 24,
+    "wins": 7,
+    "avg_clv": 4.275960658591351,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 4.8
+  },
+  {
+    "id": 9,
+    "run_date": "2026-07-16",
+    "signal_name": "DOG_DRIFT",
+    "matches": 4,
+    "wins": 1,
+    "avg_clv": 17.14023181297525,
+    "roi": null,
+    "status": "WATCH",
+    "confidence": 0.8
+  }
+]
