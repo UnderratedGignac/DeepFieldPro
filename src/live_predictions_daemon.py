@@ -3912,6 +3912,30 @@ def settle_open_bets():
     except Exception as _fx_err:
         print(f"[SETTLEMENT] fixture_results store unavailable (non-fatal): {_fx_err}")
 
+    # ── Verify PAST settlements against the namespaced result ────────────────
+    # The namespaced row for a match routinely lands ~45 min after the fast
+    # feeds (Flashscore/ESPN/API-Football) have already closed the bet by NAME,
+    # because those feeds carry no Sofascore ids and the Sofascore path rides a
+    # 30-minute cache. So fid-direct rarely wins the race on a promptly-
+    # finishing match. Rather than delay grading, re-check already-settled bets
+    # once their authoritative result shows up. Non-destructive: it records
+    # agreement/disagreement only and never rewrites a grade.
+    try:
+        from src import settlement_verifier as _sv
+
+        _ver = _sv.verify_settlements(
+            os.path.join(DATA_DIR, "bet_log.db"),
+            os.path.join(DATA_DIR, "deepfield_browser_data", "completed_fixtures.db"),
+        )
+        if _ver.get("checked"):
+            print(
+                f"[VERIFY] Cross-checked {_ver['checked']} settled bets vs namespaced "
+                f"results: {_ver['agreed']} agree, {_ver['disagreed']} DISAGREE "
+                f"({_ver.get('skipped_no_result', 0)} not yet resolvable)."
+            )
+    except Exception as _ver_err:
+        print(f"[VERIFY] settlement verification unavailable (non-fatal): {_ver_err}")
+
     if not finished_matches:
         print("[SETTLEMENT] No finished matches found from any source yet.")
         return
