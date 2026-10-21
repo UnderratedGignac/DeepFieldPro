@@ -500,7 +500,10 @@ def _feed_loop():
             try:
                 totals = fetch_pinnacle_totals(line=2.5)
                 n_ou = write_ou25_snapshot(totals)
-                logger.info("[PinFeed] Wrote %d matches 1X2 + %d matches OU25", n, n_ou)
+                n_bt = write_btts_snapshot(fetch_pinnacle_btts())
+                logger.info(
+                    "[PinFeed] Wrote %d matches 1X2 + %d OU25 + %d BTTS", n, n_ou, n_bt
+                )
             except Exception as _ou_err:
                 logger.warning("[PinFeed] OU25 snapshot error (non-fatal): %s", _ou_err)
                 logger.info("[PinFeed] Wrote %d matches (%d prices)", n, n * 3)
@@ -601,14 +604,19 @@ def fetch_pinnacle_btts():
                 if not y_dec or not n_dec:
                     continue
                 inv = 1 / y_dec + 1 / n_dec
-                result[f"{home_p['name']} vs {away_p['name']}"] = {
+                # The parent carries the senior names; the special's league
+                # says when it is really a youth game.
+                league = (item.get("league") or {}).get("name", "")
+                home_name = _with_level(home_p["name"], league)
+                away_name = _with_level(away_p["name"], league)
+                result[f"{home_name} vs {away_name}"] = {
                     "yes": y_dec,
                     "no": n_dec,
                     "p_yes": round((1 / y_dec) / inv, 4),
                     "p_no": round((1 / n_dec) / inv, 4),
                     "starts_ts": starts_ts,
-                    "_home": home_p["name"],
-                    "_away": away_p["name"],
+                    "_home": home_name,
+                    "_away": away_name,
                 }
                 break
         return result
@@ -699,27 +707,38 @@ def write_ou25_snapshot(totals: dict) -> int:
 
     Returns the number of matches written (0 on error or empty input).
     """
-    if not totals:
+    return _write_two_way_snapshot(
+        totals, (("over", "p_over", "over_2.5"), ("under", "p_under", "under_2.5"))
+    )
+
+
+def write_btts_snapshot(btts: dict) -> int:
+    """Write Pinnacle BTTS prices to sharp_odds_history ('btts_yes' / 'btts_no')
+    so BTTS bets get a closing-line value at settlement (clv_from_pinnacle_btts)."""
+    return _write_two_way_snapshot(
+        btts, (("yes", "p_yes", "btts_yes"), ("no", "p_no", "btts_no"))
+    )
+
+
+def _write_two_way_snapshot(entries: dict, sides) -> int:
+    """sides: ((price_key, prob_key, stored_selection), ...). Returns matches written."""
+    if not entries:
         return 0
     if not os.path.exists(os.path.dirname(_COMPLETED_DB)):
         return 0
 
     ts = time.time()
     rows = []
-    for match_key, data in totals.items():
+    for match_key, data in entries.items():
         h = data.get("_home") or match_key.split(" vs ")[0]
         a = data.get("_away") or (
             match_key.split(" vs ")[1] if " vs " in match_key else ""
         )
         sts = data.get("starts_ts")
-        o_dec = data.get("over")
-        u_dec = data.get("under")
-        p_over = data.get("p_over")
-        p_under = data.get("p_under")
-        if o_dec and p_over:
-            rows.append((match_key, h, a, "", "over_2.5", o_dec, p_over, ts, sts))
-        if u_dec and p_under:
-            rows.append((match_key, h, a, "", "under_2.5", u_dec, p_under, ts, sts))
+        for price_key, prob_key, sel in sides:
+            dec, prob = data.get(price_key), data.get(prob_key)
+            if dec and prob:
+                rows.append((match_key, h, a, "", sel, dec, prob, ts, sts))
 
     if not rows:
         return 0

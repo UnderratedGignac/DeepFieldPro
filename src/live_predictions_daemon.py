@@ -2373,13 +2373,26 @@ def _kambi_ou25(home_team, away_team):
     return None
 
 
+def _kambi_btts(home_team, away_team):
+    """Kambi's BTTS as ({"Yes", "No"}, age_min), or None."""
+    try:
+        from src.kambi_scraper import fetch_kambi_btts, btts_cache_age_min
+
+        best_k = _kambi_match(fetch_kambi_btts(), home_team, away_team)
+        if best_k and best_k.get("yes") and best_k.get("no"):
+            return {"Yes": best_k["yes"], "No": best_k["no"]}, btts_cache_age_min()
+    except Exception:
+        pass
+    return None
+
+
 def find_betarabia_odds(home_team, away_team):
     """
     Looks up a match in primary bookmaker feeds (Kambi/Unibet, Pinnacle, Betarabia fallback).
     Returns a dict with market keys and selection odds.
 
-    For 1X2 and Over/Under 2.5 each selection takes the better of Kambi and
-    Betarabia; Betarabia supplies every other market. The returned odds carry
+    For 1X2, Over/Under 2.5 and BTTS each selection takes the better of Kambi
+    and Betarabia; Betarabia supplies every other market. The returned odds carry
     .books, naming the bookmaker behind each price — a Kambi price is only
     real at a Kambi-powered book.
 
@@ -2392,37 +2405,33 @@ def find_betarabia_odds(home_team, away_team):
     """
     global _betarabia_odds_age_min
     kambi = _kambi_1x2(home_team, away_team)
-    kambi_ou = _kambi_ou25(home_team, away_team)
+    kambi_markets = {
+        "1X2": kambi,
+        "Over/Under 2.5": _kambi_ou25(home_team, away_team),
+        "BTTS": _kambi_btts(home_team, away_team),
+    }
     odds = _betarabia_stream_odds(home_team, away_team)  # sets the global
     b_age = _betarabia_odds_age_min
     if odds is not None:
         odds.books = {(m, s): "Betarabia" for m, sels in odds.items() for s in sels}
-    if kambi is None and kambi_ou is None:
+    if all(v is None for v in kambi_markets.values()):
         return odds
 
     if odds is None:
         odds = _empty_odds_dict()
     ages = []
-    if kambi is not None:
-        k_prices, k_age = kambi
+    for market, found in kambi_markets.items():
+        if found is None:
+            continue
+        k_prices, k_age = found
         took = False
         for side, px in k_prices.items():
-            if px > (odds["1X2"].get(side) or 0):
-                odds["1X2"][side] = px
-                odds.books[("1X2", side)] = "Kambi"
+            if px > (odds[market].get(side) or 0):
+                odds[market][side] = px
+                odds.books[(market, side)] = "Kambi"
                 took = True
         if took:
             ages.append(k_age)
-    if kambi_ou is not None:
-        ou_prices, ou_age = kambi_ou
-        took = False
-        for side, px in ou_prices.items():
-            if px > (odds["Over/Under 2.5"].get(side) or 0):
-                odds["Over/Under 2.5"][side] = px
-                odds.books[("Over/Under 2.5", side)] = "Kambi"
-                took = True
-        if took:
-            ages.append(ou_age)
     if "Betarabia" in odds.books.values():
         ages.append(b_age)
     ages = [a for a in ages if a is not None]
@@ -3233,7 +3242,8 @@ def log_pinnacle_value_bet(
         if settings.get("opposing_bet_prevention", True) and fixture_id:
             _opposing_sides = {"Home (1)": "Away (2)", "Away (2)": "Home (1)"}
             _opposing_ou = {"Over 2.5": "Under 2.5", "Under 2.5": "Over 2.5"}
-            _all_opposing = {**_opposing_sides, **_opposing_ou}
+            _opposing_btts = {"Yes": "No", "No": "Yes"}
+            _all_opposing = {**_opposing_sides, **_opposing_ou, **_opposing_btts}
             _opp_side = _all_opposing.get(selection)
             if _opp_side:
                 cur.execute(
@@ -3250,7 +3260,7 @@ def log_pinnacle_value_bet(
                     return
             # Also block if we already have ANY other OPEN bet on same fixture+market
             # (prevents 3-way bets on 1X2)
-            if market in ("Over/Under 2.5", "Over/Under 3.0", "Over/Under 2.0"):
+            if market in ("Over/Under 2.5", "Over/Under 3.0", "Over/Under 2.0", "BTTS"):
                 cur.execute(
                     "SELECT side FROM bet_log WHERE fixture_id=? AND market_type=? "
                     "AND result='OPEN' AND bet_source=?",
@@ -4850,21 +4860,28 @@ def settle_open_bets():
             # last pre-kickoff Pinnacle snapshot in sharp_odds_history. This tells us
             # objectively whether we beat the sharp market — even when our closing
             # Betarabia odds may not be representative.
+            # The bet's own kickoff picks THIS fixture's close: Pinnacle lists
+            # youth games under the senior names.
             pinnacle_clv = None
             try:
-                if market_type == "1X2":
-                    from tools.pinnacle_value import clv_from_pinnacle as _pclv
+                from tools.pinnacle_value import (
+                    clv_from_pinnacle as _pclv,
+                    clv_from_pinnacle_btts as _pclv_btts,
+                    clv_from_pinnacle_ou25 as _pclv_ou,
+                )
 
-                    _pclv_val = _pclv(
-                        bet_home, bet_away, bet_side or selection, entry_odds
-                    )
-                    if _pclv_val is not None and abs(_pclv_val) <= 0.40:
-                        pinnacle_clv = _pclv_val
-                elif market_type == "Over/Under 2.5":
-                    from tools.pinnacle_value import clv_from_pinnacle_ou25 as _pclv_ou
-
-                    _pclv_val = _pclv_ou(
-                        bet_home, bet_away, bet_side or selection, entry_odds
+                _pclv_fn = {
+                    "1X2": _pclv,
+                    "Over/Under 2.5": _pclv_ou,
+                    "BTTS": _pclv_btts,
+                }.get(market_type)
+                if _pclv_fn is not None:
+                    _pclv_val = _pclv_fn(
+                        bet_home,
+                        bet_away,
+                        bet_side or selection,
+                        entry_odds,
+                        kickoff_ts=_bet_kickoff,
                     )
                     if _pclv_val is not None and abs(_pclv_val) <= 0.40:
                         pinnacle_clv = _pclv_val
@@ -6033,19 +6050,19 @@ def update_dashboard_json(fixtures, results_cache):
                                     pass
                             elif (
                                 m_type == "BTTS"
-                                and market_allowed
+                                and (market_allowed or _vo_market)
                                 and odds
                                 and odds > 1.0
                             ):
                                 try:
                                     from tools.pinnacle_value import (
-                                        _fuzzy_match_ou25 as _pv_fuzzy_btts,
+                                        entry_for_fixture as _pv_entry_for,
                                         check_btts_value as _pv_btts_check,
                                     )
 
-                                    _pin_btts = _pin_btts_all.get(f"{home} vs {away}")
-                                    if _pin_btts is None:
-                                        _pin_btts = _pv_fuzzy_btts(home, away, _pin_btts_all)
+                                    _pin_btts = _pv_entry_for(
+                                        home, away, match_time, _pin_btts_all
+                                    )
                                     if _pin_btts:
                                         _pin_edge, _pin_data = _pv_btts_check(
                                             home,
@@ -7535,13 +7552,30 @@ def run_daemon():
             from src.daily_signal_alerts import (
                 maybe_send_morning_prompt,
                 alert_new_picks,
-                maybe_send_daily_summary,
             )
             maybe_send_morning_prompt()   # fires once at 07:30 UTC
             alert_new_picks()             # fires per new TIPSTER_FOREBET pick
-            maybe_send_daily_summary()    # fires once at 22:30 UTC
+            # maybe_send_daily_summary() covered TIPSTER_FOREBET only; with tipster
+            # strategies off it pushed "No bets settled today" every night.
+            # tools/daily_results (below) reports every strategy instead.
         except Exception as _dsa_err:
             print(f"[ALERTS] daily_signal_alerts error: {_dsa_err}")
+
+        # End-of-day results: what won, what lost, the net (once at 21:00 UTC).
+        try:
+            from tools.daily_results import maybe_send_daily_results
+
+            maybe_send_daily_results()
+        except Exception as _dr_err:
+            print(f"[DAILY RESULTS] error: {_dr_err}")
+
+        # Daily VALUE_ONLY report: is it beating Pinnacle's close? (once at 08:00 UTC)
+        try:
+            from tools.value_only_report import maybe_send_daily_report
+
+            maybe_send_daily_report()
+        except Exception as _vor_err:
+            print(f"[VALUE_ONLY REPORT] error: {_vor_err}")
 
         # ── Stair AI + Gemini reasoning engine ──────────────────────────────
         # Separate strategy from MODEL_VALUE_ALIGN — routes through the same

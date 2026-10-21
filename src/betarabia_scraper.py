@@ -22,6 +22,7 @@ import logging
 import os
 import datetime
 import json
+import time
 from playwright.async_api import async_playwright, TimeoutError
 
 # Set BETARABIA_HEADLESS=false in terminal to debug visually
@@ -127,6 +128,57 @@ async def _scout_event(page, eid, store) -> bool:
     except Exception as e:
         logger.warning(f"No deep markets captured for event {eid}: {e}")
         return False
+
+
+# Event pages are scouted within a time budget, not a count (it was the first 50
+# in feed order, started matches included). Must stay under the daemon's
+# _SCRAPE_MAX_RUNTIME_SEC with room for browser start-up and parsing.
+_SCOUT_BUDGET_SEC = 11 * 60
+
+
+def _events_to_scout(events_by_id, now_ts=None):
+    """Every event that has not kicked off, soonest kickoff first."""
+    now_ts = time.time() if now_ts is None else now_ts
+    upcoming = []
+    for eid, fx in events_by_id.items():
+        try:
+            ko = datetime.datetime.fromisoformat(
+                str(fx.get("kickoff_time", "")).replace("Z", "+00:00")
+            ).timestamp()
+        except Exception:
+            continue
+        if ko > now_ts:
+            upcoming.append((ko, eid))
+    return [eid for _, eid in sorted(upcoming)]
+
+
+async def _scout_events(eids, scout_one, recycle, budget_sec=_SCOUT_BUDGET_SEC, clock=time.monotonic):
+    """Scout events in order until the time budget runs out. Returns (captured, attempted).
+
+    recycle() is awaited every _PAGE_RECYCLE_EVERY pages (renderer heap is not
+    released between same-origin navigations). Events past the budget are
+    the latest kickoffs; the next run reaches them.
+    """
+    started = clock()
+    captured = attempted = 0
+    for idx, eid in enumerate(eids):
+        if clock() - started > budget_sec:
+            logger.info(
+                f"[DEEP] Time budget reached after {attempted} events; "
+                f"{len(eids) - attempted} left for the next run"
+            )
+            break
+        if idx and idx % _PAGE_RECYCLE_EVERY == 0:
+            await recycle()
+        try:
+            if await scout_one(eid):
+                captured += 1
+        except Exception as e:
+            logger.warning(f"Failed to fetch event {eid}: {e}")
+            # Short backoff so one bad page doesn't hammer the site
+            await asyncio.sleep(2)
+        attempted += 1
+    return captured, attempted
 
 # Market name mapping from SBTech oddCode → human-readable
 ODD_CODE_MAP = {
@@ -1264,43 +1316,37 @@ async def run_scraper():
             # ── Step 2.5: Visit individual event pages for FULL markets ──────
             # This captures corners, cards, and player props
             temp_events = parse_kickertech_events(ApiResponses_V.as_list())
-            today_event_ids = list(
-                filter_todays_fixtures(temp_events, DAYS_AHEAD).keys()
-            )
-
+            today_events = filter_todays_fixtures(temp_events, DAYS_AHEAD)
+            scout_ids = _events_to_scout(today_events)
             logger.info(
-                f"Found {len(today_event_ids)} events for today. Fetching full markets for top 50..."
+                f"Found {len(today_events)} events for today; scouting {len(scout_ids)} "
+                f"upcoming, soonest first (budget {_SCOUT_BUDGET_SEC // 60} min)..."
             )
-            # Limiting to 50 for performance
-            DeepCaptured_V = 0
-            for Idx_V, eid in enumerate(today_event_ids[:50]):
+            pages = {"page": page}
+
+            async def _recycle():
+                # Driving one page through dozens of same-origin SPA loads grew the
+                # renderer to 1.34 GB — the JS heap plus the response bodies
+                # Playwright must retain while the page lives. A fresh page drops both.
                 try:
-                    # Recycle the page every _PAGE_RECYCLE_EVERY navigations. Driving
-                    # one page through 50 same-origin SPA loads grew the renderer to
-                    # 1.34 GB — the JS heap plus the response bodies Playwright must
-                    # retain while the page lives. A fresh page drops both.
-                    if Idx_V and Idx_V % _PAGE_RECYCLE_EVERY == 0:
-                        try:
-                            await page.close()
-                        except Exception:
-                            pass
-                        page = await context.new_page()
-                        page.on("response", handle_response)
-                        logger.info(
-                            f"[MEM] Recycled scraper page after {Idx_V} events "
-                            f"({len(ApiResponses_V)} payloads retained)"
-                        )
+                    await pages["page"].close()
+                except Exception:
+                    pass
+                pages["page"] = await context.new_page()
+                pages["page"].on("response", handle_response)
+                logger.info(
+                    f"[MEM] Recycled scraper page ({len(ApiResponses_V)} payloads retained)"
+                )
 
-                    logger.info(f"Scouting full markets: event {eid}")
-                    if await _scout_event(page, eid, ApiResponses_V):
-                        DeepCaptured_V += 1
-                except Exception as e:
-                    logger.warning(f"Failed to fetch event {eid}: {e}")
-                    # Short backoff so one bad page doesn't hammer the site
-                    await asyncio.sleep(2)
+            async def _one(eid):
+                logger.info(f"Scouting full markets: event {eid}")
+                return await _scout_event(pages["page"], eid, ApiResponses_V)
+
+            DeepCaptured_V, Scouted_V = await _scout_events(scout_ids, _one, _recycle)
+            page = pages["page"]
             logger.info(
-                f"[DEEP] Captured deep markets for {DeepCaptured_V}/"
-                f"{len(today_event_ids[:50])} events"
+                f"[DEEP] Captured deep markets for {DeepCaptured_V}/{Scouted_V} events "
+                f"({len(scout_ids)} upcoming)"
             )
 
             # Debug dump of the captured payloads. Off by default: json.dump with

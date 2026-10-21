@@ -167,9 +167,10 @@ def _fuzzy_match_ou25(home: str, away: str, candidates: dict, threshold: float =
     return best_val if best_score >= threshold else None
 
 
-def ou25_for_fixture(home: str, away: str, kickoff, candidates: dict):
-    """The Pinnacle O/U 2.5 entry for THIS fixture: exact name, then fuzzy, and
-    only if it kicks off within _KICKOFF_WINDOW_SEC of the fixture."""
+def entry_for_fixture(home: str, away: str, kickoff, candidates: dict):
+    """The Pinnacle entry (O/U 2.5, BTTS — any 'Home vs Away' keyed dict with
+    starts_ts) for THIS fixture: exact name, then fuzzy, and only if it kicks
+    off within _KICKOFF_WINDOW_SEC of the fixture."""
     rec = candidates.get(f"{home} vs {away}") or _fuzzy_match_ou25(home, away, candidates)
     if not rec:
         return None
@@ -177,6 +178,9 @@ def ou25_for_fixture(home: str, away: str, kickoff, candidates: dict):
     if k is not None and s and abs(float(s) - k) > _KICKOFF_WINDOW_SEC:
         return None
     return rec
+
+
+ou25_for_fixture = entry_for_fixture
 
 
 _PIN_PAIRS_CACHE = {"ts": 0.0, "pairs": []}
@@ -446,57 +450,40 @@ def check_btts_value(
     return 0.0, None
 
 
-def clv_from_pinnacle_ou25(home: str, away: str, selection: str, entry_odds: float):
-    """
-    Compute CLV for an O/U 2.5 bet using Pinnacle's stored snapshot.
+def _clv(home, away, pin_sel, entry_odds, kickoff_ts):
+    """entry_odds / last Pinnacle price - 1 for this fixture, or None.
 
-    selection: "Over 2.5" | "Under 2.5" (or "over"/"under")
-    Reads the latest sharp_odds_history row where selection is "over_2.5" or "under_2.5".
-    Returns float CLV or None if no data.
+    Goes through get_pinnacle_latest(): exact names then fuzzy, and with a
+    kickoff only this fixture's rows — Pinnacle lists youth games under the
+    senior names, so names alone can return another game's close.
     """
+    if not pin_sel or not entry_odds:
+        return None
+    pin = get_pinnacle_latest(home, away, pin_sel, kickoff_ts)
+    if pin is None or not pin["decimal_odds"] or pin["decimal_odds"] <= 1.0:
+        return None
+    return round(entry_odds / pin["decimal_odds"] - 1.0, 4)
+
+
+def clv_from_pinnacle_ou25(home: str, away: str, selection: str, entry_odds: float, kickoff_ts=None):
+    """CLV for an O/U 2.5 bet ("Over 2.5" / "Under 2.5") against Pinnacle's
+    stored over_2.5 / under_2.5 rows. Returns float CLV or None if no data."""
     sel_lower = (selection or "").lower()
-    if "over" in sel_lower:
-        pin_sel = "over_2.5"
-    elif "under" in sel_lower:
-        pin_sel = "under_2.5"
-    else:
-        return None
-
-    if not os.path.exists(_COMPLETED_DB):
-        return None
-
-    try:
-        con = sqlite3.connect(_COMPLETED_DB, timeout=5)
-        con.row_factory = sqlite3.Row
-        h_norm = _normalize_team(home)
-        a_norm = _normalize_team(away)
-        row = con.execute(
-            "SELECT decimal_odds FROM sharp_odds_history "
-            "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
-            "AND selection=? ORDER BY ts DESC LIMIT 1",
-            (h_norm, a_norm, pin_sel),
-        ).fetchone()
-        con.close()
-        if not row:
-            return None
-        pin_odds = row["decimal_odds"]
-        if not pin_odds or pin_odds <= 1.0:
-            return None
-        return round(entry_odds / pin_odds - 1.0, 4)
-    except Exception:
-        return None
+    pin_sel = "over_2.5" if "over" in sel_lower else "under_2.5" if "under" in sel_lower else None
+    return _clv(home, away, pin_sel, entry_odds, kickoff_ts)
 
 
-def clv_from_pinnacle(home: str, away: str, selection: str, entry_odds: float):
+def clv_from_pinnacle_btts(home: str, away: str, selection: str, entry_odds: float, kickoff_ts=None):
+    """CLV for a BTTS bet ("Yes" / "No") against Pinnacle's btts_yes / btts_no rows."""
+    sel_lower = (selection or "").lower()
+    pin_sel = "btts_yes" if "yes" in sel_lower else "btts_no" if "no" in sel_lower else None
+    return _clv(home, away, pin_sel, entry_odds, kickoff_ts)
+
+
+def clv_from_pinnacle(home: str, away: str, selection: str, entry_odds: float, kickoff_ts=None):
     """
     Compute CLV = entry_odds / pinnacle_current_odds - 1.
     Called at settlement time to record how much we beat the closing line.
     Returns float or None.
     """
-    pin = get_pinnacle_latest(home, away, selection)
-    if pin is None:
-        return None
-    if not pin["decimal_odds"] or pin["decimal_odds"] <= 1.0:
-        return None
-    return round(entry_odds / pin["decimal_odds"] - 1.0, 4)
+    return _clv(home, away, _SEL_MAP.get(selection, (selection or "").lower()), entry_odds, kickoff_ts)

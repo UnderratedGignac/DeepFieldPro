@@ -15,7 +15,8 @@ Feed: eu-offering-api.kambicdn.com/offering/v2018/ub/listView/football.json
 Public API:
     fetch_kambi_1x2() -> { 'Home vs Away': {home,draw,away,home_team,away_team,start,starts_ts,league,event_id,state} }
     fetch_kambi_ou25() -> { 'Home vs Away': {over,under,home_team,away_team,starts_ts,league} }
-Cached (90s for 1X2, 300s for O/U).
+    fetch_kambi_btts() -> { 'Home vs Away': {yes,no,home_team,away_team,starts_ts,league} }
+Cached (90s for 1X2, 300s for O/U and BTTS).
 """
 
 import time
@@ -57,6 +58,16 @@ def _starts_ts(iso):
         return None
 
 
+def _is_esports(e):
+    """eSports / virtual football: FIFA player names in parens, "Esports"/"Cyber"
+    leagues. Not real matches; they would pollute line-shopping."""
+    league_l = (e.get("group") or "").lower()
+    if any(t in league_l for t in ("esport", "cyber", "battle", "2x4", "2x5", "2x6", "virtual")):
+        return True
+    home = e.get("homeName") or ""
+    return "(" in home and ")" in home
+
+
 def fetch_kambi_1x2():
     if (time.time() - _cache["ts"]) < _TTL and _cache["data"]:
         return _cache["data"]
@@ -74,15 +85,7 @@ def fetch_kambi_1x2():
         home, away = e.get("homeName"), e.get("awayName")
         if not home or not away:
             continue
-        # Skip eSports / virtual football (FIFA player names in parens, "Esports"/"Cyber"
-        # leagues) — not real matches, would pollute line-shopping.
-        league_l = (e.get("group") or "").lower()
-        if any(
-            t in league_l
-            for t in ("esport", "cyber", "battle", "2x4", "2x5", "2x6", "virtual")
-        ):
-            continue
-        if "(" in home and ")" in home:  # "Real Madrid (player)" = esports
+        if _is_esports(e):
             continue
         prices = {}
         for bo in ev.get("betOffers") or []:
@@ -230,6 +233,74 @@ def fetch_kambi_ou25():
         }
     _ou_cache["ts"] = time.time()
     _ou_cache["data"] = out
+    return out
+
+
+# ── Both Teams To Score ─────────────────────────────────────────────────────
+# One listView request with category 11942 returns the BTTS offer for every
+# listed event (criterion 1001642858, outcomes OT_YES / OT_NO in thousandths).
+_BTTS_URL = _URL + "&category=11942"
+_BTTS_CRITERION_ID = 1001642858
+_BTTS_TTL = 300
+_btts_cache = {"ts": 0.0, "data": {}}
+
+
+def parse_btts(events, now_ts=None):
+    """{'Home vs Away': {yes, no, home_team, away_team, starts_ts, league}}.
+
+    Real pre-match events only: in-play prices are not comparable with a
+    pre-kickoff fair price, and a suspended side (odds None) is skipped.
+    """
+    now_ts = time.time() if now_ts is None else now_ts
+    out = {}
+    for ev in events or []:
+        e = ev.get("event") or {}
+        home, away = e.get("homeName"), e.get("awayName")
+        starts = _starts_ts(e.get("start"))
+        if not home or not away or _is_esports(e):
+            continue
+        if e.get("state") != "NOT_STARTED" or not starts or starts <= now_ts:
+            continue
+        for bo in ev.get("betOffers") or []:
+            if (bo.get("criterion") or {}).get("id") != _BTTS_CRITERION_ID:
+                continue
+            prices = {}
+            for oc in bo.get("outcomes") or []:
+                side = {"OT_YES": "yes", "OT_NO": "no"}.get(oc.get("type"))
+                if side and oc.get("odds"):
+                    prices[side] = round(oc["odds"] / 1000.0, 3)
+            if "yes" in prices and "no" in prices:
+                out[f"{home} vs {away}"] = {
+                    **prices,
+                    "home_team": home,
+                    "away_team": away,
+                    "starts_ts": starts,
+                    "league": e.get("group") or "",
+                }
+            break
+    return out
+
+
+def btts_cache_age_min():
+    """Minutes since the current Kambi BTTS snapshot was fetched, or None if never."""
+    if not _btts_cache.get("ts"):
+        return None
+    return (time.time() - _btts_cache["ts"]) / 60.0
+
+
+def fetch_kambi_btts():
+    if (time.time() - _btts_cache["ts"]) < _BTTS_TTL and _btts_cache["data"]:
+        return _btts_cache["data"]
+    try:
+        r = requests.get(_BTTS_URL, headers=_H, timeout=20)
+        if r.status_code != 200:
+            return _btts_cache["data"] or {}
+        out = parse_btts(r.json().get("events"))
+    except Exception as e:
+        print(f"[KAMBI] BTTS feed error: {e}")
+        return _btts_cache["data"] or {}
+    _btts_cache["ts"] = time.time()
+    _btts_cache["data"] = out
     return out
 
 
