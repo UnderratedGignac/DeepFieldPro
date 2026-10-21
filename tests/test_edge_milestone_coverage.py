@@ -31,6 +31,7 @@ EXPECTED = {
     "MODEL_VALUE_ALIGN",
     "PINNACLE_VALUE",
     "STAIR_AI",
+    "VALUE_ONLY",
 }
 
 

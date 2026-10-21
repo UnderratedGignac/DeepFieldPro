@@ -19,6 +19,43 @@ from difflib import SequenceMatcher
 from src.name_matching import _level_signature
 
 
+_SIDE_MIN_SIMILARITY = 0.5
+# A Pinnacle price must belong to the fixture's own kickoff: same-name games in
+# other competitions (youth, reserves, women) kick off hours apart.
+_KICKOFF_WINDOW_SEC = 3 * 3600
+
+
+def _side_ok(name: str, cand: str) -> bool:
+    """Each team must match on its own; a long shared home name is not enough.
+
+    Scoring only the joined "home vs away" string resolved "Independiente
+    Santa Fe vs Once Caldas" to Santa Fe vs Corinthians.
+    """
+    a, b = _normalize_team(name), _normalize_team(cand)
+    if not a or not b:
+        return False
+    return a == b or a in b or b in a or SequenceMatcher(None, a, b).ratio() >= _SIDE_MIN_SIMILARITY
+
+
+def _to_ts(kickoff):
+    """Epoch seconds from a float or an ISO string; None when unparseable."""
+    if kickoff is None:
+        return None
+    try:
+        return float(kickoff)
+    except (TypeError, ValueError):
+        pass
+    try:
+        import datetime as _dt
+
+        d = _dt.datetime.fromisoformat(str(kickoff).replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=_dt.timezone.utc)
+        return d.timestamp()
+    except Exception:
+        return None
+
+
 def _same_level(home: str, away: str, cand_home: str, cand_away: str) -> bool:
     """True when both sides are the same squad level (senior / uNN / reserve / youth).
 
@@ -119,6 +156,8 @@ def _fuzzy_match_ou25(home: str, away: str, candidates: dict, threshold: float =
         parts = key.split(" vs ", 1)
         if len(parts) != 2 or not _same_level(home, away, parts[0], parts[1]):
             continue
+        if not (_side_ok(home, parts[0]) and _side_ok(away, parts[1])):
+            continue
         candidate = f"{_normalize_team(parts[0])} vs {_normalize_team(parts[1])}"
         score = SequenceMatcher(None, query, candidate).ratio()
         if score > best_score:
@@ -126,6 +165,18 @@ def _fuzzy_match_ou25(home: str, away: str, candidates: dict, threshold: float =
             best_val = val
 
     return best_val if best_score >= threshold else None
+
+
+def ou25_for_fixture(home: str, away: str, kickoff, candidates: dict):
+    """The Pinnacle O/U 2.5 entry for THIS fixture: exact name, then fuzzy, and
+    only if it kicks off within _KICKOFF_WINDOW_SEC of the fixture."""
+    rec = candidates.get(f"{home} vs {away}") or _fuzzy_match_ou25(home, away, candidates)
+    if not rec:
+        return None
+    k, s = _to_ts(kickoff), rec.get("starts_ts")
+    if k is not None and s and abs(float(s) - k) > _KICKOFF_WINDOW_SEC:
+        return None
+    return rec
 
 
 _PIN_PAIRS_CACHE = {"ts": 0.0, "pairs": []}
@@ -173,6 +224,8 @@ def _fuzzy_resolve_pair(home: str, away: str, kickoff_ts=None):
     for ph, pa in _PIN_PAIRS_CACHE["pairs"]:
         if not _same_level(home, away, ph, pa):
             continue
+        if not (_side_ok(home, ph) and _side_ok(away, pa)):
+            continue
         candidate = f"{_normalize_team(ph)} vs {_normalize_team(pa)}"
         score = SequenceMatcher(None, query, candidate).ratio()
         if score > best_score:
@@ -192,40 +245,32 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
     pin_sel = _SEL_MAP.get(selection, selection.lower())
     if not os.path.exists(_COMPLETED_DB):
         return None
+    kick = _to_ts(kickoff_ts)
 
     def _lookup(con, h, a):
         h_norm = _normalize_team(h)
         a_norm = _normalize_team(a)
-        count_row = con.execute(
-            "SELECT COUNT(*) as cnt FROM sharp_odds_history "
+        where = (
             "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=?",
-            (h_norm, a_norm),
+            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
+        )
+        params = [h_norm, a_norm]
+        # With a kickoff, only this fixture's rows: the same names also carry
+        # youth/reserve games hours earlier, whose prices were being returned.
+        if kick is not None:
+            where += "AND (starts_ts IS NULL OR starts_ts BETWEEN ? AND ?) "
+            params += [kick - _KICKOFF_WINDOW_SEC, kick + _KICKOFF_WINDOW_SEC]
+        count_row = con.execute(
+            "SELECT COUNT(*) as cnt FROM sharp_odds_history " + where, params
         ).fetchone()
         snapshot_count = count_row["cnt"] if count_row else 0
 
-        query = (
+        row = con.execute(
             "SELECT devig_prob, decimal_odds, ts FROM sharp_odds_history "
-            "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
-            "AND selection=? ORDER BY ts DESC LIMIT 1"
-        )
-        row = con.execute(query, (h_norm, a_norm, pin_sel)).fetchone()
-        if not row and kickoff_ts:
-            row = con.execute(
-                "SELECT devig_prob, decimal_odds, ts FROM sharp_odds_history "
-                "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-                "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
-                "AND selection=? "
-                "AND starts_ts BETWEEN ? AND ? ORDER BY ts DESC LIMIT 1",
-                (
-                    h_norm,
-                    a_norm,
-                    pin_sel,
-                    float(kickoff_ts) - 7200,
-                    float(kickoff_ts) + 3600,
-                ),
-            ).fetchone()
+            + where
+            + "AND selection=? ORDER BY ts DESC LIMIT 1",
+            params + [pin_sel],
+        ).fetchone()
         if not row:
             return None
         devig_prob = row["devig_prob"]

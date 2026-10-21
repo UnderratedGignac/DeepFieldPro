@@ -196,6 +196,22 @@ def _is_regular(item):
     return (item.get("units") or "Regular") == "Regular"
 
 
+def _with_level(name, league):
+    """Carry a youth/reserve league's level onto a participant name.
+
+    Pinnacle lists "UEFA - Youth League U19" and "Mexico - U21 League" games
+    under the senior team names, so the U19 Bayern Munich vs Arsenal shared
+    history rows (and an O/U key) with the senior match. "Bayern Munich U19"
+    keeps them apart and lets name_matching's level guard tell them apart.
+    """
+    from src.name_matching import _level_signature
+
+    lvl = _level_signature(league or "")
+    if not name or lvl == "senior" or _level_signature(name) != "senior":
+        return name
+    return f"{name} {({'reserve': 'Reserves', 'youth': 'Youth'}).get(lvl, lvl.upper())}"
+
+
 def fetch_1x2_snapshot():
     """
     Fetch current Pinnacle 1X2 odds for all upcoming soccer matches.
@@ -266,9 +282,9 @@ def fetch_1x2_snapshot():
         if starts_ts and starts_ts < now_ts - 120:
             continue
 
-        home_name = home_p.get("name", "")
-        away_name = away_p.get("name", "")
         league = item.get("league", {}).get("name", "")
+        home_name = _with_level(home_p.get("name", ""), league)
+        away_name = _with_level(away_p.get("name", ""), league)
 
         results.append(
             {
@@ -655,14 +671,17 @@ def fetch_pinnacle_totals(line=2.5):
                 if not o_dec or not u_dec:
                     continue
                 inv = 1 / o_dec + 1 / u_dec
-                result[f"{home_p['name']} vs {away_p['name']}"] = {
+                league = (item.get("league") or {}).get("name", "")
+                home_name = _with_level(home_p["name"], league)
+                away_name = _with_level(away_p["name"], league)
+                result[f"{home_name} vs {away_name}"] = {
                     "over": o_dec,
                     "under": u_dec,
                     "p_over": round((1 / o_dec) / inv, 4),
                     "p_under": round((1 / u_dec) / inv, 4),
                     "starts_ts": starts_ts,
-                    "_home": home_p["name"],
-                    "_away": away_p["name"],
+                    "_home": home_name,
+                    "_away": away_name,
                 }
                 break
         return result

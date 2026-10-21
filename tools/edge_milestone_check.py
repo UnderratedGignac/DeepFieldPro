@@ -54,6 +54,7 @@ TRACKED = [
     ("AI", "AI", N_MIN),
     ("MODEL_VAL", "MODEL_VALUE_ALIGN", N_MIN),
     ("PIN_VALUE", "PINNACLE_VALUE", N_MIN),
+    ("VAL_ONLY", "VALUE_ONLY", N_MIN),
     ("STAIR_AI", "STAIR_AI", N_MIN),
     ("ALL", "%", N_MIN),
 ]

@@ -2378,10 +2378,10 @@ def find_betarabia_odds(home_team, away_team):
     Looks up a match in primary bookmaker feeds (Kambi/Unibet, Pinnacle, Betarabia fallback).
     Returns a dict with market keys and selection odds.
 
-    A Kambi match supplies the 1X2; Betarabia supplies every other market; for
-    Over/Under 2.5 each side takes the better of Kambi and Betarabia. The
-    returned odds carry .books, naming the bookmaker behind each price — a
-    Kambi price is only real at a Kambi-powered book.
+    For 1X2 and Over/Under 2.5 each selection takes the better of Kambi and
+    Betarabia; Betarabia supplies every other market. The returned odds carry
+    .books, naming the bookmaker behind each price — a Kambi price is only
+    real at a Kambi-powered book.
 
     Also publishes _betarabia_odds_age_min — how old the returned odds are, read
     by the bet gate as `odds_fresh`. It MUST be set on every return path: it is a
@@ -2405,10 +2405,14 @@ def find_betarabia_odds(home_team, away_team):
     ages = []
     if kambi is not None:
         k_prices, k_age = kambi
-        odds.books = {k: v for k, v in odds.books.items() if k[0] != "1X2"}
-        odds["1X2"] = k_prices
-        odds.books.update({("1X2", s): "Kambi" for s in k_prices})
-        ages.append(k_age)
+        took = False
+        for side, px in k_prices.items():
+            if px > (odds["1X2"].get(side) or 0):
+                odds["1X2"][side] = px
+                odds.books[("1X2", side)] = "Kambi"
+                took = True
+        if took:
+            ages.append(k_age)
     if kambi_ou is not None:
         ou_prices, ou_age = kambi_ou
         took = False
@@ -3171,6 +3175,13 @@ def log_steam_bet(
         print(f"[STEAM BET] error: {e}")
 
 
+# bet_source -> (on/off setting, max-edge setting, default max edge %, bet_id prefix)
+_VALUE_STRATEGIES = {
+    "PINNACLE_VALUE": ("pinnacle_value_betting_enabled", "pinnacle_max_edge_pct", 8.0, "PV_"),
+    "VALUE_ONLY": ("value_only_betting_enabled", "value_only_max_edge_pct", 15.0, "VO_"),
+}
+
+
 def log_pinnacle_value_bet(
     match,
     market,
@@ -3180,17 +3191,24 @@ def log_pinnacle_value_bet(
     fixture_id=None,
     league=None,
     pinnacle_data=None,
+    bet_source="PINNACLE_VALUE",
+    book=None,
+    fixture_ns=None,
+    kickoff_time=None,
 ):
-    """Shadow bet when Betarabia price exceeds de-vigged Pinnacle fair value by >= min_edge.
+    """Shadow bet when a soft-book price exceeds de-vigged Pinnacle fair value by >= min_edge.
 
     Uses the same Kelly sizing as STEAM (bankroll-proportional or flat fallback).
-    bet_source='PINNACLE_VALUE', settled automatically by settle_open_bets.
-    Gated by settings.pinnacle_value_betting_enabled (default False — measure first).
+    Settled automatically by settle_open_bets. bet_source picks the strategy —
+    PINNACLE_VALUE (settings.pinnacle_value_betting_enabled) or VALUE_ONLY
+    (settings.value_only_betting_enabled) — and each keeps its own switch,
+    dedup, edge cap and ledger. `book` records where the price is on offer.
     """
+    switch, cap_key, cap_default, id_prefix = _VALUE_STRATEGIES[bet_source]
     settings = load_settings()
     if settings.get("tipster_only_mode", False):
         return
-    if not settings.get("pinnacle_value_betting_enabled", False):
+    if not settings.get(switch, False):
         return
     if _implausible_odds(market, odds):
         return
@@ -3202,8 +3220,8 @@ def log_pinnacle_value_bet(
         cur = conn.cursor()
         cur.execute(
             "SELECT COUNT(*) FROM bet_log WHERE match_id=? AND market_type=? AND side=? "
-            "AND bet_source='PINNACLE_VALUE'",
-            (match, market, selection),
+            "AND bet_source=?",
+            (match, market, selection, bet_source),
         )
         if cur.fetchone()[0] > 0:
             conn.close()
@@ -3220,8 +3238,8 @@ def log_pinnacle_value_bet(
             if _opp_side:
                 cur.execute(
                     "SELECT COUNT(*) FROM bet_log WHERE fixture_id=? AND market_type=? "
-                    "AND side=? AND result='OPEN'",
-                    (str(fixture_id), market, _opp_side),
+                    "AND side=? AND result='OPEN' AND bet_source=?",
+                    (str(fixture_id), market, _opp_side, bet_source),
                 )
                 if cur.fetchone()[0] > 0:
                     print(
@@ -3235,8 +3253,8 @@ def log_pinnacle_value_bet(
             if market in ("Over/Under 2.5", "Over/Under 3.0", "Over/Under 2.0"):
                 cur.execute(
                     "SELECT side FROM bet_log WHERE fixture_id=? AND market_type=? "
-                    "AND result='OPEN'",
-                    (str(fixture_id), market),
+                    "AND result='OPEN' AND bet_source=?",
+                    (str(fixture_id), market, bet_source),
                 )
                 existing_sides = {r[0] for r in cur.fetchall()}
                 if existing_sides and selection not in existing_sides:
@@ -3247,9 +3265,9 @@ def log_pinnacle_value_bet(
                     conn.close()
                     return
 
-        # P1 FIX: Max edge cap for PINNACLE_VALUE bets.
-        # Data shows edges > 8% are model error, not real value.
-        _max_edge = settings.get("pinnacle_max_edge_pct", 8.0)
+        # P1 FIX: Max edge cap. Edges this large have mostly been mismatched
+        # fixtures or stale prices, not real value. Per strategy.
+        _max_edge = settings.get(cap_key, cap_default)
         if pinnacle_edge_pct > _max_edge:
             print(
                 f"[PINNACLE VALUE] Edge {pinnacle_edge_pct:.1f}% exceeds cap "
@@ -3272,7 +3290,7 @@ def log_pinnacle_value_bet(
         try:
             from src.strategy_ledger import strategy_ledgers
             ledgers = strategy_ledgers(db_path)
-            led = ledgers.get("PINNACLE_VALUE")
+            led = ledgers.get(bet_source)
             if led:
                 strategy_balance = float(led["balance"])
         except Exception as _br_err:
@@ -3307,13 +3325,20 @@ def log_pinnacle_value_bet(
             conn.close()
             return
 
-        bet_id = "PV_" + uuid.uuid4().hex[:12]
+        bet_id = id_prefix + uuid.uuid4().hex[:12]
         fair_odds_val = (pinnacle_data or {}).get("fair_odds", odds)
+        # Idempotent, as in log_ai_bet: older ledgers lack these columns.
+        for _col in ("book", "fixture_ns", "kickoff_time"):
+            try:
+                cur.execute(f"ALTER TABLE bet_log ADD COLUMN {_col} TEXT")
+            except Exception:
+                pass
         cur.execute(
             """INSERT INTO bet_log
                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake,
-                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league,
+                book, fixture_ns, kickoff_time)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 bet_id,
                 match,
@@ -3326,12 +3351,15 @@ def log_pinnacle_value_bet(
                 "OPEN",
                 0.0,
                 datetime.datetime.now().isoformat(),
-                "PINNACLE_VALUE",
+                bet_source,
                 1,
                 2.5,
                 selection,
                 str(fixture_id) if fixture_id is not None else None,
                 league,
+                book,
+                fixture_ns,
+                kickoff_time,
             ),
         )
         # P5: Line-shop: record the BEST price across Betarabia + Kambi + Pinnacle.
@@ -3410,11 +3438,11 @@ def log_pinnacle_value_bet(
                 f"🚨 Match: {match}\n"
                 f"📌 Pick: {_pick} ({market})\n"
                 f"🏆 League: {league or 'Unknown'} ({_nation})\n"
-                f"💰 Odds: {odds:.2f} (Betarabia)\n"
+                f"💰 Odds: {odds:.2f} ({book or 'Betarabia'})\n"
                 f"📈 Edge: +{pinnacle_edge_pct:.1f}% (Pinnacle CLV)\n"
                 f"📊 Stake ($45 Bankroll): ${rec_stake:.2f}"
                 f"{_ctx_block}\n"
-                f"🛡️ Strategy: PINNACLE_VALUE",
+                f"🛡️ Strategy: {bet_source}",
                 title="VALUE SIGNAL",
                 priority="high",
                 tags="moneybag,soccer",
@@ -5947,10 +5975,15 @@ def update_dashboard_json(fixtures, results_cache):
                                 settings.get("pinnacle_min_edge_pct", 3.0) / 100.0
                             )
                             _pin_edge, _pin_data = 0.0, None
+                            # VALUE_ONLY has its own market list and takes draws
+                            # (the draw exclusion protects the model; it has none),
+                            # so the edge is computed for its markets too.
+                            _vo_market = settings.get(
+                                "value_only_betting_enabled", False
+                            ) and m_type in (settings.get("value_only_markets") or [])
                             if (
                                 m_type == "1X2"
-                                and market_allowed
-                                and not draw_excluded
+                                and ((market_allowed and not draw_excluded) or _vo_market)
                                 and odds
                                 and odds > 1.0
                             ):
@@ -5972,21 +6005,21 @@ def update_dashboard_json(fixtures, results_cache):
                                     pass
                             elif (
                                 m_type == "Over/Under 2.5"
-                                and market_allowed
+                                and (market_allowed or _vo_market)
                                 and odds
                                 and odds > 1.0
                             ):
                                 try:
                                     from tools.pinnacle_value import (
-                                        _fuzzy_match_ou25 as _pv_fuzzy,
+                                        ou25_for_fixture as _pv_ou25_for,
                                         check_ou25_value as _pv_ou25_check,
                                     )
 
-                                    # Exact match first; fall back to fuzzy (handles
-                                    # "Manchester City" vs "Man City" etc.)
-                                    _pin_ou25 = _pin_ou25_all.get(f"{home} vs {away}")
-                                    if _pin_ou25 is None:
-                                        _pin_ou25 = _pv_fuzzy(home, away, _pin_ou25_all)
+                                    # Exact name, then fuzzy ("Man City" vs "Manchester
+                                    # City"), and only this fixture's kickoff.
+                                    _pin_ou25 = _pv_ou25_for(
+                                        home, away, match_time, _pin_ou25_all
+                                    )
                                     if _pin_ou25:
                                         _pin_edge, _pin_data = _pv_ou25_check(
                                             home,
@@ -6209,6 +6242,41 @@ def update_dashboard_json(fixtures, results_cache):
                                     fixture_id=fid,
                                     league=league,
                                     pinnacle_data=_pin_data,
+                                    book=getattr(odds_dict, "books", {}).get((m_type, key)),
+                                    fixture_ns=fns,
+                                    kickoff_time=match_time,
+                                )
+
+                            # VALUE_ONLY: any price beating Pinnacle's fair price by the
+                            # minimum edge, no model check, its own markets and record.
+                            _vo_qualifies = _GATES.record(
+                                "VALUE_ONLY",
+                                {
+                                    "enabled": _vo_market,
+                                    "pin_edge_positive": _pin_edge > 0,
+                                    "not_pinnacle_fallback": not _pinnacle_fallback_used,
+                                    "has_odds": odds,
+                                    "min_odds": odds and odds >= dfp_settings.MODEL_MIN_ODDS,
+                                    "league_not_blocked": not league_blocked,
+                                    "odds_fresh": odds_fresh,
+                                    "pv_league_ok": _pv_league_ok,
+                                    "not_kicked_off": not _kickoff_passed(match_time),
+                                },
+                            )
+                            if _vo_qualifies:
+                                log_pinnacle_value_bet(
+                                    f"{home} vs {away}",
+                                    m_type,
+                                    sel_name,
+                                    odds,
+                                    _pin_edge * 100.0,
+                                    fixture_id=fid,
+                                    league=league,
+                                    pinnacle_data=_pin_data,
+                                    bet_source="VALUE_ONLY",
+                                    book=getattr(odds_dict, "books", {}).get((m_type, key)),
+                                    fixture_ns=fns,
+                                    kickoff_time=match_time,
                                 )
 
                             # VALUE_STEAM_ALIGN: Consensus strategy combining Pinnacle Value + Pinnacle Steam

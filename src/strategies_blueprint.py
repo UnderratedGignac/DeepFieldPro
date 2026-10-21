@@ -29,6 +29,7 @@ _LABELS = {
     "PINNACLE_STEAM": "Pinnacle Steam",
     "SHARP_STEAM": "Sharp Steam",
     "PINNACLE_VALUE": "Pinnacle Value",
+    "VALUE_ONLY": "Value Only (beats Pinnacle, no model)",
     "VALUE_STEAM_ALIGN": "Value + Steam Consensus",
     "MODEL_VALUE_ALIGN": "Model + Value Consensus",
     "AI": "Dixon-Coles Model (AI)",
