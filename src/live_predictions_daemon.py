@@ -1273,6 +1273,34 @@ def log_prediction_to_db(pred_res, has_lineup):
         print("Error logging prediction to DB:", e)
 
 
+class _PredictionMap(dict):
+    """fixture_id -> prediction, findable by either str or int id.
+
+    Fixture ids arrive as int (ESPN/Sofascore) or str (the Kickertech id the
+    Betarabia fallback reads from odds_stream.db). A plain int-keyed dict made
+    every str lookup miss, so Betarabia fixtures never reached the bet gates.
+    """
+
+    @staticmethod
+    def _key(fid):
+        try:
+            return int(fid)
+        except (ValueError, TypeError):
+            return str(fid)
+
+    def __setitem__(self, fid, value):
+        super().__setitem__(self._key(fid), value)
+
+    def __getitem__(self, fid):
+        return super().__getitem__(self._key(fid))
+
+    def __contains__(self, fid):
+        return super().__contains__(self._key(fid))
+
+    def get(self, fid, default=None):
+        return super().get(self._key(fid), default)
+
+
 def load_predictions_from_db():
     db_path = os.path.join(DATA_DIR, "bet_log.db")
     if not os.path.exists(db_path):
@@ -1298,7 +1326,7 @@ def load_predictions_from_db():
         rows = cur.fetchall()
         conn.close()
 
-        preds = {}
+        preds = _PredictionMap()
         for r in rows:
             extra = {}
             if has_extra_json and r["extra_json"]:
@@ -2262,23 +2290,30 @@ def fetch_betarabia_odds():
     return matches, None
 
 
-def find_betarabia_odds(home_team, away_team):
-    """
-    Looks up a match in primary bookmaker feeds (Kambi/Unibet, Pinnacle, Betarabia fallback).
-    Returns a dict with market keys and selection odds.
+def _empty_odds_dict():
+    return {
+        "1X2": {},
+        "Over/Under 2.5": {},
+        "Over/Under 3.0": {},
+        "Over/Under 2.0": {},
+        "BTTS": {},
+        "Double Chance": {},
+        "Draw No Bet": {},
+        "Corners": {},
+        "Total Cards": {},
+        "Goalscorer": {},
+        "Player Shots on Target": {},
+    }
 
-    Also publishes _betarabia_odds_age_min — how old the returned odds are, read
-    by the bet gate as `odds_fresh`. It MUST be set on every return path: it is a
-    module global, so any path that leaves it untouched makes this fixture
-    inherit the previous fixture's staleness. That bug rejected 43% of
-    selections as stale when only 9% of fixtures actually were.
-    """
-    global _betarabia_odds_age_min
-    _betarabia_odds_age_min = None  # unknown until a tier answers
 
-    # Tier 1: Try Kambi (Unibet public API) for clean live odds
+def _kambi_1x2(home_team, away_team):
+    """Kambi's 1X2 for this fixture as (prices, age_min), or None if not listed.
+
+    Prices use the "Home"/"Draw"/"Away" keys every consumer reads.
+    """
     try:
         from src.kambi_scraper import fetch_kambi_1x2, cache_age_min
+
         kdata = fetch_kambi_1x2()
         if kdata:
             best_k = None
@@ -2295,28 +2330,57 @@ def find_betarabia_odds(home_team, away_team):
                             best_ks = tot_s
                             best_k = m_info
             if best_k and best_ks >= 1.3:
-                # Kambi answered — report ITS age (<=90s by its own TTL), not
-                # whatever the previous fixture left in the global.
-                _betarabia_odds_age_min = cache_age_min()
-                return {
-                    "1X2": {
-                        "Home (1)": best_k.get("home"),
-                        "Draw (X)": best_k.get("draw"),
-                        "Away (2)": best_k.get("away"),
-                    },
-                    "Over/Under 2.5": {},
-                    "Over/Under 3.0": {},
-                    "Over/Under 2.0": {},
-                    "BTTS": {},
-                    "Double Chance": {},
-                    "Draw No Bet": {},
-                    "Corners": {},
-                    "Total Cards": {},
-                    "Goalscorer": {},
-                    "Player Shots on Target": {},
+                prices = {
+                    "Home": best_k.get("home"),
+                    "Draw": best_k.get("draw"),
+                    "Away": best_k.get("away"),
                 }
+                return {k: v for k, v in prices.items() if v}, cache_age_min()
     except Exception:
         pass
+    return None
+
+
+def find_betarabia_odds(home_team, away_team):
+    """
+    Looks up a match in primary bookmaker feeds (Kambi/Unibet, Pinnacle, Betarabia fallback).
+    Returns a dict with market keys and selection odds.
+
+    Kambi only serves 1X2, so a Kambi match supplies the 1X2 and Betarabia still
+    supplies every other market. (Returning on the Kambi match hid Betarabia's
+    Over/Under for every fixture Kambi covers.)
+
+    Also publishes _betarabia_odds_age_min — how old the returned odds are, read
+    by the bet gate as `odds_fresh`. It MUST be set on every return path: it is a
+    module global, so any path that leaves it untouched makes this fixture
+    inherit the previous fixture's staleness. That bug rejected 43% of
+    selections as stale when only 9% of fixtures actually were. When both books
+    contribute, it is the older of the two.
+    """
+    global _betarabia_odds_age_min
+    kambi = _kambi_1x2(home_team, away_team)
+    odds = _betarabia_stream_odds(home_team, away_team)  # sets the global
+    if kambi is None:
+        return odds
+
+    k_prices, k_age = kambi
+    b_age = _betarabia_odds_age_min
+    if odds is None:
+        odds = _empty_odds_dict()
+    uses_betarabia = any(sel for mkt, sel in odds.items() if mkt != "1X2")
+    odds["1X2"] = k_prices
+    ages = [a for a in (k_age, b_age if uses_betarabia else None) if a is not None]
+    _betarabia_odds_age_min = max(ages) if ages else None
+    return odds
+
+
+def _betarabia_stream_odds(home_team, away_team):
+    """Betarabia odds for this fixture from odds_stream.db, or None.
+
+    Sets _betarabia_odds_age_min to the matched fixture's scrape age.
+    """
+    global _betarabia_odds_age_min
+    _betarabia_odds_age_min = None  # unknown until a fixture matches
 
     db_path = os.path.join(DATA_DIR, "odds_stream.db")
     if not os.path.exists(db_path):
@@ -2388,19 +2452,7 @@ def find_betarabia_odds(home_team, away_team):
         rows = cur.fetchall()
         conn.close()
 
-        odds_dict = {
-            "1X2": {},
-            "Over/Under 2.5": {},
-            "Over/Under 3.0": {},
-            "Over/Under 2.0": {},
-            "BTTS": {},
-            "Double Chance": {},
-            "Draw No Bet": {},
-            "Corners": {},
-            "Total Cards": {},
-            "Goalscorer": {},
-            "Player Shots on Target": {},
-        }
+        odds_dict = _empty_odds_dict()
 
         for mname, sname, price in rows:
             mname_lower = mname.lower()
@@ -2432,33 +2484,37 @@ def find_betarabia_odds(home_team, away_team):
             ) and "total" in mname_lower:
                 odds_dict["Total Cards"][sname] = price
 
-            # Total Goals Over/Under — route by line value in selection name
+            # Total Goals Over/Under — route by the line in the selection name.
+            # A total with no line (first-half, Asian and team totals arrive as
+            # bare "OVER"/"UNDER") belongs to an unknown market and is skipped;
+            # reading it as 2.5 priced every O/U bet from the wrong line.
             elif ("total" in mname_lower and "goal" in mname_lower) or (
                 ("total" in mname_lower or "goals" in mname_lower)
                 and "total" in sname_lower
             ):
                 import re as _re
 
-                _line_m = _re.search(r"(\d+\.?\d*)", sname)
-                _line_v = float(_line_m.group(1)) if _line_m else 2.5
-                if "over" in sname_lower:
-                    if abs(_line_v - 2.5) < 0.01:
-                        odds_dict["Over/Under 2.5"]["Over"] = price
-                    elif abs(_line_v - 3.0) < 0.01:
-                        odds_dict["Over/Under 3.0"]["Over"] = price
-                    elif abs(_line_v - 2.0) < 0.01:
-                        odds_dict["Over/Under 2.0"]["Over"] = price
-                    else:
-                        odds_dict["Over/Under 2.5"].setdefault("Over", price)
-                elif "under" in sname_lower:
-                    if abs(_line_v - 2.5) < 0.01:
-                        odds_dict["Over/Under 2.5"]["Under"] = price
-                    elif abs(_line_v - 3.0) < 0.01:
-                        odds_dict["Over/Under 3.0"]["Under"] = price
-                    elif abs(_line_v - 2.0) < 0.01:
-                        odds_dict["Over/Under 2.0"]["Under"] = price
-                    else:
-                        odds_dict["Over/Under 2.5"].setdefault("Under", price)
+                # "Total OVER 2.5" / "Over 2.5" only — a digit in a team-total
+                # name ("Dynamo Kyiv 2 OVER") is not a line.
+                _line_m = _re.match(
+                    r"^\s*(?:total\s+)?(?:over|under)\s+(\d+(?:\.\d+)?)\s*$",
+                    sname,
+                    _re.IGNORECASE,
+                )
+                _ou_market = None
+                if _line_m:
+                    _line_v = float(_line_m.group(1))
+                    for _ln, _mk in (
+                        (2.5, "Over/Under 2.5"),
+                        (3.0, "Over/Under 3.0"),
+                        (2.0, "Over/Under 2.0"),
+                    ):
+                        if abs(_line_v - _ln) < 0.01:
+                            _ou_market = _mk
+                if _ou_market and "over" in sname_lower:
+                    odds_dict[_ou_market]["Over"] = price
+                elif _ou_market and "under" in sname_lower:
+                    odds_dict[_ou_market]["Under"] = price
 
             # Double Chance
             elif "double chance" in mname_lower or "double_chance" in mname_lower:

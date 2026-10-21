@@ -112,6 +112,7 @@ ODD_CODE_MAP = {
     "ODD_FTB_TOTALS_OVER": "Total Goals",
     "ODD_FTB_TOTALS_UNDER": "Total Goals",
     "ODD_TTL_1_OVR": "Total Goals",
+    "ODD_TTL_1_UND": "Total Goals",
     # Double chance
     "ODD_FTB_DC_1X": "Double Chance",
     "ODD_FTB_DC_X2": "Double Chance",
@@ -882,6 +883,16 @@ def _normalize_selection(
             return f"Total OVER {Line_V}"
         except Exception:
             return "Total OVER"
+    if "TTL_1_UND" in Code_V:
+        if BettingLine_P is not None:
+            return f"Total UNDER {BettingLine_P}"
+        try:
+            Line_V = float(
+                Name_V.lower().replace("total under", "").replace("under", "").strip()
+            )
+            return f"Total UNDER {Line_V}"
+        except Exception:
+            return "Total UNDER"
 
     # Corners total over/under — real API code is ODD_CRN_TTL_OVR (embed line)
     if "CRN_TTL_OVR" in Code_V or "CORNER_TTL_OVR" in Code_V:

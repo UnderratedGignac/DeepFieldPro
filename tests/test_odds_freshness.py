@@ -97,7 +97,7 @@ def test_kambi_priced_fixture_is_not_marked_stale(data_dir, with_kambi, monkeypa
 
     odds = lpd.find_betarabia_odds("Arsenal", "Chelsea")
 
-    assert odds and odds["1X2"]["Home (1)"] == 2.10, "Kambi should have served this"
+    assert odds and odds["1X2"]["Home"] == 2.10, "Kambi should have served this"
     age = lpd._betarabia_odds_age_min
     assert age != STALE, "stale value from a previous fixture leaked through"
     assert age is None or age <= 60, f"Kambi-priced fixture reported as {age} min old"

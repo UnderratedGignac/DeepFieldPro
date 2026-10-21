@@ -126,11 +126,13 @@ def main():
             if (r.get("bet_source") == src and r.get("market_type") == mkt)
         ]
         settled = _settled(grp)
-        # PRIMARY scoreboard = CLV vs the SHARP (Pinnacle) close (clv_sharp). The Betarabia
-        # self-CLV (clv) is self-referential and shown only as a secondary diagnostic. The
-        # verdict does NOT fall back to self-CLV when sharp CLV is missing.
-        with_clv = [r for r in settled if r.get("clv_sharp") is not None]
-        clvs = [float(r["clv_sharp"]) for r in with_clv]
+        # PRIMARY scoreboard = CLV vs the SHARP (Pinnacle) close (pinnacle_clv, written by
+        # settlement). The legacy clv_sharp column is never populated, so it must not be
+        # read. The Betarabia self-CLV (clv) is self-referential and shown only as a
+        # secondary diagnostic. The verdict does NOT fall back to self-CLV when sharp CLV
+        # is missing.
+        with_clv = [r for r in settled if r.get("pinnacle_clv") is not None]
+        clvs = [float(r["pinnacle_clv"]) for r in with_clv]
         clv_mean, clv_half = _mean_ci(clvs)
         clv_lo = clv_mean - clv_half if clvs else 0.0
         beat = (sum(1 for v in clvs if v > 0) / len(clvs)) if clvs else 0.0
