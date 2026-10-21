@@ -124,15 +124,42 @@ def fetch_kambi_1x2():
 # per-event betoffer endpoint, which accepts comma-separated event ids.
 # Full-time totals are criterion 1001159926 ("Total Goals"); first-half and
 # team totals use other criteria. Lines and odds are in thousandths.
+# Replies are paged (range: start/size/total, 2000 offers max). Unfiltered, a
+# batch holding big matches ran to 8000+ offers and everything past page 1 was
+# silently dropped — the senior Bayern and Real Madrid 2.5 lines among them.
+# type=6 (Over/Under) keeps a batch near one page; the pager covers the rest.
 _BETOFFER_URL = (
     "https://eu-offering-api.kambicdn.com/offering/v2018/ub/betoffer/event/{ids}.json"
-    "?lang=en_GB&market=GB"
+    "?lang=en_GB&market=GB&type=6"
 )
 _OU_CRITERION_ID = 1001159926
 _OU_LINE = 2500
 _OU_BATCH = 40
+_OU_PAGE = 2000
+_OU_MAX_PAGES = 10
 _OU_TTL = 300
 _ou_cache = {"ts": 0.0, "data": {}}
+
+
+def _fetch_bet_offers(ids_csv):
+    """All bet offers for these events, following range pages to the total."""
+    offers, start = [], 0
+    for _ in range(_OU_MAX_PAGES):
+        url = _BETOFFER_URL.format(ids=ids_csv)
+        if start:
+            url += f"&range_start={start}&range_size={_OU_PAGE}"
+        r = requests.get(url, headers=_H, timeout=20)
+        if r.status_code != 200:
+            break
+        j = r.json()
+        page = j.get("betOffers") or []
+        offers.extend(page)
+        rng = j.get("range") or {}
+        nxt = rng.get("start", 0) + rng.get("size", len(page))
+        if not page or not rng or nxt >= rng.get("total", 0):
+            break
+        start = nxt
+    return offers
 
 
 def parse_ou25(bet_offers):
@@ -185,9 +212,7 @@ def fetch_kambi_ou25():
     for i in range(0, len(ids), _OU_BATCH):
         batch = ",".join(str(x) for x in ids[i : i + _OU_BATCH])
         try:
-            r = requests.get(_BETOFFER_URL.format(ids=batch), headers=_H, timeout=20)
-            if r.status_code == 200:
-                prices.update(parse_ou25(r.json().get("betOffers")))
+            prices.update(parse_ou25(_fetch_bet_offers(batch)))
         except Exception as e:
             print(f"[KAMBI] O/U batch error: {e}")
     out = {}

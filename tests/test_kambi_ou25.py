@@ -114,6 +114,55 @@ def test_fetch_ou25_queries_pre_match_events_only(monkeypatch):
     assert len(asked) == 1 and "/betoffer/event/1.json" in asked[0]
 
 
+@pytest.fixture
+def two_events(monkeypatch):
+    soon = time.time() + 3600
+    monkeypatch.setattr(
+        kambi,
+        "fetch_kambi_1x2",
+        lambda: {
+            "Bayern Munich vs Arsenal": {"event_id": 1, "state": "NOT_STARTED", "starts_ts": soon,
+                                         "home_team": "Bayern Munich", "away_team": "Arsenal", "league": "CL"},
+            "Real Madrid vs RB Leipzig": {"event_id": 2, "state": "NOT_STARTED", "starts_ts": soon,
+                                          "home_team": "Real Madrid", "away_team": "RB Leipzig", "league": "CL"},
+        },
+    )
+    monkeypatch.setitem(kambi._ou_cache, "ts", 0.0)
+    monkeypatch.setitem(kambi._ou_cache, "data", {})
+
+
+def test_requests_over_under_offers_only(two_events, monkeypatch):
+    """Unfiltered, one batch of big matches held 8182 offers; type=6 keeps O/U only."""
+    asked = []
+
+    def _get(url, **_kw):
+        asked.append(url)
+        return _Resp({"betOffers": [_ou_offer(1, FT_TOTAL, 2500, 1550, 2450)]})
+
+    monkeypatch.setattr(kambi.requests, "get", _get)
+    kambi.fetch_kambi_ou25()
+    assert asked and all("type=6" in u for u in asked)
+
+
+def test_follows_range_pages_until_total(two_events, monkeypatch):
+    """Replies stop at a page cap; an event on page 2 must not be dropped.
+
+    On 2026-10-21 the senior Bayern vs Arsenal and Real Madrid vs Leipzig 2.5
+    lines sat past the first 2000 offers and never reached the bet gate.
+    """
+    def _get(url, **_kw):
+        if "range_start=1" in url:
+            return _Resp({"betOffers": [_ou_offer(2, FT_TOTAL, 2500, 1180, 4900)],
+                          "range": {"start": 1, "size": 1, "total": 2}})
+        return _Resp({"betOffers": [_ou_offer(1, FT_TOTAL, 2500, 1550, 2450)],
+                      "range": {"start": 0, "size": 1, "total": 2}})
+
+    monkeypatch.setattr(kambi.requests, "get", _get)
+    out = kambi.fetch_kambi_ou25()
+    assert set(out) == {"Bayern Munich vs Arsenal", "Real Madrid vs RB Leipzig"}
+    assert out["Real Madrid vs RB Leipzig"]["under"] == 4.9
+
+
 # ---------------------------------------------------------------------------
 # daemon: best price across books, with the book recorded
 # ---------------------------------------------------------------------------

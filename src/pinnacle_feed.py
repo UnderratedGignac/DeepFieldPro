@@ -187,6 +187,15 @@ def _devig(h, d, a):
 # ─── Core fetch ───────────────────────────────────────────────────────────────
 
 
+def _is_regular(item):
+    """A real goals matchup, not the cards/corners variant Pinnacle publishes alongside.
+
+    Bookings and Corners matchups share type="matchup" and differ only in
+    `units` and renamed participants ("Aston Villa (Bookings)").
+    """
+    return (item.get("units") or "Regular") == "Regular"
+
+
 def fetch_1x2_snapshot():
     """
     Fetch current Pinnacle 1X2 odds for all upcoming soccer matches.
@@ -209,7 +218,7 @@ def fetch_1x2_snapshot():
     now_ts = time.time()
 
     for item in matchups:
-        if item.get("type") != "matchup":
+        if item.get("type") != "matchup" or not _is_regular(item):
             continue
         parts = item.get("participants", [])
         home_p = next((p for p in parts if p.get("alignment") == "home"), None)
@@ -611,7 +620,7 @@ def fetch_pinnacle_totals(line=2.5):
         now_ts = time.time()
         result = {}
         for item in matchups:
-            if item.get("type") != "matchup":
+            if item.get("type") != "matchup" or not _is_regular(item):
                 continue
             parts = item.get("participants", [])
             home_p = next((p for p in parts if p.get("alignment") == "home"), None)
@@ -631,12 +640,13 @@ def fetch_pinnacle_totals(line=2.5):
             if starts_ts and starts_ts < now_ts - 120:
                 continue
             for m in mk_idx.get(item["id"], []):
-                if abs((m.get("key") or "").count(str(line))) == 0:
-                    continue
+                # Exact line only: a substring test on the key read 12.5 as 2.5.
                 prices = {
                     pr["designation"]: pr["price"]
                     for pr in m.get("prices", [])
                     if "designation" in pr
+                    and pr.get("points") is not None
+                    and abs(float(pr["points"]) - line) < 1e-9
                 }
                 if "over" not in prices or "under" not in prices:
                     continue
