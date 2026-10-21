@@ -13,8 +13,9 @@ Feed: eu-offering-api.kambicdn.com/offering/v2018/ub/listView/football.json
   outcomes[]: label '1'/'X'/'2', odds in /1000 (8500 -> 8.50)
 
 Public API:
-    fetch_kambi_1x2() -> { 'Home vs Away': {home,draw,away,home_team,away_team,start,starts_ts,league} }
-Cached (90s).
+    fetch_kambi_1x2() -> { 'Home vs Away': {home,draw,away,home_team,away_team,start,starts_ts,league,event_id,state} }
+    fetch_kambi_ou25() -> { 'Home vs Away': {over,under,home_team,away_team,starts_ts,league} }
+Cached (90s for 1X2, 300s for O/U).
 """
 
 import time
@@ -110,9 +111,100 @@ def fetch_kambi_1x2():
                 "start": e.get("start"),
                 "starts_ts": _starts_ts(e.get("start")),
                 "league": (e.get("group") or ""),
+                "event_id": e.get("id"),
+                "state": e.get("state"),
             }
     _cache["ts"] = time.time()
     _cache["data"] = out
+    return out
+
+
+# ── Over/Under 2.5 ──────────────────────────────────────────────────────────
+# listView only carries the 1X2 ("Full Time") offer, so totals come from the
+# per-event betoffer endpoint, which accepts comma-separated event ids.
+# Full-time totals are criterion 1001159926 ("Total Goals"); first-half and
+# team totals use other criteria. Lines and odds are in thousandths.
+_BETOFFER_URL = (
+    "https://eu-offering-api.kambicdn.com/offering/v2018/ub/betoffer/event/{ids}.json"
+    "?lang=en_GB&market=GB"
+)
+_OU_CRITERION_ID = 1001159926
+_OU_LINE = 2500
+_OU_BATCH = 40
+_OU_TTL = 300
+_ou_cache = {"ts": 0.0, "data": {}}
+
+
+def parse_ou25(bet_offers):
+    """{eventId: {'over': x, 'under': y}} for the full-time 2.5 total only."""
+    out = {}
+    for bo in bet_offers or []:
+        if (bo.get("criterion") or {}).get("id") != _OU_CRITERION_ID:
+            continue
+        prices = {}
+        for oc in bo.get("outcomes") or []:
+            if oc.get("line") != _OU_LINE or oc.get("odds") is None:
+                continue
+            side = {"OT_OVER": "over", "OT_UNDER": "under"}.get(oc.get("type"))
+            if side is None:
+                side = str(oc.get("label", "")).lower()
+            if side in ("over", "under"):
+                prices[side] = round(oc["odds"] / 1000.0, 3)
+        if "over" in prices and "under" in prices:
+            out[bo.get("eventId")] = prices
+    return out
+
+
+def ou_cache_age_min():
+    """Minutes since the current Kambi O/U snapshot was fetched, or None if never."""
+    if not _ou_cache.get("ts"):
+        return None
+    return (time.time() - _ou_cache["ts"]) / 60.0
+
+
+def fetch_kambi_ou25():
+    """{'Home vs Away': {over, under, home_team, away_team, starts_ts, league}}.
+
+    Pre-match events only: the listView feed also carries in-play events, and
+    an in-play price compared with a pre-kickoff fair price is not value.
+    """
+    if (time.time() - _ou_cache["ts"]) < _OU_TTL and _ou_cache["data"]:
+        return _ou_cache["data"]
+    now = time.time()
+    by_id = {
+        row["event_id"]: (key, row)
+        for key, row in (fetch_kambi_1x2() or {}).items()
+        if row.get("event_id")
+        and row.get("state") == "NOT_STARTED"
+        and (row.get("starts_ts") or 0) > now
+    }
+    if not by_id:
+        return _ou_cache["data"] or {}
+    ids = list(by_id)
+    prices = {}
+    for i in range(0, len(ids), _OU_BATCH):
+        batch = ",".join(str(x) for x in ids[i : i + _OU_BATCH])
+        try:
+            r = requests.get(_BETOFFER_URL.format(ids=batch), headers=_H, timeout=20)
+            if r.status_code == 200:
+                prices.update(parse_ou25(r.json().get("betOffers")))
+        except Exception as e:
+            print(f"[KAMBI] O/U batch error: {e}")
+    out = {}
+    for eid, p in prices.items():
+        if eid not in by_id:
+            continue
+        key, row = by_id[eid]
+        out[key] = {
+            "over": p["over"],
+            "under": p["under"],
+            "home_team": row.get("home_team"),
+            "away_team": row.get("away_team"),
+            "starts_ts": row.get("starts_ts"),
+            "league": row.get("league", ""),
+        }
+    _ou_cache["ts"] = time.time()
+    _ou_cache["data"] = out
     return out
 
 

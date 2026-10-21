@@ -2290,8 +2290,20 @@ def fetch_betarabia_odds():
     return matches, None
 
 
+class _OddsDict(dict):
+    """{market: {selection: price}} plus .books: {(market, selection): bookmaker}.
+
+    The book travels with the odds rather than in a module global because the
+    closing-capture thread calls find_betarabia_odds() concurrently.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.books = {}
+
+
 def _empty_odds_dict():
-    return {
+    return _OddsDict({
         "1X2": {},
         "Over/Under 2.5": {},
         "Over/Under 3.0": {},
@@ -2303,7 +2315,25 @@ def _empty_odds_dict():
         "Total Cards": {},
         "Goalscorer": {},
         "Player Shots on Target": {},
-    }
+    })
+
+
+def _kambi_match(kdata, home_team, away_team):
+    """The Kambi row for this fixture (both team names >= 0.65), or None."""
+    best_k = None
+    best_ks = 0.0
+    for m_info in (kdata or {}).values():
+        kh = m_info.get("home_team", "")
+        ka = m_info.get("away_team", "")
+        if kh and ka:
+            h_s = get_match_score(home_team, kh)
+            a_s = get_match_score(away_team, ka)
+            if h_s >= 0.65 and a_s >= 0.65:
+                tot_s = h_s + a_s
+                if tot_s > best_ks:
+                    best_ks = tot_s
+                    best_k = m_info
+    return best_k if best_k and best_ks >= 1.3 else None
 
 
 def _kambi_1x2(home_team, away_team):
@@ -2314,28 +2344,30 @@ def _kambi_1x2(home_team, away_team):
     try:
         from src.kambi_scraper import fetch_kambi_1x2, cache_age_min
 
-        kdata = fetch_kambi_1x2()
-        if kdata:
-            best_k = None
-            best_ks = 0.0
-            for m_name, m_info in kdata.items():
-                kh = m_info.get("home_team", "")
-                ka = m_info.get("away_team", "")
-                if kh and ka:
-                    h_s = get_match_score(home_team, kh)
-                    a_s = get_match_score(away_team, ka)
-                    if h_s >= 0.65 and a_s >= 0.65:
-                        tot_s = h_s + a_s
-                        if tot_s > best_ks:
-                            best_ks = tot_s
-                            best_k = m_info
-            if best_k and best_ks >= 1.3:
-                prices = {
-                    "Home": best_k.get("home"),
-                    "Draw": best_k.get("draw"),
-                    "Away": best_k.get("away"),
-                }
-                return {k: v for k, v in prices.items() if v}, cache_age_min()
+        best_k = _kambi_match(fetch_kambi_1x2(), home_team, away_team)
+        if best_k:
+            prices = {
+                "Home": best_k.get("home"),
+                "Draw": best_k.get("draw"),
+                "Away": best_k.get("away"),
+            }
+            return {k: v for k, v in prices.items() if v}, cache_age_min()
+    except Exception:
+        pass
+    return None
+
+
+def _kambi_ou25(home_team, away_team):
+    """Kambi's full-time O/U 2.5 as ({"Over", "Under"}, age_min), or None."""
+    try:
+        from src.kambi_scraper import fetch_kambi_ou25, ou_cache_age_min
+
+        best_k = _kambi_match(fetch_kambi_ou25(), home_team, away_team)
+        if best_k and best_k.get("over") and best_k.get("under"):
+            return (
+                {"Over": best_k["over"], "Under": best_k["under"]},
+                ou_cache_age_min(),
+            )
     except Exception:
         pass
     return None
@@ -2346,30 +2378,50 @@ def find_betarabia_odds(home_team, away_team):
     Looks up a match in primary bookmaker feeds (Kambi/Unibet, Pinnacle, Betarabia fallback).
     Returns a dict with market keys and selection odds.
 
-    Kambi only serves 1X2, so a Kambi match supplies the 1X2 and Betarabia still
-    supplies every other market. (Returning on the Kambi match hid Betarabia's
-    Over/Under for every fixture Kambi covers.)
+    A Kambi match supplies the 1X2; Betarabia supplies every other market; for
+    Over/Under 2.5 each side takes the better of Kambi and Betarabia. The
+    returned odds carry .books, naming the bookmaker behind each price — a
+    Kambi price is only real at a Kambi-powered book.
 
     Also publishes _betarabia_odds_age_min — how old the returned odds are, read
     by the bet gate as `odds_fresh`. It MUST be set on every return path: it is a
     module global, so any path that leaves it untouched makes this fixture
     inherit the previous fixture's staleness. That bug rejected 43% of
-    selections as stale when only 9% of fixtures actually were. When both books
-    contribute, it is the older of the two.
+    selections as stale when only 9% of fixtures actually were. When several
+    sources contribute prices, it is the oldest of them.
     """
     global _betarabia_odds_age_min
     kambi = _kambi_1x2(home_team, away_team)
+    kambi_ou = _kambi_ou25(home_team, away_team)
     odds = _betarabia_stream_odds(home_team, away_team)  # sets the global
-    if kambi is None:
+    b_age = _betarabia_odds_age_min
+    if odds is not None:
+        odds.books = {(m, s): "Betarabia" for m, sels in odds.items() for s in sels}
+    if kambi is None and kambi_ou is None:
         return odds
 
-    k_prices, k_age = kambi
-    b_age = _betarabia_odds_age_min
     if odds is None:
         odds = _empty_odds_dict()
-    uses_betarabia = any(sel for mkt, sel in odds.items() if mkt != "1X2")
-    odds["1X2"] = k_prices
-    ages = [a for a in (k_age, b_age if uses_betarabia else None) if a is not None]
+    ages = []
+    if kambi is not None:
+        k_prices, k_age = kambi
+        odds.books = {k: v for k, v in odds.books.items() if k[0] != "1X2"}
+        odds["1X2"] = k_prices
+        odds.books.update({("1X2", s): "Kambi" for s in k_prices})
+        ages.append(k_age)
+    if kambi_ou is not None:
+        ou_prices, ou_age = kambi_ou
+        took = False
+        for side, px in ou_prices.items():
+            if px > (odds["Over/Under 2.5"].get(side) or 0):
+                odds["Over/Under 2.5"][side] = px
+                odds.books[("Over/Under 2.5", side)] = "Kambi"
+                took = True
+        if took:
+            ages.append(ou_age)
+    if "Betarabia" in odds.books.values():
+        ages.append(b_age)
+    ages = [a for a in ages if a is not None]
     _betarabia_odds_age_min = max(ages) if ages else None
     return odds
 
@@ -3404,7 +3456,7 @@ def log_pinnacle_value_bet(
 
 def log_ai_bet(
     match, market, selection, odds, prob, ev, fixture_id=None, league=None, source=None,
-    kickoff_time=None, fixture_ns=None,
+    kickoff_time=None, fixture_ns=None, book=None,
 ):
     """AI model-dependent paper bet (shadow mode).
     Gated by settings.model_predictions_disabled (default True = disabled).
@@ -3543,12 +3595,18 @@ def log_ai_bet(
                 conn.execute("ALTER TABLE bet_log ADD COLUMN fixture_ns TEXT")
             except Exception:
                 pass
+            # The bookmaker behind the price (Betarabia or Kambi) — where the bet
+            # has to be placed. Idempotent, like fixture_ns above.
+            try:
+                conn.execute("ALTER TABLE bet_log ADD COLUMN book TEXT")
+            except Exception:
+                pass
 
             cur.execute(
                 """
                 INSERT INTO bet_log
-                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake, result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, kickoff_time, fixture_ns)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (bet_id, match_id, player_id, market_type, entry_odds, fair_odds, edge_pct, stake, result, pnl, placed_at, bet_source, is_recommended, line, side, fixture_id, league, kickoff_time, fixture_ns, book)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     bet_id,
@@ -3570,10 +3628,11 @@ def log_ai_bet(
                     league,
                     kickoff_time,
                     fixture_ns,
+                    book,
                 ),
             )
             print(
-                f"[AI BET LOGGER] Automatically logged recommended AI bet: {match} ({selection}) @ {odds} stake {stake}"
+                f"[AI BET LOGGER] Automatically logged recommended AI bet: {match} ({selection}) @ {odds} ({book or 'book unknown'}) stake {stake}"
             )
 
             # Commit and close DB before making synchronous network request
@@ -3628,7 +3687,7 @@ def log_ai_bet(
                         f"💎 Match: {match}\n"
                         f"📌 Pick: {_pick} ({market})\n"
                         f"🏆 League: {league or 'Unknown'} ({_nation})\n"
-                        f"💰 Odds: {odds:.2f} (Betarabia)\n"
+                        f"💰 Odds: {odds:.2f} ({book or 'Betarabia'})\n"
                         f"📊 Stake ($45 Bankroll): ${rec_stake:.2f}\n"
                         f"🛡️ Strategy: MODEL_VALUE_ALIGN",
                         title="CONSENSUS MODEL+VALUE SIGNAL",
@@ -6254,6 +6313,9 @@ def update_dashboard_json(fixtures, results_cache):
                                         league=league,
                                         source="MODEL_VALUE_ALIGN",
                                         kickoff_time=match_time,
+                                        book=getattr(odds_dict, "books", {}).get(
+                                            (m_type, key)
+                                        ),
                                     )
                                 except Exception as _mve:
                                     print(f"[MODEL_VALUE_ALIGN] Consensus bet logging failed: {_mve}")
