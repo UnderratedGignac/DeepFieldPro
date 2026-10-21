@@ -2594,11 +2594,25 @@ CLOSING_CAPTURE_INTERVAL = (
     90  # seconds between capture passes (decoupled from the slow main loop)
 )
 _closing_started = False
-# Handle to the running Betarabia scraper subprocess. The scraper takes ~3 min
+# Handle to the running Betarabia scraper subprocess. The scraper takes ~4-5 min
 # (it scouts each event's markets one-by-one); spawning a fresh one every cycle
 # stacks Chromium instances that exhaust memory and die before writing -> stale
 # odds. We keep this handle and only launch a new scrape once the prior finished.
 _scraper_proc = None
+_scraper_started_at = 0.0
+# Longest a healthy scrape can run: 50 event pages, each bounded by the deep-file
+# wait in betarabia_scraper._scout_event. Past this, a scrape is treated as hung.
+_SCRAPE_MAX_RUNTIME_SEC = 15 * 60
+
+
+def _scrape_is_hung(running_for_sec, odds_stale):
+    """A running scrape is hung only if odds are stale AND it outlived a full scrape.
+
+    Stale odds alone prove nothing: the scrape is launched because odds are
+    stale and only refreshes them when it finishes, so treating "alive + stale"
+    as hung killed every scrape that outlived one daemon cycle.
+    """
+    return bool(odds_stale) and running_for_sec > _SCRAPE_MAX_RUNTIME_SEC
 # Throttle deep score lookups (browser-based) to once per 30 minutes
 _deep_lookup_last_run = 0.0
 _DEEP_LOOKUP_INTERVAL = 1800  # 30 minutes in seconds
@@ -6998,11 +7012,11 @@ def run_daemon():
             import subprocess
             import sys
 
-            global _scraper_proc
+            global _scraper_proc, _scraper_started_at
             _scrape_running = _scraper_proc is not None and _scraper_proc.poll() is None
             if _scrape_running:
-                # Hung-scrape guard: if the process has been "running" but the odds DB
-                # is stale past the threshold, the scrape is wedged — kill OUR OWN
+                # Hung-scrape guard: if the process has outlived a full scrape and
+                # the odds DB is still stale, the scrape is wedged — kill OUR OWN
                 # handle (safe: we spawned it) and fall through to respawn.
                 _stale = False
                 try:
@@ -7010,7 +7024,7 @@ def run_daemon():
                     _stale = odds_stale()
                 except Exception:
                     pass
-                if _stale:
+                if _scrape_is_hung(time.time() - _scraper_started_at, _stale):
                     print(
                         "[SCRAPER] Scrape process alive but odds DB is stale — killing hung scrape."
                     )
@@ -7068,6 +7082,7 @@ def run_daemon():
                     _scraper_proc = subprocess.Popen(
                         [sys.executable, scraper_path], close_fds=True
                     )
+                    _scraper_started_at = time.time()
                     print("[SCRAPER] Launched fresh Betarabia scrape.")
         except Exception as e:
             print("Failed to start background scraper:", e)

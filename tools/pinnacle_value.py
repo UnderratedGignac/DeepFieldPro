@@ -16,6 +16,19 @@ import os
 import sqlite3
 from difflib import SequenceMatcher
 
+from src.name_matching import _level_signature
+
+
+def _same_level(home: str, away: str, cand_home: str, cand_away: str) -> bool:
+    """True when both sides are the same squad level (senior / uNN / reserve / youth).
+
+    Name similarity alone matched "Lille (U-19)" to the senior "Lille" (Youth
+    League fixtures mirror the Champions League on the same day).
+    """
+    return _level_signature(home) == _level_signature(cand_home) and _level_signature(
+        away
+    ) == _level_signature(cand_away)
+
 _COMPLETED_DB = os.path.join(
     os.path.dirname(__file__), "..", "data", "deepfield_browser_data", "completed_fixtures.db"
 )
@@ -104,7 +117,7 @@ def _fuzzy_match_ou25(home: str, away: str, candidates: dict, threshold: float =
     best_val = None
     for key, val in candidates.items():
         parts = key.split(" vs ", 1)
-        if len(parts) != 2:
+        if len(parts) != 2 or not _same_level(home, away, parts[0], parts[1]):
             continue
         candidate = f"{_normalize_team(parts[0])} vs {_normalize_team(parts[1])}"
         score = SequenceMatcher(None, query, candidate).ratio()
@@ -158,6 +171,8 @@ def _fuzzy_resolve_pair(home: str, away: str, kickoff_ts=None):
     query = f"{h_n} vs {a_n}"
     best_score, best = 0.0, None
     for ph, pa in _PIN_PAIRS_CACHE["pairs"]:
+        if not _same_level(home, away, ph, pa):
+            continue
         candidate = f"{_normalize_team(ph)} vs {_normalize_team(pa)}"
         score = SequenceMatcher(None, query, candidate).ratio()
         if score > best_score:

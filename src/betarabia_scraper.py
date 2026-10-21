@@ -99,6 +99,35 @@ class _ResponseStore:
     def __len__(self):
         return len(self._by_url)
 
+
+# How long to wait for an event's single-pre-event.json (the only source of
+# O/U, BTTS and every other non-1X2 market). It lands ~3.5-4.5s after
+# navigation on a warm page and later on a freshly recycled one.
+_DEEP_FILE_TIMEOUT_MS = 15000
+
+
+async def _scout_event(page, eid, store) -> bool:
+    """Open one event page and return once ITS deep-markets file is stored.
+
+    A fixed 3s sleep after domcontentloaded raced the SPA: a body still in
+    flight when the page navigated away or closed was lost, which on
+    2026-10-21 captured 2 of 50 events. Returns False (never raises) when the
+    event serves no deep file in time.
+    """
+    url = f"https://www.betarabia.com/en/sports/kickertech/football/event/{eid}"
+    marker = f"/lb/{eid}/single-pre-event.json"
+    try:
+        async with page.expect_response(
+            lambda r: marker in r.url, timeout=_DEEP_FILE_TIMEOUT_MS
+        ) as deep_info:
+            await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+        deep = await deep_info.value
+        store.add(deep.url, await deep.json())
+        return True
+    except Exception as e:
+        logger.warning(f"No deep markets captured for event {eid}: {e}")
+        return False
+
 # Market name mapping from SBTech oddCode → human-readable
 ODD_CODE_MAP = {
     # Match result
@@ -1243,6 +1272,7 @@ async def run_scraper():
                 f"Found {len(today_event_ids)} events for today. Fetching full markets for top 50..."
             )
             # Limiting to 50 for performance
+            DeepCaptured_V = 0
             for Idx_V, eid in enumerate(today_event_ids[:50]):
                 try:
                     # Recycle the page every _PAGE_RECYCLE_EVERY navigations. Driving
@@ -1261,16 +1291,17 @@ async def run_scraper():
                             f"({len(ApiResponses_V)} payloads retained)"
                         )
 
-                    event_url = f"https://www.betarabia.com/en/sports/kickertech/football/event/{eid}"
-                    logger.info(f"Scouting full markets: {event_url}")
-                    await page.goto(
-                        event_url, wait_until="domcontentloaded", timeout=20000
-                    )
-                    await asyncio.sleep(3)  # Wait for detailed odds API
+                    logger.info(f"Scouting full markets: event {eid}")
+                    if await _scout_event(page, eid, ApiResponses_V):
+                        DeepCaptured_V += 1
                 except Exception as e:
                     logger.warning(f"Failed to fetch event {eid}: {e}")
                     # Short backoff so one bad page doesn't hammer the site
                     await asyncio.sleep(2)
+            logger.info(
+                f"[DEEP] Captured deep markets for {DeepCaptured_V}/"
+                f"{len(today_event_ids[:50])} events"
+            )
 
             # Debug dump of the captured payloads. Off by default: json.dump with
             # indent=2 materialises the whole capture as one string, which on a
