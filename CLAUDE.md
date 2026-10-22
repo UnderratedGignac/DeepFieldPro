@@ -113,7 +113,15 @@ Every action requires:
 
 High-risk actions require explicit review before execution:
 - Production deployments · database schema changes · credential modifications · financial actions
-- **Real-money gate**: `DEEPFIELD_ARENA_LIVE` must remain UNSET. `SHADOW_MODE=True`. Never override.
+- **Real-money gate**: `DEEPFIELD_ARENA_LIVE` must remain unset/`0`. There is currently no
+  real-money execution path anywhere in this app — the Stair AI World Cup Arena (the only one
+  that ever existed) was fully removed 2026-07-13 after the user lost most of the account's real
+  money chasing a #1 leaderboard rank; see `docs/removed_features.md` §4 for the full removal
+  record. `src/gatekeeper.py`'s `check_real_money_gate()` remains as a general kill switch for
+  any future real-money path — its first check is `DEEPFIELD_ARENA_LIVE == "1"` — but nothing
+  currently calls it. `SHADOW_MODE=True` governs the separate `execution_engine.py` path (paper
+  only; its LIVE branch is an unimplemented placeholder). Never re-introduce real-money order
+  placement without the user's explicit, in-the-moment go-ahead.
 
 ## Evaluation Requirements
 
@@ -181,24 +189,15 @@ SHADOW (paper) only — see Safety.**
   (default 5050). `app.run(host="0.0.0.0", ...)`.
 - `live_predictions_daemon.py` — the engine. `run_daemon()` loops: scrape odds → fetch
   fixtures → predict → write dashboard state → settle bets. Contains `fetch_betarabia_odds()`,
-  `find_betarabia_odds()`, the STAIR-AI integration, and the `place_bet()` call site.
+  `find_betarabia_odds()`, and the `place_bet()` call site.
 - `free_scraper_module.py` — Sofascore fixture fetch + the Betarabia fixture fallback builders.
 - `betarabia_scraper.py` — background subprocess (launched via `subprocess.Popen`) that scrapes
   Betarabia/Kickertech odds into `data/odds_stream.db`.
 - `execution_engine.py` — `place_bet()`; SHADOW vs LIVE branch (LIVE is an unimplemented placeholder).
-- `dfp_config.py` — settings incl. `SHADOW_MODE` (default **True**) and `STAIR_AI_API_KEY`.
+- `dfp_config.py` — settings incl. `SHADOW_MODE` (default **True**).
 - `api/main.py`, `orchestrator.py` — newer service-oriented stack (FastAPI/uvicorn), separate path.
-- `arena_betting.py` — Stair AI **World-Cup Arena** value-betting page (Flask blueprint, registered in
-  `live_dashboard_server.py`). Standalone at `/arena` and embedded in the dashboard as the
-  "World Cup Arena" sidebar tab (iframe in `index.html`'s `arena-view`). Compares the Sportmonks 1X2
-  model probability to the live Polymarket midpoint and bets only when `model_prob >= conf` AND
-  `model_prob - mid >= edge`. World-Cup-only (season `26618`) and only BEFORE kickoff (upcoming
-  fixtures filter + a placement-time `kickoff_ts > now` re-check).
-  Production API base `https://stair-ai.com`, auth header `x-api-key` (`STAIR_AI_API_KEY` in `.env`),
-  season `26618`. **REAL MONEY**: `/arena/api/analyze` is read-only; `/arena/api/place` only acts on a
-  POST with `{"confirm": true}`, capped at $5/order, a wallet buffer, and `MAX_BETS_PER_RUN`. Endpoints:
-  schedule/fixture proxies, `/api/v1/web/mapping` (→ per-outcome Polymarket YES tokens),
-  `/api/v1/data/proxy/polymarket-clob/midpoint`, `/api/v1/arena/orders`, `/api/v1/arena/ledger/records/batch`.
+- ~~`arena_betting.py`~~ — **removed 2026-07-13.** Was the Stair AI World-Cup Arena real-money
+  value-betting page (Flask blueprint at `/arena`). See `docs/removed_features.md` §4.
 
 ## Data flow (how matches reach the dashboard)
 
@@ -226,8 +225,8 @@ populates matches.
 ## Config
 
 - `.env` (loaded via python-dotenv / pydantic-settings). Keys: `API_FOOTBALL_KEY`,
-  `STAIR_AI_API_KEY`, `WHATSAPP_*`, `DEEPFIELD_*` risk params, `BROWSER_*`, etc.
-  NOTE: `BETFAIR_*` values are placeholders (`your_username`), i.e. Betfair is not configured.
+  `WHATSAPP_*`, `DEEPFIELD_*` risk params, `BROWSER_*`, etc. Betfair (`BETFAIR_*`) is configured
+  (real login, read-only "Delayed (free)" key — odds retrieval only, no order placement).
 - ML models/artifacts live in `models/`.
 
 ## Safety (important)
@@ -235,15 +234,23 @@ populates matches.
 - **No real-money betting.** `place_bet()` runs the **SHADOW_MODE** branch (default `True` in
   `dfp_config.py`) → records mock "SHADOW" bets to DB only. The LIVE branch is an unimplemented
   placeholder ("Real capital execution not yet fully linked"). `auto_place_bets` in settings.json
-  does NOT actually gate placement.
-- The daemon DOES make external calls when running: STAIR-AI order POSTs (to `staging.stair-ai.com`),
-  optional WhatsApp alerts, and live web scraping (Playwright/Chromium). Keep this in mind before running.
+  does NOT actually gate placement. There is no other real-money path in the app (Stair AI Arena
+  removed 2026-07-13 — see `docs/removed_features.md` §4).
+- The daemon DOES make external calls when running: optional WhatsApp alerts and live web
+  scraping (Playwright/Chromium). Keep this in mind before running.
 
 ## Known issues / gotchas
 
 - **Missing dep**: `pydantic-settings` is required by the daemon — now pinned in `requirements.txt`.
-- **Sofascore returns empty** (its API is 403 bot-blocked) → fixtures fall back to Betarabia,
-  and settlement no longer uses it.
+- **Sofascore — CORRECTED 2026-07-11 (this said "returns empty / 403 bot-blocked"; that is
+  now STALE).** The `patchright` (stealth-Playwright) path bypasses the block:
+  `sofascore_patchright_scraper.py` is the **primary fixture source** today
+  (`live_predictions_daemon.py:301` — its import succeeds because patchright is installed, so
+  the Betarabia fixture fallback is rarely reached; today's dashboard state carries
+  Sofascore-style fixture IDs), and `sofascore_results_scraper.py` is a live settlement source
+  (per-date `data/sofascore_cache_*.json` refresh each cycle). Verified by a 9-scraper live
+  health check 2026-07-11. The plain-`requests` Sofascore path may still 403 — the note only
+  applies to that, not the patchright path.
 - **Settlement results source**: `free_results_scraper.py` (`get_finished_results()`) provides free,
   key-less finished scores from **ESPN** (broad league coverage incl. minor leagues) + **TheSportsDB**
   fallback, cached per-date. `settle_open_bets()` uses it as the primary feed (API-Football is only a
@@ -253,16 +260,9 @@ populates matches.
   from `odds_stream.db`. The fallback builders (daemon + `free_scraper_module.py`) use that metadata —
   do NOT revert them to stamping `now()` / `"NS"` / `"Betarabia"` (that caused the "all kickoffs show
   the scrape time" glitch).
-- **STAIR-AI**: FIXED. The daemon + dashboard now talk to **production `https://stair-ai.com`**
-  (the old hardcoded `staging.stair-ai.com` was dead). The key is resolved resiliently
-  (`_stair_api_key()`: env → read `.env`), because `.env` is NOT loaded into `os.environ` at
-  daemon-thread startup — so `os.getenv` alone returned empty and auth 401'd. Agent init now
-  logs "Agent profile updated successfully."
-- **Daemon real-money gate (IMPORTANT)**: the paper daemon bets across ALL markets, most of which
-  are heavily -EV in the realized record (Goalscorer −80%, Player Shots −62%, O/U −70%, BTTS −59%).
-  Its arena order-POST is therefore **gated OFF** — it only writes `SHADOW_*` order ids unless
-  `DEEPFIELD_DAEMON_LIVE_ORDERS=1` (do NOT set this). Real money flows ONLY through the disciplined
-  1X2-only `arena_betting.py` path (caps + `confirm:true` + paused-by-default autopilot).
+- **Daemon bet-source note**: the paper daemon bets across ALL markets, most of which are heavily
+  -EV in the realized record (Goalscorer −80%, Player Shots −62%, O/U −70%, BTTS −59%). Every AI
+  bet gets a `SHADOW_*` order id — there is no real order path left to gate.
 - **scikit-learn version**: RESOLVED — `requirements.txt` now pins `scikit-learn==1.8.0` (matches the
   calibrators) and the two legacy 1.6.1 tree models were re-pickled under 1.8.0 (`*.sk161.bak` backups
   kept in `models/`). All 15 artifacts now load with zero `InconsistentVersionWarning`. The daemon's
@@ -290,7 +290,7 @@ is settled from real scores). Changes made:
 - **Paper bankroll gotcha**: `bankroll.db` `current_balance` is liquid cash; when it hits $0 (all staked in
   open bets) the daemon silently places nothing. `tools/reset_paper_bankroll.py` restores it (PAPER ONLY).
 - Staking is already fractional-Kelly in `log_ai_bet` (`kelly_multiplier`, `max_exposure_pct`).
-- Real money (Arena) remains paused/gated; none of this arms it.
+- No real-money path exists in this app (see Safety above).
 
 ## Advanced model upgrade (2026-06-14) — Dixon-Coles + safety
 
@@ -308,11 +308,8 @@ is settled from real scores). Changes made:
   walk-forward) — DC is already near-perfectly calibrated, so it's ~identity (vs the old 53-bet fit).
 - **Market blending**: `settings.market_blend_weight` (default 0.5) shades model prob toward the
   de-vigged market in the daemon EV path — lower variance, fewer model-error bets.
-- **Real-money HARD GATE (critical)**: `arena_betting.place_order()` refuses unless
-  `DEEPFIELD_ARENA_LIVE=1`; `autopilot_cycle` is paused unless that env AND `enabled` are both set.
-  Fail-safe defaults flipped from True→False. Multiple orphaned daemons had been re-enabling the
-  state file; the env gate makes real bets impossible regardless of flag/zombie/frontend. Keep
-  `DEEPFIELD_ARENA_LIVE` UNSET. Wallet ~$53 untouched.
+- **Real-money HARD GATE**: `src/gatekeeper.py`'s `check_real_money_gate()` refuses unless
+  `DEEPFIELD_ARENA_LIVE=1` (currently unset/`0`, and nothing calls this gate — see Safety above).
 - **Ops gotcha**: orphaned python can leave zombie LISTENING sockets; the bat now auto-scans
   5052-5058 for a free port. Always `taskkill /IM python.exe /F` before relaunch.
 
@@ -431,3 +428,114 @@ scraped price into `odds_history` (fixture_id, market, selection, odds, timestam
 
 - Run Python via the venv interpreter explicitly (`.venv\Scripts\python.exe`), not bare `python`.
 - This is a Windows machine; shell is PowerShell. Background the server; tail `server*.log`.
+
+## Settlement integrity + memory (2026-08-24)
+
+**Settlement was grading 88% of bets by fuzzy team name.** `_fid_to_score` was built
+only from `todays_dashboard_state.json` (rewritten each cycle, today only) while
+settlement looks back 7 days, so fid-direct went 14.9% same-day → 5.7% (+1d) → **0.0%
+(+2d and beyond)**. Splitting realized P&L by `settle_source` shows the returns track the
+GRADING METHOD, not betting skill: `fid-direct` is **−19.6%** ROI across every strategy
+(n=406), `name-match` +1.7%, `deep-lookup` +43.9%. Within MODEL_VALUE_ALIGN alone — same
+window, same stakes — fid-direct +2.7%, name-match +45.4%, deep-lookup +93.3%.
+**Treat any apparent edge as a grading artifact until it survives `settle_source='fid-direct'`.**
+
+- **`src/fixture_results.py` (new)** — durable `fixture_results(namespace, fixture_id,
+  home_score, away_score, status, seen_at)` table in `completed_fixtures.db`. Fed each
+  cycle from the dashboard state and from `sofascore_results_scraper.get_events()` across
+  the whole lookback; 30-day retention. `load_flat_scores()` serves legacy bets that have
+  no namespace and **drops any id meaning different results in two namespaces**.
+  Live effect: fid index **13 → 359 fixture_ids** on the first cycle.
+- **`fixture_ns` everywhere** — fixture dicts, dashboard state entries, and a `bet_log`
+  column (migrated via `settlement_provenance.PROVENANCE_COLUMNS`). Ids are NOT one space:
+  Sofascore 14–17M, Betarabia/Kickertech 27–29M, ESPN 4xxxxxxxx, plus md5 fallbacks now
+  stamped `synthetic:<source>` so they can never be cross-joined.
+- **`fetch_betarabia_odds()` now returns the real Kickertech `fixture_id`** (it selected
+  every column except that one), so the fallback builders stop minting md5 ids.
+- **`tools/edge_milestone_check.py`**: strategy list hoisted to a module constant `TRACKED`;
+  MODEL_VALUE_ALIGN, PINNACLE_VALUE and STAIR_AI were never tracked. MODEL_VALUE_ALIGN is
+  the only strategy to clear t≥2.0 (t=+3.52, n=190/300) — but see the settle_source caveat.
+
+**Memory: peak 5.9 GB → 4.0 GB, avg system free 1.8 GB → 2.8 GB** (16 GB machine).
+- `sharp_odds_history` grew unbounded to **65M rows / 16.6 GB** (~1.03M rows/day, no purge
+  while sibling `odds_history` had one). `pinnacle_feed` now dedups unchanged prices with a
+  300s heartbeat and purges past `SHARP_ODDS_RETENTION_DAYS` (14) each cycle.
+  `tools/prune_sharp_odds_history.py --archive` reclaimed **16.09 GB** (16.64 → 0.55 GB),
+  archiving all 62.3M dropped rows losslessly to `sharp_odds_history_archive.db`.
+- `betarabia_scraper` retained every JSON response while driving one page through 50 event
+  navigations → a single renderer at **1.34 GB**. Now `_ResponseStore` keeps only payloads
+  the parsers read (deduped by URL), and the page recycles every `_PAGE_RECYCLE_EVERY` (3)
+  navigations (~120 MB of renderer heap per event page is never released).
+- The completion scan launched **one Chromium per finished fixture**; now one batched
+  session via `get_fixture_stats_free_batch()`.
+- `sofascore_results_scraper` trims+dedups events on arrival (`_EventCollector`) instead of
+  holding raw payloads, and `_mem_cache` is bounded.
+- `tools/score_lookup.py` gained a negative-result cache — one cycle did 27 Chromium spawns
+  re-checking fixtures Flashscore does not carry. `NEG_CACHE_TTL` is **7200s (2h), which
+  MUST stay above the daemon's own `_DEEP_LOOKUP_INTERVAL` (1800s)** — a TTL at or below
+  that expires exactly when the throttle lifts and suppresses nothing. Guarded by
+  `tests/test_score_lookup_negcache.py::test_ttl_exceeds_the_daemons_own_deep_lookup_throttle`.
+
+## Daemon supervision + /api/health (2026-08-25)
+
+**The prediction worker could die silently, and did.** On 2026-08-24 23:02 `run_daemon`
+raised `TypeError: log_pinnacle_value_bet() got an unexpected keyword argument
+'fixture_ns'` and the thread exited. It was started as a bare
+`threading.Thread(target=run_daemon, daemon=True)`, so nothing restarted it and nothing
+reported it. Flask kept answering `/api/state` every 30 minutes; the dashboard looked
+perfectly healthy while nothing was scraped, predicted or settled for ~10 hours.
+
+- **`src/daemon_supervisor.py` (new)** — `start_supervised(run_daemon, name="predictions")`
+  replaces the bare thread in `live_dashboard_server.start_background_prediction_worker()`.
+  Crashes are logged, counted and retried with capped exponential backoff; the backoff
+  RESETS after a healthy run so a crash six hours in retries immediately. A clean return
+  is also treated as a fault (run_daemon must loop forever). Never re-raises.
+- **`GET /api/health`** — `{alive, ok, restarts, last_crash, last_crash_at,
+  state_age_sec, state_stale}`. `ok` is false when the worker is dead OR
+  `todays_dashboard_state.json` is >30 min stale, so a wedged-but-alive thread also reads
+  as broken. **`/api/state` returning 200 proves nothing about the engine — check this.**
+- **`tests/test_call_signature_guard.py` (new)** — AST-checks every keyword call site in
+  the daemon against the callee's real signature. The outage came from a bulk text replace
+  of `fixture_id=fid,` that hit two functions taking no `fixture_ns`; one killed the
+  thread, the other (`is_good_time_to_bet`) sat inside a bare `except` and silently left
+  the bet-timing filter failing open. `py_compile` cannot catch this.
+
+**Debugging a quiet daemon**: `py-spy` is installed in the venv —
+`.venv\Scripts\py-spy.exe dump --pid <pid>`. It distinguishes *blocked* from *dead*: if
+`Thread-N (run_daemon)` is missing entirely, it crashed, and the traceback is in the
+server's **stderr** log, not stdout. Launch with `python -u` so stdout is not
+block-buffered (a stalled thread otherwise leaves its last lines unflushed).
+
+## odds_fresh traced — it was a kickoff guard in disguise (2026-08-25)
+
+Gate telemetry showed `odds_fresh` rejecting 54 of 127 selections (43%) while only 9% of
+fixtures in `odds_stream.db` were older than the 60-minute limit. Chasing that produced
+two findings.
+
+**1. The apparent 43% was correct, and every one of those rejections was an
+already-kicked-off match.** The prediction loop only skips a fixture when `status in
+("FT","AET","PEN")` AND kickoff was >12h ago, so 17 South American fixtures from the
+previous day — kicked off 9–13h earlier, carrying 13-hour-old prices — reached the bet
+gate. `odds_fresh` was the ONLY thing stopping bets on them. That is far too load-bearing
+for a defence-in-depth check, and it **fails open exactly when it matters**: an in-play
+price is fresh by definition. `_kickoff_passed(match_time, grace_min=0.0)` now gates both
+bet chains explicitly. Live proof — the two gates reject an identical set:
+
+```
+[GATES] MODEL: 1/127 | blocked_by: ev=96, odds_fresh=54, not_kicked_off=54, prob=46
+```
+
+**2. A real staleness leak, separate from the above.** `_betarabia_odds_age_min` is a
+module global that `find_betarabia_odds()` set only on its Betarabia branch, near the END
+of the function. The Tier-1 **Kambi** branch returns early (Kambi serves ~164 fixtures, the
+majority of the slate), so every Kambi-priced fixture inherited whatever staleness the
+previous fixture left behind. Fixed: the global is reset on entry and set on every return
+path; `kambi_scraper.cache_age_min()` reports Kambi's true age (its own TTL is 90s).
+**Any module-global written on one branch and read by another is a leak waiting to happen
+— set it on entry.**
+
+Tests: `tests/test_kickoff_guard.py` (13), `tests/test_odds_freshness.py` (9).
+
+**Note on reading gate telemetry**: `blocked_by` counts SELECTIONS, `odds_stream.db` rows
+are FIXTURES. Comparing the two directly is apples-to-oranges — roughly 5 selections per
+fixture reach the gate, so ~10 stale fixtures produce ~50 selection rejections.

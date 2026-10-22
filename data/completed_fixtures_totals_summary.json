@@ -1,0 +1,35 @@
+{
+  "database": "completed_fixtures.db",
+  "total_size_bytes": 2716700672,
+  "tables": {
+    "sharp_odds_history": 11328900,
+    "odds_history": 470783,
+    "steam_signals": 3026,
+    "fixture_results": 2500
+  },
+  "sharp_odds_history_by_selection": {
+    "away": 2320117,
+    "draw": 2319790,
+    "home": 2320091,
+    "over_2.5": 2184538,
+    "under_2.5": 2184364
+  },
+  "odds_history_by_market": {
+    "1X2": 251906,
+    "BTTS": 55361,
+    "Goalscorer": 853,
+    "Over/Under 2.0": 3,
+    "Over/Under 2.5": 162611,
+    "Over/Under 3.0": 49
+  },
+  "steam_signals_by_market": {
+    "1X2": 1916,
+    "BTTS": 178,
+    "Over/Under 2.5": 932
+  },
+  "fixture_results_stats": {
+    "count": 2500,
+    "min_ts": 1787598419.281316,
+    "max_ts": 1788832970.8962169
+  }
+}

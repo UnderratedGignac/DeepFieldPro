@@ -1,0 +1,546 @@
+{
+  "balance": 0.0,
+  "updated_at": "2026-07-16T11:40:58.728086+00:00",
+  "history": [
+    {
+      "ts": "2026-07-13T15:04:10.561618+00:00",
+      "balance": 200.0,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-13T15:08:20.302807+00:00",
+      "balance": 165.0,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-13T15:08:21.848733+00:00",
+      "balance": 165.0,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-13T15:10:28.207920+00:00",
+      "balance": 145.0,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-13T15:10:28.913038+00:00",
+      "balance": 145.0,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-13T16:36:52.358978+00:00",
+      "balance": 129.25,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27457141_49d10004"
+    },
+    {
+      "ts": "2026-07-13T16:36:56.643800+00:00",
+      "balance": 127.25,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27506631_7a73f6bc"
+    },
+    {
+      "ts": "2026-07-13T16:37:00.646001+00:00",
+      "balance": 125.25,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27506631_2e00a7e0"
+    },
+    {
+      "ts": "2026-07-13T16:37:04.234971+00:00",
+      "balance": 123.25,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27710589_5de85dcf"
+    },
+    {
+      "ts": "2026-07-13T16:37:07.752463+00:00",
+      "balance": 115.87,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27658874_6f2c4de0"
+    },
+    {
+      "ts": "2026-07-13T16:37:11.973116+00:00",
+      "balance": 113.87,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27658874_9408d03a"
+    },
+    {
+      "ts": "2026-07-13T16:37:16.288208+00:00",
+      "balance": 109.35,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27685351_904f526d"
+    },
+    {
+      "ts": "2026-07-13T16:48:07.422768+00:00",
+      "balance": 117.35,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-13T18:53:32.614413+00:00",
+      "balance": 120.0,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-13T19:44:23.813082+00:00",
+      "balance": 106.07,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_4a8fbc715bb3_127160ee"
+    },
+    {
+      "ts": "2026-07-13T19:44:27.437588+00:00",
+      "balance": 101.86,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27611507_c99cefb5"
+    },
+    {
+      "ts": "2026-07-13T19:44:31.147403+00:00",
+      "balance": 98.77,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27611507_60f5356f"
+    },
+    {
+      "ts": "2026-07-13T19:44:35.243057+00:00",
+      "balance": 96.77,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27677297_e9dc657e"
+    },
+    {
+      "ts": "2026-07-13T19:44:38.827276+00:00",
+      "balance": 94.77,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27677297_e3c394ee"
+    },
+    {
+      "ts": "2026-07-13T20:21:26.955340+00:00",
+      "balance": 120.0,
+      "source": "user",
+      "note": "reported in chat 2026-07-13"
+    },
+    {
+      "ts": "2026-07-14T03:12:40.596899+00:00",
+      "balance": 120.0,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-14T03:43:35.611954+00:00",
+      "balance": 118.0,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27634311_6f893fa0"
+    },
+    {
+      "ts": "2026-07-14T03:43:38.434592+00:00",
+      "balance": 116.0,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27634311_3b7c7182"
+    },
+    {
+      "ts": "2026-07-14T03:43:41.638684+00:00",
+      "balance": 114.0,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27634313_54781fa6"
+    },
+    {
+      "ts": "2026-07-14T03:43:44.271484+00:00",
+      "balance": 107.17,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27634313_0eb42ef4"
+    },
+    {
+      "ts": "2026-07-14T03:43:47.056374+00:00",
+      "balance": 105.17,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27657665_a1c73cd1"
+    },
+    {
+      "ts": "2026-07-14T03:43:50.057877+00:00",
+      "balance": 103.17,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27657665_d1e06bf4"
+    },
+    {
+      "ts": "2026-07-14T03:43:52.716151+00:00",
+      "balance": 101.17,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27630447_2b452108"
+    },
+    {
+      "ts": "2026-07-14T03:43:55.842012+00:00",
+      "balance": 95.11,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27630447_be01e03f"
+    },
+    {
+      "ts": "2026-07-14T03:43:58.681262+00:00",
+      "balance": 93.11,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27637813_2b608eb7"
+    },
+    {
+      "ts": "2026-07-14T03:44:01.164744+00:00",
+      "balance": 91.11,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27637813_51440f69"
+    },
+    {
+      "ts": "2026-07-14T03:44:04.072740+00:00",
+      "balance": 89.11,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27713725_ee4fc77c"
+    },
+    {
+      "ts": "2026-07-14T03:44:06.674949+00:00",
+      "balance": 87.11,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27713725_fb866952"
+    },
+    {
+      "ts": "2026-07-14T03:44:09.185727+00:00",
+      "balance": 79.69,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27713726_cca6cf43"
+    },
+    {
+      "ts": "2026-07-14T03:44:12.476531+00:00",
+      "balance": 77.69,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27713726_a8ff8599"
+    },
+    {
+      "ts": "2026-07-14T03:44:15.133569+00:00",
+      "balance": 69.7,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27640152_9fd8333c"
+    },
+    {
+      "ts": "2026-07-14T03:44:17.918923+00:00",
+      "balance": 65.92,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27640152_b444928a"
+    },
+    {
+      "ts": "2026-07-14T03:44:20.852291+00:00",
+      "balance": 59.6,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27630446_1bf184bf"
+    },
+    {
+      "ts": "2026-07-14T03:44:23.389918+00:00",
+      "balance": 57.6,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27630446_4cfe1807"
+    },
+    {
+      "ts": "2026-07-14T03:44:26.416497+00:00",
+      "balance": 55.6,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27677298_e43f492f"
+    },
+    {
+      "ts": "2026-07-14T03:44:28.938825+00:00",
+      "balance": 53.6,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27677298_7a7ceeeb"
+    },
+    {
+      "ts": "2026-07-14T03:44:31.505444+00:00",
+      "balance": 51.6,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27630445_987ad8fb"
+    },
+    {
+      "ts": "2026-07-14T03:44:34.372559+00:00",
+      "balance": 49.6,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27630448_b30ba6b1"
+    },
+    {
+      "ts": "2026-07-14T03:44:36.868653+00:00",
+      "balance": 47.6,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27619841_137a1b2d"
+    },
+    {
+      "ts": "2026-07-14T06:54:55.250805+00:00",
+      "balance": 44.77,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27630445_80e43b56"
+    },
+    {
+      "ts": "2026-07-14T06:54:57.955545+00:00",
+      "balance": 42.77,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27630448_1c9fa3e4"
+    },
+    {
+      "ts": "2026-07-14T06:55:00.762912+00:00",
+      "balance": 40.77,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27619841_a29a9590"
+    },
+    {
+      "ts": "2026-07-14T06:55:03.552320+00:00",
+      "balance": 36.8,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27711776_d33f9cd2"
+    },
+    {
+      "ts": "2026-07-14T06:55:06.069303+00:00",
+      "balance": 34.8,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27711776_3fcb65a0"
+    },
+    {
+      "ts": "2026-07-14T06:55:09.142981+00:00",
+      "balance": 32.8,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27712970_77fc1d5a"
+    },
+    {
+      "ts": "2026-07-14T06:55:12.630618+00:00",
+      "balance": 30.8,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27712969_a595aaf3"
+    },
+    {
+      "ts": "2026-07-14T07:40:46.896298+00:00",
+      "balance": 110.0,
+      "source": "user",
+      "note": "ntfy reply"
+    },
+    {
+      "ts": "2026-07-15T08:08:38.724617+00:00",
+      "balance": 108.0,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_6e0c95ac8c11_4f9aeced"
+    },
+    {
+      "ts": "2026-07-15T08:08:41.269499+00:00",
+      "balance": 106.0,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_6fc47fdb442e_1223f10d"
+    },
+    {
+      "ts": "2026-07-15T08:08:44.320409+00:00",
+      "balance": 96.94,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_06ff86fc7333_87f86e41"
+    },
+    {
+      "ts": "2026-07-15T08:08:47.446753+00:00",
+      "balance": 94.94,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_d6c3a96e7241_8005e9f9"
+    },
+    {
+      "ts": "2026-07-15T08:08:49.832004+00:00",
+      "balance": 88.29,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_d854704820f4_b67aa8cd"
+    },
+    {
+      "ts": "2026-07-15T08:08:52.814569+00:00",
+      "balance": 83.88,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_58971bacf0e9_37ed386d"
+    },
+    {
+      "ts": "2026-07-15T08:08:56.034549+00:00",
+      "balance": 77.89,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_a3b7b03feeed_03a9d2a4"
+    },
+    {
+      "ts": "2026-07-15T08:08:58.408904+00:00",
+      "balance": 74.26,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_59d077bf4fc1_e18372bd"
+    },
+    {
+      "ts": "2026-07-15T08:09:01.076322+00:00",
+      "balance": 68.19,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_d8642dbce1fd_bd952f3b"
+    },
+    {
+      "ts": "2026-07-15T08:09:04.057203+00:00",
+      "balance": 61.41,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_bce0d86e5c7a_13268ed3"
+    },
+    {
+      "ts": "2026-07-15T08:09:06.414748+00:00",
+      "balance": 56.34,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_a0a25d17eba7_7182b1ed"
+    },
+    {
+      "ts": "2026-07-15T08:09:09.006957+00:00",
+      "balance": 54.34,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_26495595_d179a60d"
+    },
+    {
+      "ts": "2026-07-15T08:09:11.908046+00:00",
+      "balance": 52.34,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_26495595_ff96e554"
+    },
+    {
+      "ts": "2026-07-15T08:09:14.270311+00:00",
+      "balance": 50.34,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_wc_England vs Argentina_d7ade0c5"
+    },
+    {
+      "ts": "2026-07-15T09:37:17.655871+00:00",
+      "balance": 48.34,
+      "source": "deduct",
+      "note": "suggested stake for 2354e5f0-4e27-40e3-bd44-a0a6ca898695"
+    },
+    {
+      "ts": "2026-07-16T05:03:18.446911+00:00",
+      "balance": 45.61,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_da0335de29bc_776988bd"
+    },
+    {
+      "ts": "2026-07-16T05:03:20.665454+00:00",
+      "balance": 43.61,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_266244aac515_222dcef1"
+    },
+    {
+      "ts": "2026-07-16T05:03:22.728786+00:00",
+      "balance": 41.61,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_1211fe8c6f3b_00ceb772"
+    },
+    {
+      "ts": "2026-07-16T05:03:25.182439+00:00",
+      "balance": 38.17,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_2ef01f7ad454_27798fdc"
+    },
+    {
+      "ts": "2026-07-16T05:03:27.277956+00:00",
+      "balance": 36.17,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_KAMBI_171963e1b2ea_ddc41293"
+    },
+    {
+      "ts": "2026-07-16T06:35:59.689672+00:00",
+      "balance": 33.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27761642_565cc4f4"
+    },
+    {
+      "ts": "2026-07-16T06:36:01.904756+00:00",
+      "balance": 31.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27761642_a7e6a394"
+    },
+    {
+      "ts": "2026-07-16T06:36:03.750368+00:00",
+      "balance": 29.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27759974_592b0ade"
+    },
+    {
+      "ts": "2026-07-16T06:55:10.374567+00:00",
+      "balance": 27.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27759974_35676dd4"
+    },
+    {
+      "ts": "2026-07-16T06:55:12.248566+00:00",
+      "balance": 25.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27779900_d19f0c3e"
+    },
+    {
+      "ts": "2026-07-16T11:40:16.673158+00:00",
+      "balance": 23.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27790106_5901e988"
+    },
+    {
+      "ts": "2026-07-16T11:40:20.328328+00:00",
+      "balance": 21.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27790106_17762896"
+    },
+    {
+      "ts": "2026-07-16T11:40:23.458420+00:00",
+      "balance": 19.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27759973_15f970f9"
+    },
+    {
+      "ts": "2026-07-16T11:40:27.507255+00:00",
+      "balance": 17.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27759973_85ec8f45"
+    },
+    {
+      "ts": "2026-07-16T11:40:30.719297+00:00",
+      "balance": 15.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27692801_9d0ccda3"
+    },
+    {
+      "ts": "2026-07-16T11:40:34.375697+00:00",
+      "balance": 13.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27692801_5e499f1c"
+    },
+    {
+      "ts": "2026-07-16T11:40:37.789400+00:00",
+      "balance": 11.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27692800_1a6b4577"
+    },
+    {
+      "ts": "2026-07-16T11:40:41.736667+00:00",
+      "balance": 9.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27692800_1a9af135"
+    },
+    {
+      "ts": "2026-07-16T11:40:44.981048+00:00",
+      "balance": 7.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27694998_ae4c7d78"
+    },
+    {
+      "ts": "2026-07-16T11:40:48.723964+00:00",
+      "balance": 5.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27694998_f59dbf20"
+    },
+    {
+      "ts": "2026-07-16T11:40:51.774222+00:00",
+      "balance": 3.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27769871_3de81956"
+    },
+    {
+      "ts": "2026-07-16T11:40:55.565094+00:00",
+      "balance": 1.23,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27769871_f21bda37"
+    },
+    {
+      "ts": "2026-07-16T11:40:58.728086+00:00",
+      "balance": 0.0,
+      "source": "deduct",
+      "note": "suggested stake for TIP_FORE_27692803_f28a9ffd"
+    }
+  ]
+}

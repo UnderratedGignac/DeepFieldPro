@@ -1,0 +1,610 @@
+{
+  "run_at": "2026-06-30T09:39:19.370793Z",
+  "summary": {
+    "passed": 8,
+    "warned": 2,
+    "failed": 0,
+    "total": 10
+  },
+  "results": [
+    {
+      "test": "T01_prediction_model",
+      "status": "PASS",
+      "detail": "231 1X2 selections across 80 fixtures. Mean edge -2.5pp. 111/231 positive-edge picks.",
+      "data": {
+        "total_selections": 231,
+        "positive_edge": 111,
+        "mean_edge_pp": -2.51,
+        "grade_distribution": {
+          "A+": 0,
+          "A": 1,
+          "B": 3,
+          "C": 82,
+          "D": 14,
+          "F": 131
+        },
+        "top_picks": [
+          {
+            "match": "Altona 93 vs FC St. Pauli",
+            "league": "Club Friendlies",
+            "side": "Home (1)",
+            "model_p": 57.8,
+            "odds": 16.0,
+            "edge_pp": 51.55,
+            "ev": 408.69
+          },
+          {
+            "match": "Juventud Unida Reserves vs Deportivo Espanol Reserves",
+            "league": "Reserve League",
+            "side": "Home (1)",
+            "model_p": 57.8,
+            "odds": 12.75,
+            "edge_pp": 49.96,
+            "ev": 313.56
+          },
+          {
+            "match": "Hull City vs Manchester United",
+            "league": "Premier League",
+            "side": "Home (1)",
+            "model_p": 57.8,
+            "odds": 7.1,
+            "edge_pp": 43.72,
+            "ev": 151.82
+          },
+          {
+            "match": "Clyde vs Queen's Park",
+            "league": "Club Friendlies",
+            "side": "Home (1)",
+            "model_p": 57.8,
+            "odds": 6.65,
+            "edge_pp": 42.76,
+            "ev": 138.39
+          },
+          {
+            "match": "Nairn Country vs Elgin City",
+            "league": "Club Friendlies",
+            "side": "Home (1)",
+            "model_p": 57.8,
+            "odds": 5.85,
+            "edge_pp": 40.71,
+            "ev": 114.83
+          },
+          {
+            "match": "Simba vs Kmc Fc",
+            "league": "Premier League",
+            "side": "Away (2)",
+            "model_p": 36.1,
+            "odds": 23.0,
+            "edge_pp": 31.75,
+            "ev": 360.16
+          },
+          {
+            "match": "Cote d'Ivoire vs Norway",
+            "league": "FIFA World Cup",
+            "side": "Home (1)",
+            "model_p": 57.8,
+            "odds": 3.5,
+            "edge_pp": 29.23,
+            "ev": 49.58
+          },
+          {
+            "match": "FC Eindhoven vs Una Zeelst",
+            "league": "Club Friendlies",
+            "side": "Away (2)",
+            "model_p": 36.1,
+            "odds": 14.5,
+            "edge_pp": 29.2,
+            "ev": 207.96
+          },
+          {
+            "match": "Brighton & Hove Albion vs Aston Villa",
+            "league": "Premier League",
+            "side": "Away (2)",
+            "model_p": 62.6,
+            "odds": 2.95,
+            "edge_pp": 28.7,
+            "ev": 39.17
+          },
+          {
+            "match": "Rigas FS vs BFC Daugavpils",
+            "league": "Virsliga",
+            "side": "Away (2)",
+            "model_p": 36.1,
+            "odds": 12.75,
+            "edge_pp": 28.26,
+            "ev": 176.38
+          }
+        ]
+      },
+      "name": "Prediction Model Accuracy"
+    },
+    {
+      "test": "T02_arena_half_kelly",
+      "status": "PASS",
+      "detail": "Placed 0 half-Kelly test bets on WC fixtures. Avg stake $0 at paper wallet $5000.",
+      "data": {
+        "bets_placed": 0,
+        "avg_stake_usd": 0,
+        "stake_curve_sample": [
+          {
+            "wallet": 100,
+            "edge": 76.3,
+            "stake": 5.0
+          },
+          {
+            "wallet": 500,
+            "edge": 76.3,
+            "stake": 5.0
+          },
+          {
+            "wallet": 5000,
+            "edge": 76.3,
+            "stake": 5.0
+          },
+          {
+            "wallet": 100,
+            "edge": 26.3,
+            "stake": 5.0
+          },
+          {
+            "wallet": 500,
+            "edge": 26.3,
+            "stake": 5.0
+          },
+          {
+            "wallet": 5000,
+            "edge": 26.3,
+            "stake": 5.0
+          },
+          {
+            "wallet": 100,
+            "edge": 19.6,
+            "stake": 5.0
+          },
+          {
+            "wallet": 500,
+            "edge": 19.6,
+            "stake": 5.0
+          },
+          {
+            "wallet": 5000,
+            "edge": 19.6,
+            "stake": 5.0
+          }
+        ],
+        "top_bets": []
+      },
+      "name": "Arena Half-Kelly Staking"
+    },
+    {
+      "test": "T03_daemon_quarter_kelly",
+      "status": "PASS",
+      "detail": "3 quarter-Kelly shadow bets placed (REAL staking ON). Paper balance $7,374. kelly_mult=0.15, max_exp=2.0%.",
+      "data": {
+        "ai_real_staking_enabled": true,
+        "kelly_multiplier": 0.15,
+        "max_exposure_pct": 0.02,
+        "paper_balance": 7373.956147999996,
+        "bets_placed": 3,
+        "sample": [
+          {
+            "match": "Clachnacuddin FC vs Ross County",
+            "side": "Home (1)",
+            "prob_pct": 34.5,
+            "kelly_f_full_pct": 28.8,
+            "kelly_f_frac_pct": 2.0,
+            "computed_stake": 147.48,
+            "real_stake": 147.48
+          },
+          {
+            "match": "Clachnacuddin FC vs Ross County",
+            "side": "Draw (X)",
+            "prob_pct": 29.9,
+            "kelly_f_full_pct": 17.6,
+            "kelly_f_frac_pct": 2.0,
+            "computed_stake": 147.48,
+            "real_stake": 147.48
+          },
+          {
+            "match": "Clachnacuddin FC vs Ross County",
+            "side": "Away (2)",
+            "prob_pct": 36.1,
+            "kelly_f_full_pct": -339.78,
+            "kelly_f_frac_pct": 0.0,
+            "computed_stake": 1.0,
+            "real_stake": 1.0
+          }
+        ]
+      },
+      "name": "Daemon Quarter-Kelly Staking"
+    },
+    {
+      "test": "T04_steam_staking",
+      "status": "PASS",
+      "detail": "68 steam signals found (\u22651.0%). Steam stake: $70.83 (2% of $7,083 bankroll). 0 test bets placed.",
+      "data": {
+        "steam_min_pct": 1.0,
+        "steam_kelly_frac": 0.01,
+        "stake_computed": 70.83,
+        "signals_found": 68,
+        "bets_placed": 0,
+        "top_signals": [
+          {
+            "match": "Simba vs Kmc Fc",
+            "league": "Premier League",
+            "side": "Draw (X)",
+            "steam_move": 60.53,
+            "direction": "DOWN",
+            "odds": 14.25,
+            "prob_pct": 28.7
+          },
+          {
+            "match": "Jkt Tanzania vs Young Africans FC",
+            "league": "Premier League",
+            "side": "Draw (X)",
+            "steam_move": 49.34,
+            "direction": "DOWN",
+            "odds": 4.85,
+            "prob_pct": 18.1
+          },
+          {
+            "match": "FC Eindhoven vs Una Zeelst",
+            "league": "Club Friendlies",
+            "side": "Draw (X)",
+            "steam_move": 26.37,
+            "direction": "DOWN",
+            "odds": 7.9,
+            "prob_pct": 28.7
+          },
+          {
+            "match": "Jkt Tanzania vs Young Africans FC",
+            "league": "Premier League",
+            "side": "Home (1)",
+            "steam_move": 24.25,
+            "direction": "DOWN",
+            "odds": 10.25,
+            "prob_pct": 18.1
+          },
+          {
+            "match": "Aarau vs St. Gallen II",
+            "league": "Club Friendlies",
+            "side": "Draw (X)",
+            "steam_move": 23.82,
+            "direction": "DOWN",
+            "odds": 12.5,
+            "prob_pct": 6.9
+          },
+          {
+            "match": "Namungo Fc vs Mtibwa Sugar",
+            "league": "Premier League",
+            "side": "Draw (X)",
+            "steam_move": 18.61,
+            "direction": "UP",
+            "odds": 3.3,
+            "prob_pct": 30.7
+          },
+          {
+            "match": "General Caballero de Campo Grande vs 29 de Setiembre",
+            "league": "Cup",
+            "side": "Draw (X)",
+            "steam_move": 18.4,
+            "direction": "DOWN",
+            "odds": 5.5,
+            "prob_pct": 26.4
+          },
+          {
+            "match": "Aarau vs St. Gallen II",
+            "league": "Club Friendlies",
+            "side": "Away (2)",
+            "steam_move": 16.82,
+            "direction": "DOWN",
+            "odds": 20.5,
+            "prob_pct": 8.4
+          },
+          {
+            "match": "Fylkir/Ellidi (U-19) vs HK/Ymir Kopavogur (U-19)",
+            "league": "(U-19) League",
+            "side": "Draw (X)",
+            "steam_move": 15.93,
+            "direction": "DOWN",
+            "odds": 6.0,
+            "prob_pct": 28.7
+          },
+          {
+            "match": "Arsenal vs Coventry City",
+            "league": "Premier League",
+            "side": "Draw (X)",
+            "steam_move": 15.78,
+            "direction": "DOWN",
+            "odds": 7.75,
+            "prob_pct": 14.1
+          }
+        ]
+      },
+      "name": "Steam Staking Model"
+    },
+    {
+      "test": "T05_bet_grader",
+      "status": "PASS",
+      "detail": "Graded 30 WC picks. Grade distribution: {'A+': 0, 'A': 0, 'B': 0, 'C': 9, 'D': 2, 'F': 19}. One bet placed per grade bucket (0/3 buckets).",
+      "data": {
+        "grade_distribution": {
+          "A+": 0,
+          "A": 0,
+          "B": 0,
+          "C": 9,
+          "D": 2,
+          "F": 19
+        },
+        "buckets_with_bets": [
+          "C",
+          "D",
+          "F"
+        ],
+        "bets_placed": 0,
+        "top_by_grade": {
+          "C": {
+            "match": "France vs Sweden",
+            "edge_pp": 76.3
+          },
+          "D": {
+            "match": "Portugal vs Croatia",
+            "edge_pp": 2.5
+          },
+          "F": {
+            "match": "United States vs Bosnia and Herzegovina",
+            "edge_pp": 0.7
+          }
+        }
+      },
+      "name": "Bet Quality Grader A-F"
+    },
+    {
+      "test": "T06_brier_score",
+      "status": "WARN",
+      "detail": "Only 0 settled bets \u2014 need \u226510 for reliable Brier score.",
+      "data": {
+        "overall": {
+          "brier_score": 0.2276,
+          "brier_baseline": 0.2459,
+          "brier_skill_score": 0.0744,
+          "grade": "B",
+          "n_bets": 461,
+          "win_rate": 0.408,
+          "roi_pct": 13.15,
+          "avg_edge_pct": 8.559,
+          "avg_clv": 0.0223,
+          "calibration_curve": [
+            {
+              "prob_mid": 0.05,
+              "n": 11,
+              "actual_win_rate": 0.182
+            },
+            {
+              "prob_mid": 0.15,
+              "n": 37,
+              "actual_win_rate": 0.189
+            },
+            {
+              "prob_mid": 0.25,
+              "n": 89,
+              "actual_win_rate": 0.281
+            },
+            {
+              "prob_mid": 0.35,
+              "n": 46,
+              "actual_win_rate": 0.261
+            },
+            {
+              "prob_mid": 0.45,
+              "n": 80,
+              "actual_win_rate": 0.487
+            },
+            {
+              "prob_mid": 0.55,
+              "n": 110,
+              "actual_win_rate": 0.491
+            },
+            {
+              "prob_mid": 0.65,
+              "n": 51,
+              "actual_win_rate": 0.529
+            },
+            {
+              "prob_mid": 0.75,
+              "n": 34,
+              "actual_win_rate": 0.588
+            }
+          ],
+          "by_market": {
+            "1X2": {
+              "n": 237,
+              "win_rate": 0.321,
+              "roi_pct": 24.22,
+              "brier": 0.2052
+            },
+            "Over/Under 2.5": {
+              "n": 224,
+              "win_rate": 0.5,
+              "roi_pct": 5.45,
+              "brier": 0.2513
+            }
+          }
+        },
+        "rolling_weekly": [
+          {
+            "week": "2026-06-22",
+            "brier": 0.1936,
+            "n": 92,
+            "win_rate": 0.359
+          },
+          {
+            "week": "2026-06-29",
+            "brier": 0.2361,
+            "n": 369,
+            "win_rate": 0.42
+          }
+        ],
+        "streak": {
+          "streak": 1,
+          "streak_type": "L",
+          "last_10": [
+            "L",
+            "W",
+            "W",
+            "W",
+            "W",
+            "W",
+            "W",
+            "L",
+            "W",
+            "W"
+          ],
+          "last_10_win_rate": 0.8
+        },
+        "market_alerts": [
+          {
+            "market": "Over/Under 2.5",
+            "alert": "BELOW_BASELINE",
+            "brier": 0.2513,
+            "brier_baseline": 0.2459,
+            "roi_pct": 5.45,
+            "message": "Over/Under 2.5: Brier 0.2513 > baseline 0.2459 \u2014 model has no edge here"
+          }
+        ]
+      },
+      "name": "Brier Score Calibration"
+    },
+    {
+      "test": "T07_clv_tracking",
+      "status": "PASS",
+      "detail": "5058/5736 settled bets have CLV data (88.2%). Avg CLV: -0.0pp. Positive CLV: 27.5% of CLV-tracked. price_history rows: 0. Open bets CLV-eligible: 9.",
+      "data": {
+        "settled_bets": 5736,
+        "with_clv": 5058,
+        "clv_coverage_pct": 88.2,
+        "avg_clv_pp": -0.0,
+        "positive_clv_pct": 27.5,
+        "price_history_rows": 0,
+        "open_bets_clv_eligible": 9
+      },
+      "name": "CLV Tracking"
+    },
+    {
+      "test": "T08_drawdown",
+      "status": "WARN",
+      "detail": "Paper balance $7,031.03 (seed $5,000). Peak $7,097.59. Max drawdown 34.6%. Current drawdown 0.9%. 866 open bets, $18931.91 at risk.",
+      "data": {
+        "seed": 5000.0,
+        "current_balance": 7031.03,
+        "peak_balance": 7097.59,
+        "max_drawdown_pct": 34.58,
+        "current_drawdown_pct": 0.94,
+        "settled_bets": 5736,
+        "open_bets": 866,
+        "open_exposure": 18931.91,
+        "equity_tail": [
+          6200.51,
+          6076.02,
+          6015.02,
+          5986.7,
+          6201.13,
+          6134.79,
+          6069.12,
+          5939.09,
+          6132.78,
+          6007.9,
+          6052.94,
+          6265.9,
+          6200.02,
+          6297.85,
+          6350.44,
+          6780.85,
+          6814.86,
+          7016.91,
+          7097.59,
+          7031.03
+        ]
+      },
+      "name": "Drawdown Monitor"
+    },
+    {
+      "test": "T09_redcard_monitor",
+      "status": "PASS",
+      "detail": "ESPN API: reachable. 0 live WC matches right now. Win prob check: OK (sums to 0.9999). 0 historical alerts stored.",
+      "data": {
+        "espn_api_reachable": true,
+        "live_wc_matches": 0,
+        "prob_check_ok": true,
+        "xg_test_win_prob": {
+          "scenario": "away_scores_at_60min_1-0",
+          "p_win": 0.8285,
+          "p_draw": 0.1408,
+          "p_loss": 0.0306
+        },
+        "remaining_xg_by_minute": [
+          {
+            "minute": 0,
+            "remaining_xg": 1.36
+          },
+          {
+            "minute": 45,
+            "remaining_xg": 0.768
+          },
+          {
+            "minute": 60,
+            "remaining_xg": 0.571
+          },
+          {
+            "minute": 76,
+            "remaining_xg": 0.36
+          },
+          {
+            "minute": 85,
+            "remaining_xg": 0.189
+          },
+          {
+            "minute": 90,
+            "remaining_xg": 0.095
+          }
+        ],
+        "stored_alerts": 0
+      },
+      "name": "Red Card Monitor"
+    },
+    {
+      "test": "T10_research_coverage",
+      "status": "PASS",
+      "detail": "622 research bets across 16 leagues. Markets: {'1X2': 262, 'Over/Under 2.5': 180, 'BTTS': 180}. Positive edge: 135/622 (21.7%). Avg edge: -1.51pp.",
+      "data": {
+        "total_research_bets": 622,
+        "by_market": {
+          "1X2": 262,
+          "Over/Under 2.5": 180,
+          "BTTS": 180
+        },
+        "top_leagues": {
+          "FIFA World Cup": 177,
+          "Club Friendlies": 147,
+          "Premier League": 105,
+          "Serie A": 70,
+          "Reserve League": 28,
+          "Virsliga": 14,
+          "Primera C Metropolitana": 14,
+          "Cup": 14,
+          "Queensland Premier League": 7,
+          "National Premier League": 7,
+          "Leinster Senior Cup": 7,
+          "Finland Cup": 7,
+          "Division 2": 7,
+          "Brazilian Serie B": 7,
+          "(U-19) League": 7,
+          "Primera": 4
+        },
+        "positive_edge_count": 135,
+        "avg_edge_pp": -1.51
+      },
+      "name": "Research Bet Coverage"
+    }
+  ]
+}

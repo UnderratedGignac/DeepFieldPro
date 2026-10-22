@@ -193,7 +193,7 @@ _FIND_INPUT_JS = """
 """
 
 _SET_INPUT_JS_TPL = """
-(function() {{
+(async function() {{
   const selectors = {selectors_json};
   let el = null;
   for (const sel of selectors) {{
@@ -219,8 +219,10 @@ _SET_INPUT_JS_TPL = """
     el.value = '';
     el.dispatchEvent(new Event('input', {{bubbles: true}}));
   }} else {{
-    // contenteditable
-    el.innerHTML = '';
+    // contenteditable — use textContent/replaceChildren, not innerHTML:
+    // gemini.google.com enforces a Trusted Types CSP that throws on any
+    // innerHTML assignment ("This document requires 'TrustedHTML' assignment").
+    el.textContent = '';
     el.dispatchEvent(new Event('input', {{bubbles: true}}));
   }}
 
@@ -228,7 +230,52 @@ _SET_INPUT_JS_TPL = """
   if (document.execCommand) {{
     document.execCommand('selectAll', false, null);
     document.execCommand('delete', false, null);
-    document.execCommand('insertText', false, {prompt_json});
+    if (el.tagName === 'TEXTAREA') {{
+      document.execCommand('insertText', false, {prompt_json});
+    }} else {{
+      // Quill (the rich-textarea's contenteditable) reconciles the DOM
+      // asynchronously via a MutationObserver. A single insertText call
+      // whose string contains literal newlines produces a DOM shape Quill
+      // doesn't recognize, and its reconciliation pass corrupts or drops
+      // content around/after the newlines. Inserting line-by-line and using
+      // insertParagraph for line breaks — the same native action a real
+      // Enter keypress triggers — keeps every step in a DOM shape Quill
+      // already knows how to reconcile.
+      //
+      // A real multi-paragraph prompt (~25 lines) still gets corrupted with
+      // NO yield between steps: verified live that a same-tick synchronous
+      // burst leaves all 25 <p> elements in the DOM but wipes the text out
+      // of all but the first one 0.3s later (Quill's MutationObserver
+      // appears to only fully absorb a small batch of mutations before its
+      // reconciliation "corrects" the rest back out). A 2-3 line toy case
+      // does NOT reproduce this — don't trust a fix against a toy case here.
+      //
+      // A setTimeout-based delay between steps *does* prevent the
+      // corruption, but setTimeout is a macrotask and Chrome heavily
+      // throttles macrotasks on background/inactive tabs — verified live
+      // that delays nominally totalling ~1s inflated to 3.5s+ and could
+      // blow past the caller's CDP wait timeout entirely on a real prompt.
+      // MutationObserver callbacks are delivered as microtasks, not
+      // macrotasks, so yielding via `await Promise.resolve()` gives Quill's
+      // observer a chance to run between steps WITHOUT going through the
+      // throttled timer queue at all. Verified live: the same 25-line
+      // prompt stays fully intact (immediate length == length read back
+      // 1.3s later) with microtask yields, taking ~6s total — no timeout
+      // risk. Two chained yields per step for margin; do not drop below one
+      // without re-verifying against a real, ~800+ char, 20+ line prompt on
+      // a fresh reload (not a short toy string).
+      const lines = {prompt_json}.split('\\n');
+      for (let i = 0; i < lines.length; i++) {{
+        if (lines[i].length > 0) {{
+          document.execCommand('insertText', false, lines[i]);
+          await Promise.resolve(); await Promise.resolve();
+        }}
+        if (i < lines.length - 1) {{
+          document.execCommand('insertParagraph', false, null);
+          await Promise.resolve(); await Promise.resolve();
+        }}
+      }}
+    }}
   }} else if (el.tagName === 'TEXTAREA') {{
     el.value = {prompt_json};
     el.dispatchEvent(new Event('input', {{bubbles: true}}));
@@ -301,10 +348,24 @@ _READ_RESPONSE_JS = """
 })()
 """
 
-# Check if Gemini is still generating (streaming indicator present)
+# Check if Gemini is still generating (streaming indicator present).
+# NOTE: two heuristics were tried here and both false-positived permanently
+# on the current UI, live-tested 2026-07:
+#   1. `[class*="loading|thinking|spinner"]` scanned across the whole page —
+#      matched unrelated persistent feature-flag classes on <body> and the
+#      logo chip (e.g. `enable-lm-loading-animation`, `thinking-level-enabled`).
+#   2. A visible "Stop response" button — Gemini leaves this button visible
+#      for a while *after* a response has already fully completed, so its
+#      presence does not mean generation is still in progress.
+# Both made this return 'true' forever, so _send_prompt_and_wait's stability
+# loop could never terminate on the fast path — it only ever "succeeded" by
+# exhausting the full poll timeout and falling back to its partial-text
+# return. This function is now deliberately conservative: only the specific,
+# purpose-built indicators below (not scanned/wildcarded) count as a real
+# signal, and _send_prompt_and_wait treats text-stability as authoritative
+# rather than requiring this to be false. See its comment for detail.
 _IS_GENERATING_JS = """
 (function() {
-  // Look for common streaming/thinking indicators
   const indicators = [
     '.loading-indicator',
     '[aria-label="Gemini is thinking"]',
@@ -316,12 +377,6 @@ _IS_GENERATING_JS = """
   ];
   for (const sel of indicators) {
     if (document.querySelector(sel)) return 'true';
-  }
-  // Check for animated elements
-  const animated = document.querySelector('[class*="loading"], [class*="thinking"], [class*="spinner"]');
-  if (animated) {
-    const r = animated.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) return 'true';
   }
   return 'false';
 })()
@@ -346,15 +401,48 @@ _COUNT_RESPONSES_JS = """
 # ---------------------------------------------------------------------------
 
 
+def _new_conversation(ws, wait: float = 20) -> bool:
+    """
+    Navigate the tab to a fresh, empty Gemini conversation.
+
+    Without this, every call (across every caller sharing the tab -- the
+    live daemon's own per-candidate cycle AND any standalone script) keeps
+    appending to whatever conversation happens to already be open, forever.
+    Verified live 2026-07: once a thread accumulates several turns, Gemini's
+    per-turn generation latency grows enough that _send_prompt_and_wait's
+    own fixed `timeout` (240s) is no longer enough -- calls report
+    "No response within {timeout}s" even though Gemini eventually does
+    answer (confirmed by reading the DOM afterwards: the response was there,
+    just later than the poll deadline). This reproduced with a trivial
+    unrelated one-word prompt, not just long ones, so thread length -- not
+    prompt content -- is what was driving it. Starting every call on a
+    bare "/app" (no conversation id) gives each call a clean, short thread
+    and keeps latency bounded and predictable.
+    """
+    _send(ws, "Page.navigate", {"url": "https://gemini.google.com/app"}, wait=10)
+    deadline = time.time() + wait
+    while time.time() < deadline:
+        if _js(ws, _FIND_INPUT_JS, wait=3):
+            return True
+        time.sleep(0.5)
+    return False
+
+
 def _send_prompt_and_wait(
     ws,
     prompt: str,
-    timeout: int = 120,
+    timeout: int = 240,
 ) -> tuple[bool, str]:
     """
     Inject prompt into the Gemini textarea, click send, and wait for the response.
     Returns (ok, text_or_error).
     """
+    # 0. Start clean -- see _new_conversation's docstring for why this is
+    # not optional (unbounded thread growth silently pushes real latency
+    # past this function's own timeout below).
+    if not _new_conversation(ws):
+        return False, "Could not start a fresh Gemini conversation (navigation timed out)"
+
     # 1. Check input is present
     found_sel = _js(ws, _FIND_INPUT_JS)
     if not found_sel:
@@ -369,9 +457,22 @@ def _send_prompt_and_wait(
         selectors_json=json.dumps(_INPUT_SELECTORS),
         prompt_json=json.dumps(prompt),
     )
-    set_result = _js(ws, set_js, wait=10)
+    set_result, set_exc = _js_async(ws, set_js, wait=20)
+    if set_exc:
+        return False, f"Error setting input text: {set_exc}"
     if not set_result.startswith("ok:"):
         return False, f"Could not set input text: {set_result}"
+    inserted_len_str = set_result.split(":", 1)[1]
+    inserted_len = int(inserted_len_str) if inserted_len_str.isdigit() else 0
+    if inserted_len == 0 and len(prompt) > 0:
+        # execCommand('insertText', ...) silently no-ops when the page is stuck
+        # (e.g. still believes a prior response is generating). Fail fast here
+        # instead of clicking send on an empty box and burning the full poll
+        # timeout waiting for a response that was never actually requested.
+        return False, (
+            "Input box empty after insert — Gemini tab may be stuck "
+            "(reload gemini.google.com and retry)"
+        )
 
     # Brief pause to let React/Angular observe the input change
     time.sleep(0.5)
@@ -419,12 +520,18 @@ def _send_prompt_and_wait(
         if not text:
             continue
 
-        # Check if still generating
+        # _IS_GENERATING_JS is a soft signal only (see its comment — the
+        # available DOM indicators have repeatedly false-positived "still
+        # generating" well after a response actually finished). Text that
+        # stops changing across several polls is the reliable signal that
+        # generation is done, so stability alone drives success; a specific
+        # generating indicator just resets the counter so we don't declare
+        # victory mid-stream on a coincidental pause.
         generating = _js(ws, _IS_GENERATING_JS, wait=3) == "true"
 
         if text == last_text and not generating:
             stable_count += 1
-            if stable_count >= 2:
+            if stable_count >= 3:
                 return True, text
         else:
             stable_count = 0
@@ -570,9 +677,18 @@ class GeminiCDPBridge(LLMBridge):
                 selectors_json=json.dumps(_INPUT_SELECTORS),
                 prompt_json=json.dumps(prompt),
             )
-            set_result = _js(ws, set_js, wait=10)
+            set_result, set_exc = _js_async(ws, set_js, wait=20)
+            if set_exc:
+                raise RuntimeError(f"Error setting input text: {set_exc}")
             if not set_result.startswith("ok:"):
                 raise RuntimeError(f"Could not set input text: {set_result}")
+            inserted_len_str = set_result.split(":", 1)[1]
+            inserted_len = int(inserted_len_str) if inserted_len_str.isdigit() else 0
+            if inserted_len == 0 and len(prompt) > 0:
+                raise RuntimeError(
+                    "Input box empty after insert — Gemini tab may be stuck "
+                    "(reload gemini.google.com and retry)"
+                )
 
             time.sleep(0.5)
             _js(ws, _CLICK_SEND_JS, wait=5)
@@ -604,11 +720,13 @@ class GeminiCDPBridge(LLMBridge):
                     yield text[len(last_text):]
                     last_text = text
 
-                # Check for completion
+                # Check for completion (see _IS_GENERATING_JS comment — its
+                # DOM indicators are a soft signal only; text-stability drives
+                # the actual completion decision).
                 generating = _js(ws, _IS_GENERATING_JS, wait=3) == "true"
                 if text == last_text and not generating:
                     stable_count += 1
-                    if stable_count >= 2:
+                    if stable_count >= 3:
                         return
                 else:
                     stable_count = 0

@@ -6,6 +6,16 @@ import sqlite3
 import datetime
 import time
 
+# Fixture/league names from live schedule data routinely contain non-ASCII
+# characters (e.g. diacritics). stdout is often redirected to a log file
+# under the Windows legacy console codepage, which can't encode them and
+# raises UnicodeEncodeError mid-print -- that has crashed whole daemon
+# cycles (e.g. the STAIR_AI reasoning engine's try/except caught it, but
+# only after the cycle's remaining candidates were skipped). Match the
+# same guard already used by every CLI entry point under tools/.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 # Ensure src is in path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -19,14 +29,6 @@ except ImportError:
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-# Stair AI World-Cup Arena value-betting page (real-money; placement is gated).
-try:
-    from arena_betting import arena_bp
-
-    app.register_blueprint(arena_bp)
-except Exception as _arena_err:  # never let the arena page break the main dashboard
-    print(f"[!] Arena betting page not loaded: {_arena_err}")
-
 # WC 2026 Winner Predictor (read-only model, no betting).
 try:
     from src.wc_blueprint import wc_bp
@@ -34,6 +36,14 @@ try:
     app.register_blueprint(wc_bp)
 except Exception as _wc_err:
     print(f"[!] WC predictor page not loaded: {_wc_err}")
+
+# Per-strategy virtual bankroll pages (/strategies, /strategy/<source>).
+try:
+    from src.strategies_blueprint import strategies_bp
+
+    app.register_blueprint(strategies_bp)
+except Exception as _strat_err:
+    print(f"[!] Strategies pages not loaded: {_strat_err}")
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
@@ -113,13 +123,15 @@ def get_state():
         import sqlite3 as _sq2
 
         _betdb = os.path.join(DATA_DIR, "bet_log.db")
-        _bkdb = os.path.join(DATA_DIR, "bankroll.db")
+        # The "real" $200 ledger — only the Forebet-confirmed strategy stakes
+        # against this bankroll (see src/tipster_scraper.py).
+        _bkdb = os.path.join(DATA_DIR, "real_bankroll.db")
 
         _bc = _sq2.connect(_betdb)
         _bc.row_factory = _sq2.Row
         _open_rows = _bc.execute(
             "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
-            "FROM bet_log WHERE result='OPEN' ORDER BY placed_at DESC"
+            "FROM bet_log WHERE result='OPEN' AND bet_source = 'TIPSTER_FOREBET' ORDER BY placed_at DESC"
         ).fetchall()
         _open_bets = [dict(r) for r in _open_rows]
         _bc.close()
@@ -171,6 +183,50 @@ def get_state():
         )
 
 
+@app.route("/api/health")
+def api_health():
+    """Engine health — is the prediction worker actually alive and working?
+
+    Exists because a dead worker used to be invisible: Flask served /api/state
+    perfectly for ten hours after run_daemon crashed on 2026-08-24. Combines
+    the supervisor's view (is the thread running, has it crashed) with a
+    liveness proxy (how stale is the state file the worker rewrites each cycle).
+    """
+    import time as _t
+
+    try:
+        from src.daemon_supervisor import get_health
+
+        health = get_health()
+    except Exception as _e:
+        health = {"error": str(_e)}
+
+    state_path = os.path.join(DATA_DIR, "todays_dashboard_state.json")
+    age = None
+    try:
+        if os.path.exists(state_path):
+            age = round(_t.time() - os.path.getmtime(state_path), 1)
+    except OSError:
+        pass
+
+    # The worker rewrites state every cycle (~45s + work). 30 min without a
+    # write means it is wedged even if the thread technically still exists.
+    stale = age is None or age > 1800
+    health["state_age_sec"] = age
+    health["state_stale"] = stale
+    health["ok"] = bool(health.get("alive")) and not stale
+
+    # Why the last cycle bet (or didn't). An engine that is silently gated off
+    # is otherwise indistinguishable from one with nothing worth betting.
+    try:
+        from src.bet_gate_telemetry import GATES
+
+        health["gates"] = GATES.last_summary
+    except Exception:
+        health["gates"] = {}
+    return jsonify(health)
+
+
 @app.route("/api/stream")
 def stream_state():
     def event_stream():
@@ -210,11 +266,11 @@ def stream_state():
                                 dict(r)
                                 for r in _sbc.execute(
                                     "SELECT match_id, market_type, side, entry_odds, stake, bet_source, placed_at "
-                                    "FROM bet_log WHERE result='OPEN' ORDER BY placed_at DESC"
+                                    "FROM bet_log WHERE result='OPEN' AND bet_source = 'TIPSTER_FOREBET' ORDER BY placed_at DESC"
                                 ).fetchall()
                             ]
                             _sbc.close()
-                            _sbkc = _ssq.connect(os.path.join(DATA_DIR, "bankroll.db"))
+                            _sbkc = _ssq.connect(os.path.join(DATA_DIR, "real_bankroll.db"))
                             _sbkr = _sbkc.execute(
                                 "SELECT current_balance, daily_exposure, daily_pnl, starting_balance, system_status "
                                 "FROM bankroll ORDER BY id DESC LIMIT 1"
@@ -266,8 +322,12 @@ def stream_state():
     return Response(event_stream(), mimetype="text/event-stream")
 
 
-INITIAL_CAPITAL = 5000.0  # paper bankroll seed (reset 2026-06-29)
-BANKROLL_RESET_DATE = "2026-06-29"  # only count bets placed on/after this date
+INITIAL_CAPITAL = 200.0  # paper bankroll seed (reset 2026-07-09)
+# Bumped to 2026-07-10: today's tiles were still mixing pre-reset stakes
+# (sized against the old ~$11k bankroll, before today's mid-day $200 reset)
+# with post-reset activity, so the KPI tiles kept showing stale multi-
+# thousand-dollar totals. Moving the cutoff to tomorrow gives a clean start.
+BANKROLL_RESET_DATE = "2026-07-10"  # only count bets placed on/after this date
 
 
 @app.route("/api/performance")
@@ -283,21 +343,21 @@ def get_performance():
 
 @app.route("/api/drawdown")
 def get_drawdown():
-    """Running drawdown analysis on the paper bankroll."""
+    """Running drawdown analysis on the real (real_bankroll.db) paper bankroll.
+
+    Reads real_bankroll.db's own per-day rows directly rather than recomputing
+    from bet_log — a date filter on bet_log can't distinguish "placed before
+    today's reset" from "placed after" on the same calendar day, which
+    previously let pre-reset settled bets inflate this endpoint.
+    """
     daily = (
         query_db(
-            "bet_log.db",
-            "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
-            f"WHERE result NOT IN ('OPEN') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
-            "GROUP BY day ORDER BY day ASC",
+            "real_bankroll.db",
+            "SELECT date as day, current_balance FROM bankroll ORDER BY date ASC",
         )
         or []
     )
-    equity = []
-    running = INITIAL_CAPITAL
-    for row in daily:
-        running += row["dpnl"] or 0.0
-        equity.append({"day": row["day"], "balance": round(running, 2)})
+    equity = [{"day": row["day"], "balance": round(row["current_balance"], 2)} for row in daily]
 
     if not equity:
         return jsonify({"max_drawdown_pct": None, "current_drawdown_pct": None, "equity": []})
@@ -330,35 +390,30 @@ def get_drawdown():
 
 @app.route("/api/bankroll")
 def get_bankroll():
-    # Compute everything from bet_log (ground truth) — only bets placed on/after the
-    # last bankroll reset date so pre-reset P&L doesn't inflate the balance.
-    daily = (
+    # Read directly from real_bankroll.db (the actual $200 ledger for the
+    # winning Forebet-confirmed strategy) rather than recomputing from
+    # bet_log's historical pnl-by-date — a date filter alone can't tell
+    # "placed before today's reset" from "placed after" on the same day,
+    # which previously let pre-reset settled bets inflate this endpoint.
+    rows = (
         query_db(
-            "bet_log.db",
-            "SELECT DATE(placed_at) as day, SUM(pnl) as dpnl FROM bet_log "
-            f"WHERE result NOT IN ('OPEN') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}' "
-            "GROUP BY day ORDER BY day ASC",
+            "real_bankroll.db",
+            "SELECT date, starting_balance, current_balance, daily_pnl FROM bankroll "
+            "ORDER BY date ASC",
         )
         or []
     )
 
-    chart_dates, chart_balances = [], []
-    running = INITIAL_CAPITAL
-    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
-    today_pnl = 0.0
-    for row in daily:
-        running += row["dpnl"] or 0.0
-        chart_dates.append(row["day"])
-        chart_balances.append(round(running, 2))
-        if row["day"] == today_str:
-            today_pnl = row["dpnl"] or 0.0
-
-    all_time_pnl = running - INITIAL_CAPITAL
+    chart_dates = [r["date"] for r in rows]
+    chart_balances = [round(r["current_balance"], 2) for r in rows]
+    current = chart_balances[-1] if chart_balances else INITIAL_CAPITAL
+    today_pnl = rows[-1]["daily_pnl"] if rows else 0.0
+    all_time_pnl = current - INITIAL_CAPITAL
     roi = (all_time_pnl / INITIAL_CAPITAL) * 100
 
     return jsonify(
         {
-            "current": round(running, 2),
+            "current": round(current, 2),
             "roi": round(roi, 2),
             "pnl": round(today_pnl, 2),
             "chart_dates": chart_dates,
@@ -390,7 +445,7 @@ def get_edge_report():
             "roi": roi,
         }
 
-    base = "WHERE result NOT IN ('OPEN','VOID')"
+    base = f"WHERE result NOT IN ('OPEN','VOID') AND DATE(placed_at) >= '{BANKROLL_RESET_DATE}'"
 
     strategies = [
         to_row(dict(r, label=r["bet_source"] or "AI"))
@@ -429,38 +484,12 @@ def get_edge_report():
     return jsonify({"strategies": strategies, "markets": markets, "leagues": leagues})
 
 
-@app.route("/api/stair_balance")
-def get_stair_balance():
-    try:
-        import requests
-
-        res = requests.get(
-            "https://stair-ai.com/api/v1/arena/agents/me",
-            headers={"x-api-key": (os.getenv("STAIR_AI_API_KEY") or "").strip()},
-            timeout=5,
-        )
-        if res.status_code == 200:
-            data = res.json()
-            # Production returns wallet at the top level with snake_case usdc fields.
-            wallet = data.get("wallet") or data.get("data", {}).get("wallet") or {}
-            return jsonify(
-                {
-                    "available": wallet.get("available_balance_usdc")
-                    or wallet.get("availableBalance", 0),
-                    "locked": wallet.get("locked_balance_usdc")
-                    or wallet.get("lockedBalance", 0),
-                }
-            )
-    except Exception:
-        pass
-    return jsonify({"available": 0, "locked": 0})
-
-
 @app.route("/api/settled_ledger")
 def get_settled_ledger():
     singles = query_db(
         "bet_log.db",
-        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source, league FROM bet_log ORDER BY placed_at DESC",
+        "SELECT match_id, player_id, market_type, entry_odds, stake, result, pnl, placed_at, bet_source, league FROM bet_log "
+        f"WHERE DATE(placed_at) >= '{BANKROLL_RESET_DATE}' ORDER BY placed_at DESC",
     )
     return jsonify(
         {
@@ -473,12 +502,13 @@ def get_settled_ledger():
 def get_tracker():
     rows = query_db(
         "bet_log.db",
-        """
+        f"""
         SELECT b.bet_id, b.match_id, b.player_id, b.market_type, b.entry_odds,
                b.closing_odds, b.edge_pct, b.stake, b.result, b.pnl, b.placed_at,
                b.bet_source, b.is_recommended, b.league, p.kickoff
         FROM bet_log b
         LEFT JOIN predictions p ON b.match_id = p.match_name
+        WHERE DATE(b.placed_at) >= '{BANKROLL_RESET_DATE}'
         ORDER BY b.placed_at DESC LIMIT 50
         """,
     )
@@ -490,10 +520,12 @@ def get_tracker():
         "total_lost": 0.0,
         "total_pending": 0.0,
     }
-    # Count from database for ALL bets so the donut chart isn't empty!
+    # Scoped to bets since the bankroll reset so pre-reset history doesn't
+    # inflate the donut chart / KPI tiles with stale multi-thousand-dollar totals.
     db_stats = query_db(
         "bet_log.db",
-        "SELECT result, COUNT(*) as cnt, SUM(stake) as total_stake, SUM(pnl) as total_pnl FROM bet_log GROUP BY result",
+        f"SELECT result, COUNT(*) as cnt, SUM(stake) as total_stake, SUM(pnl) as total_pnl FROM bet_log "
+        f"WHERE DATE(placed_at) >= '{BANKROLL_RESET_DATE}' GROUP BY result",
     )
     if db_stats:
         for r in db_stats:
@@ -1072,6 +1104,133 @@ def get_research_runs():
         return jsonify([])
 
 
+@app.route("/research")
+def research_page():
+    """Standalone Research Lab page — strategy comparison for the 500-bet milestone."""
+    try:
+        return render_template("research.html")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/research/summary")
+def get_research_summary():
+    """Per-strategy (bet_source) scoreboard + progress toward 500 settled bets."""
+    try:
+        totals = query_db(
+            "bet_log.db",
+            "SELECT COUNT(*) AS total, "
+            "SUM(CASE WHEN result='OPEN' THEN 1 ELSE 0 END) AS open_cnt, "
+            "SUM(CASE WHEN result IN ('W','L') THEN 1 ELSE 0 END) AS settled "
+            "FROM bet_log WHERE bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI')",
+            one=True,
+        )
+        total_bets = (totals["total"] or 0) if totals else 0
+        open_bets = (totals["open_cnt"] or 0) if totals else 0
+        settled = (totals["settled"] or 0) if totals else 0
+        target = 500
+
+        rows = (
+            query_db(
+                "bet_log.db",
+                "SELECT COALESCE(bet_source, 'AI') AS source, COUNT(*) AS total, "
+                "SUM(CASE WHEN result='OPEN' THEN 1 ELSE 0 END) AS open_cnt, "
+                "SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) AS wins, "
+                "SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) AS losses, "
+                "SUM(CASE WHEN result IN ('VOID','PUSH') THEN 1 ELSE 0 END) AS voids, "
+                "SUM(CASE WHEN result IN ('W','L') THEN stake ELSE 0 END) AS staked, "
+                "SUM(CASE WHEN result IN ('W','L') THEN pnl ELSE 0 END) AS pnl, "
+                "AVG(clv) AS avg_clv, AVG(entry_odds) AS avg_odds, "
+                "MAX(placed_at) AS last_bet_at "
+                "FROM bet_log WHERE bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI') GROUP BY COALESCE(bet_source, 'AI')",
+            )
+            or []
+        )
+        strategies = []
+        for r in rows:
+            wins = r["wins"] or 0
+            losses = r["losses"] or 0
+            n_settled = wins + losses
+            staked = r["staked"] or 0.0
+            pnl = r["pnl"] or 0.0
+            strategies.append(
+                {
+                    "source": r["source"],
+                    "total": r["total"] or 0,
+                    "open": r["open_cnt"] or 0,
+                    "wins": wins,
+                    "losses": losses,
+                    "voids": r["voids"] or 0,
+                    # win_rate + roi are fractions (0..1 / signed); UI renders as %
+                    "win_rate": round(wins / n_settled, 4) if n_settled else None,
+                    "staked": round(staked, 2),
+                    "pnl": round(pnl, 2),
+                    "roi": round(pnl / staked, 4) if staked else None,
+                    "avg_clv": round(r["avg_clv"], 4) if r["avg_clv"] is not None else None,
+                    "avg_odds": round(r["avg_odds"], 2) if r["avg_odds"] is not None else None,
+                    "last_bet_at": r["last_bet_at"],
+                }
+            )
+        # ROI desc, nulls last
+        strategies.sort(key=lambda s: (s["roi"] is None, -(s["roi"] or 0.0)))
+        return jsonify(
+            {
+                "total_bets": total_bets,
+                "open_bets": open_bets,
+                "settled_bets": settled,
+                "progress": {
+                    "settled": settled,
+                    "target": target,
+                    "pct": round(min(100.0, 100.0 * settled / target), 1),
+                },
+                "strategies": strategies,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/research/bets")
+def get_research_bets():
+    """Filterable bet list (newest first) for the Research Lab table."""
+    try:
+        clauses, args = ["bet_source IN ('TIPSTER_FOREBET','AI','STAIR_AI')"], []
+        for param, col in (
+            ("market", "market_type"),
+            ("result", "result"),
+        ):
+            val = (request.args.get(param) or "").strip()
+            if val:
+                clauses.append(f"{col} = ?")
+                args.append(val)
+        try:
+            limit = int(request.args.get("limit", 200))
+        except (TypeError, ValueError):
+            limit = 200
+        limit = max(1, min(limit, 500))
+        try:
+            offset = int(request.args.get("offset", 0))
+        except (TypeError, ValueError):
+            offset = 0
+        offset = max(0, offset)
+
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = (
+            query_db(
+                "bet_log.db",
+                f"SELECT bet_id, match_id, market_type, side, entry_odds, stake, "
+                f"result, pnl, clv, bet_source, signal_name, league, placed_at "
+                # REPLACE normalizes 'T'-vs-space timestamp formats for true newest-first
+                f"FROM bet_log {where} ORDER BY REPLACE(placed_at,'T',' ') DESC LIMIT ? OFFSET ?",
+                (*args, limit, offset),
+            )
+            or []
+        )
+        return jsonify([dict(r) for r in rows])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/signal_lifecycle")
 def get_signal_lifecycle():
     """Return current lifecycle stage for every signal plus full transition history."""
@@ -1540,9 +1699,6 @@ _SETTINGS_SCHEMA = {
     "refresh_interval_sec": (float, 5, 300),
     "show_live_matches": bool,
     "max_odds_staleness_min": (float, 1, 1440),
-    "arena_max_per_order": (float, 0.5, 25),
-    "arena_daily_cap": (float, 0, 100),
-    "arena_wallet_buffer": (float, 0.5, 50),
     "conf_min": (float, 0.3, 0.99),
     "edge_min": (float, 0, 0.5),
     "ah_betting_enabled": bool,
@@ -1869,10 +2025,16 @@ def start_background_prediction_worker():
     else:
         try:
             from live_predictions_daemon import run_daemon
+            from src.daemon_supervisor import start_supervised
 
-            thread = threading.Thread(target=run_daemon, daemon=True)
-            thread.start()
-            print("[*] Background prediction worker thread started successfully.")
+            # Supervised, not bare. On 2026-08-24 a TypeError killed the bare
+            # run_daemon thread at 23:02; Flask kept serving /api/state all
+            # night so nothing looked wrong, and the engine scraped, predicted
+            # and settled nothing for ten hours. The supervisor restarts the
+            # worker with capped backoff and publishes its health at
+            # /api/health so a dead engine is visible instead of inferred.
+            start_supervised(run_daemon, name="predictions")
+            print("[*] Background prediction worker started (supervised).")
         except Exception as e:
             print("[!] Failed to start background prediction worker thread:", e)
 
@@ -1880,79 +2042,41 @@ def start_background_prediction_worker():
 if __name__ == "__main__":
     init_databases()
 
-    # Warn loudly if the arena autopilot is already armed from a previous session
-    try:
-        import json as _j
-
-        _ap_state_path = os.path.join(DATA_DIR, "arena_autopilot.json")
-        if os.path.exists(_ap_state_path):
-            _ap_state = _j.loads(open(_ap_state_path).read())
-            if _ap_state.get("enabled") and os.getenv("DEEPFIELD_ARENA_LIVE") == "1":
-                print(
-                    "[!] WARNING: arena_autopilot.json::enabled=True AND DEEPFIELD_ARENA_LIVE=1"
-                )
-                print("[!] Arena autopilot will resume LIVE betting immediately.")
-                print("[!] Visit /arena and click Pause to halt before it fires.")
-            elif _ap_state.get("enabled"):
-                print(
-                    "[*] Arena autopilot enabled (predict-only; DEEPFIELD_ARENA_LIVE not set)."
-                )
-    except Exception:
-        pass
-
     if os.getenv("DEEPFIELD_DISABLE_DAEMON") != "1":
         start_background_prediction_worker()
     else:
         print(
             "[*] Background prediction worker thread is DISABLED (running in multi-process mode)."
         )
-    # Start the autonomous Stair AI arena betting loop (real money, WC-only, pre-kickoff).
-    # Always starts regardless of daemon setting.
-    try:
-        from arena_betting import start_autopilot
 
-        start_autopilot()
-    except Exception as _ap_err:
-        print(f"[!] Arena autopilot not started: {_ap_err}")
+    # WC-2026 monitors (red cards / match events) poll ESPN every 30s for a
+    # tournament that ended 2026-07-19. Each runs a permanent thread and holds
+    # its event/alert state in RAM for zero value. Opt out with
+    # DEEPFIELD_DISABLE_WC_MONITORS=1 (the Hermes watchdog sets this).
+    if os.getenv("DEEPFIELD_DISABLE_WC_MONITORS") == "1":
+        print(
+            "[*] WC monitors disabled (DEEPFIELD_DISABLE_WC_MONITORS=1) "
+            "- redcard + match-events threads not started."
+        )
+    else:
+        # Start red card live monitor — polls ESPN every 30s for in-progress WC matches.
+        try:
+            from src.redcard_monitor import start_monitor as _start_redcard
 
-    # Start red card live monitor — polls ESPN every 30s for in-progress WC matches,
-    # fires an alert + optional arena bet when a red card creates a mispriced edge.
-    try:
-        from src.redcard_monitor import start_monitor as _start_redcard
+            _start_redcard(interval=30)
+            print("[*] Red card live monitor started.")
+        except Exception as _rc_err:
+            print(f"[!] Red card monitor not started: {_rc_err}")
 
-        _start_redcard(interval=30)
-        print("[*] Red card live monitor started.")
-    except Exception as _rc_err:
-        print(f"[!] Red card monitor not started: {_rc_err}")
+        # Start match event monitor — tracks goals, cards, score changes for live WC matches.
+        try:
+            from src.match_events_monitor import start_monitor as _start_events
 
-    # Start match event monitor — tracks goals, cards, score changes for live WC matches.
-    try:
-        from src.match_events_monitor import start_monitor as _start_events
+            _start_events(interval=30)
+            print("[*] Match event monitor started.")
+        except Exception as _ev_err:
+            print(f"[!] Match event monitor not started: {_ev_err}")
 
-        _start_events(interval=30)
-        print("[*] Match event monitor started.")
-    except Exception as _ev_err:
-        print(f"[!] Match event monitor not started: {_ev_err}")
-
-    # Start lineup price lag scanner — detects Polymarket underreaction to lineup
-    # announcements within 2h of kickoff (research: 36% underreaction at T+0, 5-15min lag).
-    try:
-        import threading as _thr
-        import time as _t
-
-        def _lineup_lag_loop():
-            while True:
-                try:
-                    from src.lineup_price_lag import _get_mids  # noqa: keep import alive
-                except Exception:
-                    pass
-                _t.sleep(300)  # 5-min idle; actual work triggered by lineup drops
-
-        _ll_t = _thr.Thread(target=_lineup_lag_loop, name="lineup-lag", daemon=True)
-        _ll_t.start()
-        print("[*] Lineup price lag tracker ready.")
-    except Exception as _ll_err:
-        print(f"[!] Lineup price lag tracker not started: {_ll_err}")
     _port = int(os.getenv("DEEPFIELD_PORT", "5050"))
     print(f"[*] Starting DeepFieldPro Live UI on http://127.0.0.1:{_port}")
     # threaded=True is REQUIRED: the prediction daemon runs in a background thread in

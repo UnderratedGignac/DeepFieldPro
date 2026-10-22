@@ -133,10 +133,13 @@ class NotificationManager:
         priority: str = "high",
         tags: str = "soccer",
     ) -> bool:
-        sent = self._send_ntfy(message, title=title, priority=priority, tags=tags)
-        if not sent:
-            sent = self._send_whatsapp(message)
-        return sent
+        import threading
+        def target():
+            sent = self._send_ntfy(message, title=title, priority=priority, tags=tags)
+            if not sent:
+                self._send_whatsapp(message)
+        threading.Thread(target=target, daemon=True).start()
+        return True
 
     # ------------------------------------------------------------------
     # Discord

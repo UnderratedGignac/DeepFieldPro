@@ -18,6 +18,7 @@ Strategy:
 
 Public API:
     get_finished_results(dates=None) -> { "Home vs Away": (home_score, away_score) }
+    get_events(dates=None) -> { date_str: [trimmed event dicts] }  (all statuses)
 """
 
 import asyncio
@@ -32,6 +33,19 @@ _CACHE_TTL = 1800  # 30 minutes
 
 _mem_cache: dict = {}
 
+# One entry per distinct date was kept for the process lifetime. Settlement asks
+# for at most ~8 dates per pass, so anything beyond a couple of days of slack is
+# dead weight in a daemon meant to run for months.
+_MEM_CACHE_MAX = 16
+
+
+def _mem_cache_put(date_str: str, value) -> None:
+    """Insert into the date cache, evicting the oldest entry past _MEM_CACHE_MAX."""
+    _mem_cache.pop(date_str, None)  # re-insert so dict order == recency
+    _mem_cache[date_str] = value
+    while len(_mem_cache) > _MEM_CACHE_MAX:
+        _mem_cache.pop(next(iter(_mem_cache)))
+
 
 def _cache_path(date_str: str) -> str:
     return os.path.join(_DATA_DIR, f"sofascore_cache_{date_str}.json")
@@ -44,18 +58,78 @@ def _load_cache(date_str: str):
     try:
         with open(p, encoding="utf-8") as f:
             obj = json.load(f)
-        return obj.get("fetched_at", 0), obj.get("results", {})
+        # "events" is absent in pre-upgrade cache files -> None (results still valid)
+        return obj.get("fetched_at", 0), obj.get("results", {}), obj.get("events")
     except Exception:
         return None
 
 
-def _save_cache(date_str: str, results: dict):
+def _save_cache(date_str: str, results: dict, events: list):
     p = _cache_path(date_str)
     try:
         with open(p, "w", encoding="utf-8") as f:
-            json.dump({"fetched_at": time.time(), "results": results}, f)
+            json.dump(
+                {"fetched_at": time.time(), "results": results, "events": events}, f
+            )
     except Exception:
         pass
+
+
+def _trim_event(ev: dict):
+    """Keep only the fields the daemon's completion scan needs, in the raw
+    Sofascore event shape (so consumers parse it exactly like the API payload)."""
+    try:
+        return {
+            "id": ev.get("id"),
+            "status": {"type": (ev.get("status") or {}).get("type", "")},
+            "homeScore": {
+                "current": (ev.get("homeScore") or {}).get("current"),
+                "normaltime": (ev.get("homeScore") or {}).get("normaltime"),
+            },
+            "awayScore": {
+                "current": (ev.get("awayScore") or {}).get("current"),
+                "normaltime": (ev.get("awayScore") or {}).get("normaltime"),
+            },
+            "homeTeam": {"name": (ev.get("homeTeam") or {}).get("name", "")},
+            "awayTeam": {"name": (ev.get("awayTeam") or {}).get("name", "")},
+            "tournament": {"name": (ev.get("tournament") or {}).get("name", "")},
+        }
+    except Exception:
+        return None
+
+
+class _EventCollector:
+    """Trims and dedups Sofascore events as they arrive off the response stream.
+
+    The handler used to append every raw event of every api/v1 response to a
+    list, then scroll four times (which re-fetches the same leagues) and only
+    trim + dedup at the end. Peak was therefore full raw payloads x duplicates,
+    per date, for up to 8 dates a settlement pass. Doing the work on arrival
+    holds only one trimmed copy per distinct event id, with identical output.
+    """
+
+    __slots__ = ("_by_id",)
+
+    def __init__(self):
+        self._by_id = {}
+
+    def extend(self, raw_events) -> None:
+        for ev in raw_events or []:
+            if not isinstance(ev, dict):
+                continue
+            eid = ev.get("id")
+            if eid is None or eid in self._by_id:
+                continue
+            trimmed = _trim_event(ev)
+            if trimmed is None or trimmed.get("id") is None:
+                continue
+            self._by_id[eid] = trimmed
+
+    def events(self) -> list:
+        return list(self._by_id.values())
+
+    def __len__(self):
+        return len(self._by_id)
 
 
 def _parse_events(events: list) -> dict:
@@ -82,7 +156,7 @@ def _parse_events(events: list) -> dict:
 async def _fetch_date_async(date_str: str) -> dict:
     from playwright.async_api import async_playwright, TimeoutError as PWTimeout
 
-    all_events: list = []
+    collector = _EventCollector()
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -116,8 +190,9 @@ async def _fetch_date_async(date_str: str) -> dict:
                 if not isinstance(data, dict):
                     return
                 evs = data.get("events") or []
-                if evs and len(evs) > 0:
-                    all_events.extend(evs)
+                if evs:
+                    # Trimmed + deduped on arrival — see _EventCollector.
+                    collector.extend(evs)
             except Exception:
                 pass
 
@@ -148,14 +223,17 @@ async def _fetch_date_async(date_str: str) -> dict:
 
         await browser.close()
 
-    results = _parse_events(all_events)
+    # Trimmed full-event cache (all statuses) — consumed by the daemon's
+    # completion scan so it doesn't need its own browser fetch of the same data.
+    events = collector.events()
+    results = _parse_events(events)
     print(
-        f"[SOFASCORE] {date_str}: {len(results)} finished from {len(all_events)} total events"
+        f"[SOFASCORE] {date_str}: {len(results)} finished from {len(events)} total events"
     )
-    return results
+    return results, events
 
 
-def _fetch_date_sync(date_str: str) -> dict:
+def _fetch_date_sync(date_str: str):
     try:
         try:
             # asyncio.run() creates a fresh event loop each call — works cleanly
@@ -169,24 +247,25 @@ def _fetch_date_sync(date_str: str) -> dict:
                 return future.result(timeout=90)
     except Exception as e:
         print(f"[SOFASCORE] error for {date_str}: {e}")
-        return {}
+        return {}, []
 
 
-def _get_for_date(date_str: str) -> dict:
+def _get_for_date(date_str: str):
+    """Return (results, events) for a date, via mem cache → disk cache → fetch."""
     mem = _mem_cache.get(date_str)
     if mem and (time.time() - mem[0]) < _CACHE_TTL:
-        return mem[1]
+        return mem[1], mem[2]
 
     disk = _load_cache(date_str)
     if disk and (time.time() - disk[0]) < _CACHE_TTL:
-        _mem_cache[date_str] = disk
-        return disk[1]
+        _mem_cache_put(date_str, disk)
+        return disk[1], disk[2]
 
-    results = _fetch_date_sync(date_str)
-    if results:  # don't cache empty results — may be a transient failure
-        _mem_cache[date_str] = (time.time(), results)
-        _save_cache(date_str, results)
-    return results
+    results, events = _fetch_date_sync(date_str)
+    if results or events:  # don't cache empty — may be a transient failure
+        _mem_cache_put(date_str, (time.time(), results, events))
+        _save_cache(date_str, results, events)
+    return results, events
 
 
 def get_finished_results(dates=None) -> dict:
@@ -200,7 +279,24 @@ def get_finished_results(dates=None) -> dict:
         ]
     out: dict = {}
     for d in dates:
-        out.update(_get_for_date(d))
+        out.update(_get_for_date(d)[0])
+    return out
+
+
+def get_events(dates=None) -> dict:
+    """Return {date_str: [trimmed event dicts]} for the given dates (default:
+    today + yesterday). All statuses included, raw Sofascore event shape.
+    Rides the same 30-min cache as get_finished_results — a cycle that already
+    refreshed results pays nothing extra here. Pre-upgrade cache files have no
+    events; those return [] until the next TTL refresh."""
+    if dates is None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        dates = [
+            (now - datetime.timedelta(days=d)).strftime("%Y-%m-%d") for d in range(2)
+        ]
+    out: dict = {}
+    for d in dates:
+        out[d] = _get_for_date(d)[1] or []
     return out
 
 

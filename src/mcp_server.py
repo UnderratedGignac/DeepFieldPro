@@ -105,31 +105,17 @@ def get_dashboard_state() -> str:
 
 @mcp.tool()
 def get_settings() -> str:
-    """Read and return combined settings from data/settings.json and data/arena_autopilot.json.
+    """Read and return settings from data/settings.json.
 
-    Returns a JSON object with two keys:
-      "settings": content of data/settings.json
-      "arena_autopilot": content of data/arena_autopilot.json
-
-    These control Kelly multiplier, EV/confidence thresholds, allowed markets,
-    auto_place_bets, steam detection settings, and Arena autopilot configuration.
+    Controls Kelly multiplier, EV/confidence thresholds, allowed markets,
+    auto_place_bets, and steam detection settings.
     """
     try:
-        result = {}
-
         settings_path = DATA / "settings.json"
         if settings_path.exists():
-            result["settings"] = json.loads(settings_path.read_text(encoding="utf-8"))
+            result = {"settings": json.loads(settings_path.read_text(encoding="utf-8"))}
         else:
-            result["settings"] = {"error": "settings.json not found"}
-
-        autopilot_path = DATA / "arena_autopilot.json"
-        if autopilot_path.exists():
-            result["arena_autopilot"] = json.loads(
-                autopilot_path.read_text(encoding="utf-8")
-            )
-        else:
-            result["arena_autopilot"] = {"error": "arena_autopilot.json not found"}
+            result = {"settings": {"error": "settings.json not found"}}
 
         return json.dumps(result, indent=2, default=str)
     except Exception as e:
@@ -206,20 +192,6 @@ def run_analytics_tool(script: str) -> str:
         return json.dumps({"error": f"Script '{script}' timed out after 120 seconds"})
     except Exception as e:
         return json.dumps({"error": str(e)})
-
-
-@mcp.tool()
-def query_arena_ledger(sql: str) -> str:
-    """Query arena_ledger.db — AP2 audit trail for every Arena order attempt.
-
-    Table: arena_orders(id, ts, fixture_id, team_code, usd_size, limit_price,
-      model_prob, polymarket_mid, edge, mandate_ok, mandate_reason,
-      order_id, status, error)
-
-    mandate_ok=1 means the AP2 mandate passed. status: pending/placed/failed/blocked.
-    SELECT only. Max 500 rows.
-    """
-    return _safe_query(DATA / "arena_ledger.db", sql)
 
 
 if __name__ == "__main__":

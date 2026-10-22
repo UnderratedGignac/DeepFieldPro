@@ -50,7 +50,7 @@ def _side_key(selection):
     return None
 
 
-def _match(home, away, kambi):
+def match_kambi_fixture(home, away, kambi):
     """Strict cross-book fixture match -> kambi entry, or None."""
     th, ta = _norm(home), _norm(away)
     best, best_score = None, 0.0
@@ -72,7 +72,7 @@ def best_1x2(match, selection, betarabia_odds):
         side = _side_key(selection)
         if len(parts) != 2 or side is None or not betarabia_odds:
             return out
-        km = _match(parts[0].strip(), parts[1].strip(), fetch_kambi_1x2())
+        km = match_kambi_fixture(parts[0].strip(), parts[1].strip(), fetch_kambi_1x2())
         if not km:
             return out
         k_odds = km.get(side)

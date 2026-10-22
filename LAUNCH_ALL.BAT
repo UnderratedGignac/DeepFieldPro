@@ -156,10 +156,11 @@ echo  [7/9] Pre-flight checks...
 ".venv\Scripts\python.exe" tools\preflight_check.py 2>nul
 echo.
 
-:: --- STEP 8: Launch server (RESEARCH — paper only) ---
-:: NOTE: DEEPFIELD_ARENA_LIVE is deliberately NOT set. That env var is the
-:: real-money gate; while unset, arena orders are impossible (hard-refused).
-echo  [8/9] Launching dashboard + daemon [RESEARCH]...
+:: --- STEP 8: Launch server (RESEARCH + ARENA TOURNAMENT) ---
+:: DEEPFIELD_ARENA_LIVE=1 arms Stair AI Arena orders. VERIFIED 2026-07-05: the
+:: Arena is a VIRTUAL-bankroll World Cup tournament (AI agents paper-trading
+:: Polymarket for leaderboard rank) — no real money moves through this gate.
+echo  [8/9] Launching dashboard + daemon [RESEARCH + ARENA]...
 if not exist "logs" mkdir logs >nul 2>&1
 
 (
@@ -167,7 +168,7 @@ if not exist "logs" mkdir logs >nul 2>&1
     echo title DeepFieldPro SERVER [RESEARCH - paper only]
     echo cd /d "%~dp0"
     echo set DEEPFIELD_PORT=!PORT!
-    echo set DEEPFIELD_ARENA_LIVE=
+    echo set DEEPFIELD_ARENA_LIVE=1
     echo ".venv\Scripts\python.exe" src\live_dashboard_server.py ^>^> logs\server_live.log 2^>^&1
 ) > "logs\_server_live.bat"
 

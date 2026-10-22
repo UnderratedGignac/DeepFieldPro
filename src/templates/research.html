@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Lab — Strategy Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Same palette as index.html, hardcoded so the page is standalone */
+        :root {
+            --bg-color: #0A1910;
+            --surface-color: #12261B;
+            --surface-hover: #183123;
+            --border-color: #1B3B2B;
+            --primary: #E5C158;
+            --secondary: #C5A03A;
+            --text-main: #F4F6F5;
+            --text-muted: #8E9B93;
+            --card-radius: 12px;
+            --win: #4ADE80;
+            --loss: #F87171;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 28px clamp(16px, 4vw, 48px) 60px;
+            background-image:
+                radial-gradient(circle at 0% 0%, rgba(27, 59, 43, 0.6), transparent 40%),
+                radial-gradient(circle at 100% 100%, rgba(27, 59, 43, 0.4), transparent 40%);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.7rem;
+            font-weight: 900;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 i { color: var(--secondary); font-size: 1.4rem; }
+
+        #updated { color: var(--text-muted); font-size: 0.8rem; }
+
+        /* Progress bar */
+        .progress-section {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--card-radius);
+            padding: 18px 22px;
+            margin-bottom: 24px;
+        }
+
+        .progress-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .progress-label .sub { color: var(--text-muted); font-weight: 400; font-size: 0.8rem; }
+
+        .progress-track {
+            height: 14px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 7px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            border-radius: 7px;
+            transition: width 0.6s ease;
+        }
+
+        /* Strategy scoreboard */
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i { color: var(--secondary); }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .strat-card {
+            position: relative;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--card-radius);
+            padding: 18px 20px;
+        }
+
+        .strat-card.leader {
+            border-color: var(--primary);
+            box-shadow: 0 0 18px rgba(229, 193, 88, 0.15);
+        }
+
+        .leader-badge {
+            position: absolute;
+            top: -10px;
+            right: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--bg-color);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 3px 10px;
+            border-radius: 10px;
+        }
+
+        .strat-name {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+            word-break: break-word;
+        }
+
+        .strat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 16px;
+            font-size: 0.85rem;
+        }
+
+        .strat-grid .lbl {
+            display: block;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .strat-grid .val { font-weight: 600; }
+        .strat-grid small { color: var(--text-muted); font-weight: 400; }
+
+        .pos { color: var(--win); }
+        .neg { color: var(--loss); }
+        .flat { color: var(--text-muted); }
+
+        /* Filters + table */
+        .filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .filters select {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .filters select:focus { outline: 1px solid var(--secondary); }
+
+        .table-wrap {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--card-radius);
+            overflow-x: auto;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+
+        thead th {
+            text-align: left;
+            padding: 12px 14px;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            background: var(--bg-color);
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        tbody td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+            white-space: nowrap;
+        }
+
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: var(--surface-hover); }
+
+        td.match-cell { white-space: normal; min-width: 180px; }
+        .sub { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .badge.b-open { background: rgba(142, 155, 147, 0.15); color: var(--text-muted); }
+        .badge.b-win  { background: rgba(74, 222, 128, 0.15); color: var(--win); }
+        .badge.b-loss { background: rgba(248, 113, 113, 0.15); color: var(--loss); }
+        .badge.b-void { background: transparent; color: var(--text-muted); opacity: 0.55; border: 1px dashed var(--border-color); }
+
+        .empty-row td {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 30px;
+            white-space: normal;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><i class="fa-solid fa-flask"></i> Research Lab — Strategy Tracker</h1>
+        <div id="updated">updated —</div>
+    </header>
+
+    <section class="progress-section">
+        <div class="progress-label">
+            <span id="progress-text">— / 500 settled bets</span>
+            <span class="sub" id="progress-sub"></span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </section>
+
+    <div class="section-title"><i class="fa-solid fa-ranking-star"></i> Strategy Scoreboard</div>
+    <section class="cards" id="scoreboard">
+        <div class="strat-card"><div class="strat-name">Loading…</div></div>
+    </section>
+
+    <div class="section-title"><i class="fa-solid fa-table-list"></i> Bet Log</div>
+    <div class="filters">
+        <select id="f-source"><option value="">All sources</option></select>
+        <select id="f-market"><option value="">All markets</option></select>
+        <select id="f-result">
+            <option value="">All results</option>
+            <option value="OPEN">OPEN</option>
+            <option value="W">W</option>
+            <option value="L">L</option>
+            <option value="VOID">VOID</option>
+            <option value="PUSH">PUSH</option>
+        </select>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Match</th>
+                    <th>Bet</th>
+                    <th>Odds</th>
+                    <th>Stake</th>
+                    <th>Result</th>
+                    <th>P&amp;L</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody id="bets-body">
+                <tr class="empty-row"><td colspan="8">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // All DB-derived strings (match names, sources, leagues...) come from scraped
+        // data — always escape before inserting into HTML.
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function betLabel(side, market) {
+            const s = String(side || '').trim().toLowerCase();
+            if (s === 'home' || s === 'home (1)') return 'Home Win';
+            if (s === 'draw' || s === 'draw (x)') return 'Draw';
+            if (s === 'away' || s === 'away (2)') return 'Away Win';
+            if (s.startsWith('over')) return 'Over 2.5 Goals';
+            if (s.startsWith('under')) return 'Under 2.5 Goals';
+            if (s === 'yes' || s === 'btts yes') return 'Both Teams Score';
+            if (s === 'no' || s === 'btts no') return 'BTTS: No';
+            return side ? String(side) : String(market || '—');
+        }
+
+        function fmtMoney(v) {
+            if (v == null || isNaN(v)) return '—';
+            const n = Number(v);
+            return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
+        }
+
+        function pnlClass(v) {
+            if (v == null || isNaN(v) || Number(v) === 0) return 'flat';
+            return Number(v) > 0 ? 'pos' : 'neg';
+        }
+
+        function fmtTime(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return escapeHtml(iso);
+            const p = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+        }
+
+        // Persist option sets across refreshes so an active filter doesn't shrink the dropdowns.
+        const marketSet = new Set();
+
+        function setOptions(sel, values, allLabel) {
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">' + allLabel + '</option>' +
+                values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+            if (values.includes(cur)) sel.value = cur;
+        }
+
+        async function loadSummary() {
+            const res = await fetch('/api/research/summary');
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            const prog = data.progress || { settled: 0, target: 500, pct: 0 };
+            document.getElementById('progress-text').textContent =
+                `${prog.settled} / ${prog.target} settled bets (${prog.pct}%)`;
+            document.getElementById('progress-sub').textContent =
+                `${data.total_bets} total · ${data.open_bets} open`;
+            document.getElementById('progress-fill').style.width = Math.min(100, prog.pct) + '%';
+
+            const strategies = data.strategies || [];
+            setOptions(document.getElementById('f-source'), strategies.map(s => s.source), 'All sources');
+
+            // LEADER = best ROI among strategies with >= 20 settled bets (API is ROI-sorted).
+            let leaderSource = null;
+            for (const s of strategies) {
+                if (s.roi != null && (s.wins + s.losses) >= 20) { leaderSource = s.source; break; }
+            }
+
+            const board = document.getElementById('scoreboard');
+            if (!strategies.length) {
+                board.innerHTML = '<div class="strat-card"><div class="strat-name">No bets logged yet</div></div>';
+                return;
+            }
+            board.innerHTML = strategies.map(s => {
+                const isLeader = s.source === leaderSource;
+                const cls = pnlClass(s.pnl);
+                return `
+                <div class="strat-card${isLeader ? ' leader' : ''}">
+                    ${isLeader ? '<span class="leader-badge"><i class="fa-solid fa-crown"></i> LEADER</span>' : ''}
+                    <div class="strat-name">${escapeHtml(s.source)}</div>
+                    <div class="strat-grid">
+                        <div><span class="lbl">Bets</span><span class="val">${s.total} <small>(${s.open} open)</small></span></div>
+                        <div><span class="lbl">Record</span><span class="val">${s.wins}W – ${s.losses}L${s.voids ? ` <small>(${s.voids} void)</small>` : ''}</span></div>
+                        <div><span class="lbl">Win Rate</span><span class="val">${s.win_rate == null ? '—' : (s.win_rate * 100).toFixed(1) + '%'}</span></div>
+                        <div><span class="lbl">Staked</span><span class="val">${fmtMoney(s.staked)}</span></div>
+                        <div><span class="lbl">P&amp;L</span><span class="val ${cls}">${fmtMoney(s.pnl)}</span></div>
+                        <div><span class="lbl">ROI</span><span class="val ${s.roi == null ? 'flat' : pnlClass(s.roi)}">${s.roi == null ? '—' : (s.roi * 100).toFixed(1) + '%'}</span></div>
+                        <div><span class="lbl">Avg CLV</span><span class="val">${s.avg_clv == null ? '—' : (s.avg_clv * 100).toFixed(2) + '%'}</span></div>
+                        <div><span class="lbl">Avg Odds</span><span class="val">${s.avg_odds == null ? '—' : Number(s.avg_odds).toFixed(2)}</span></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function resultBadge(result) {
+            const r = String(result || '').toUpperCase();
+            let cls = 'b-open';
+            if (r === 'W') cls = 'b-win';
+            else if (r === 'L') cls = 'b-loss';
+            else if (r === 'VOID' || r === 'PUSH') cls = 'b-void';
+            return `<span class="badge ${cls}">${escapeHtml(r || '?')}</span>`;
+        }
+
+        async function loadBets() {
+            const params = new URLSearchParams();
+            const source = document.getElementById('f-source').value;
+            const market = document.getElementById('f-market').value;
+            const result = document.getElementById('f-result').value;
+            if (source) params.set('source', source);
+            if (market) params.set('market', market);
+            if (result) params.set('result', result);
+            params.set('limit', '200');
+
+            const res = await fetch('/api/research/bets?' + params.toString());
+            const bets = await res.json();
+            if (bets.error) throw new Error(bets.error);
+
+            bets.forEach(b => { if (b.market_type) marketSet.add(b.market_type); });
+            setOptions(document.getElementById('f-market'), [...marketSet].sort(), 'All markets');
+
+            const body = document.getElementById('bets-body');
+            if (!bets.length) {
+                body.innerHTML = '<tr class="empty-row"><td colspan="8">No bets match these filters.</td></tr>';
+                return;
+            }
+            body.innerHTML = bets.map(b => {
+                const isOpen = String(b.result || '').toUpperCase() === 'OPEN';
+                return `
+                <tr>
+                    <td>${fmtTime(b.placed_at)}</td>
+                    <td class="match-cell">${escapeHtml(b.match_id)}${b.league ? `<div class="sub">${escapeHtml(b.league)}</div>` : ''}</td>
+                    <td>${escapeHtml(betLabel(b.side, b.market_type))}<div class="sub">${escapeHtml(b.market_type || '')}</div></td>
+                    <td>${b.entry_odds == null ? '—' : Number(b.entry_odds).toFixed(2)}</td>
+                    <td>${fmtMoney(b.stake)}</td>
+                    <td>${resultBadge(b.result)}</td>
+                    <td class="${isOpen ? 'flat' : pnlClass(b.pnl)}">${isOpen ? '—' : fmtMoney(b.pnl)}</td>
+                    <td>${escapeHtml(b.bet_source || '')}${b.signal_name ? `<div class="sub">${escapeHtml(b.signal_name)}</div>` : ''}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function refresh() {
+            try {
+                await Promise.all([loadSummary(), loadBets()]);
+                document.getElementById('updated').textContent =
+                    'updated ' + new Date().toLocaleTimeString('en-GB');
+            } catch (e) {
+                document.getElementById('updated').textContent = 'update failed: ' + e.message;
+            }
+        }
+
+        ['f-source', 'f-market', 'f-result'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => loadBets().catch(() => {}));
+        });
+
+        refresh();
+        setInterval(refresh, 30000);
+    </script>
+</body>
+</html>

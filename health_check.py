@@ -96,9 +96,10 @@ except Exception as e:
 # 4. Paper bankroll intact (zero = daemon silently places nothing)
 try:
     c = sqlite3.connect(_data("bankroll.db"))
-    bal = c.execute("SELECT current_balance FROM bankroll ORDER BY date DESC LIMIT 1").fetchone()[0]
+    row = c.execute("SELECT current_balance, daily_exposure FROM bankroll ORDER BY date DESC LIMIT 1").fetchone()
     c.close()
-    add("Paper bankroll", bal and bal > 1, f"${bal:.2f}")
+    bal = row[0] + (row[1] or 0.0)
+    add("Paper bankroll", bal and bal > 1, f"${bal:.2f} (Liquid: ${row[0]:.2f})")
 except Exception as e:
     add("Paper bankroll", False, str(e))
 

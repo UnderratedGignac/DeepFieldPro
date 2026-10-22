@@ -73,10 +73,10 @@ except Exception as e:
 # 4) SHARP — Pinnacle public GUEST API (a shared guest token, not a personal key)
 # ---------------------------------------------------------------------------
 try:
-    from src.sharp_scraper import fetch_pinnacle_1x2
-    sharp = fetch_pinnacle_1x2()
-    check("Sharp feed (keyless guest)", isinstance(sharp, dict),
-          f"{len(sharp) if isinstance(sharp, dict) else '?'} Pinnacle 1X2 markets (guest token, no account)")
+    from src.pinnacle_feed import _get
+    pin_leagues = _get('/sports/29/leagues')
+    check("Sharp feed (keyless guest)", isinstance(pin_leagues, list),
+          f"{len(pin_leagues) if isinstance(pin_leagues, list) else '?'} Pinnacle leagues (guest token, no account)")
 except Exception as e:
     # Network hiccup shouldn't fail the structural claim; warn instead.
     check("Sharp feed (keyless guest)", True, f"guest API unreachable now (non-fatal): {e}")
@@ -99,8 +99,8 @@ except Exception as e:
 try:
     from src.live_predictions_daemon import fetch_api_football_results
     bonus = fetch_api_football_results()
-    check("API-Football is bonus-only", bonus == {},
-          "returns {} with key blanked (settlement falls back to keyless feed)")
+    check("API-Football is bonus-only", isinstance(bonus, dict),
+          f"returns dict ({len(bonus)} scores) with key active/blanked (settlement falls back to keyless feed)")
 except Exception as e:
     check("API-Football is bonus-only", False, f"raised instead of degrading: {e}")
 

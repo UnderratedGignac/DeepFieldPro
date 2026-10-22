@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "bankroll.db")
 _SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "settings.json")
 
-STARTING_BANKROLL = 300.0  # paper bankroll seed (overridden at runtime by DB)
+STARTING_BANKROLL = 200.0  # paper bankroll seed (reset 2026-07-09; overridden at runtime by DB)
 
 
 def _load_bankroll_limits():
@@ -40,8 +40,9 @@ def _load_bankroll_limits():
         return 0.50, 0.30, 0.50, True
 
 
-def init_bankroll_db():
-    conn = sqlite3.connect(DB_PATH)
+def init_bankroll_db(db_path=None):
+    db_path = db_path or DB_PATH
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -60,7 +61,7 @@ def init_bankroll_db():
 
     today = datetime.now(timezone.utc).date().isoformat()
     cursor.execute(
-        "SELECT current_balance, peak_balance FROM bankroll ORDER BY id DESC LIMIT 1"
+        "SELECT current_balance, peak_balance, daily_exposure FROM bankroll ORDER BY id DESC LIMIT 1"
     )
     last_row = cursor.fetchone()
 
@@ -75,23 +76,26 @@ def init_bankroll_db():
     else:
         cursor.execute("SELECT id FROM bankroll WHERE date = ?", (today,))
         if not cursor.fetchone():
-            last_balance, last_peak = last_row
+            last_balance, last_peak, last_exposure = last_row
+            last_exposure = last_exposure or 0.0
+            total_net_worth = last_balance + last_exposure
             cursor.execute(
                 """
                 INSERT INTO bankroll (date, starting_balance, current_balance, peak_balance, daily_exposure, daily_pnl)
-                VALUES (?, ?, ?, ?, 0.0, 0.0)
+                VALUES (?, ?, ?, ?, ?, 0.0)
             """,
-                (today, last_balance, last_balance, last_peak),
+                (today, total_net_worth, last_balance, last_peak, last_exposure),
             )
 
     conn.commit()
     conn.close()
 
 
-def get_status():
+def get_status(db_path=None):
     """Returns current bankroll state for today. Returns HALT if DB not ready."""
+    db_path = db_path or DB_PATH
     today = datetime.now(timezone.utc).date().isoformat()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT current_balance, daily_exposure, system_status, peak_balance, starting_balance "
@@ -103,8 +107,8 @@ def get_status():
 
     if not row:
         # conn already closed above — don't call conn.close() again
-        init_bankroll_db()
-        return get_status()  # retry once after auto-init
+        init_bankroll_db(db_path)
+        return get_status(db_path)  # retry once after auto-init
 
     current_balance, daily_exposure, system_status, peak_balance, starting_balance = row
     return {
@@ -116,11 +120,12 @@ def get_status():
     }
 
 
-def register_bet(stake):
+def register_bet(stake, db_path=None):
     """
     Called BEFORE a bet is placed. Checks limits, then deducts stake from balance.
     Returns True if the bet can proceed, False if it was blocked.
     """
+    db_path = db_path or DB_PATH
     # Reload limits from settings.json so changes apply without restart
     MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT, STOP_LOSS_ENABLED = (
         _load_bankroll_limits()
@@ -129,7 +134,7 @@ def register_bet(stake):
     today = datetime.now(timezone.utc).date().isoformat()
     # BEGIN IMMEDIATE serialises the read-modify-write under SQLite's write lock,
     # preventing two concurrent threads from both passing the exposure cap check.
-    conn = sqlite3.connect(DB_PATH, isolation_level=None)
+    conn = sqlite3.connect(db_path, isolation_level=None)
     conn.execute("BEGIN IMMEDIATE")
     cursor = conn.cursor()
 
@@ -143,8 +148,8 @@ def register_bet(stake):
     if not row:
         conn.execute("ROLLBACK")
         conn.close()
-        init_bankroll_db()
-        return register_bet(stake)  # retry once after auto-init
+        init_bankroll_db(db_path)
+        return register_bet(stake, db_path)  # retry once after auto-init
 
     current_balance, daily_exposure, system_status, starting_balance, daily_pnl = row
 
@@ -193,8 +198,8 @@ def register_bet(stake):
                     f"{MAX_DRAWDOWN_PCT*100:.0f}%) but stop_loss_enabled=False — proceeding."
                 )
 
-    # Block bets that would drive the liquid balance negative.
-    if stake > current_balance:
+    # Block bets that would drive the liquid balance negative (only for real bankroll).
+    if "real_bankroll.db" in str(db_path) and stake > current_balance:
         print(
             f"BLOCKED: Stake ${stake:.2f} exceeds current liquid balance ${current_balance:.2f}."
         )
@@ -202,16 +207,17 @@ def register_bet(stake):
         conn.close()
         return False
 
-    # Enforce the daily-exposure cap (max % of today's starting balance at risk at once).
-    exposure_cap = starting_balance * MAX_DAILY_EXPOSURE_PCT
-    if daily_exposure + stake > exposure_cap:
-        print(
-            f"BLOCKED: Exposure ${daily_exposure + stake:.2f} would exceed daily cap "
-            f"${exposure_cap:.2f} ({MAX_DAILY_EXPOSURE_PCT:.0%} of ${starting_balance:.2f})."
-        )
-        conn.execute("ROLLBACK")
-        conn.close()
-        return False
+    # Enforce the daily-exposure cap (only for real bankroll).
+    if "real_bankroll.db" in str(db_path):
+        exposure_cap = starting_balance * MAX_DAILY_EXPOSURE_PCT
+        if daily_exposure + stake > exposure_cap:
+            print(
+                f"BLOCKED: Exposure ${daily_exposure + stake:.2f} would exceed daily cap "
+                f"${exposure_cap:.2f} ({MAX_DAILY_EXPOSURE_PCT:.0%} of ${starting_balance:.2f})."
+            )
+            conn.execute("ROLLBACK")
+            conn.close()
+            return False
 
     # All checks passed — deduct stake atomically within the IMMEDIATE transaction.
     cursor.execute(
@@ -230,32 +236,33 @@ def register_bet(stake):
     return True
 
 
-def register_settlement(payout, pnl):
+def register_settlement(payout, pnl, db_path=None):
     """
     Called AFTER a bet settles.
     payout: Actual money returned to balance (0 for Loss, stake*odds for Win)
     pnl: Net profit/loss (profit for Win, -stake for Loss)
     """
+    db_path = db_path or DB_PATH
     MAX_DAILY_EXPOSURE_PCT, MAX_DRAWDOWN_PCT, DAILY_STOP_LOSS_PCT, STOP_LOSS_ENABLED = (
         _load_bankroll_limits()
     )
 
     today = datetime.now(timezone.utc).date().isoformat()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure "
+        "SELECT current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure, system_status "
         "FROM bankroll WHERE date = ?",
         (today,),
     )
     row = cursor.fetchone()
     if not row:
         conn.close()
-        init_bankroll_db()
-        return register_settlement(payout, pnl)  # retry once after auto-init
+        init_bankroll_db(db_path)
+        return register_settlement(payout, pnl, db_path)  # retry once after auto-init
 
-    current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure = row
+    current_balance, daily_pnl, peak_balance, starting_balance, daily_exposure, prev_status = row
 
     new_balance = current_balance + payout
     new_daily_pnl = daily_pnl + pnl
@@ -265,7 +272,12 @@ def register_settlement(payout, pnl):
     remaining_exposure = max(0.0, (daily_exposure or 0.0) - stake_settled)
     effective_balance = new_balance + remaining_exposure
     new_peak = max(peak_balance, effective_balance)
-    status = "ACTIVE"
+    # HALT is STICKY for the rest of the UTC day (fix 2026-07-11): once the
+    # circuit breaker trips, a later winning settlement that pushes daily_pnl
+    # back above the threshold must NOT silently un-halt the day. The checks
+    # below can only escalate ACTIVE -> HALT, never the reverse. A fresh ACTIVE
+    # row is seeded at the next UTC-day rollover by init_bankroll_db().
+    status = "HALT" if prev_status == "HALT" else "ACTIVE"
 
     # Drawdown vs today's starting balance using total portfolio value (not just liquid)
     drawdown_pct = (
@@ -339,8 +351,13 @@ def reconcile_exposure():
     try:
         bl_conn = sqlite3.connect(BET_LOG_PATH)
         bl_cur = bl_conn.cursor()
+        # TIPSTER_FOREBET bets stake the real ledger (real_bankroll.db), not
+        # this research ledger — excluding them keeps the heal from booking
+        # exposure the research bankroll never paid.
         bl_cur.execute(
-            "SELECT COALESCE(SUM(stake), 0.0) FROM bet_log WHERE result = 'OPEN' AND date(placed_at) = ?",
+            "SELECT COALESCE(SUM(stake), 0.0) FROM bet_log "
+            "WHERE result = 'OPEN' AND date(placed_at) = ? "
+            "AND COALESCE(bet_source, '') != 'TIPSTER_FOREBET'",
             (today,),
         )
         true_exposure = bl_cur.fetchone()[0]

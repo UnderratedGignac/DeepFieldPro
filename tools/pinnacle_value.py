@@ -16,6 +16,56 @@ import os
 import sqlite3
 from difflib import SequenceMatcher
 
+from src.name_matching import _level_signature
+
+
+_SIDE_MIN_SIMILARITY = 0.5
+# A Pinnacle price must belong to the fixture's own kickoff: same-name games in
+# other competitions (youth, reserves, women) kick off hours apart.
+_KICKOFF_WINDOW_SEC = 3 * 3600
+
+
+def _side_ok(name: str, cand: str) -> bool:
+    """Each team must match on its own; a long shared home name is not enough.
+
+    Scoring only the joined "home vs away" string resolved "Independiente
+    Santa Fe vs Once Caldas" to Santa Fe vs Corinthians.
+    """
+    a, b = _normalize_team(name), _normalize_team(cand)
+    if not a or not b:
+        return False
+    return a == b or a in b or b in a or SequenceMatcher(None, a, b).ratio() >= _SIDE_MIN_SIMILARITY
+
+
+def _to_ts(kickoff):
+    """Epoch seconds from a float or an ISO string; None when unparseable."""
+    if kickoff is None:
+        return None
+    try:
+        return float(kickoff)
+    except (TypeError, ValueError):
+        pass
+    try:
+        import datetime as _dt
+
+        d = _dt.datetime.fromisoformat(str(kickoff).replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=_dt.timezone.utc)
+        return d.timestamp()
+    except Exception:
+        return None
+
+
+def _same_level(home: str, away: str, cand_home: str, cand_away: str) -> bool:
+    """True when both sides are the same squad level (senior / uNN / reserve / youth).
+
+    Name similarity alone matched "Lille (U-19)" to the senior "Lille" (Youth
+    League fixtures mirror the Champions League on the same day).
+    """
+    return _level_signature(home) == _level_signature(cand_home) and _level_signature(
+        away
+    ) == _level_signature(cand_away)
+
 _COMPLETED_DB = os.path.join(
     os.path.dirname(__file__), "..", "data", "deepfield_browser_data", "completed_fixtures.db"
 )
@@ -104,7 +154,9 @@ def _fuzzy_match_ou25(home: str, away: str, candidates: dict, threshold: float =
     best_val = None
     for key, val in candidates.items():
         parts = key.split(" vs ", 1)
-        if len(parts) != 2:
+        if len(parts) != 2 or not _same_level(home, away, parts[0], parts[1]):
+            continue
+        if not (_side_ok(home, parts[0]) and _side_ok(away, parts[1])):
             continue
         candidate = f"{_normalize_team(parts[0])} vs {_normalize_team(parts[1])}"
         score = SequenceMatcher(None, query, candidate).ratio()
@@ -113,6 +165,78 @@ def _fuzzy_match_ou25(home: str, away: str, candidates: dict, threshold: float =
             best_val = val
 
     return best_val if best_score >= threshold else None
+
+
+def entry_for_fixture(home: str, away: str, kickoff, candidates: dict):
+    """The Pinnacle entry (O/U 2.5, BTTS — any 'Home vs Away' keyed dict with
+    starts_ts) for THIS fixture: exact name, then fuzzy, and only if it kicks
+    off within _KICKOFF_WINDOW_SEC of the fixture."""
+    rec = candidates.get(f"{home} vs {away}") or _fuzzy_match_ou25(home, away, candidates)
+    if not rec:
+        return None
+    k, s = _to_ts(kickoff), rec.get("starts_ts")
+    if k is not None and s and abs(float(s) - k) > _KICKOFF_WINDOW_SEC:
+        return None
+    return rec
+
+
+ou25_for_fixture = entry_for_fixture
+
+
+_PIN_PAIRS_CACHE = {"ts": 0.0, "pairs": []}
+_PAIRS_TTL_SEC = 300.0
+_FUZZY_PAIR_THRESHOLD = 0.72  # same bar as _fuzzy_match_ou25
+
+
+def _fuzzy_resolve_pair(home: str, away: str, kickoff_ts=None):
+    """Resolve Betarabia team names to Pinnacle's names when they differ.
+
+    Pinnacle abbreviates ("JJ Urquiza" vs "Justo José de Urquiza", "Barcelona"
+    vs "FC Barcelona", "Besiktas" vs "Beşiktaş JK"). The old exact-only lookup
+    silently returned None for entire leagues, which read as "Pinnacle does
+    not carry this match" — killing the MODEL_VALUE_ALIGN consensus gate for
+    ~2/3 of the slate. Mirrors _fuzzy_match_ou25: exact-first, then
+    SequenceMatcher on the normalised "home vs away" pair string, threshold
+    0.72. Candidate pairs are cached for 5 min (one cheap recent-window
+    DISTINCT instead of one per lookup).
+    Returns (pin_home, pin_away) or None.
+    """
+    import time as _time
+
+    now = _time.time()
+    if now - _PIN_PAIRS_CACHE["ts"] > _PAIRS_TTL_SEC:
+        try:
+            con = sqlite3.connect(_COMPLETED_DB, timeout=5)
+            try:
+                # Recent window only (12h) — upcoming fixtures, and keeps the
+                # DISTINCT cheap via idx_soh_ts instead of a 6.9M-row scan.
+                pairs = con.execute(
+                    "SELECT DISTINCT home_team, away_team FROM sharp_odds_history "
+                    "WHERE ts >= ?",
+                    (now - 43200.0,),
+                ).fetchall()
+            finally:
+                con.close()
+            _PIN_PAIRS_CACHE["ts"] = now
+            _PIN_PAIRS_CACHE["pairs"] = [(h, a) for h, a in pairs if h and a]
+        except Exception:
+            _PIN_PAIRS_CACHE["ts"] = now  # don't hammer on error either
+
+    h_n, a_n = _normalize_team(home), _normalize_team(away)
+    query = f"{h_n} vs {a_n}"
+    best_score, best = 0.0, None
+    for ph, pa in _PIN_PAIRS_CACHE["pairs"]:
+        if not _same_level(home, away, ph, pa):
+            continue
+        if not (_side_ok(home, ph) and _side_ok(away, pa)):
+            continue
+        candidate = f"{_normalize_team(ph)} vs {_normalize_team(pa)}"
+        score = SequenceMatcher(None, query, candidate).ratio()
+        if score > best_score:
+            best_score, best = score, (ph, pa)
+    if best_score >= _FUZZY_PAIR_THRESHOLD:
+        return best
+    return None
 
 
 def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
@@ -125,60 +249,37 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
     pin_sel = _SEL_MAP.get(selection, selection.lower())
     if not os.path.exists(_COMPLETED_DB):
         return None
+    kick = _to_ts(kickoff_ts)
 
-    try:
-        con = sqlite3.connect(_COMPLETED_DB, timeout=5)
-        con.row_factory = sqlite3.Row
-
-        h_norm = _normalize_team(home)
-        a_norm = _normalize_team(away)
-
-        # P4 FIX: Check snapshot count for data freshness.
-        # Stale Pinnacle data on minor leagues produces phantom edges.
-        # Need at least MIN_SNAPSHOTS for a reliable price.
-        count_row = con.execute(
-            "SELECT COUNT(*) as cnt FROM sharp_odds_history "
+    def _lookup(con, h, a):
+        h_norm = _normalize_team(h)
+        a_norm = _normalize_team(a)
+        where = (
             "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=?",
-            (h_norm, a_norm),
+            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
+        )
+        params = [h_norm, a_norm]
+        # With a kickoff, only this fixture's rows: the same names also carry
+        # youth/reserve games hours earlier, whose prices were being returned.
+        if kick is not None:
+            where += "AND (starts_ts IS NULL OR starts_ts BETWEEN ? AND ?) "
+            params += [kick - _KICKOFF_WINDOW_SEC, kick + _KICKOFF_WINDOW_SEC]
+        count_row = con.execute(
+            "SELECT COUNT(*) as cnt FROM sharp_odds_history " + where, params
         ).fetchone()
         snapshot_count = count_row["cnt"] if count_row else 0
 
-        # Try exact match first, then partial
-        queries = [
-            (
-                "SELECT devig_prob, decimal_odds, ts FROM sharp_odds_history "
-                "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-                "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
-                "AND selection=? ORDER BY ts DESC LIMIT 1"
-            ),
-        ]
-        # Add kickoff filter if provided
-        if kickoff_ts:
-            queries.append(
-                "SELECT devig_prob, decimal_odds, ts FROM sharp_odds_history "
-                "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-                "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
-                "AND selection=? "
-                "AND starts_ts BETWEEN ? AND ? ORDER BY ts DESC LIMIT 1"
-            )
-
-        row = None
-        row = con.execute(queries[0], (h_norm, a_norm, pin_sel)).fetchone()
-        if not row and kickoff_ts:
-            row = con.execute(
-                queries[1] if len(queries) > 1 else queries[0],
-                (h_norm, a_norm, pin_sel, kickoff_ts - 7200, kickoff_ts + 3600),
-            ).fetchone()
-
-        con.close()
+        row = con.execute(
+            "SELECT devig_prob, decimal_odds, ts FROM sharp_odds_history "
+            + where
+            + "AND selection=? ORDER BY ts DESC LIMIT 1",
+            params + [pin_sel],
+        ).fetchone()
         if not row:
             return None
-
         devig_prob = row["devig_prob"]
         if not devig_prob or devig_prob <= 0:
             return None
-
         return {
             "devig_prob": devig_prob,
             "decimal_odds": row["decimal_odds"],
@@ -186,6 +287,24 @@ def get_pinnacle_latest(home: str, away: str, selection: str, kickoff_ts=None):
             "ts": row["ts"],
             "snapshot_count": snapshot_count,
         }
+
+    try:
+        con = sqlite3.connect(_COMPLETED_DB, timeout=5)
+        con.row_factory = sqlite3.Row
+
+        # 1. Exact normalized names first (old behaviour).
+        result = _lookup(con, home, away)
+
+        # 2. Fuzzy fallback (2026-08-31): Pinnacle abbreviates team names;
+        #    exact-only was silently dropping ~2/3 of the slate from the
+        #    MODEL_VALUE_ALIGN consensus gate.
+        if result is None:
+            resolved = _fuzzy_resolve_pair(home, away, kickoff_ts)
+            if resolved:
+                result = _lookup(con, resolved[0], resolved[1])
+
+        con.close()
+        return result
     except Exception:
         return None
 
@@ -286,57 +405,125 @@ def check_ou25_value(
     return 0.0, None
 
 
-def clv_from_pinnacle_ou25(home: str, away: str, selection: str, entry_odds: float):
+def check_btts_value(
+    home: str,
+    away: str,
+    selection: str,
+    betarabia_odds: float,
+    pinnacle_btts_data: dict,
+    min_edge: float = 0.03,
+):
     """
-    Compute CLV for an O/U 2.5 bet using Pinnacle's stored snapshot.
+    Returns (edge_pct, pin_data) if Betarabia BTTS odds beat Pinnacle fair by min_edge.
 
-    selection: "Over 2.5" | "Under 2.5" (or "over"/"under")
-    Reads the latest sharp_odds_history row where selection is "over_2.5" or "under_2.5".
-    Returns float CLV or None if no data.
+    pinnacle_btts_data: dict from fetch_pinnacle_btts() for this match —
+      {"yes": float, "no": float, "p_yes": float, "p_no": float}
+    selection: "Yes" or "No" (BTTS side)
+    Returns (0.0, None) if no edge or missing data.
     """
+    if not betarabia_odds or betarabia_odds <= 1.0:
+        return 0.0, None
+    if not pinnacle_btts_data:
+        return 0.0, None
+
     sel_lower = (selection or "").lower()
-    if "over" in sel_lower:
-        pin_sel = "over_2.5"
-    elif "under" in sel_lower:
-        pin_sel = "under_2.5"
+    if "yes" in sel_lower:
+        sel_key = "yes"
+    elif "no" in sel_lower:
+        sel_key = "no"
     else:
+        return 0.0, None
+
+    pin_odds = pinnacle_btts_data.get(sel_key)
+    pin_prob = pinnacle_btts_data.get(f"p_{sel_key}")
+    if not pin_odds or not pin_prob or pin_prob <= 0:
+        return 0.0, None
+
+    fair_odds = 1.0 / pin_prob
+    edge = betarabia_odds / fair_odds - 1.0
+    if edge >= min_edge:
+        return round(edge, 4), {
+            "devig_prob": pin_prob,
+            "decimal_odds": pin_odds,
+            "fair_odds": round(fair_odds, 4),
+        }
+    return 0.0, None
+
+
+def _clv(home, away, pin_sel, entry_odds, kickoff_ts):
+    """entry_odds / last Pinnacle price - 1 for this fixture, or None.
+
+    Goes through get_pinnacle_latest(): exact names then fuzzy, and with a
+    kickoff only this fixture's rows — Pinnacle lists youth games under the
+    senior names, so names alone can return another game's close.
+    """
+    if not pin_sel or not entry_odds:
         return None
-
-    if not os.path.exists(_COMPLETED_DB):
+    pin = get_pinnacle_latest(home, away, pin_sel, kickoff_ts)
+    if pin is None or not pin["decimal_odds"] or pin["decimal_odds"] <= 1.0:
         return None
-
-    try:
-        con = sqlite3.connect(_COMPLETED_DB, timeout=5)
-        con.row_factory = sqlite3.Row
-        h_norm = _normalize_team(home)
-        a_norm = _normalize_team(away)
-        row = con.execute(
-            "SELECT decimal_odds FROM sharp_odds_history "
-            "WHERE LOWER(REPLACE(REPLACE(home_team,'.',''),'-',' '))=? "
-            "AND LOWER(REPLACE(REPLACE(away_team,'.',''),'-',' '))=? "
-            "AND selection=? ORDER BY ts DESC LIMIT 1",
-            (h_norm, a_norm, pin_sel),
-        ).fetchone()
-        con.close()
-        if not row:
-            return None
-        pin_odds = row["decimal_odds"]
-        if not pin_odds or pin_odds <= 1.0:
-            return None
-        return round(entry_odds / pin_odds - 1.0, 4)
-    except Exception:
-        return None
+    return round(entry_odds / pin["decimal_odds"] - 1.0, 4)
 
 
-def clv_from_pinnacle(home: str, away: str, selection: str, entry_odds: float):
+def clv_from_pinnacle_ou25(home: str, away: str, selection: str, entry_odds: float, kickoff_ts=None):
+    """CLV for an O/U 2.5 bet ("Over 2.5" / "Under 2.5") against Pinnacle's
+    stored over_2.5 / under_2.5 rows. Returns float CLV or None if no data."""
+    sel_lower = (selection or "").lower()
+    pin_sel = "over_2.5" if "over" in sel_lower else "under_2.5" if "under" in sel_lower else None
+    return _clv(home, away, pin_sel, entry_odds, kickoff_ts)
+
+
+def clv_from_pinnacle_btts(home: str, away: str, selection: str, entry_odds: float, kickoff_ts=None):
+    """CLV for a BTTS bet ("Yes" / "No") against Pinnacle's btts_yes / btts_no rows."""
+    sel_lower = (selection or "").lower()
+    pin_sel = "btts_yes" if "yes" in sel_lower else "btts_no" if "no" in sel_lower else None
+    return _clv(home, away, pin_sel, entry_odds, kickoff_ts)
+
+
+def _pin_selection(market: str, selection: str):
+    """The sharp_odds_history selection for a bet's market and side, or None."""
+    s = (selection or "").lower()
+    if market == "1X2":
+        return _SEL_MAP.get(selection, s)
+    if market == "Over/Under 2.5":
+        return "over_2.5" if "over" in s else "under_2.5" if "under" in s else None
+    if market == "BTTS":
+        return "btts_yes" if "yes" in s else "btts_no" if "no" in s else None
+    return None
+
+
+_CLV_SANE = 0.40  # beyond this a "close" is stale, garbled or in-play, not an edge
+
+
+def pinnacle_clvs(market, home, away, selection, entry_odds, kickoff_ts=None):
+    """(raw_clv, fair_clv) against this fixture's last Pinnacle price, either None.
+
+    raw  = entry / Pinnacle's price - 1. That price carries Pinnacle's margin,
+           so it flatters every bet (VALUE_ONLY 2026-10-21: +9.1% raw).
+    fair = entry * Pinnacle's de-vigged probability - 1 — the honest edge
+           (same bets: +1.4%). The edge gate and daily report grade on this.
+    """
+    pin_sel = _pin_selection(market, selection)
+    if not pin_sel or not entry_odds:
+        return None, None
+    pin = get_pinnacle_latest(home, away, pin_sel, kickoff_ts)
+    if pin is None:
+        return None, None
+    raw = fair = None
+    if pin.get("decimal_odds") and pin["decimal_odds"] > 1.0:
+        raw = round(entry_odds / pin["decimal_odds"] - 1.0, 4)
+    if pin.get("devig_prob"):
+        fair = round(entry_odds * pin["devig_prob"] - 1.0, 4)
+    return (
+        raw if raw is not None and abs(raw) <= _CLV_SANE else None,
+        fair if fair is not None and abs(fair) <= _CLV_SANE else None,
+    )
+
+
+def clv_from_pinnacle(home: str, away: str, selection: str, entry_odds: float, kickoff_ts=None):
     """
     Compute CLV = entry_odds / pinnacle_current_odds - 1.
     Called at settlement time to record how much we beat the closing line.
     Returns float or None.
     """
-    pin = get_pinnacle_latest(home, away, selection)
-    if pin is None:
-        return None
-    if not pin["decimal_odds"] or pin["decimal_odds"] <= 1.0:
-        return None
-    return round(entry_odds / pin["decimal_odds"] - 1.0, 4)
+    return _clv(home, away, _SEL_MAP.get(selection, (selection or "").lower()), entry_odds, kickoff_ts)

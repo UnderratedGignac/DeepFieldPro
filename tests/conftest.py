@@ -6,6 +6,15 @@ import os
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _no_live_kambi_btts(monkeypatch):
+    """find_betarabia_odds() asks Kambi for BTTS on every call; keep tests off
+    the network. Tests that need BTTS prices monkeypatch their own."""
+    import importlib
+
+    monkeypatch.setattr(importlib.import_module("src.kambi_scraper"), "fetch_kambi_btts", lambda: {})
+
+
 @pytest.fixture
 def temp_bet_log(tmp_path):
     """Create a minimal bet_log SQLite DB in a temp directory.

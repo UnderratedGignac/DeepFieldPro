@@ -989,11 +989,14 @@
             <i class="fa-solid fa-chart-pie"></i> DeepField
         </div>
         <nav>
-            <a class="nav-item active" onclick="switchView('live-view', this)">
+            <a class="nav-item" onclick="switchView('live-view', this)">
                 <i class="fa-solid fa-satellite-dish"></i> Live Predictions
             </a>
             <a class="nav-item" onclick="switchView('bankroll-view', this)">
                 <i class="fa-solid fa-vault"></i> Bankroll & ROI
+            </a>
+            <a class="nav-item" href="/strategies" target="_blank">
+                <i class="fa-solid fa-coins"></i> Strategy Bankrolls
             </a>
             <a class="nav-item" onclick="switchView('tracker-view', this)">
                 <i class="fa-solid fa-list-check"></i> Bet Tracker
@@ -1013,11 +1016,11 @@
             <a class="nav-item" onclick="switchView('research-view', this); loadResearch();">
                 <i class="fa-solid fa-flask-vial"></i> Research Ops
             </a>
+            <a class="nav-item" href="/research" target="_blank">
+                <i class="fa-solid fa-flask"></i> Research
+            </a>
             <a class="nav-item" onclick="switchView('lineups-view', this); loadLineups();">
                 <i class="fa-solid fa-users-line"></i> Lineups
-            </a>
-            <a class="nav-item" onclick="switchView('arena-view', this)">
-                <i class="fa-solid fa-futbol"></i> World Cup Arena
             </a>
             <a class="nav-item" onclick="switchView('wc-predictor-view', this)">
                 <i class="fa-solid fa-trophy"></i> WC 2026 Winner
@@ -1122,11 +1125,6 @@
                     <div class="kpi-value" id="kpi-capital">Loading...</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-title">Stair AI Vault</div>
-                    <div class="kpi-value" id="kpi-stair-wallet" style="color: #00ff88;">Loading...</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">Locked in Play: <span id="kpi-stair-locked">$0.00</span></div>
-                </div>
-                <div class="kpi-card">
                     <div class="kpi-title">30-Day ROI</div>
                     <div class="kpi-value" id="kpi-roi">Loading...</div>
                 </div>
@@ -1196,12 +1194,6 @@
                 </div>
             </div>
 
-        </div>
-
-        <!-- WORLD CUP ARENA VIEW (Stair AI real-money value betting) -->
-        <div id="arena-view" class="view-section">
-            <iframe src="/arena" title="World Cup Arena Betting"
-                style="width:100%; height:calc(100vh - 130px); min-height:600px; border:0; border-radius:10px; background:#0f1216;"></iframe>
         </div>
 
         <!-- WC 2026 WINNER PREDICTOR -->
@@ -1950,7 +1942,6 @@
                 'tracker-view': 'Execution Ledger',
                 'settings-view': 'Engine Configuration',
                 'comparison-view': 'AI vs Reality Comparisons',
-                'arena-view': 'World Cup Arena (Stair AI)',
                 'settled-view': 'P&L Ledger',
                 'edge-view': 'Edge Report',
                 'clv-view': 'CLV Intelligence',
@@ -2859,15 +2850,6 @@
                 document.getElementById('kpi-capital').innerText = `$${data.current.toLocaleString()}`;
                 document.getElementById('kpi-roi').innerText = `${data.roi > 0 ? '+' : ''}${data.roi}%`;
                 document.getElementById('kpi-pnl').innerText = `$${data.pnl.toLocaleString()}`;
-                
-                try {
-                    const stairRes = await fetch('/api/stair_balance');
-                    if (stairRes.ok) {
-                        const sData = await stairRes.json();
-                        document.getElementById('kpi-stair-wallet').innerText = `$${parseFloat(sData.available).toLocaleString()}`;
-                        document.getElementById('kpi-stair-locked').innerText = `$${parseFloat(sData.locked).toLocaleString()}`;
-                    }
-                } catch(e) {}
 
                 // Draw Chart
                 if(data.chart_dates && data.chart_balances) {

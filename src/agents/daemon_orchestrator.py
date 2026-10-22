@@ -15,7 +15,6 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
-from .arena_monitor import ArenaMonitorAgent
 from .bet_gatekeeper import BetGatekeeperAgent
 from .fixture_scout import FixtureScoutAgent
 from .predictor import PredictorAgent
@@ -50,7 +49,6 @@ class DaemonOrchestrator:
         self.predictor = PredictorAgent()
         self.bet_gatekeeper = BetGatekeeperAgent()
         self.settler = SettlerAgent()
-        self.arena_monitor = ArenaMonitorAgent()
 
     # ------------------------------------------------------------------
     # Settings / bankroll helpers
@@ -190,23 +188,12 @@ class DaemonOrchestrator:
         else:
             errors.append(f"Settler: {settle_result.error}")
 
-        # 4. Arena monitor (always dry_run=True from orchestrator)
-        arena_result = self.arena_monitor._timed_run(
-            {"conf_min": 0.50, "edge_min": 0.02, "dry_run": True}
-        )
-        arena_data = {"candidates": [], "count": 0, "dry_run": True}
-        if arena_result.success:
-            arena_data = arena_result.data
-        else:
-            errors.append(f"ArenaMonitor: {arena_result.error}")
-
         return {
             "ts": ts,
             "fixtures_count": len(fixtures),
             "predictions": predictions_out,
             "bets_placed": bets_placed,
             "settled": settled_data,
-            "arena": arena_data,
             "errors": errors,
         }
 

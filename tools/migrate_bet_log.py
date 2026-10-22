@@ -20,6 +20,7 @@ MISSING_COLUMNS = [
     ("signal_name", "TEXT"),
     ("move_size", "REAL"),
     ("monotonicity", "REAL"),
+    ("kickoff_time", "TEXT"),
 ]
 
 # Indexes to create (name, table, columns_sql)

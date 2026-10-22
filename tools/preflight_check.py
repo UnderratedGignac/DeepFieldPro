@@ -10,12 +10,6 @@ except Exception:
     pass
 
 ok = True
-if os.getenv("STAIR_AI_API_KEY"):
-    print("  [ok] STAIR_AI_API_KEY present")
-else:
-    print("  [warn] STAIR_AI_API_KEY missing in .env")
-    ok = False
-
 if all(
     os.getenv(k) for k in ["BETFAIR_USERNAME", "BETFAIR_PASSWORD", "BETFAIR_APP_KEY"]
 ):

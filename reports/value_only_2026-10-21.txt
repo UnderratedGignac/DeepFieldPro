@@ -1,0 +1,11 @@
+VALUE_ONLY daily report - 2026-10-21
+Bets: 18 placed | 0 settled, 18 open, 0 void
+Beat Pinnacle close: no settled bets with a Pinnacle close yet
+By market:
+  1X2: 11 bets, 0 settled, no results yet, CLV n/a
+  BTTS: 1 bets, 0 settled, no results yet, CLV n/a
+  Over/Under 2.5: 6 bets, 0 settled, no results yet, CLV n/a
+By book:
+  Betarabia: 5 bets, 0 settled, no results yet, CLV n/a
+  Kambi: 13 bets, 0 settled, no results yet, CLV n/a
+Verdict: WAIT - only 0/100 settled bets have CLV - too few to judge. Keep accumulating shadow data.

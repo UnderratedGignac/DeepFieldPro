@@ -1,0 +1,704 @@
+[
+ {
+  "bet_id": "PINNACLEST_e70a46acb3",
+  "match": "Fenix vs General Lamadrid",
+  "market": "1X2",
+  "side": "Home (1)",
+  "odds": 7.9,
+  "stake": 7.04,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": -7.04,
+  "source": "PINNACLE_STEAM",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "RESEARCH_1X2_27288089_Hom",
+  "match": "Fenix vs General Lamadrid",
+  "market": "1X2",
+  "side": "Home (1)",
+  "odds": 1.42,
+  "stake": 5,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": -5,
+  "source": "RESEARCH_BATCH",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "RESEARCH_OVE_27288089_Ove",
+  "match": "Fenix vs General Lamadrid",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 2.7,
+  "stake": 5,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": -5,
+  "source": "RESEARCH_BATCH",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "RESEARCH_OVE_27335159_Und",
+  "match": "Sportivo Barracas vs Lujan",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.3,
+  "stake": 5,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   2,
+   0
+  ],
+  "matched": "Sportivo Barracas vs Luj\u00e1n",
+  "pnl_stored": -5,
+  "source": "RESEARCH_BATCH",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "TIP_FORE_27335159_5fbfc066",
+  "match": "Sportivo Barracas vs Lujan",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.3,
+  "stake": 5,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   2,
+   0
+  ],
+  "matched": "Sportivo Barracas vs Luj\u00e1n",
+  "pnl_stored": -5,
+  "source": "TIPSTER_FOREBET",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "STEAM_4129d4f016",
+  "match": "Fenix vs General Lamadrid",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 1.55,
+  "stake": 50.06,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": -50.06,
+  "source": "STEAM",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "AI_2e35174f2e534d",
+  "match": "Fenix vs General Lamadrid",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 2.7,
+  "stake": 120.7,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": -120.7,
+  "source": "AI",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "STEAM_6032e0e66a",
+  "match": "Independiente del Valle vs Manta FC",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 1.61,
+  "stake": 94.31,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   4,
+   0
+  ],
+  "matched": "Independiente del Valle vs Manta F.C.",
+  "pnl_stored": -94.31,
+  "source": "STEAM",
+  "date": "2026-07-03"
+ },
+ {
+  "bet_id": "STEAM_c2294d33b5",
+  "match": "Angel City FC vs Orlando Pride",
+  "market": "1X2",
+  "side": "Home (1)",
+  "odds": 2.12,
+  "stake": 89.68,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   2,
+   0
+  ],
+  "matched": "Angel City FC vs Orlando Pride",
+  "pnl_stored": -89.68,
+  "source": "STEAM",
+  "date": "2026-07-03"
+ },
+ {
+  "bet_id": "PINNACLEST_a766182da3",
+  "match": "Beijing Guoan vs Shandong Taishan",
+  "market": "1X2",
+  "side": "Home (1)",
+  "odds": 1.7,
+  "stake": 70.73,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   2,
+   0
+  ],
+  "matched": "Beijing Guoan vs Shandong Taishan",
+  "pnl_stored": -70.73,
+  "source": "PINNACLE_STEAM",
+  "date": "2026-07-04"
+ },
+ {
+  "bet_id": "STEAM_ed63355e91",
+  "match": "Beijing Guoan vs Shandong Taishan",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.5,
+  "stake": 72.51,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   2,
+   0
+  ],
+  "matched": "Beijing Guoan vs Shandong Taishan",
+  "pnl_stored": -72.51,
+  "source": "STEAM",
+  "date": "2026-07-04"
+ },
+ {
+  "bet_id": "AI_1b0aca4681324f",
+  "match": "Deportivo Madryn vs Club Atletico Col\u00f3n",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 2.65,
+  "stake": 157.29,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   1,
+   2
+  ],
+  "matched": "Deportivo Madryn vs Col\u00f3n (Santa Fe)",
+  "pnl_stored": -157.29,
+  "source": "AI",
+  "date": "2026-07-05"
+ },
+ {
+  "bet_id": "AI_0ec2b5e1c1984e",
+  "match": "Deportivo Madryn vs Club Atletico Col\u00f3n",
+  "market": "BTTS",
+  "side": "Yes",
+  "odds": 2.35,
+  "stake": 125.71,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   1,
+   2
+  ],
+  "matched": "Deportivo Madryn vs Col\u00f3n (Santa Fe)",
+  "pnl_stored": -125.71,
+  "source": "AI",
+  "date": "2026-07-05"
+ },
+ {
+  "bet_id": "AI_efc9991cadd54e",
+  "match": "Club Ferro Carril Oeste vs San Telmo",
+  "market": "BTTS",
+  "side": "Yes",
+  "odds": 2.6,
+  "stake": 152.57,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   2,
+   1
+  ],
+  "matched": "Ferro Carril Oeste vs San Telmo",
+  "pnl_stored": -152.57,
+  "source": "AI",
+  "date": "2026-07-05"
+ },
+ {
+  "bet_id": "AI_341d546d90db4d",
+  "match": "Club Ferro Carril Oeste vs San Telmo",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 2.55,
+  "stake": 149.52,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   2,
+   1
+  ],
+  "matched": "Ferro Carril Oeste vs San Telmo",
+  "pnl_stored": -149.52,
+  "source": "AI",
+  "date": "2026-07-05"
+ },
+ {
+  "bet_id": "STEAM_c8a48c6d8f",
+  "match": "Switzerland vs Colombia",
+  "market": "1X2",
+  "side": "Draw (X)",
+  "odds": 3.11,
+  "stake": 77.16,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   0,
+   0
+  ],
+  "matched": "Switzerland vs Colombia",
+  "pnl_stored": -77.16,
+  "source": "STEAM",
+  "date": "2026-07-07"
+ },
+ {
+  "bet_id": "AI_3f41b07d89594d",
+  "match": "Switzerland vs Colombia",
+  "market": "BTTS",
+  "side": "No",
+  "odds": 1.67,
+  "stake": 1,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   0,
+   0
+  ],
+  "matched": "Switzerland vs Colombia",
+  "pnl_stored": -1,
+  "source": "AI",
+  "date": "2026-07-07"
+ },
+ {
+  "bet_id": "ed44abd2-311e-4414-8fab-b33f06866717",
+  "match": "Switzerland vs Colombia",
+  "market": "1X2",
+  "side": "draw",
+  "odds": 2.985,
+  "stake": 25,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   0,
+   0
+  ],
+  "matched": "Switzerland vs Colombia",
+  "pnl_stored": -25,
+  "source": "POLY_STEAM",
+  "date": "2026-07-07"
+ },
+ {
+  "bet_id": "PV_cc948922db20",
+  "match": "Switzerland vs Colombia",
+  "market": "1X2",
+  "side": "Draw (X)",
+  "odds": 3,
+  "stake": 73.12,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   0,
+   0
+  ],
+  "matched": "Switzerland vs Colombia",
+  "pnl_stored": -73.12,
+  "source": "PINNACLE_VALUE",
+  "date": "2026-07-07"
+ },
+ {
+  "bet_id": "STEAM_f79ac3eba1",
+  "match": "GV San Jos\u00e9 vs CD Real Tomayapo",
+  "market": "1X2",
+  "side": "Home (1)",
+  "odds": 1.42,
+  "stake": 88.46,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   3,
+   2
+  ],
+  "matched": "GV San Jos\u00e9 vs Real Tomayapo",
+  "pnl_stored": -88.46,
+  "source": "STEAM",
+  "date": "2026-07-07"
+ },
+ {
+  "bet_id": "TIP_FORE_27560619_ff92be0b",
+  "match": "Real Oruro vs Universitario de Vinto",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 1.3,
+  "stake": 2,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   4,
+   1
+  ],
+  "matched": "Real Oruro vs Universitario de Vinto",
+  "pnl_stored": -2,
+  "source": "TIPSTER_FOREBET",
+  "date": "2026-07-08"
+ },
+ {
+  "bet_id": "TIP_FORE_27491210_b0f6e855",
+  "match": "Hartford Athletic vs Orange County SC",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 1.8,
+  "stake": 2,
+  "stored": "L",
+  "regrade": "W",
+  "real_score": [
+   2,
+   2
+  ],
+  "matched": "Hartford Athletic vs Orange County SC",
+  "pnl_stored": -2,
+  "source": "TIPSTER_FOREBET",
+  "date": "2026-07-08"
+ },
+ {
+  "bet_id": "PV_417f22cfce21",
+  "match": "Fortaleza vs Sport",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.9,
+  "stake": 8.11,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   2,
+   1
+  ],
+  "matched": "Fortaleza vs Sport",
+  "pnl_stored": 7.298999999999999,
+  "source": "PINNACLE_VALUE",
+  "date": "2026-06-28"
+ },
+ {
+  "bet_id": "PV_2168151714e6",
+  "match": "Fortaleza vs Sport Recife",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.9,
+  "stake": 7.95,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   2,
+   1
+  ],
+  "matched": "Fortaleza vs Sport",
+  "pnl_stored": 7.154999999999999,
+  "source": "PINNACLE_VALUE",
+  "date": "2026-06-28"
+ },
+ {
+  "bet_id": "RESEARCH_1X2_27288089_Awa",
+  "match": "Fenix vs General Lamadrid",
+  "market": "1X2",
+  "side": "Away (2)",
+  "odds": 2.52,
+  "stake": 5,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": 7.6,
+  "source": "RESEARCH_BATCH",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "RESEARCH_OVE_27288089_Und",
+  "match": "Fenix vs General Lamadrid",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.37,
+  "stake": 5,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": 1.8500000000000005,
+  "source": "RESEARCH_BATCH",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "RESEARCH_OVE_27335159_Ove",
+  "match": "Sportivo Barracas vs Lujan",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 3.05,
+  "stake": 5,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   2,
+   0
+  ],
+  "matched": "Sportivo Barracas vs Luj\u00e1n",
+  "pnl_stored": 10.25,
+  "source": "RESEARCH_BATCH",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "TIP_FORE_27288089_cd524371",
+  "match": "Fenix vs General Lamadrid",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.37,
+  "stake": 5,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": 1.8500000000000005,
+  "source": "TIPSTER_FOREBET",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "STEAM_2728dfeb99",
+  "match": "Sportivo Barracas vs Lujan",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 1.65,
+  "stake": 48.09,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   2,
+   0
+  ],
+  "matched": "Sportivo Barracas vs Luj\u00e1n",
+  "pnl_stored": 31.258499999999998,
+  "source": "STEAM",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "AI_1dc020e3901048",
+  "match": "Fenix vs General Lamadrid",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 2.2,
+  "stake": 74.84,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": 89.80800000000002,
+  "source": "AI",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "PINNACLEST_8f2fe01e23",
+  "match": "Fenix vs General Lamadrid",
+  "market": "1X2",
+  "side": "Away (2)",
+  "odds": 1.42,
+  "stake": 60.68,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   3,
+   1
+  ],
+  "matched": "CA F\u00e9nix vs General Lamadrid",
+  "pnl_stored": 25.485599999999994,
+  "source": "PINNACLE_STEAM",
+  "date": "2026-06-29"
+ },
+ {
+  "bet_id": "AI_51ad0b4d46ca4c",
+  "match": "Botafogo-SP vs CRB",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 2.32,
+  "stake": 114.2,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   0,
+   1
+  ],
+  "matched": "Botafogo-SP vs CRB",
+  "pnl_stored": 150.74399999999997,
+  "source": "AI",
+  "date": "2026-06-30"
+ },
+ {
+  "bet_id": "STEAM_17e0d56d85",
+  "match": "Botafogo-SP vs CRB",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 2.01,
+  "stake": 54.51,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   0,
+   1
+  ],
+  "matched": "Botafogo-SP vs CRB",
+  "pnl_stored": 55.05509999999999,
+  "source": "STEAM",
+  "date": "2026-06-30"
+ },
+ {
+  "bet_id": "STEAM_1e22debb97",
+  "match": "CA Claypole vs Canuelas FC",
+  "market": "1X2",
+  "side": "Draw (X)",
+  "odds": 3.3,
+  "stake": 73.17,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   0,
+   2
+  ],
+  "matched": "Claypole vs Ca\u00f1uelas",
+  "pnl_stored": 168.291,
+  "source": "STEAM",
+  "date": "2026-06-30"
+ },
+ {
+  "bet_id": "AI_c6ee4ba12a6245",
+  "match": "Independiente del Valle vs Manta FC",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 2.2,
+  "stake": 122.58,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   4,
+   0
+  ],
+  "matched": "Independiente del Valle vs Manta F.C.",
+  "pnl_stored": 147.09600000000003,
+  "source": "AI",
+  "date": "2026-07-03"
+ },
+ {
+  "bet_id": "STEAM_9e90b72ca9",
+  "match": "Deportivo Madryn vs Club Atletico Col\u00f3n",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.32,
+  "stake": 77.06,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   1,
+   2
+  ],
+  "matched": "Deportivo Madryn vs Col\u00f3n (Santa Fe)",
+  "pnl_stored": 24.659200000000006,
+  "source": "STEAM",
+  "date": "2026-07-05"
+ },
+ {
+  "bet_id": "AI_ebdfe1a1806540",
+  "match": "Switzerland vs Colombia",
+  "market": "Over/Under 2.5",
+  "side": "Over 2.5",
+  "odds": 2.35,
+  "stake": 141.96,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   0,
+   0
+  ],
+  "matched": "Switzerland vs Colombia",
+  "pnl_stored": 191.64600000000002,
+  "source": "AI",
+  "date": "2026-07-07"
+ },
+ {
+  "bet_id": "AI_48829a77b66d42",
+  "match": "GV San Jos\u00e9 vs CD Real Tomayapo",
+  "market": "BTTS",
+  "side": "No",
+  "odds": 2.25,
+  "stake": 145.64,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   3,
+   2
+  ],
+  "matched": "GV San Jos\u00e9 vs Real Tomayapo",
+  "pnl_stored": 182.04999999999998,
+  "source": "AI",
+  "date": "2026-07-07"
+ },
+ {
+  "bet_id": "TIP_FORE_27485488_99c10395",
+  "match": "Ponte Preta SP vs Criciuma",
+  "market": "Over/Under 2.5",
+  "side": "Under 2.5",
+  "odds": 1.62,
+  "stake": 2,
+  "stored": "W",
+  "regrade": "L",
+  "real_score": [
+   1,
+   2
+  ],
+  "matched": "Ponte Preta vs Crici\u00fama",
+  "pnl_stored": 1.2400000000000002,
+  "source": "TIPSTER_FOREBET",
+  "date": "2026-07-08"
+ }
+]
