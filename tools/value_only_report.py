@@ -2,8 +2,9 @@
 value_only_report.py - is VALUE_ONLY really beating Pinnacle's closing price?
 ==============================================================================
 Realized P&L on a few dozen bets is mostly noise; closing-line value against
-Pinnacle (bet_log.pinnacle_clv, recorded at settlement from the fixture's own
-last pre-kickoff Pinnacle price) is the leading indicator. This report reads
+Pinnacle's FAIR close (bet_log.pinnacle_fair_clv = entry * the fixture's own
+last pre-kickoff de-vigged Pinnacle probability - 1) is the leading indicator.
+The raw-close pinnacle_clv keeps Pinnacle's margin and flatters every bet. This report reads
 only VALUE_ONLY bets, splits them by market and by bookmaker, and gives the
 same verdict as tools/edge_status.py: >= 100 bets with CLV, and CLV > 0 at the
 95% lower bound, before real money is even worth discussing.
@@ -38,7 +39,7 @@ def _group(rows):
     settled = [r for r in rows if r["result"] in ("W", "L")]
     staked = sum(r["stake"] or 0 for r in settled)
     pnl = sum(r["pnl"] or 0 for r in settled)
-    clvs = [r["pinnacle_clv"] for r in settled if r["pinnacle_clv"] is not None]
+    clvs = [r["pinnacle_fair_clv"] for r in settled if r["pinnacle_fair_clv"] is not None]
     mean, half = edge_status._mean_ci(clvs)
     return {
         "n": len(rows),
@@ -60,7 +61,7 @@ def build_report(db_path=DB, source=SOURCE):
     con.row_factory = sqlite3.Row
     cols = {r[1] for r in con.execute("PRAGMA table_info(bet_log)")}
     pick = ", ".join(c if c in cols else f"NULL AS {c}" for c in (
-        "market_type", "result", "stake", "pnl", "pinnacle_clv", "book", "placed_at"))
+        "market_type", "result", "stake", "pnl", "pinnacle_fair_clv", "book", "placed_at"))
     rows = [dict(r) for r in con.execute(f"SELECT {pick} FROM bet_log WHERE bet_source=?", (source,))]
     con.close()
 
@@ -99,11 +100,11 @@ def format_report(r):
     if r["clv_n"]:
         ci = (f"95% CI {r['clv_lo']:+.1%}..{r['clv_hi']:+.1%}" if r["clv_n"] >= 2 else "CI needs 2+ bets")
         lines.append(
-            f"Beat Pinnacle close: avg CLV {r['clv_mean']:+.1%} ({ci}), "
+            f"Beat Pinnacle's fair close: avg CLV {r['clv_mean']:+.1%} ({ci}), "
             f"beat it on {r['beat_close']:.0%} of {r['clv_n']} bets"
         )
     else:
-        lines.append("Beat Pinnacle close: no settled bets with a Pinnacle close yet")
+        lines.append("Beat Pinnacle's fair close: no settled bets with a Pinnacle close yet")
     lines.append("By market:")
     lines += [_line(m, g) for m, g in r["by_market"].items()]
     lines.append("By book:")

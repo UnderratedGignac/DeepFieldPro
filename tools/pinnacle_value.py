@@ -480,6 +480,46 @@ def clv_from_pinnacle_btts(home: str, away: str, selection: str, entry_odds: flo
     return _clv(home, away, pin_sel, entry_odds, kickoff_ts)
 
 
+def _pin_selection(market: str, selection: str):
+    """The sharp_odds_history selection for a bet's market and side, or None."""
+    s = (selection or "").lower()
+    if market == "1X2":
+        return _SEL_MAP.get(selection, s)
+    if market == "Over/Under 2.5":
+        return "over_2.5" if "over" in s else "under_2.5" if "under" in s else None
+    if market == "BTTS":
+        return "btts_yes" if "yes" in s else "btts_no" if "no" in s else None
+    return None
+
+
+_CLV_SANE = 0.40  # beyond this a "close" is stale, garbled or in-play, not an edge
+
+
+def pinnacle_clvs(market, home, away, selection, entry_odds, kickoff_ts=None):
+    """(raw_clv, fair_clv) against this fixture's last Pinnacle price, either None.
+
+    raw  = entry / Pinnacle's price - 1. That price carries Pinnacle's margin,
+           so it flatters every bet (VALUE_ONLY 2026-10-21: +9.1% raw).
+    fair = entry * Pinnacle's de-vigged probability - 1 — the honest edge
+           (same bets: +1.4%). The edge gate and daily report grade on this.
+    """
+    pin_sel = _pin_selection(market, selection)
+    if not pin_sel or not entry_odds:
+        return None, None
+    pin = get_pinnacle_latest(home, away, pin_sel, kickoff_ts)
+    if pin is None:
+        return None, None
+    raw = fair = None
+    if pin.get("decimal_odds") and pin["decimal_odds"] > 1.0:
+        raw = round(entry_odds / pin["decimal_odds"] - 1.0, 4)
+    if pin.get("devig_prob"):
+        fair = round(entry_odds * pin["devig_prob"] - 1.0, 4)
+    return (
+        raw if raw is not None and abs(raw) <= _CLV_SANE else None,
+        fair if fair is not None and abs(fair) <= _CLV_SANE else None,
+    )
+
+
 def clv_from_pinnacle(home: str, away: str, selection: str, entry_odds: float, kickoff_ts=None):
     """
     Compute CLV = entry_odds / pinnacle_current_odds - 1.

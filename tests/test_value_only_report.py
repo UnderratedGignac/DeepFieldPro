@@ -1,6 +1,6 @@
 """Daily VALUE_ONLY report: is the strategy beating Pinnacle's closing price?
 
-Realized P&L on a few dozen bets is noise; closing-line value (pinnacle_clv,
+Realized P&L on a few dozen bets is noise; closing-line value (pinnacle_fair_clv,
 recorded at settlement) is the leading indicator. The report reads only
 VALUE_ONLY rows, splits by market and by book, and gives the same verdict as
 tools/edge_status.py (>= 100 bets with CLV, CLV > 0 at the 95% lower bound).
@@ -23,7 +23,7 @@ def db(tmp_path):
     con = sqlite3.connect(path)
     con.execute(
         "CREATE TABLE bet_log (bet_id TEXT, bet_source TEXT, market_type TEXT, side TEXT, entry_odds REAL, "
-        "stake REAL, result TEXT, pnl REAL, pinnacle_clv REAL, book TEXT, placed_at TEXT)"
+        "stake REAL, result TEXT, pnl REAL, pinnacle_fair_clv REAL, book TEXT, placed_at TEXT)"
     )
     rows = [
         ("1", "VALUE_ONLY", "1X2", "Away (2)", 3.10, 1.0, "W", 2.10, 0.05, "Kambi", "2026-10-21T16:00:00"),

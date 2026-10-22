@@ -4862,29 +4862,21 @@ def settle_open_bets():
             # Betarabia odds may not be representative.
             # The bet's own kickoff picks THIS fixture's close: Pinnacle lists
             # youth games under the senior names.
-            pinnacle_clv = None
+            # pinnacle_clv is against the raw close (Pinnacle's margin included);
+            # pinnacle_fair_clv against the de-vigged close is the honest edge
+            # the gate and the daily report grade on.
+            pinnacle_clv = pinnacle_fair_clv = None
             try:
-                from tools.pinnacle_value import (
-                    clv_from_pinnacle as _pclv,
-                    clv_from_pinnacle_btts as _pclv_btts,
-                    clv_from_pinnacle_ou25 as _pclv_ou,
-                )
+                from tools.pinnacle_value import pinnacle_clvs as _pclvs
 
-                _pclv_fn = {
-                    "1X2": _pclv,
-                    "Over/Under 2.5": _pclv_ou,
-                    "BTTS": _pclv_btts,
-                }.get(market_type)
-                if _pclv_fn is not None:
-                    _pclv_val = _pclv_fn(
-                        bet_home,
-                        bet_away,
-                        bet_side or selection,
-                        entry_odds,
-                        kickoff_ts=_bet_kickoff,
-                    )
-                    if _pclv_val is not None and abs(_pclv_val) <= 0.40:
-                        pinnacle_clv = _pclv_val
+                pinnacle_clv, pinnacle_fair_clv = _pclvs(
+                    market_type,
+                    bet_home,
+                    bet_away,
+                    bet_side or selection,
+                    entry_odds,
+                    kickoff_ts=_bet_kickoff,
+                )
             except Exception:
                 pass
 
@@ -4901,20 +4893,22 @@ def settle_open_bets():
                 except Exception:
                     pass  # keep Betarabia CLV as fallback
 
-            try:
-                cur.execute("ALTER TABLE bet_log ADD COLUMN pinnacle_clv REAL")
-            except Exception:
-                pass
+            for _clv_col in ("pinnacle_clv", "pinnacle_fair_clv"):
+                try:
+                    cur.execute(f"ALTER TABLE bet_log ADD COLUMN {_clv_col} REAL")
+                except Exception:
+                    pass
 
             # Stamp settlement provenance in the SAME update the trigger inspects:
             # W/L is only accepted with result_verified=1 + a mapped source.
             _settle_now = datetime.datetime.now(datetime.timezone.utc).isoformat()
             cur.execute(
                 "UPDATE bet_log SET result = ?, pnl = ?, closing_odds = ?, clv = ?, pinnacle_clv = ?, "
+                "pinnacle_fair_clv = ?, "
                 "settle_source = ?, result_verified = 1, settle_reason = ?, settle_checked_at = ? "
                 "WHERE bet_id = ?",
                 (
-                    result, pnl, closing_odds, clv, pinnacle_clv,
+                    result, pnl, closing_odds, clv, pinnacle_clv, pinnacle_fair_clv,
                     (_settle_src or "score-match"),
                     (best_name or match_name or "")[:200],
                     _settle_now,

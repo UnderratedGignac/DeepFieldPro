@@ -32,13 +32,15 @@ Z = 1.96  # 95% confidence
 # fix invalidates more history.
 CLEAN_ERA_START = "2026-06-15"
 
-# Only these (source, market) pairs are real-money candidates. 1X2 only for now;
-# props are held off the whitelist because the backtests showed them -EV.
+# Only these (source, market) pairs are real-money candidates; market None means
+# every market the strategy bets. Props stay off: the backtests showed them -EV.
 CANDIDATES = [
     ("AI", "1X2", "Model 1X2 (Dixon-Coles)"),
     ("STEAM", "1X2", "Steam / line-movement 1X2"),
     ("SHARP", "1X2", "Sharp steam + Betarabia lag"),
     ("SHARPV", "1X2", "Value vs Pinnacle fair line"),
+    ("VALUE_ONLY", None, "Value only - beats Pinnacle (1X2, O/U, BTTS)"),
+    ("MODEL_VALUE_ALIGN", "Over/Under 2.5", "Model + value consensus O/U"),
 ]
 
 
@@ -123,16 +125,17 @@ def main():
         grp = [
             r
             for r in rows
-            if (r.get("bet_source") == src and r.get("market_type") == mkt)
+            if r.get("bet_source") == src and (mkt is None or r.get("market_type") == mkt)
         ]
         settled = _settled(grp)
-        # PRIMARY scoreboard = CLV vs the SHARP (Pinnacle) close (pinnacle_clv, written by
-        # settlement). The legacy clv_sharp column is never populated, so it must not be
-        # read. The Betarabia self-CLV (clv) is self-referential and shown only as a
-        # secondary diagnostic. The verdict does NOT fall back to self-CLV when sharp CLV
-        # is missing.
-        with_clv = [r for r in settled if r.get("pinnacle_clv") is not None]
-        clvs = [float(r["pinnacle_clv"]) for r in with_clv]
+        # PRIMARY scoreboard = CLV vs Pinnacle's FAIR (de-vigged) close
+        # (pinnacle_fair_clv, written by settlement). The raw-close pinnacle_clv keeps
+        # Pinnacle's margin and flatters every bet (+9.1% raw vs +1.4% fair for
+        # VALUE_ONLY on 2026-10-21), so it must not grade; nor the never-populated
+        # clv_sharp. The Betarabia self-CLV (clv) is shown only as a diagnostic. The
+        # verdict does NOT fall back to any of them when the fair CLV is missing.
+        with_clv = [r for r in settled if r.get("pinnacle_fair_clv") is not None]
+        clvs = [float(r["pinnacle_fair_clv"]) for r in with_clv]
         clv_mean, clv_half = _mean_ci(clvs)
         clv_lo = clv_mean - clv_half if clvs else 0.0
         beat = (sum(1 for v in clvs if v > 0) / len(clvs)) if clvs else 0.0
@@ -154,7 +157,7 @@ def main():
         print(f"\n[{tag}]  {label}   (source={src})")
         print(f"   settled bets ........ {len(settled)}   (open excluded)")
         print(
-            f"   with SHARP CLV ...... {len(with_clv)}   (vs Pinnacle close - the real test)"
+            f"   with SHARP CLV ...... {len(with_clv)}   (vs Pinnacle's fair close - the real test)"
         )
         if clvs:
             ci = (
