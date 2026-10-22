@@ -1431,8 +1431,14 @@ def load_predictions_from_db():
                         if p.get("exp_shots", 0) > 1.5
                     ]
 
-            preds[int(r["fixture_id"])] = {
-                "fixture_id": int(r["fixture_id"]),
+            fid = r["fixture_id"]
+            try:
+                fid_key = int(fid)
+            except (ValueError, TypeError):
+                fid_key = str(fid)
+
+            preds[fid_key] = {
+                "fixture_id": fid_key,
                 "match": r["match_name"],
                 "league": r["league"],
                 "kickoff": r["kickoff"],
