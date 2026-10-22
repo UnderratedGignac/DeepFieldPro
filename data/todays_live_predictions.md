@@ -1,6 +1,6 @@
 ===========================================
  LIVE BOTTOM-UP MATCH PREDICTIONS
- Last Updated: 2026-08-03 02:20:12
+ Last Updated: 2026-10-22 01:57:35
  *Only matches with official starting lineups shown*
 ===========================================
 
@@ -3211,6 +3211,236 @@
 - **Match Stats:** Corners (Home: 8 | Away: 3) | Fouls (Home: 18 | Away: 13) | Cards (Home Yellows: 2 | Away Yellows: 2)
 - **Top Impact Players (Home):** Joaquin Hass (0.25), Elías Calderón (0.23), Agustín Lamosa (0.23)
 - **Top Impact Players (Away):** Sebastián López (0.24), Daniel Franco (0.18), Juan Manuel Vazquez (0.28)
+
+---
+
+### [UEFA Champions League] Bayern Munich vs Arsenal
+- **Predicted Outcome:** Arsenal WIN
+- **Expected Score:** 1 - 3
+- **Team Strengths (Aggregated Impact):** Home: 1.90 | Away: 1.90
+- **Match Stats:** Corners (Home: 7 | Away: 7) | Fouls (Home: 11 | Away: 6) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Manuel Neuer (0.17), Kim Min-Jae (0.17), Josip Stanisic (0.17)
+- **Top Impact Players (Away):** David Raya (0.17), Riccardo Calafiori (0.17), Ezri Konsa (0.17)
+
+---
+
+### [UEFA Champions League] Lille vs Galatasaray
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 3 - 3
+- **Team Strengths (Aggregated Impact):** Home: 2.14 | Away: 2.60
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 15 | Away: 13) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Berke Özer (0.23), Calvin Verdonk (0.24), Maxima Goffi (0.17)
+- **Top Impact Players (Away):** Ugurcan Çakir (0.24), Davinson Sánchez (0.24), Roland Sallai (0.18)
+
+---
+
+### [UEFA Champions League] Como vs Manchester United
+- **Predicted Outcome:** Como WIN
+- **Expected Score:** 2 - 3
+- **Team Strengths (Aggregated Impact):** Home: 1.98 | Away: 1.83
+- **Match Stats:** Corners (Home: 8 | Away: 3) | Fouls (Home: 15 | Away: 17) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Jean Butez (0.17), Jacobo Ramón (0.17), Marc-Oliver Kempf (0.17)
+- **Top Impact Players (Away):** Senne Lammens (0.17), Noussair Mazraoui (0.17), Harry Maguire (0.17)
+
+---
+
+### [UEFA Champions League] Aston Villa vs Viking FK
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 1 - 1
+- **Team Strengths (Aggregated Impact):** Home: 1.90 | Away: 2.51
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 9 | Away: 12) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Zion Suzuki (0.17), Victor Lindelöf (0.17), Pau Torres (0.17)
+- **Top Impact Players (Away):** Arild Østbø (0.17), Jesper Daland (0.24), Henrik Heggheim (0.25)
+
+---
+
+### [UEFA Champions League] Real Betis vs Feyenoord
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 3 - 3
+- **Team Strengths (Aggregated Impact):** Home: 1.89 | Away: 2.50
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 15 | Away: 10) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Álvaro Valles (0.17), Fran García (0.17), Marc Bartra (0.17)
+- **Top Impact Players (Away):** Tjark Ernst (0.25), Givairo Read (0.24), Mika Mármol (0.24)
+
+---
+
+### [UEFA Champions League] Real Madrid vs RB Leipzig
+- **Predicted Outcome:** RB Leipzig WIN
+- **Expected Score:** 1 - 1
+- **Team Strengths (Aggregated Impact):** Home: 1.85 | Away: 1.90
+- **Match Stats:** Corners (Home: 7 | Away: 4) | Fouls (Home: 5 | Away: 14) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Thibaut Courtois (0.17), Dean Huijsen (0.17), Federico Valverde (0.17)
+- **Top Impact Players (Away):** Maarten Vandevoordt (0.17), David Raum (0.17), Ridle Baku (0.17)
+
+---
+
+### [UEFA Champions League] Sporting Lisbon vs LASK Linz
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 0 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.54 | Away: 2.62
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 20 | Away: 8) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Kaique (0.23), Iván Fresneda (0.26), Eduardo Quaresma (0.19)
+- **Top Impact Players (Away):** Lukas Jungwirth (0.23), Xavier Mbuyamba (0.24), Kasper Jørgensen (0.25)
+
+---
+
+### [UEFA Champions League] Club Brugge vs Lens
+- **Predicted Outcome:** Club Brugge WIN
+- **Expected Score:** 4 - 2
+- **Team Strengths (Aggregated Impact):** Home: 2.36 | Away: 2.23
+- **Match Stats:** Corners (Home: 8 | Away: 3) | Fouls (Home: 10 | Away: 13) | Cards (Home Yellows: 1 | Away Yellows: 1)
+- **Top Impact Players (Home):** Yann Sommer (0.17), Kyriani Sabbe (0.23), Joaquin Seys (0.22)
+- **Top Impact Players (Away):** Robin Risser (0.17), Matthieu Udol (0.17), Samson Baidoo (0.17)
+
+---
+
+### [J-League] Yokohama F. Marinos vs Tokyo Verdy
+- **Predicted Outcome:** Yokohama F. Marinos WIN
+- **Expected Score:** 1 - 2
+- **Team Strengths (Aggregated Impact):** Home: 2.56 | Away: 2.68
+- **Match Stats:** Corners (Home: 8 | Away: 3) | Fouls (Home: 9 | Away: 6) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Hiroki Iikura (0.23), Taisei Inoue (0.24), Takuto Kimura (0.24)
+- **Top Impact Players (Away):** Matheus Vidotto (0.23), Kaito Suzuki (0.28), Cho Yu-Min (0.24)
+
+---
+
+### [J-League] V-Varen Nagasaki vs Sanfrecce Hiroshima
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 1 - 1
+- **Team Strengths (Aggregated Impact):** Home: 2.67 | Away: 2.59
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 4 | Away: 6) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Masaaki Goto (0.27), Kanta Doi (0.18), Takuma Ominami (0.23)
+- **Top Impact Players (Away):** Keisuke Osako (0.24), Shuto Nakano (0.26), Hayato Araki (0.21)
+
+---
+
+### [J-League] Kyoto Sanga vs Kashima Antlers
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 0 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.62 | Away: 2.54
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 16 | Away: 8) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Halls (0.23), Yoon Sung-Jun (0.2), Alex Negueba (0.24)
+- **Top Impact Players (Away):** Tomoki Hayakawa (0.25), Ryoya Ogawa (0.25), Naomichi Ueda (0.25)
+
+---
+
+### [J-League] Urawa Red Diamonds vs JEF United Chiba
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 1 - 1
+- **Team Strengths (Aggregated Impact):** Home: 2.64 | Away: 2.51
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 15 | Away: 19) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Shusaku Nishikawa (0.24), Yuta Miyamoto (0.21), Kenta Nemoto (0.26)
+- **Top Impact Players (Away):** José Suárez (0.18), Boniface Nduka (0.18), Daisuke Suzuki (0.18)
+
+---
+
+### [J-League] FC Tokyo vs Kashiwa Reysol
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 0 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.59 | Away: 2.68
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 15 | Away: 12) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Hayato Inamura (0.25), Kashifu Bangunagande (0.27), Kim Seung-Gyu (0.23)
+- **Top Impact Players (Away):** Kengo Nagai (0.18), Hiromu Mitsumaru (0.24), Sachiro Toshima (0.25)
+
+---
+
+### [J-League] Nagoya Grampus vs Cerezo Osaka
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 2 - 2
+- **Team Strengths (Aggregated Impact):** Home: 2.64 | Away: 2.55
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 14 | Away: 10) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Daniel Schmidt (0.21), Tomoki Takamine (0.24), Yota Sato (0.26)
+- **Top Impact Players (Away):** Kosuke Nakamura (0.23), Rikito Inoue (0.19), Travis Takahashi (0.24)
+
+---
+
+### [League One] Reading vs Leyton Orient
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 3 - 3
+- **Team Strengths (Aggregated Impact):** Home: 2.66 | Away: 2.57
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 12 | Away: 8) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Joel Pereira (0.21), Jeriel Dorsett (0.24), Paudie O'Conner (0.2)
+- **Top Impact Players (Away):** Nathan Baxter (0.28), William Forrester (0.24), Alfie Gilchrist (0.25)
+
+---
+
+### [J-League] Fagiano Okayama vs Mito Hollyhock
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 4 - 4
+- **Team Strengths (Aggregated Impact):** Home: 2.69 | Away: 2.57
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 9 | Away: 11) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Lennart Moser (0.22), Yugo Tatsuta (0.25), Yoshitake Suzuki (0.26)
+- **Top Impact Players (Away):** Jakub Slowik (0.19), Yuri Tamura (0.24), Kenta Itakura (0.23)
+
+---
+
+### [J-League] Kawasaki Frontale vs Vissel Kobe
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 1 - 1
+- **Team Strengths (Aggregated Impact):** Home: 2.56 | Away: 2.68
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 15 | Away: 15) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Svend Brodersen (0.27), Asahi Sasaki (0.23), Yuichi Maruyama (0.23)
+- **Top Impact Players (Away):** Shuichi Gonda (0.26), Thuler (0.24), Diego (0.24)
+
+---
+
+### [J-League] Avispa Fukuoka vs Gamba Osaka
+- **Predicted Outcome:** Avispa Fukuoka WIN
+- **Expected Score:** 3 - 1
+- **Team Strengths (Aggregated Impact):** Home: 2.60 | Away: 2.70
+- **Match Stats:** Corners (Home: 8 | Away: 3) | Fouls (Home: 15 | Away: 9) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Yuma Obata (0.24), Takumi Kamijma (0.27), Yuma Tsujioka (0.25)
+- **Top Impact Players (Away):** Jun Ichimori (0.23), Shota Fukuoka (0.26), Shinnosuke Nakatani (0.24)
+
+---
+
+### [J-League] Shimizu S-Pulse vs Machida Zelvia
+- **Predicted Outcome:** Shimizu S-Pulse WIN
+- **Expected Score:** 3 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.80 | Away: 2.46
+- **Match Stats:** Corners (Home: 8 | Away: 3) | Fouls (Home: 13 | Away: 7) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Togo Umeda (0.24), Yuki Honda (0.26), Sodai Hasukawa (0.26)
+- **Top Impact Players (Away):** Kosei Tani (0.18), Daihachi Okamura (0.23), Thomas Ouwejan (0.23)
+
+---
+
+### [Primera A] Llaneros vs Deportivo Cali
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 0 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.56 | Away: 2.57
+- **Match Stats:** Corners (Home: 5 | Away: 5) | Fouls (Home: 4 | Away: 15) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Roameth Romaña (0.24), Juan Pertúz (0.23), Francisco Meza (0.25)
+- **Top Impact Players (Away):** Pedro Gallese (0.24), Keimer Sandoval (0.25), José Caldera (0.26)
+
+---
+
+### [USL Championship] Sporting Jax vs Louisville City
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 1 - 1
+- **Team Strengths (Aggregated Impact):** Home: 2.76 | Away: 2.58
+- **Match Stats:** Corners (Home: 6 | Away: 5) | Fouls (Home: 14 | Away: 10) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Jake McGuire (0.25), Ryan Edwards (0.25), Antonio Gomez (0.25)
+- **Top Impact Players (Away):** Ryan Schewe (0.24), Kyle Adams (0.24), Aiden Mcfadden (0.18)
+
+---
+
+### [MLS] FC Cincinnati vs DC United
+- **Predicted Outcome:** FC Cincinnati WIN
+- **Expected Score:** 2 - 0
+- **Team Strengths (Aggregated Impact):** Home: 2.60 | Away: 2.57
+- **Match Stats:** Corners (Home: 7 | Away: 3) | Fouls (Home: 10 | Away: 9) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Roman Celentano (0.24), Kyle Smith (0.24), David Doudera (0.24)
+- **Top Impact Players (Away):** Sean Johnson (0.26), Kimito Nono (0.18), Andre Dozzell (0.21)
+
+---
+
+### [USL Championship] Brooklyn FC vs Birmingham Legion
+- **Predicted Outcome:** DRAW
+- **Expected Score:** 4 - 4
+- **Team Strengths (Aggregated Impact):** Home: 2.53 | Away: 2.64
+- **Match Stats:** Corners (Home: 6 | Away: 5) | Fouls (Home: 12 | Away: 11) | Cards (Home Yellows: 2 | Away Yellows: 2)
+- **Top Impact Players (Home):** Jackson Lee (0.25), Vuk Latinovich (0.18), Thomas Vancaeyezeele (0.19)
+- **Top Impact Players (Away):** Jassem Koleilat (0.25), Hamady Diop (0.24), Phanuel Kavita (0.23)
 
 ---
 
