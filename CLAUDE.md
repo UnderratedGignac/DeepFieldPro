@@ -579,8 +579,14 @@ the session restarted (~5 h with no bets or settlement). Fix: **scheduled task
 - It only ever kills DeepFieldPro server processes (the old version killed every python.exe).
 - Log: `logs/watchdog.log` (only WAIT/restart/recovery lines; silent while healthy).
   State: `logs/watchdog_state.json`. Dry run: `.venv\Scripts\python.exe tools\watchdog.py --dry-run`.
+- **Phone alerts** (ntfy topic `NTFY_TOPIC`, sent synchronously via
+  `NotificationManager._send_ntfy` — `_notify()` uses a daemon thread that dies with the
+  one-shot process): every start/restart (high), the 2nd consecutive unhealthy check
+  (default), ONE urgent push for ≥3 restarts in an hour (then muted for the hour), and an
+  all-clear (low) when an alerted incident recovers. Pushes go out after the restart, so a
+  failed push never blocks recovery. Test: `tools\watchdog.py --test-alert`.
 - The task previously pointed at `AppData\Local\hermes\scripts\deepfield_watchdog_silent.vbs`
   (disabled since 2026-09-11; hardwired to port 5050, so with the server on 5058 it would have
   launched a twin). Those files are untouched but no longer referenced.
 - Verified live: killed the server at 16:53:08, watchdog restarted it at 16:53:19, health OK at
-  16:53:26. Tests: `tests/test_watchdog.py` (14).
+  16:53:26. Tests: `tests/test_watchdog.py` (22).

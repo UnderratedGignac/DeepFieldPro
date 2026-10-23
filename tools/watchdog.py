@@ -18,6 +18,11 @@ this file killed every python.exe on the machine (MCP servers included).
 Usage:
     .venv\\Scripts\\pythonw.exe tools\\watchdog.py            # what the task runs
     .venv\\Scripts\\python.exe tools\\watchdog.py --dry-run   # print the decision only
+    .venv\\Scripts\\python.exe tools\\watchdog.py --test-alert  # send one test push
+
+Phone alerts go to the project's ntfy topic (NTFY_TOPIC in .env): every start or
+restart, a second consecutive unhealthy check, one urgent push for a restart
+loop (then quiet for an hour), and an all-clear once an incident recovers.
 """
 
 import argparse
@@ -52,6 +57,10 @@ BOOT_GRACE_MIN = 5.0
 # state (2026-10-23). Stale state only means "wedged" past both bars.
 WEDGED_STATE_AGE_SEC = 90 * 60
 WEDGED_MIN_UPTIME_MIN = 60.0
+# This many starts/restarts inside the window is a loop, not a blip: one
+# urgent push, then quiet for the rest of the window.
+RESTART_LOOP_COUNT = 3
+RESTART_LOOP_WINDOW_SEC = 3600
 
 CREATE_NO_WINDOW = 0x08000000
 
@@ -97,6 +106,32 @@ def decide(roots, age_min, health, fails):
         return "ok", "first prediction cycle still running (state stale)", 0
 
     return "ok", "healthy", 0
+
+
+def alert_for(action, reason, fails, incident_open, recent_starts, muted):
+    """(title, message, priority) for a phone push, or None.
+
+    recent_starts — starts/restarts in the last window, including this run's
+    incident_open — an earlier alert of this incident has not been cleared yet
+    muted         — a restart-loop alert already went out this window
+    """
+    if action in ("start", "restart"):
+        if recent_starts >= RESTART_LOOP_COUNT:
+            if muted:
+                return None
+            return (
+                "DeepFieldPro restart loop",
+                f"{recent_starts} restarts in the last hour and it keeps failing. "
+                f"Last: {reason}. Check logs/server_*.err.log",
+                "urgent",
+            )
+        verb = "started" if action == "start" else "restarted"
+        return f"DeepFieldPro server {verb}", f"Watchdog {verb} the server: {reason}", "high"
+    if action == "wait" and fails >= 2:
+        return "DeepFieldPro unhealthy", f"{reason} - restarting if it persists", "default"
+    if action == "ok" and incident_open:
+        return "DeepFieldPro healthy again", f"Server is {reason} after the last alert", "low"
+    return None
 
 
 def server_roots(procs):
@@ -221,6 +256,25 @@ def _kill_servers(pids):
     psutil.wait_procs(victims, timeout=15)
 
 
+def _push(title, message, priority):
+    """Phone push via the project's ntfy topic, sent synchronously.
+
+    NotificationManager._notify() sends from a daemon thread, which dies with
+    this one-shot process before the request goes out — so call the senders
+    directly, keeping its ntfy-then-WhatsApp fallback order.
+    """
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
+    from src.services.alerting import NotificationManager
+
+    nm = NotificationManager()
+    sent = nm._send_ntfy(message, title=title, priority=priority, tags="rotating_light")
+    if not sent:
+        sent = nm._send_whatsapp(f"{title}: {message}")
+    _log(f"alert {'sent' if sent else 'FAILED'}: {title} - {message}")
+    return sent
+
+
 def _start_server(port):
     """Launch via WMI so the server's parent is WmiPrvSE, independent of us."""
     day = time.strftime("%Y-%m-%d")
@@ -264,9 +318,18 @@ def run_once(dry_run=False):
     health = _get_health(port) if roots else None
 
     action, reason, fails = decide(len(roots), age_min, health, state.get("fails", 0))
+
+    now = time.time()
+    starts = [t for t in state.get("starts", []) if now - t < RESTART_LOOP_WINDOW_SEC]
+    if action in ("start", "restart"):
+        starts.append(now)
+    muted = now < state.get("loop_muted_until", 0)
+    incident_open = state.get("incident_open", False)
+    alert = alert_for(action, reason, fails, incident_open, len(starts), muted)
+
     if dry_run:
         print(f"action={action} reason={reason} roots={roots} port={port} "
-              f"uptime_min={age_min and round(age_min, 1)} fails={fails}")
+              f"uptime_min={age_min and round(age_min, 1)} fails={fails} alert={alert}")
         return action
 
     if action == "restart":
@@ -288,15 +351,40 @@ def run_once(dry_run=False):
     elif state.get("last_action") not in (None, "ok"):
         _log(f"OK — {reason} (port {port})")
 
-    _save_state({"fails": fails, "last_action": action, "last_run": time.time()})
+    # Alert only after acting: a failed push must never cost a restart.
+    loop_muted_until = state.get("loop_muted_until", 0)
+    if alert:
+        try:
+            _push(*alert)
+        except Exception as e:  # noqa: BLE001
+            _log(f"alert FAILED ({type(e).__name__}: {e}): {alert[0]}")
+        if alert[2] == "urgent":
+            loop_muted_until = now + RESTART_LOOP_WINDOW_SEC
+        incident_open = action != "ok"
+    elif action == "ok":
+        incident_open = False
+
+    _save_state({
+        "fails": fails,
+        "last_action": action,
+        "last_run": now,
+        "starts": starts,
+        "incident_open": incident_open,
+        "loop_muted_until": loop_muted_until,
+    })
     return action
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--dry-run", action="store_true", help="print the decision, change nothing")
+    ap.add_argument("--test-alert", action="store_true", help="send one test push and exit")
     args = ap.parse_args(argv)
     try:
+        if args.test_alert:
+            return 0 if _push("DeepFieldPro watchdog test",
+                              "Alerts are on: you'll get a push if the server is "
+                              "restarted or stays unhealthy.", "default") else 1
         run_once(dry_run=args.dry_run)
     except Exception:  # noqa: BLE001 - a scheduled run has no console; leave a trace
         _log("WATCHDOG ERROR\n" + traceback.format_exc())

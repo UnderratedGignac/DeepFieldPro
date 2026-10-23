@@ -113,3 +113,59 @@ def test_preferred_port_used_when_free():
 def test_next_free_port_when_preferred_is_held_by_an_orphan():
     busy = {5058, 5059}
     assert wd.pick_port(5058, lambda p: p in busy) == 5060
+
+
+# ---------------------------------------------------------------------------
+# alert_for(): phone pushes — every start/restart, sustained unhealthiness,
+# one urgent alert for a restart loop (then quiet), and an all-clear
+# ---------------------------------------------------------------------------
+
+
+def _alert(action, reason="r", fails=0, incident_open=False, recent_starts=0, muted=False):
+    return wd.alert_for(action, reason, fails, incident_open, recent_starts, muted)
+
+
+def test_start_alerts_high():
+    title, message, priority = _alert("start", "no server process", recent_starts=1)
+    assert "started" in title
+    assert "no server process" in message
+    assert priority == "high"
+
+
+def test_restart_alerts_high_with_reason():
+    title, message, priority = _alert("restart", "/api/health unreachable for 3 checks", recent_starts=1)
+    assert "restarted" in title
+    assert "unreachable" in message
+    assert priority == "high"
+
+
+def test_third_restart_in_an_hour_is_one_urgent_loop_alert():
+    title, _, priority = _alert("restart", recent_starts=3)
+    assert "loop" in title
+    assert priority == "urgent"
+
+
+def test_restart_loop_alert_is_not_repeated_while_muted():
+    assert _alert("restart", recent_starts=4, muted=True) is None
+
+
+def test_first_unhealthy_check_is_silent():
+    assert _alert("wait", "/api/health unreachable (1/3)", fails=1) is None
+
+
+def test_second_unhealthy_check_alerts():
+    title, message, priority = _alert("wait", "/api/health unreachable (2/3)", fails=2)
+    assert "unhealthy" in title
+    assert "2/3" in message
+    assert priority == "default"
+
+
+def test_booting_wait_is_silent():
+    assert _alert("wait", "booting (1.2 min), no HTTP yet", fails=0) is None
+
+
+def test_all_clear_only_after_an_alerted_incident():
+    title, _, priority = _alert("ok", "healthy", incident_open=True)
+    assert "healthy" in title
+    assert priority == "low"
+    assert _alert("ok", "healthy", incident_open=False) is None
