@@ -539,3 +539,24 @@ Tests: `tests/test_kickoff_guard.py` (13), `tests/test_odds_freshness.py` (9).
 **Note on reading gate telemetry**: `blocked_by` counts SELECTIONS, `odds_stream.db` rows
 are FIXTURES. Comparing the two directly is apples-to-oranges — roughly 5 selections per
 fixture reach the gate, so ~10 stale fixtures produce ~50 selection rejections.
+
+## Settlement crash loop + SKILL strategies removed (2026-10-22/23)
+
+A short-lived set of `SKILL_*` paper strategies (`src/skill_strategies.py`) logged its
+parlays with legs that had no `market`/`selection`, so `settle_open_bets()` raised
+`KeyError('market')` in the parlay loop **every cycle** — rolling back that cycle's W/L
+grades AFTER `register_settlement` had already credited `bankroll.db`. The same payouts
+were re-credited each cycle: the research ledger went $885.65 → $3,224.51 in a day with
+only $4.91 of real payouts committed (≥ ~$2.3k phantom; **NOT repaired** — per-bet stakes
+use strategy_ledger and settings.json disables register_bet's caps, so the damage is the
+dashboard/ledger figure, not stake sizes).
+
+- **Kept (crash guard):** the settler commits single-bet grades **before** the parlay loop,
+  and each parlay is wrapped so a malformed one is skipped (logged, left OPEN) instead of
+  aborting the cycle. Test: `test_settlement_grading.py::TestParlaySettlement::
+  test_malformed_parlay_does_not_roll_back_single_bet_grades`.
+- **Removed 2026-10-23 at the user's request:** the SKILL strategies and all their records
+  (184 bets, 33 parlays, 89 review-queue rows), archived to
+  `data/skill_strategies_archive_2026-10-22.db` — see `docs/removed_features.md` §5.
+- **Any ledger credit written before its bet_log commit is a re-credit loop waiting to
+  happen** — keep `conn.commit()` ahead of anything that can raise.

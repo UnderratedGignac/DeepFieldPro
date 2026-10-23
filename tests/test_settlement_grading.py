@@ -573,6 +573,28 @@ class TestParlaySettlement:
         conn.close()
         assert result == "OPEN"
 
+    def test_malformed_parlay_does_not_roll_back_single_bet_grades(
+        self, tmp_path, monkeypatch
+    ):
+        """Regression (2026-10-22): parlay legs without market/selection raised
+        KeyError mid-loop and rolled back every single-bet grade of the cycle,
+        after the bankroll had already been credited — so the same payouts were
+        re-credited every cycle."""
+        legs = json.dumps([{"match": "Alpha FC vs Beta United", "side": "Home"}])
+        data = _make_data_dir(
+            tmp_path,
+            bets=[self.COMPANION],
+            parlays=[("p1", legs, 10.0, 6.0, _old_iso())],
+        )
+        _run_settlement(monkeypatch, data, {"Alpha FC vs Beta United": (2, 0)})
+        assert _bet_rows(data)["companion"]["result"] == "W"
+        conn = sqlite3.connect(data / "bet_log.db")
+        (result,) = conn.execute(
+            "SELECT result FROM parlay_log WHERE parlay_id='p1'"
+        ).fetchone()
+        conn.close()
+        assert result == "OPEN"
+
 
 # ---------------------------------------------------------------------------
 # Deep-lookup trust gate (2026-07-12): google-sourced and implausible scores

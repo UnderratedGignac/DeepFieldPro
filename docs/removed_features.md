@@ -146,6 +146,38 @@ app.
 
 ---
 
+## 5. SKILL_* Strategies (`src/skill_strategies.py`)
+
+**Date removed:** 2026-10-23
+
+**What it was:**
+A standalone loop (`scripts/run_skill_strategies.cmd`) that read `/api/state` and placed
+paper bets under ten `SKILL_*` sources (De-vig Edge, Half-Kelly Value, Soft-Book
+Overround, Consensus Confirm, Low-Vig Steal, Parlay Value, ...), using formulas adapted
+from an external `betting` agent skill. It ran for one day (2026-10-22).
+
+**Why it was removed:**
+It lost heavily and broke settlement for everything else. Its 128 graded singles went
+18W-110L (−$1,263 on $1,748 staked, −72%) and its 33 parlays all lost (−$230). The
+model probabilities it bet on were mostly a few repeated fallback values (fair price 2.74
+on 47 bets, 2.79 on 25, 1.59 on 17), not real per-match predictions. Its parlays had
+legs with no `market`/`selection`, which crashed `settle_open_bets()` every cycle and
+re-credited the research ledger with phantom payouts (see the CLAUDE.md "Settlement crash
+loop" section). The user asked to remove it and keep the original strategies.
+
+**Code removed:** `src/skill_strategies.py`, `scripts/run_skill_strategies.cmd`, and the
+`SKILL_*` labels in `src/strategies_blueprint.py` (all uncommitted at the time).
+
+**Data removed:** 184 `bet_log` rows (`bet_source LIKE 'SKILL_%'`), 33 `parlay_log` rows
+(`parlay_id LIKE 'SPV_%'`) and 89 `settlement_review` rows, archived losslessly first to
+`data/skill_strategies_archive_2026-10-22.db`.
+
+**What's still in place:** the settlement crash guard added while diagnosing it
+(single-bet grades are committed before the parlay loop; a malformed parlay is skipped,
+not fatal). The research ledger's phantom credit was not repaired.
+
+---
+
 ## What Remains
 
 Only one strategy places real (paper) bets going forward:

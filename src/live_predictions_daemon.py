@@ -4967,6 +4967,13 @@ def settle_open_bets():
             except Exception as _rs_err:
                 print(f"[SETTLEMENT] WARNING: register_settlement failed for {bet_id}: {_rs_err}")
 
+        # Commit the single-bet grades now. Their ledger credits above are
+        # already written to bankroll.db, so an exception further down must not
+        # roll the grades back: the bets would stay OPEN and be credited again
+        # next cycle (2026-10-22: malformed parlays did exactly that every
+        # cycle, inflating the research ledger by >= ~$2.3k in a day).
+        conn.commit()
+
         # PARLAY SETTLEMENT
         cur.execute(
             "SELECT parlay_id, legs_json, stake, total_odds FROM parlay_log WHERE result = 'OPEN'"
@@ -4974,99 +4981,108 @@ def settle_open_bets():
         open_parlays = cur.fetchall()
 
         for p_id, legs_json, p_stake, p_odds in open_parlays:
-            import json
+            try:
+                import json
 
-            legs = json.loads(legs_json)
-            parlay_finished = True
-            parlay_won = True
-            any_leg_lost = False
-            legs_updated = False
+                legs = json.loads(legs_json)
+                parlay_finished = True
+                parlay_won = True
+                any_leg_lost = False
+                legs_updated = False
 
-            for leg in legs:
-                if leg.get("result") in ["W", "L"]:
-                    if leg["result"] == "L":
-                        any_leg_lost = True
-                    continue
+                for leg in legs:
+                    if leg.get("result") in ["W", "L"]:
+                        if leg["result"] == "L":
+                            any_leg_lost = True
+                        continue
 
-                # Try to settle this leg
-                leg_match_name = leg["match"]
-                leg_market = leg["market"]
-                leg_selection = leg["selection"].lower()
-
-                # Find score
-                best_s = 0.0
-                m_score = None
-                for fin_name, score in finished_matches.items():
-                    h_s = get_match_score(
-                        leg_match_name.split(" vs ")[0], fin_name.split(" vs ")[0]
-                    )
-                    a_s = get_match_score(
-                        leg_match_name.split(" vs ")[1], fin_name.split(" vs ")[1]
-                    )
-                    if h_s >= 0.5 and a_s >= 0.5:
-                        if (h_s + a_s) > best_s:
-                            best_s = h_s + a_s
-                            m_score = score
-
-                if m_score:
-                    h_score, a_score = m_score
-                    # Basic 1X2 / OU settlement for parlay legs
-                    leg_won = False
-                    if leg_market == "Match Result":
-                        if "1" in leg_selection or "home" in leg_selection:
-                            leg_won = h_score > a_score
-                        elif "x" in leg_selection or "draw" in leg_selection:
-                            leg_won = h_score == a_score
-                        else:
-                            leg_won = a_score > h_score
-                    elif "Total Goals" in leg_market:
-                        line = 2.5  # Default
-                        if "over" in leg_selection:
-                            leg_won = (h_score + a_score) > line
-                        else:
-                            leg_won = (h_score + a_score) < line
-                    else:
-                        # No real data for this leg's market → leave the parlay OPEN rather
-                        # than fabricate a leg result from hash (the old "random for demo").
+                    # Try to settle this leg
+                    leg_match_name = leg.get("match") or ""
+                    leg_market = leg.get("market")
+                    leg_selection = str(leg.get("selection") or "").lower()
+                    if " vs " not in leg_match_name or not leg_market or not leg_selection:
+                        # Not a leg we can grade — leave the parlay OPEN.
                         parlay_finished = False
                         continue
 
-                    leg["result"] = "W" if leg_won else "L"
-                    if not leg_won:
-                        any_leg_lost = True
-                    legs_updated = True
-                else:
-                    parlay_finished = False  # Still waiting for some legs
+                    # Find score
+                    best_s = 0.0
+                    m_score = None
+                    for fin_name, score in finished_matches.items():
+                        h_s = get_match_score(
+                            leg_match_name.split(" vs ")[0], fin_name.split(" vs ")[0]
+                        )
+                        a_s = get_match_score(
+                            leg_match_name.split(" vs ")[1], fin_name.split(" vs ")[1]
+                        )
+                        if h_s >= 0.5 and a_s >= 0.5:
+                            if (h_s + a_s) > best_s:
+                                best_s = h_s + a_s
+                                m_score = score
 
-            if any_leg_lost:
-                res = "L"
-                pnl = -p_stake
-                cur.execute(
-                    "UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?",
-                    (res, pnl, json.dumps(legs), p_id),
-                )
-                from src.bankroll_tracker import register_settlement
+                    if m_score:
+                        h_score, a_score = m_score
+                        # Basic 1X2 / OU settlement for parlay legs
+                        leg_won = False
+                        if leg_market == "Match Result":
+                            if "1" in leg_selection or "home" in leg_selection:
+                                leg_won = h_score > a_score
+                            elif "x" in leg_selection or "draw" in leg_selection:
+                                leg_won = h_score == a_score
+                            else:
+                                leg_won = a_score > h_score
+                        elif "Total Goals" in leg_market:
+                            line = 2.5  # Default
+                            if "over" in leg_selection:
+                                leg_won = (h_score + a_score) > line
+                            else:
+                                leg_won = (h_score + a_score) < line
+                        else:
+                            # No real data for this leg's market → leave the parlay OPEN rather
+                            # than fabricate a leg result from hash (the old "random for demo").
+                            parlay_finished = False
+                            continue
 
-                register_settlement(0.0, pnl)
-                print(f"[SETTLEMENT] Parlay {p_id} LOST.")
-            elif parlay_finished:
-                res = "W"
-                pnl = p_stake * (p_odds - 1)
-                payout = p_stake * p_odds
-                cur.execute(
-                    "UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?",
-                    (res, pnl, json.dumps(legs), p_id),
-                )
-                from src.bankroll_tracker import register_settlement
+                        leg["result"] = "W" if leg_won else "L"
+                        if not leg_won:
+                            any_leg_lost = True
+                        legs_updated = True
+                    else:
+                        parlay_finished = False  # Still waiting for some legs
 
-                register_settlement(payout, pnl)
-                print(f"[SETTLEMENT] Parlay {p_id} WON! (PnL: ${pnl:.2f})")
-            elif legs_updated:
-                # Update legs even if parlay is still open
-                cur.execute(
-                    "UPDATE parlay_log SET legs_json = ? WHERE parlay_id = ?",
-                    (json.dumps(legs), p_id),
-                )
+                if any_leg_lost:
+                    res = "L"
+                    pnl = -p_stake
+                    cur.execute(
+                        "UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?",
+                        (res, pnl, json.dumps(legs), p_id),
+                    )
+                    from src.bankroll_tracker import register_settlement
+
+                    register_settlement(0.0, pnl)
+                    print(f"[SETTLEMENT] Parlay {p_id} LOST.")
+                elif parlay_finished:
+                    res = "W"
+                    pnl = p_stake * (p_odds - 1)
+                    payout = p_stake * p_odds
+                    cur.execute(
+                        "UPDATE parlay_log SET result = ?, pnl = ?, legs_json = ? WHERE parlay_id = ?",
+                        (res, pnl, json.dumps(legs), p_id),
+                    )
+                    from src.bankroll_tracker import register_settlement
+
+                    register_settlement(payout, pnl)
+                    print(f"[SETTLEMENT] Parlay {p_id} WON! (PnL: ${pnl:.2f})")
+                elif legs_updated:
+                    # Update legs even if parlay is still open
+                    cur.execute(
+                        "UPDATE parlay_log SET legs_json = ? WHERE parlay_id = ?",
+                        (json.dumps(legs), p_id),
+                    )
+            except Exception as _parlay_err:
+                # One malformed parlay must not abort the cycle (see the
+                # commit above); it stays OPEN and is reported every cycle.
+                print(f"[SETTLEMENT] Parlay {p_id} skipped: {_parlay_err!r}")
 
         # DEEP SCORE LOOKUP — final attempt for stuck OPEN bets before VOID.
         # Uses Flashscore search + team page scraping + Google fallback to find
