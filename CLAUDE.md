@@ -560,3 +560,27 @@ dashboard/ledger figure, not stake sizes).
   `data/skill_strategies_archive_2026-10-22.db` — see `docs/removed_features.md` §5.
 - **Any ledger credit written before its bet_log commit is a re-credit loop waiting to
   happen** — keep `conn.commit()` ahead of anything that can raise.
+
+## Server watchdog — Task Scheduler (2026-10-23)
+
+The server died silently on 2026-10-23: started from a Claude session, it was killed when
+the session restarted (~5 h with no bets or settlement). Fix: **scheduled task
+"DeepFieldPro Watchdog"** runs `.venv\Scripts\pythonw.exe tools\watchdog.py` every 5 min
+(and at logon; runs on battery; never overlaps; 4-min run cap).
+
+- `tools/watchdog.py` (rewritten) is a **one-shot** check: reads `/api/health` on the port the
+  server is actually listening on, then does nothing, starts, or kills-and-restarts. Restart
+  only on sustained failure: health unreachable 3 checks in a row, worker `alive=false` twice,
+  or state stale >90 min after >60 min uptime (the first cycle after a gap takes ~30 min, so
+  stale-on-boot is NOT a fault). Two server chains = twin daemons → collapsed to one.
+- It launches the server via **WMI `Win32_Process.Create`** so the parent is `WmiPrvSE.exe`,
+  independent of the watchdog, the scheduler and any terminal. **Restart the server the same
+  way by hand** — `Start-Process` from a Claude/agent shell dies with that session.
+- It only ever kills DeepFieldPro server processes (the old version killed every python.exe).
+- Log: `logs/watchdog.log` (only WAIT/restart/recovery lines; silent while healthy).
+  State: `logs/watchdog_state.json`. Dry run: `.venv\Scripts\python.exe tools\watchdog.py --dry-run`.
+- The task previously pointed at `AppData\Local\hermes\scripts\deepfield_watchdog_silent.vbs`
+  (disabled since 2026-09-11; hardwired to port 5050, so with the server on 5058 it would have
+  launched a twin). Those files are untouched but no longer referenced.
+- Verified live: killed the server at 16:53:08, watchdog restarted it at 16:53:19, health OK at
+  16:53:26. Tests: `tests/test_watchdog.py` (14).
