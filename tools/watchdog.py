@@ -57,6 +57,12 @@ BOOT_GRACE_MIN = 5.0
 # state (2026-10-23). Stale state only means "wedged" past both bars.
 WEDGED_STATE_AGE_SEC = 90 * 60
 WEDGED_MIN_UPTIME_MIN = 60.0
+# ...and the server's stdout log must have gone quiet too. On a big slate one
+# cycle ran >80 min while still placing bets (2026-10-24); a live cycle keeps
+# printing, a wedged one does not. Flask access lines go to the .err log, so
+# the watchdog's own health checks never refresh this.
+WEDGED_LOG_IDLE_MIN = 30.0
+HEALTHY = "healthy"
 # This many starts/restarts inside the window is a loop, not a blip: one
 # urgent push, then quiet for the rest of the window.
 RESTART_LOOP_COUNT = 3
@@ -70,13 +76,14 @@ CREATE_NO_WINDOW = 0x08000000
 # ---------------------------------------------------------------------------
 
 
-def decide(roots, age_min, health, fails):
+def decide(roots, age_min, health, fails, log_idle_min=None):
     """Return (action, reason, fails) where action is ok | wait | start | restart.
 
-    roots   — number of independent server process chains running
-    age_min — uptime of the oldest server process, minutes (None if none)
-    health  — parsed /api/health JSON, or None if it did not answer
-    fails   — consecutive failures carried over from the previous run
+    roots        — number of independent server process chains running
+    age_min      — uptime of the oldest server process, minutes (None if none)
+    health       — parsed /api/health JSON, or None if it did not answer
+    fails        — consecutive failures carried over from the previous run
+    log_idle_min — minutes since the server's stdout log was written (None if unknown)
     """
     if roots == 0:
         return "start", "no server process", 0
@@ -100,12 +107,14 @@ def decide(roots, age_min, health, fails):
     if health.get("state_stale"):
         age = health.get("state_age_sec")
         uptime = age_min or 0.0
-        if (age is None or age > WEDGED_STATE_AGE_SEC) and uptime > WEDGED_MIN_UPTIME_MIN:
+        log_quiet = log_idle_min is None or log_idle_min > WEDGED_LOG_IDLE_MIN
+        if (age is None or age > WEDGED_STATE_AGE_SEC) and uptime > WEDGED_MIN_UPTIME_MIN and log_quiet:
             age_txt = f"{age / 60:.0f} min" if age is not None else "missing"
-            return "restart", f"state stale ({age_txt}) after {uptime:.0f} min uptime — wedged", 0
-        return "ok", "first prediction cycle still running (state stale)", 0
+            log_txt = f", log silent {log_idle_min:.0f} min" if log_idle_min is not None else ""
+            return "restart", f"state stale ({age_txt}) after {uptime:.0f} min uptime{log_txt} — wedged", 0
+        return "ok", "prediction cycle still running (state stale, still logging)", 0
 
-    return "ok", "healthy", 0
+    return "ok", HEALTHY, 0
 
 
 def alert_for(action, reason, fails, incident_open, recent_starts, muted):
@@ -129,8 +138,10 @@ def alert_for(action, reason, fails, incident_open, recent_starts, muted):
         return f"DeepFieldPro server {verb}", f"Watchdog {verb} the server: {reason}", "high"
     if action == "wait" and fails >= 2:
         return "DeepFieldPro unhealthy", f"{reason} - restarting if it persists", "default"
-    if action == "ok" and incident_open:
-        return "DeepFieldPro healthy again", f"Server is {reason} after the last alert", "low"
+    # All-clear only on fresh state — not while a restarted server is still on
+    # its first cycle (that pushed a premature "healthy again" on 2026-10-24).
+    if action == "ok" and incident_open and reason == HEALTHY:
+        return "DeepFieldPro healthy again", "Server is healthy again after the last alert", "low"
     return None
 
 
@@ -214,6 +225,17 @@ def _listening_port(pids):
         except Exception:  # noqa: BLE001
             continue
     return None
+
+
+def _log_idle_min():
+    """Minutes since any server stdout log (logs/server_*.log) was written."""
+    import glob
+
+    logs = [p for p in glob.glob(os.path.join(ROOT, "logs", "server_*.log"))
+            if not p.endswith(".err.log")]
+    if not logs:
+        return None
+    return (time.time() - max(os.path.getmtime(p) for p in logs)) / 60
 
 
 def _read_port():
@@ -317,7 +339,8 @@ def run_once(dry_run=False):
     port = _listening_port(pids) or _read_port()
     health = _get_health(port) if roots else None
 
-    action, reason, fails = decide(len(roots), age_min, health, state.get("fails", 0))
+    log_idle = _log_idle_min()
+    action, reason, fails = decide(len(roots), age_min, health, state.get("fails", 0), log_idle)
 
     now = time.time()
     starts = [t for t in state.get("starts", []) if now - t < RESTART_LOOP_WINDOW_SEC]
@@ -329,7 +352,8 @@ def run_once(dry_run=False):
 
     if dry_run:
         print(f"action={action} reason={reason} roots={roots} port={port} "
-              f"uptime_min={age_min and round(age_min, 1)} fails={fails} alert={alert}")
+              f"uptime_min={age_min and round(age_min, 1)} log_idle_min={log_idle and round(log_idle, 1)} "
+              f"fails={fails} alert={alert}")
         return action
 
     if action == "restart":
@@ -361,7 +385,7 @@ def run_once(dry_run=False):
         if alert[2] == "urgent":
             loop_muted_until = now + RESTART_LOOP_WINDOW_SEC
         incident_open = action != "ok"
-    elif action == "ok":
+    elif action == "ok" and reason == HEALTHY:
         incident_open = False
 
     _save_state({

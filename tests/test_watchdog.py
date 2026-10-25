@@ -169,3 +169,29 @@ def test_all_clear_only_after_an_alerted_incident():
     assert "healthy" in title
     assert priority == "low"
     assert _alert("ok", "healthy", incident_open=False) is None
+
+
+# ---------------------------------------------------------------------------
+# 2026-10-24: a slow cycle is not a wedge. On a big Saturday slate (3,228
+# selections) one cycle took >80 min while still placing bets; the stale-state
+# rule restarted it, and every restarted first cycle would have been killed
+# the same way. Stale state only means "wedged" if the server stopped logging.
+# ---------------------------------------------------------------------------
+
+STALE_2H = {**HEALTHY, "ok": False, "state_stale": True, "state_age_sec": 2 * 3600.0}
+
+
+def test_slow_cycle_that_is_still_logging_is_not_restarted():
+    action, _, _ = wd.decide(1, 180.0, STALE_2H, 0, log_idle_min=2.0)
+    assert action == "ok"
+
+
+def test_stale_state_and_a_silent_log_is_a_wedge():
+    action, reason, _ = wd.decide(1, 180.0, STALE_2H, 0, log_idle_min=45.0)
+    assert action == "restart"
+    assert "log" in reason
+
+
+def test_all_clear_waits_for_fresh_state():
+    reason = "first prediction cycle still running (state stale)"
+    assert _alert("ok", reason, incident_open=True) is None

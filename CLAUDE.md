@@ -571,8 +571,11 @@ the session restarted (~5 h with no bets or settlement). Fix: **scheduled task
 - `tools/watchdog.py` (rewritten) is a **one-shot** check: reads `/api/health` on the port the
   server is actually listening on, then does nothing, starts, or kills-and-restarts. Restart
   only on sustained failure: health unreachable 3 checks in a row, worker `alive=false` twice,
-  or state stale >90 min after >60 min uptime (the first cycle after a gap takes ~30 min, so
-  stale-on-boot is NOT a fault). Two server chains = twin daemons → collapsed to one.
+  or state stale >90 min after >60 min uptime **and** the stdout log (`logs/server_*.log`)
+  silent >30 min. Stale state alone is NOT a fault: on 2026-10-24's big Saturday slate (3,228
+  selections) one cycle ran >80 min while still placing bets, the old rule restarted it, and
+  every restarted first cycle would have been killed the same way. Two server chains = twin
+  daemons → collapsed to one. The all-clear push waits for fresh state, not just "running".
 - It launches the server via **WMI `Win32_Process.Create`** so the parent is `WmiPrvSE.exe`,
   independent of the watchdog, the scheduler and any terminal. **Restart the server the same
   way by hand** — `Start-Process` from a Claude/agent shell dies with that session.
@@ -589,4 +592,4 @@ the session restarted (~5 h with no bets or settlement). Fix: **scheduled task
   (disabled since 2026-09-11; hardwired to port 5050, so with the server on 5058 it would have
   launched a twin). Those files are untouched but no longer referenced.
 - Verified live: killed the server at 16:53:08, watchdog restarted it at 16:53:19, health OK at
-  16:53:26. Tests: `tests/test_watchdog.py` (22).
+  16:53:26. Tests: `tests/test_watchdog.py` (25).
