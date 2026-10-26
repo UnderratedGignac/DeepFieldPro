@@ -593,3 +593,19 @@ the session restarted (~5 h with no bets or settlement). Fix: **scheduled task
   launched a twin). Those files are untouched but no longer referenced.
 - Verified live: killed the server at 16:53:08, watchdog restarted it at 16:53:19, health OK at
   16:53:26. Tests: `tests/test_watchdog.py` (25).
+
+## Pinnacle pairs query full-scan (2026-10-26)
+
+The overnight "wedges" (watchdog restarts 01:43 and 05:03, log silent 60–81 min) were not
+hangs: py-spy showed the prediction thread *active* in `tools/pinnacle_value._fuzzy_resolve_pair`
+on `SELECT DISTINCT home_team, away_team FROM sharp_odds_history WHERE ts >= ?`. SQLite
+satisfied the DISTINCT through `idx_soh_teams` and **full-SCANned** the table, checking ts row
+by row — minutes on a partly paged-out server (2.7 GB private, 40 MB resident; another app
+held 12 GB), re-run every 5 min (pairs-cache TTL). Fix: `_PIN_PAIRS_SQL` selects
+`+home_team, +away_team` — same values, but the plan now SEARCHes `idx_soh_ts` (live: 935 pairs
+in 1.1 s). Test: `tests/test_pinnacle_pairs_query.py`. Saturday 2026-10-24's ">80 min cycle"
+was very likely the same bug.
+
+**Any query on `sharp_odds_history` that sorts or de-duplicates by team columns can flip
+to a full scan via `idx_soh_teams`** (second time, after wc_upcoming_scraper's ORDER BY on
+2026-07-11). Check `EXPLAIN QUERY PLAN` and pin the plan in a test.

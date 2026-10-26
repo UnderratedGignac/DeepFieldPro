@@ -185,6 +185,15 @@ ou25_for_fixture = entry_for_fixture
 
 _PIN_PAIRS_CACHE = {"ts": 0.0, "pairs": []}
 _PAIRS_TTL_SEC = 300.0
+# The unary `+` is load-bearing (fix 2026-10-26): with bare columns SQLite
+# satisfies DISTINCT through idx_soh_teams and full-SCANs the table, checking
+# ts row by row — minutes on a paged-out server, every 5 min, long enough for
+# the watchdog to restart the silent prediction loop. `+col` returns the same
+# value but can't use that index, so the plan SEARCHes idx_soh_ts instead.
+# Same failure class as wc_upcoming_scraper's ORDER BY scan (2026-07-11).
+_PIN_PAIRS_SQL = (
+    "SELECT DISTINCT +home_team, +away_team FROM sharp_odds_history WHERE ts >= ?"
+)
 _FUZZY_PAIR_THRESHOLD = 0.72  # same bar as _fuzzy_match_ou25
 
 
@@ -209,12 +218,8 @@ def _fuzzy_resolve_pair(home: str, away: str, kickoff_ts=None):
             con = sqlite3.connect(_COMPLETED_DB, timeout=5)
             try:
                 # Recent window only (12h) — upcoming fixtures, and keeps the
-                # DISTINCT cheap via idx_soh_ts instead of a 6.9M-row scan.
-                pairs = con.execute(
-                    "SELECT DISTINCT home_team, away_team FROM sharp_odds_history "
-                    "WHERE ts >= ?",
-                    (now - 43200.0,),
-                ).fetchall()
+                # DISTINCT cheap via idx_soh_ts (see _PIN_PAIRS_SQL).
+                pairs = con.execute(_PIN_PAIRS_SQL, (now - 43200.0,)).fetchall()
             finally:
                 con.close()
             _PIN_PAIRS_CACHE["ts"] = now
